@@ -1,0 +1,10 @@
+bin/
+obj/
+.vs/
+*.user
+*.suo
+TestResults/
+packages/
+*.vsix
+ue/UEToVSLink/Binaries/
+ue/UEToVSLink/Intermediate/
