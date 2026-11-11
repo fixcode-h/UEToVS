@@ -195,6 +195,24 @@ namespace UEToVS.Core.Protocol
         public ItemOrigin Origin { get; set; }
     }
 
+    public sealed class MissingDependency
+    {
+        public string Include { get; set; }
+
+        /// <summary>0-based line of the #include.</summary>
+        public int Line { get; set; }
+
+        public string Module { get; set; }
+        public string OwnerModule { get; set; }
+        public string OwnerBuildCsPath { get; set; }
+    }
+
+    public sealed class IncludeRef
+    {
+        public string Path { get; set; }
+        public int Line { get; set; }
+    }
+
     public sealed class IndexerOptions
     {
         public string ProjectFile { get; set; }
@@ -224,6 +242,9 @@ namespace UEToVS.Core.Protocol
         Task<ModuleInfo> GetModuleForFileAsync(string filePath, CancellationToken ct);
 
         Task NotifyFileChangedAsync(string filePath, CancellationToken ct);
+
+        /// <summary>Includes of <paramref name="filePath"/> whose module is not visible from the file's module.</summary>
+        Task<List<MissingDependency>> CheckIncludesAsync(string filePath, IncludeRef[] includes, CancellationToken ct);
 
         Task ShutdownAsync();
     }

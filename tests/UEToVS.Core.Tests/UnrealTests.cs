@@ -133,3 +133,24 @@ public class MyGame : ModuleRules
         }
     }
 }
+
+namespace UEToVS.Core.Tests
+{
+    public class VisibilityTests
+    {
+        [Xunit.Fact]
+        public void TransitivePublicDependencies()
+        {
+            var rules = new System.Collections.Generic.Dictionary<string, string>
+            {
+                ["Game"] = "PublicDependencyModuleNames.AddRange(new string[] { \"Engine\" }); PrivateDependencyModuleNames.Add(\"Slate\");",
+                ["Engine"] = "PublicDependencyModuleNames.AddRange(new string[] { \"CoreUObject\" }); PrivateDependencyModuleNames.Add(\"Renderer\");",
+                ["CoreUObject"] = "PublicDependencyModuleNames.Add(\"Core\");",
+                ["Slate"] = "PublicDependencyModuleNames.Add(\"SlateCore\"); PublicIncludePathModuleNames.Add(\"InputCore\");",
+            };
+            var visible = UEToVS.Core.Unreal.BuildCsFile.VisibleModules("Game", m => rules.TryGetValue(m, out var t) ? new UEToVS.Core.Unreal.BuildCsFile(m, t) : null);
+            foreach (var m in new[] { "Game", "Engine", "CoreUObject", "Core", "Slate", "SlateCore", "InputCore" }) Xunit.Assert.Contains(m, visible);
+            Xunit.Assert.DoesNotContain("Renderer", visible);
+        }
+    }
+}

@@ -9,11 +9,11 @@ namespace UEToVS.Core.Unreal
     public sealed class BuildCsFile
     {
         private static readonly Regex AddRange = new Regex(
-            @"(?<list>PublicDependencyModuleNames|PrivateDependencyModuleNames)\s*\.\s*AddRange\s*\(\s*new\s+(?:string\s*)?\[\s*\]\s*\{(?<items>[^}]*)\}",
+            @"(?<list>PublicDependencyModuleNames|PrivateDependencyModuleNames|PublicIncludePathModuleNames|PrivateIncludePathModuleNames)\s*\.\s*AddRange\s*\(\s*new\s+(?:string\s*)?\[\s*\]\s*\{(?<items>[^}]*)\}",
             RegexOptions.Compiled | RegexOptions.Singleline);
 
         private static readonly Regex AddOne = new Regex(
-            @"(?<list>PublicDependencyModuleNames|PrivateDependencyModuleNames)\s*\.\s*Add\s*\(\s*""(?<name>[^""]+)""\s*\)",
+            @"(?<list>PublicDependencyModuleNames|PrivateDependencyModuleNames|PublicIncludePathModuleNames|PrivateIncludePathModuleNames)\s*\.\s*Add\s*\(\s*""(?<name>[^""]+)""\s*\)",
             RegexOptions.Compiled);
 
         private static readonly Regex QuotedName = new Regex(@"""(?<name>[^""]+)""", RegexOptions.Compiled);
@@ -29,8 +29,34 @@ namespace UEToVS.Core.Unreal
         public string Text { get; private set; }
         public HashSet<string> PublicDependencies { get; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         public HashSet<string> PrivateDependencies { get; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        public HashSet<string> PublicIncludePathModules { get; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        public HashSet<string> PrivateIncludePathModules { get; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         public bool DependsOn(string module) => PublicDependencies.Contains(module) || PrivateDependencies.Contains(module);
+
+        /// <summary>
+        /// Every module whose headers <paramref name="root"/> can include: itself, its direct dependencies and, transitively,
+        /// the public dependencies of those (UBT propagates public include paths).
+        /// </summary>
+        public static HashSet<string> VisibleModules(string root, Func<string, BuildCsFile> load)
+        {
+            var visible = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { root };
+            var rootRules = load(root);
+            if (rootRules == null) return visible;
+            var queue = new Queue<string>();
+            foreach (var m in rootRules.DirectlyVisibleModules())
+                if (visible.Add(m)) queue.Enqueue(m);
+            while (queue.Count > 0)
+            {
+                var rules = load(queue.Dequeue());
+                if (rules == null) continue;
+                foreach (var m in rules.PublicDependencies)
+                    if (visible.Add(m)) queue.Enqueue(m);
+                foreach (var m in rules.PublicIncludePathModules)
+                    if (visible.Add(m)) queue.Enqueue(m);
+            }
+            return visible;
+        }
 
         public static string ModuleNameFromPath(string buildCsPath)
         {
@@ -43,17 +69,36 @@ namespace UEToVS.Core.Unreal
         {
             PublicDependencies.Clear();
             PrivateDependencies.Clear();
+            PublicIncludePathModules.Clear();
+            PrivateIncludePathModules.Clear();
             string code = StripComments(Text);
             foreach (Match m in AddRange.Matches(code))
             {
-                var set = m.Groups["list"].Value.StartsWith("Public", StringComparison.Ordinal) ? PublicDependencies : PrivateDependencies;
+                var set = SetFor(m.Groups["list"].Value);
                 foreach (Match n in QuotedName.Matches(m.Groups["items"].Value)) set.Add(n.Groups["name"].Value);
             }
             foreach (Match m in AddOne.Matches(code))
+                SetFor(m.Groups["list"].Value).Add(m.Groups["name"].Value);
+        }
+
+        private HashSet<string> SetFor(string list)
+        {
+            switch (list)
             {
-                var set = m.Groups["list"].Value.StartsWith("Public", StringComparison.Ordinal) ? PublicDependencies : PrivateDependencies;
-                set.Add(m.Groups["name"].Value);
+                case "PublicDependencyModuleNames": return PublicDependencies;
+                case "PrivateDependencyModuleNames": return PrivateDependencies;
+                case "PublicIncludePathModuleNames": return PublicIncludePathModules;
+                default: return PrivateIncludePathModules;
             }
+        }
+
+        /// <summary>Modules whose public headers this module may include (direct dependencies and include-path modules).</summary>
+        public IEnumerable<string> DirectlyVisibleModules()
+        {
+            foreach (var m in PublicDependencies) yield return m;
+            foreach (var m in PrivateDependencies) yield return m;
+            foreach (var m in PublicIncludePathModules) yield return m;
+            foreach (var m in PrivateIncludePathModules) yield return m;
         }
 
         /// <summary>

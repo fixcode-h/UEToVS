@@ -130,6 +130,50 @@ namespace UEToVS.Indexer.Rpc
             return Task.CompletedTask;
         }
 
+        public Task<List<MissingDependency>> CheckIncludesAsync(string filePath, IncludeRef[] includes, CancellationToken ct)
+        {
+            return Task.Run(() =>
+            {
+                var result = new List<MissingDependency>();
+                var snap = _store.Current;
+                var owner = GetModuleForFileAsync(filePath, ct).Result;
+                if (owner?.BuildCsPath == null) return result;
+
+                var cache = new Dictionary<string, BuildCsFile>(StringComparer.OrdinalIgnoreCase);
+                BuildCsFile Load(string module)
+                {
+                    if (cache.TryGetValue(module, out var f)) return f;
+                    f = null;
+                    if (snap.BuildCsByModule.TryGetValue(module, out var path))
+                    {
+                        try { f = new BuildCsFile(module, File.ReadAllText(path)); } catch (IOException) { }
+                    }
+                    cache[module] = f;
+                    return f;
+                }
+
+                var visible = BuildCsFile.VisibleModules(owner.Name, Load);
+                foreach (var inc in includes ?? Array.Empty<IncludeRef>())
+                {
+                    if (inc?.Path == null || inc.Path.EndsWith(".generated.h", StringComparison.OrdinalIgnoreCase)) continue;
+                    var module = FindModuleForIncludeAsync(inc.Path, ct).Result;
+                    if (module?.Name == null || visible.Contains(module.Name)) continue;
+                    // a header right next to the including file (relative include) is always fine
+                    var dir = Path.GetDirectoryName(filePath);
+                    if (File.Exists(Path.Combine(dir, inc.Path.Replace('/', Path.DirectorySeparatorChar)))) continue;
+                    result.Add(new MissingDependency
+                    {
+                        Include = inc.Path,
+                        Line = inc.Line,
+                        Module = module.Name,
+                        OwnerModule = owner.Name,
+                        OwnerBuildCsPath = owner.BuildCsPath,
+                    });
+                }
+                return result;
+            }, ct);
+        }
+
         public Task ShutdownAsync()
         {
             _shutdown.Cancel();
