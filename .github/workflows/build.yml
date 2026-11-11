@@ -1,0 +1,53 @@
+name: Build
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - uses: microsoft/setup-msbuild@v2
+
+      - name: Test
+        run: |
+          dotnet test tests\UEToVS.Core.Tests -c Release
+          dotnet test tests\UEToVS.Indexer.Tests -c Release
+
+      - name: Build VSIX
+        run: msbuild src\UEToVS\UEToVS.csproj /restore /p:Configuration=Release /p:DeployExtension=false /v:minimal
+
+      - name: Locate VSIX
+        id: vsix
+        shell: pwsh
+        run: |
+          $vsix = Get-ChildItem -Path src\UEToVS\bin -Recurse -Filter *.vsix | Select-Object -First 1
+          if (-not $vsix) { throw "No .vsix produced" }
+          "path=$($vsix.FullName)" >> $env:GITHUB_OUTPUT
+          Write-Host "VSIX: $($vsix.FullName) ($([math]::Round($vsix.Length / 1MB, 1)) MB)"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: UEToVS-vsix
+          path: ${{ steps.vsix.outputs.path }}
+
+      - name: Publish release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "v0.1.${{ github.run_number }}"
+          gh release create $tag "${{ steps.vsix.outputs.path }}" --target $env:GITHUB_SHA --title "UEToVS $tag" --notes "自动构建：双击 .vsix 安装（VS 2022 / 2026）。运行需要 .NET 8 运行时。UE 编辑器插件源码在仓库 ue/UEToVSLink，也随 VSIX 打包。"
