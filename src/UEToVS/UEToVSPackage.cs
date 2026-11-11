@@ -366,6 +366,7 @@ namespace UEToVS
             Actions.AddAction("UEToVS: 恢复 Visual Studio 原来的键位", RestoreKeymap);
             Actions.AddAction("UEToVS: 重建索引", Reindex);
             Actions.AddAction("UEToVS: 生成工程文件 (Generate Project Files)", () => UnrealTools.GenerateProjectFiles(this));
+            Actions.AddAction("UEToVS: 安装 UE 编辑器插件 UEToVSLink 到当前项目", () => UnrealTools.InstallEditorPlugin(this));
             Actions.AddAction("UEToVS: Live Coding 编译", () => UnrealTools.LiveCoding(this), "Ctrl+Alt+F11");
             Actions.AddAction("UEToVS: 打开设置", () => ShowOptionPage(typeof(GeneralOptions)));
         }

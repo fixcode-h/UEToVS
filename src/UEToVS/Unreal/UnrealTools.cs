@@ -132,5 +132,40 @@ namespace UEToVS.Unreal
                     : "UEToVS: 编辑器未连接，已复制资产路径 " + asset.ObjectPath);
             });
         }
+
+        /// <summary>Copies the bundled UEToVSLink editor plugin into &lt;Project&gt;/Plugins.</summary>
+        public static void InstallEditorPlugin(UEToVSPackage pkg)
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+            string projectRoot = pkg.ProjectFile == null ? null : Path.GetDirectoryName(pkg.ProjectFile);
+            if (projectRoot == null)
+            {
+                OutputLog.Status("UEToVS: 当前解决方案没有 .uproject");
+                return;
+            }
+            string source = Path.Combine(Path.GetDirectoryName(typeof(UnrealTools).Assembly.Location), "EditorPlugin", "UEToVSLink");
+            string target = Path.Combine(projectRoot, "Plugins", "UEToVSLink");
+            if (!Directory.Exists(source))
+            {
+                OutputLog.Status("UEToVS: 扩展里没有找到插件源码 " + source);
+                return;
+            }
+            try
+            {
+                foreach (var file in Directory.GetFiles(source, "*", SearchOption.AllDirectories))
+                {
+                    string dest = Path.Combine(target, file.Substring(source.Length).TrimStart('\\', '/'));
+                    Directory.CreateDirectory(Path.GetDirectoryName(dest));
+                    File.Copy(file, dest, true);
+                }
+                OutputLog.Write("UEToVSLink copied to " + target);
+                OutputLog.Status("UEToVS: 插件已复制到 Plugins/UEToVSLink，重新生成工程文件并编译编辑器后生效");
+            }
+            catch (Exception ex)
+            {
+                OutputLog.Write("Installing UEToVSLink failed: " + ex.Message);
+                OutputLog.Status("UEToVS: 复制插件失败，详见输出窗口");
+            }
+        }
     }
 }
