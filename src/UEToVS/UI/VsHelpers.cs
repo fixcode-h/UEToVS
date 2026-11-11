@@ -67,7 +67,7 @@ namespace UEToVS.UI
             return LocationOf(ActiveTextView());
         }
 
-        /// <summary>Opens a file and puts the caret at 0-based line/column, centered.</summary>
+        /// <summary>Opens a file and puts the caret at 0-based line/column, centered. line &lt; 0 only opens the file.</summary>
         public static bool OpenAt(string path, int line, int column, bool newTabGroup = false)
         {
             ThreadHelper.ThrowIfNotOnUIThread();
@@ -82,6 +82,7 @@ namespace UEToVS.UI
                     out _, out _, out IVsWindowFrame frame, out IVsTextView view);
                 if (newTabGroup) TryExecute("Window.NewVerticalTabGroup");
                 frame?.Show();
+                if (line < 0) return true; // just open/activate, keep the caret where it was
                 if (view == null) view = VsShellUtilities.GetTextView(frame);
                 if (view == null) return true;
                 view.GetBuffer(out IVsTextLines lines);

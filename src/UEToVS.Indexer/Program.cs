@@ -45,7 +45,7 @@ namespace UEToVS.Indexer
 
             var layout = ProjectLayout.Discover(project, engine);
             Log.Info($"Project: {layout.ProjectRoot ?? "-"}  Engine: {layout.EngineRoot ?? "(not found)"} {layout.EngineVersion}");
-            using var store = new IndexStore(layout, cache);
+            using var store = new IndexStore(layout, cache) { IgnoreCache = args.Contains("--rebuild") };
             var textSearcher = new TextSearcher(store);
             var service = new IndexService(store, textSearcher, shutdown);
 

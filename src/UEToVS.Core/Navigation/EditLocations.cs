@@ -23,6 +23,12 @@ namespace UEToVS.Core.Navigation
         public int MergeLines { get; set; }
         public IReadOnlyList<CodeLocation> Items => _items;
 
+        public void Clear()
+        {
+            _items.Clear();
+            _cursor = -1;
+        }
+
         public void RecordEdit(CodeLocation loc)
         {
             if (loc == null) return;

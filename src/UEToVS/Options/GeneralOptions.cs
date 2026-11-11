@@ -81,5 +81,14 @@ namespace UEToVS.Options
         [DisplayName("弹窗尺寸")]
         [Browsable(false)]
         public string PopupBounds { get; set; } = string.Empty;
+
+        /// <summary>Raised after the user pressed OK on the options page.</summary>
+        public event System.EventHandler Applied;
+
+        protected override void OnApply(PageApplyEventArgs e)
+        {
+            base.OnApply(e);
+            if (e.ApplyBehavior == ApplyKind.Apply) Applied?.Invoke(this, System.EventArgs.Empty);
+        }
     }
 }

@@ -108,6 +108,7 @@ namespace UEToVS.Core.Bookmarks
                 if (p.Length < 4 || !int.TryParse(p[1], out int l)) continue;
                 _items.Add(new Bookmark(new CodeLocation(p[0], l, 0), p[2].Length == 1 ? p[2][0] : (char?)null, p[3].Length == 0 ? null : p[3]));
             }
+            Changed?.Invoke(this, EventArgs.Empty);
         }
     }
 }

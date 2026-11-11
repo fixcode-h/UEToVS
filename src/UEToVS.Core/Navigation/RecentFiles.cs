@@ -32,6 +32,8 @@ namespace UEToVS.Core.Navigation
 
         public IEnumerable<RecentFileEntry> EditedOnly => _items.Where(i => i.Edited);
 
+        public void Clear() => _items.Clear();
+
         public void Touch(string path, DateTime now)
         {
             int idx = IndexOf(path);
@@ -121,6 +123,8 @@ namespace UEToVS.Core.Navigation
         public int Capacity { get; set; }
         public int MergeLines { get; set; }
         public IReadOnlyList<RecentLocationEntry> Items => _items;
+
+        public void Clear() => _items.Clear();
 
         public void Add(CodeLocation loc, DateTime now, bool isEdit, string context = null)
         {

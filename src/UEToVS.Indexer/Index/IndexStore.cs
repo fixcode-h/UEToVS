@@ -48,6 +48,9 @@ namespace UEToVS.Indexer.Index
         }
 
         public ProjectLayout Layout { get; }
+
+        /// <summary>Ignore cached symbols and reparse everything (--rebuild).</summary>
+        public bool IgnoreCache { get; set; }
         public string CacheDir { get; }
         public Snapshot Current => _snapshot;
         public bool FilesReady { get; private set; }
@@ -79,7 +82,7 @@ namespace UEToVS.Indexer.Index
             var engineCache = EngineCacheFile();
             var projectCache = ProjectCacheFile();
             var cached = new Dictionary<string, FileRecord>(StringComparer.OrdinalIgnoreCase);
-            foreach (var file in new[] { engineCache, projectCache })
+            foreach (var file in IgnoreCache ? new string[0] : new[] { engineCache, projectCache })
                 foreach (var kv in IndexCache.Load(file)) cached[kv.Key] = kv.Value;
 
             var toParse = new List<FileRecord>();
