@@ -22,7 +22,9 @@ jobs:
       - uses: microsoft/setup-msbuild@v2
 
       - name: Test
-        run: dotnet test UEToVS.sln -c Release
+        run: |
+          dotnet test tests\UEToVS.Core.Tests -c Release
+          dotnet test tests\UEToVS.Indexer.Tests -c Release
 
       - name: Build VSIX
         run: msbuild src\UEToVS\UEToVS.csproj /restore /p:Configuration=Release /p:DeployExtension=false /v:minimal
