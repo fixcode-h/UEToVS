@@ -73,7 +73,7 @@
     <DownloadFile Condition="!Exists('$(MSBuildProjectDirectory)\obj\rg\rg.zip')" ContinueOnError="true"
                   SourceUrl="https://github.com/BurntSushi/ripgrep/releases/download/$(RipgrepVersion)/ripgrep-$(RipgrepVersion)-x86_64-pc-windows-msvc.zip"
                   DestinationFolder="$(MSBuildProjectDirectory)\obj\rg" DestinationFileName="rg.zip" />
-    <Unzip Condition="Exists('$(MSBuildProjectDirectory)\obj\rg\rg.zip')" ContinueOnError="true"
+    <Microsoft.Build.Tasks.Unzip Condition="Exists('$(MSBuildProjectDirectory)\obj\rg\rg.zip')" ContinueOnError="true"
            SourceFiles="$(MSBuildProjectDirectory)\obj\rg\rg.zip" DestinationFolder="$(MSBuildProjectDirectory)\obj\rg" />
     <ItemGroup>
       <IndexerFiles Include="$(MSBuildProjectDirectory)\obj\IndexerPublish\**\*" />
