@@ -15,7 +15,7 @@
     </Menus>
     <Groups>
       <Group guid="guidCmdSet" id="grpTopLevel" priority="0x0100">
-        <Parent guid="guidSHLMainMenu" id="IDM_VS_MENU_EXTENSIONS" />
+        <Parent guid="guidUEToVSMainMenu" id="IDM_UETOVS_MENU_EXTENSIONS" />
       </Group>
       <Group guid="guidCmdSet" id="grpSearch" priority="0x0100">
         <Parent guid="guidCmdSet" id="menuUEToVS" />
@@ -440,6 +440,10 @@
   </CommandPlacements>
 
   <Symbols>
+    <!-- Extensions menu (vsshlids.h IDM_VS_MENU_EXTENSIONS); declared here because older VSSDK headers lack it. -->
+    <GuidSymbol name="guidUEToVSMainMenu" value="{d309f791-903f-11d0-9efc-00a0c911004f}">
+      <IDSymbol name="IDM_UETOVS_MENU_EXTENSIONS" value="0x0091" />
+    </GuidSymbol>
     <GuidSymbol name="guidPackage" value="{64ba7109-f59c-4087-8be2-6f76697024b7}" />
     <GuidSymbol name="guidCmdSet" value="{15220305-5cc6-47e4-a051-ea4b17aca31e}">
       <IDSymbol name="menuUEToVS" value="0x1000" />
