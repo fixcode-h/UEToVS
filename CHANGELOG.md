@@ -16,6 +16,7 @@
 - **Smart Select（扩大 / 缩小选区）** — Shift+Alt+W 按语法逐级扩大选区：单词 → 字符串内容 → 字符串 → 参数 → 括号内容 → 括号 → 调用（含 `Obj->Func`）→ 语句 → 块内容 → 块 → 带 if / for / 函数签名的整块；Ctrl+Shift+Alt+W 按原路缩回。只在按键时计算（超大文件只看选区附近 200 KB）；日志 `edit.smartSelect`
 - **Natvis：补充 UE 常见类型** — VSIX 自带调试可视化（NativeVisualizer）：`FGameplayTag`、`FGameplayTagContainer`、`FTopLevelAssetPath`、`FSoftObjectPath`、`TSoftObjectPtr` / `TSoftClassPtr`、`FPrimaryAssetId` / `FPrimaryAssetType`、`FTimerHandle`、`FDataTableRowHandle`、`FGameplayAttributeData`、GAS 句柄。引擎 Unreal.natvis 已有的类型（TArray、FString、FName、TMap、UObject、TObjectPtr …）不重复定义
 - **着色器文件（.usf / .ush）着色与 #include 跳转** — HLSL 关键字、向量 / 矩阵 / 资源类型、内建函数、`SV_` 语义、注释、字符串、数字和预处理指令按 VS 标准颜色显示（只着色可见行，逐行词法分析）；在 `#include "/Engine/…"`、`"/Project/…"`、`"/Plugin/<名>/…"` 或相对路径上按 F12 打开对应文件（`/Plugin/` 只在按键时查找一次同名 .uplugin）。日志 `shader.include.goto`
+- **.uproject / .uplugin / .ini 补全与跳转** — 描述文件里补全模块 `Type`、`LoadingPhase`、平台 / 目标 / 配置的允许和禁止列表；在 `Modules` 的 `Name`、`AdditionalDependencies` 上按 F12 打开对应 `.Build.cs`，在 `Plugins` 的 `Name` 上打开 `.uplugin`。ini 里 `[/Script/模块.类]` 下的行首补全该类（含基类）的 `Config` / `GlobalConfig` 属性名，F12 在节标题上跳到类、在键名上跳到属性声明。全部只在按键时计算，结果按节缓存 30 秒；日志 `projectFiles.goto`
 
 ## v0.4.1
 
