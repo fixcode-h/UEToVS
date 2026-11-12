@@ -42,6 +42,7 @@ namespace UEToVS.Engine
             Scheduler = new RequestScheduler(options.MaxParallelism);
             Index = new IndexOrchestrator(Paths.Index, Scheduler, backend ?? new SegmentedIndexBackend(), parser ?? new SyntaxFileParser());
             Search = new SearchService(Index);
+            Navigation = new Navigation.NavigationService(Index.Backend, Index.Files, () => Index.Phase == IndexPhase.Ready);
             Changes = new FileChangeTracker(batch => Index.ApplyChangesAsync(batch, _shutdown.Token));
             Watchdog = new Watchdog { Context = () => QueueContext() };
             Performance = new PerformanceMonitor();
@@ -53,6 +54,7 @@ namespace UEToVS.Engine
         public RequestScheduler Scheduler { get; }
         public IndexOrchestrator Index { get; }
         public SearchService Search { get; }
+        public Navigation.NavigationService Navigation { get; }
         public FileChangeTracker Changes { get; }
         public Watchdog Watchdog { get; }
         public PerformanceMonitor Performance { get; }

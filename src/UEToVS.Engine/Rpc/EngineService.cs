@@ -163,25 +163,49 @@ namespace UEToVS.Engine.Rpc
                 return Task.CompletedTask;
             }, ct, ("paused", paused));
 
-        // ---- M2 navigation: stubs, implemented by the navigation service ----
+        // ---- M2 navigation (NavigationService): navigation / highlights on the Interactive lane, references / hierarchy Visible + cancellable ----
 
         public Task<NavigationResponse> NavigateAsync(NavigationRequest request, CancellationToken ct) =>
-            InvokeAsync("rpc.navigate", _ => Task.FromResult(new NavigationResponse { Word = string.Empty }), ct);
+            InvokeAsync("rpc.navigate", c =>
+            {
+                if (request?.Caret == null) throw Error(RpcErrorCodes.InvalidArgument, "Navigate needs a caret");
+                return _host.Scheduler.RunAsync(WorkPriority.Interactive, "rpc.navigate", t => _host.Navigation.Navigate(request, t), c);
+            }, ct, ("kind", request?.Kind.ToString()), ("file", request?.Caret?.FilePath), ("line", request?.Caret?.Line), ("col", request?.Caret?.Column),
+                ("buffer", request?.Caret?.Text != null));
 
         public Task<ReferencesResponse> FindReferencesAsync(ReferencesRequest request, CancellationToken ct) =>
-            InvokeAsync("rpc.findReferences", _ => Task.FromResult(new ReferencesResponse()), ct);
+            InvokeAsync("rpc.findReferences", c =>
+            {
+                if (request == null || (request.Caret == null && request.Symbol == null)) throw Error(RpcErrorCodes.InvalidArgument, "FindReferences needs a caret or a symbol");
+                return _host.Scheduler.RunAsync(WorkPriority.Visible, "rpc.findReferences", t => _host.Navigation.FindReferences(request, t), c);
+            }, ct, ("file", request?.Caret?.FilePath), ("line", request?.Caret?.Line), ("symbol", request?.Symbol?.Name), ("nonProject", request?.IncludeNonProject),
+                ("max", request?.MaxResults));
 
         public Task<TypeHierarchyResponse> GetTypeHierarchyAsync(TypeHierarchyRequest request, CancellationToken ct) =>
-            InvokeAsync("rpc.getTypeHierarchy", _ => Task.FromResult(new TypeHierarchyResponse()), ct);
+            InvokeAsync("rpc.getTypeHierarchy", c =>
+            {
+                if (request == null || (request.Caret == null && string.IsNullOrEmpty(request.TypeName)))
+                    throw Error(RpcErrorCodes.InvalidArgument, "GetTypeHierarchy needs a caret or a type name");
+                return _host.Scheduler.RunAsync(WorkPriority.Visible, "rpc.getTypeHierarchy", t => _host.Navigation.GetTypeHierarchy(request, t), c);
+            }, ct, ("type", request?.TypeName), ("file", request?.Caret?.FilePath), ("direction", request?.Direction.ToString()));
 
         public Task<HighlightResponse> GetHighlightsAsync(CaretRequest caret, CancellationToken ct) =>
-            InvokeAsync("rpc.getHighlights", _ => Task.FromResult(new HighlightResponse { Word = string.Empty }), ct);
+            InvokeAsync("rpc.getHighlights", c => caret == null
+                    ? Task.FromResult(new HighlightResponse { Word = string.Empty })
+                    : _host.Scheduler.RunAsync(WorkPriority.Interactive, "rpc.getHighlights", t => _host.Navigation.GetHighlights(caret, t), c),
+                ct, ("file", caret?.FilePath), ("line", caret?.Line), ("version", caret?.TextVersion));
 
         public Task<CaretContextResponse> GetCaretContextAsync(CaretRequest caret, CancellationToken ct) =>
-            InvokeAsync("rpc.getCaretContext", _ => Task.FromResult(new CaretContextResponse()), ct);
+            InvokeAsync("rpc.getCaretContext", c => caret == null
+                    ? Task.FromResult(new CaretContextResponse())
+                    : _host.Scheduler.RunAsync(WorkPriority.Interactive, "rpc.getCaretContext", t => _host.Navigation.GetCaretContext(caret, t), c),
+                ct, ("file", caret?.FilePath), ("line", caret?.Line));
 
         public Task<MembersResponse> GetMembersAsync(MembersRequest request, CancellationToken ct) =>
-            InvokeAsync("rpc.getMembers", _ => Task.FromResult(new MembersResponse()), ct);
+            InvokeAsync("rpc.getMembers", c => string.IsNullOrEmpty(request?.TypeName)
+                    ? Task.FromResult(new MembersResponse())
+                    : _host.Scheduler.RunAsync(WorkPriority.Interactive, "rpc.getMembers", t => _host.Navigation.GetMembers(request, t), c),
+                ct, ("type", request?.TypeName), ("container", request?.Container), ("inherited", request?.IncludeInherited));
 
         // ---- indexing settings: stubs, implemented by the indexing work ----
 

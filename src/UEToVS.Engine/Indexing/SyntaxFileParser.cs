@@ -21,7 +21,7 @@ namespace UEToVS.Engine.Indexing
         {
             _options = options ?? new ParseOptions();
             var kb = _options.Knowledge ?? UeMacroKnowledge.Default;
-            Version = "syntax1+kb" + (kb.Version ?? "0");
+            Version = "syntax2+kb" + (kb.Version ?? "0");
         }
 
         public string Name => "syntax";
@@ -67,6 +67,7 @@ namespace UEToVS.Engine.Indexing
                     Column = d.Column,
                     IsDefinition = d.IsDefinition,
                     IsConditional = d.IsConditional,
+                    Bases = d.Bases != null && d.Bases.Length > 0 ? d.Bases : null,
                 });
             }
 
@@ -74,6 +75,20 @@ namespace UEToVS.Engine.Indexing
             var occInputs = new OccurrenceInput[occ.Count];
             for (int i = 0; i < occ.Count; i++)
                 occInputs[i] = new OccurrenceInput { Name = occ[i].Name, Offset = occ[i].Offset, Role = (byte)occ[i].Role };
+            if (file.Origin == ItemOrigin.Project || file.Origin == ItemOrigin.ProjectPlugin)
+            {
+                // The body scanner only reports identifiers inside function bodies. Find References also needs type uses in
+                // declarations (field / parameter / base types), so project files get those too (engine files would cost
+                // too much disk for little use: their references are rarely asked for).
+                var extra = DeclarationContextOccurrences.Collect(summary.TranscodedText != null ? (ReadOnlySpan<byte>)summary.TranscodedText : utf8.Span, summary, ct);
+                if (extra.Count > 0)
+                {
+                    var merged = new OccurrenceInput[occInputs.Length + extra.Count];
+                    occInputs.CopyTo(merged, 0);
+                    extra.CopyTo(merged, occInputs.Length);
+                    occInputs = merged;
+                }
+            }
 
             var includes = new string[summary.Includes.Count];
             for (int i = 0; i < includes.Length; i++) includes[i] = summary.Includes[i].Path;
