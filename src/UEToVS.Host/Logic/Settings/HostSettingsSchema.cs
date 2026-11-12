@@ -43,6 +43,8 @@ namespace UEToVS.Host.Logic.Settings
             public const string IntelliSenseStatus = "settings.intelliSense.status";
             public const string LogDirectory = "settings.logging.directory";
             public const string VsUnrealIntegration = "settings.general.vsUnrealIntegration";
+            /// <summary>"检查更新": latest GitHub release → download VSIX → start VSIXInstaller.</summary>
+            public const string CheckForUpdates = "settings.general.checkForUpdates";
         }
 
         public static IReadOnlyList<SettingCategory> Categories { get; } = new[]
@@ -127,6 +129,11 @@ namespace UEToVS.Host.Logic.Settings
                 "false", gCpp, gCppEn));
             list.Add(A(General, "vs.unrealIntegration", WindowActions.VsUnrealIntegration, "VS 自带的 Unreal Engine 集成", "VS's built-in Unreal Engine integration",
                 null, null, gCpp, gCppEn, SettingKind.Info));
+
+            list.Add(A(General, "update.check", WindowActions.CheckForUpdates, "检查更新", "Check for updates",
+                "查询 GitHub 上的最新版本；有新版本时下载安装包并启动 VS 的扩展安装程序，关闭 VS 后完成安装。",
+                "Looks up the latest release on GitHub; when there is a newer one, downloads it and starts VS's extension installer, which finishes after VS closes.",
+                "更新", "Updates"));
 
             const string gTb = "工具栏", gTbEn = "Toolbar";
             list.Add(D(General, "toolbar.show", SettingKind.Bool, "显示 UEToVS 工具栏", "Show the UEToVS toolbar",
@@ -361,6 +368,7 @@ namespace UEToVS.Host.Logic.Settings
         {
             ["engine.restart"] = ("重启", "Restart"),
             ["intelliSense.toggle"] = ("执行", "Run"),
+            ["update.check"] = ("检查", "Check"),
             ["mcp.writeConfig"] = ("写入", "Write"),
             ["indexing.rebuildProject"] = ("重建", "Rebuild"),
             ["indexing.rebuildEngine"] = ("重建", "Rebuild"),

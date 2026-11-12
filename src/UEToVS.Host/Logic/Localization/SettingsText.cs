@@ -52,6 +52,12 @@ namespace UEToVS.Host.Logic.Localization
             "上面的“启用 VS 自带的蓝图扫描”关闭时，UEToVS 会找到这个开关并关掉（修改前备份），下次启动 VS 生效；关掉后 VS 自己的 Code Lens 蓝图引用也会停用。",
             "The status bar message “Scanning Blueprints from X.uproject” comes from VS's own Unreal Engine integration (Blueprint Support under Project > Configure Tools for Unreal Engine), not from UEToVS; UEToVS only lists asset file names and never reads .uasset files. " +
             "With “Enable VS's own Blueprint scan” above turned off, UEToVS finds that switch and turns it off (backed up first); it takes effect from the next VS start and also turns off VS's Code Lens Blueprint references.");
+        public static string UpdateBusy => Loc.T("正在检查更新…", "Checking for updates…");
+        public static string UpdateUpToDate(string v) => Loc.F("已是最新版本（v{0}）", "You have the latest version (v{0})", v);
+        public static string UpdateCheckFailed(string why) => Loc.F("检查更新失败：{0}", "Update check failed: {0}", why);
+        public static string UpdateDownloadFailed => Loc.T("下载的安装包不完整，请重试。", "The downloaded package is incomplete; please try again.");
+        public static string UpdateInstallerStarted(string v) => Loc.F(
+            "已下载 v{0} 并启动安装程序：请关闭 Visual Studio，安装完成后重新打开。", "Downloaded v{0} and started the installer: close Visual Studio, then reopen it after the install finishes.", v);
         public static string VsBlueprintOptionsFound(string list) => Loc.F("本机找到的 VS 蓝图开关：{0}", "VS Blueprint options found on this machine: {0}", list);
         public static string VsBlueprintOptionsNone => Loc.T(
             "本机没有找到 VS 蓝图开关，UEToVS 无法自动关闭。请在 项目 > Configure Tools for Unreal Engine 里手动关掉 Blueprint Support。",

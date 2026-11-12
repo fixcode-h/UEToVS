@@ -76,6 +76,8 @@ namespace UEToVS.Host.Settings
                         await engine.SetIndexingSettingsAsync(HostSettingsSchema.Codec.ToIndexing(_package.Settings.Effective)).ConfigureAwait(true);
                     return await RebuildAsync(engine, RebuildScope.Lua);
                 }
+                case HostSettingsSchema.WindowActions.CheckForUpdates:
+                    return await Update.UpdateService.CheckAndInstallAsync(HostPackage.HostVersion).ConfigureAwait(true);
                 case HostSettingsSchema.WindowActions.ToggleIntelliSense:
                 {
                     var svc = _package.IntelliSense;
