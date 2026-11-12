@@ -92,6 +92,29 @@ namespace UEToVS.Contracts
 
         /// <summary>Virtual functions of a class's bases (engine classes included) that it does not override yet.</summary>
         Task<OverridableMethodsResponse> GetOverridableMethodsAsync(OverridableMethodsRequest request, CancellationToken ct);
+
+        // ---- v0.4.5 navigation gaps (see CallHierarchy.cs)
+
+        /// <summary>One level of the call hierarchy: direct callers (delegate bindings included) or direct callees of a function.</summary>
+        Task<CallHierarchyResponse> GetCallHierarchyAsync(CallHierarchyRequest request, CancellationToken ct);
+        // ---- v0.4.5 编辑体验 (see InlayHints.cs) ----
+
+        /// <summary>Inlay hints (parameter names before literal arguments, deduced auto types) for a line range of a document.</summary>
+        Task<InlayHintsResponse> GetInlayHintsAsync(InlayHintsRequest request, CancellationToken ct);
+        // ---- v0.4.5 UE editor link (see UeCode.cs): on-demand scans of the project sources ----
+
+        /// <summary>Automation tests declared in the project (IMPLEMENT_*_AUTOMATION_TEST, BEGIN_DEFINE_SPEC / DEFINE_SPEC).</summary>
+        Task<AutomationTestsResponse> FindAutomationTestsAsync(AutomationTestsRequest request, CancellationToken ct);
+
+        /// <summary>Declarations, definitions and UE_LOG / UE_CLOG / UE_LOGFMT uses of one log category (with decoded formats).</summary>
+        Task<LogSitesResponse> FindLogSitesAsync(LogSitesRequest request, CancellationToken ct);
+        // ---- v0.4.5 heavy features (see HeavyFeatures.cs); each answers HeavyJobState.Disabled when switched off ----
+
+        /// <summary>Whole-project UE rule inspection: start / status / results page / cancel.</summary>
+        Task<ProjectInspectionResponse> ProjectInspectionAsync(ProjectInspectionRequest request, CancellationToken ct);
+
+        /// <summary>Engine upgrade assistant: project references to deprecated APIs (start / status / results / cancel).</summary>
+        Task<DeprecationScanResponse> DeprecationScanAsync(DeprecationScanRequest request, CancellationToken ct);
     }
 
     /// <summary>Notifications engine → host.</summary>

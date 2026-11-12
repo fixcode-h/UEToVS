@@ -107,6 +107,11 @@ namespace UEToVS.Host.Settings
                     var report = svc.BackupExists ? await svc.RestoreAsync("settingsWindow") : await svc.TakeOverAsync("settingsWindow");
                     return report != null ? SettingsText.Done : SettingsText.Failed;
                 }
+                // ---- v0.4.5 UE editor link
+                case HostSettingsSchema.WindowActions.LinkPluginInstall:
+                    return await Link.LinkPluginManager.InstallAsync(_package, "settingsWindow");
+                case HostSettingsSchema.WindowActions.LinkPluginUninstall:
+                    return await Link.LinkPluginManager.UninstallAsync(_package);
                 default:
                     if (_package.Actions.Get(actionId) == null) return SettingsText.ActionUnavailable;
                     _package.ExecuteAction(actionId);
@@ -159,6 +164,9 @@ namespace UEToVS.Host.Settings
                     if (found == null) return SettingsText.VsUnrealIntegration;
                     return SettingsText.VsUnrealIntegration + "\n" + (found.Count == 0 ? SettingsText.VsBlueprintOptionsNone : SettingsText.VsBlueprintOptionsFound(string.Join(", ", found)));
                 }
+                // ---- v0.4.5 UE editor link
+                case HostSettingsSchema.WindowActions.LinkPluginStatus:
+                    return Link.LinkPluginManager.StatusText(_package);
                 default:
                     return null;
             }

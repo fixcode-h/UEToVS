@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using UEToVS.Contracts;
 using UEToVS.Engine.Navigation;
@@ -56,6 +57,13 @@ namespace UEToVS.Engine.IntelliSense
                     {
                         string arg = doc.TokensText(lt + 1, callee).Trim();
                         string fn = doc.TokenText(nameTok);
+                        if (_s.Templates != null)
+                        {
+                            // v0.4.5: the function template's own return type with the explicit arguments bound (Cast<T>, NewObject<T>,
+                            // GetComponentByClass<T>, user templates); the factory rules below are the fallback
+                            string generic = ExplicitCallReturn(nameTok, depth, TemplateText.SplitTopLevel(arg, ','));
+                            if (generic != null) return generic;
+                        }
                         string factory = FactoryType(fn, arg);
                         if (factory != null) return factory;
                         return CallReturn(nameTok, depth);
@@ -147,24 +155,92 @@ namespace UEToVS.Engine.IntelliSense
             return UeBuiltins.WellKnownReturns.TryGetValue(name, out var known) ? known : null;
         }
 
-        /// <summary>Return type of member function <paramref name="name"/> called on a value of type <paramref name="left"/>.</summary>
-        public string MemberReturn(string left, bool arrow, string name)
+        /// <summary>
+        /// v0.4.5: return type of <c>name&lt;Args&gt;(…)</c> from the function template's declaration with the explicit arguments
+        /// bound (member call, member of the enclosing class, or free function). Null when nothing template-dependent was found.
+        /// </summary>
+        private string ExplicitCallReturn(int nameTok, int depth, List<string> explicitArgs)
         {
-            if (left == null) return Fallback(name);
+            var doc = _doc;
+            if (explicitArgs == null || explicitArgs.Count == 0) return null;
+            for (int i = 0; i < explicitArgs.Count; i++) explicitArgs[i] = explicitArgs[i].Trim();
+            string name = doc.TokenText(nameTok);
+            int before = Prev(nameTok);
+            if (doc.Is(before, Punct.Dot) || doc.Is(before, Punct.Arrow))
+                return MemberReturn(TypeOf(Prev(before), depth + 1), doc.Is(before, Punct.Arrow), name, explicitArgs, true);
+            if (!doc.Is(before, Punct.ColonColon) && _cls != null)
+            {
+                string r = MemberReturn(_cls, false, name, explicitArgs, true);
+                if (r != null) return r;
+            }
+            var res = SymbolResolver.ResolveToken(_s.Ctx, doc, nameTok, 1);
+            foreach (var c in res.Candidates)
+            {
+                if (!TypeText.IsCallableKind(c.Kind)) continue;
+                var (d, i) = _s.DeclOf(c);
+                if (d == null) continue;
+                string t = Clean(TemplateInstantiator.FunctionReturn(d.Decls[i], explicitArgs));
+                if (t != null && !IsTemplateParam(t)) return t;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// v0.4.5: the type <c>-&gt;</c> reaches on a value whose class declares <c>operator-&gt;</c> (user smart pointers, iterators):
+        /// <c>TMyPtr&lt;FFoo&gt;</c> → <c>FFoo</c>. Null when templates are off or there is no such operator.
+        /// </summary>
+        public string ArrowOperatorTarget(string valueType)
+        {
+            var tpl = _s.Templates;
+            if (tpl == null || valueType == null) return null;
+            var ts = TypeShape.Parse(tpl.ExpandAlias(_s, valueType));
+            if (ts.Shape != AccessShape.Value) return null;
+            var rec = _s.FindRecord(ts.Head);
+            if (rec == null) return null;
+            foreach (var e in _s.MembersOf(rec).Members)
+            {
+                var d = e.Decl;
+                if (d.Name != "operator->" || !TypeText.IsCallableKind(d.Kind)) continue;
+                string t = Clean(tpl.MemberType(_s, e, rec, ts.Args, Clean(d.Type)));
+                if (t == null || IsTemplateParam(t)) return null;
+                var rs = TypeShape.Parse(t);
+                return rs.IsPointerLike ? rs.Pointee() : t;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Type of <paramref name="t"/> for member access: aliases at the head expanded (alias templates, dependent member
+        /// types) when template instantiation is on.
+        /// </summary>
+        public string Expand(string t) => _s.Templates != null && t != null ? _s.Templates.ExpandAlias(_s, t) : t;
+
+        /// <summary>Return type of member function <paramref name="name"/> called on a value of type <paramref name="left"/>.</summary>
+        public string MemberReturn(string left, bool arrow, string name) => MemberReturn(left, arrow, name, null, false);
+
+        /// <param name="explicitArgs">Explicit template arguments of the call (<c>X-&gt;Get&lt;UFoo&gt;()</c>), or null.</param>
+        /// <param name="requireTemplate">Only answer from a member function template (explicit-argument path); no fallbacks.</param>
+        private string MemberReturn(string left, bool arrow, string name, IReadOnlyList<string> explicitArgs, bool requireTemplate)
+        {
+            if (left == null) return requireTemplate ? null : Fallback(name);
+            var tpl = _s.Templates;
+            left = Expand(left);
             var shape = TypeShape.Parse(left);
             string target = left;
             if (arrow || shape.Shape == AccessShape.RawPointer || shape.Shape == AccessShape.ObjectPtr)
             {
                 if (shape.IsPointerLike) target = shape.Pointee();
+                else if (arrow && tpl != null) target = ArrowOperatorTarget(left) ?? target;
             }
-            else if (shape.Shape == AccessShape.SmartPointer)
+            else if (shape.Shape == AccessShape.SmartPointer && !requireTemplate)
             {
                 var api = UeBuiltins.ApiOf(shape.Head);
                 var m = api?.FirstOrDefault(x => x.Name == name);
                 if (m?.Returns != null) return UeBuiltins.Instantiate(m.Returns, shape.Arg(0), shape.Arg(0), shape.Arg(1));
                 target = shape.Pointee();
             }
-            if (target == null) return Fallback(name);
+            if (target == null) return requireTemplate ? null : Fallback(name);
+            target = Expand(target);
             var ts = TypeShape.Parse(target);
             var rec = _s.FindRecord(ts.Head);
             if (rec != null)
@@ -174,15 +250,19 @@ namespace UEToVS.Engine.IntelliSense
                 {
                     var d = e.Decl;
                     if (d.Name != name || !TypeText.IsCallableKind(d.Kind)) continue;
+                    if (requireTemplate && string.IsNullOrEmpty(d.TemplateParameters)) continue;
                     string t = Clean(d.Type);
+                    if (tpl != null && t != null) t = Clean(tpl.MemberType(_s, e, rec, ts.Args, t, explicitArgs));
                     if (t != null && !IsTemplateParam(t)) return t;
                 }
+                if (requireTemplate) return null;
                 // fallback: index symbols of the type and its bases (file not readable)
                 var hits = _s.Ctx.MemberLookup(name, ts.Head, out _);
                 var f = hits.FirstOrDefault(c => TypeText.IsCallableKind(c.Kind));
                 string r = f != null ? Clean(SymbolResolver.ReturnType(f)) : null;
                 if (r != null && !IsTemplateParam(r)) return r;
             }
+            if (requireTemplate) return null;
             var builtin = UeBuiltins.ApiOf(ts.Head)?.FirstOrDefault(x => x.Name == name);
             if (builtin?.Returns != null) return UeBuiltins.Instantiate(builtin.Returns, ts.Arg(0), ts.Arg(0), ts.Arg(1));
             return Fallback(name);
@@ -194,15 +274,23 @@ namespace UEToVS.Engine.IntelliSense
         public string MemberField(string left, bool arrow, string name)
         {
             if (left == null) return null;
+            var tpl = _s.Templates;
+            left = Expand(left);
             var shape = TypeShape.Parse(left);
             string target = shape.IsPointerLike && (arrow || shape.Shape != AccessShape.SmartPointer) ? shape.Pointee() : left;
+            if (arrow && tpl != null && shape.Shape == AccessShape.Value) target = ArrowOperatorTarget(left) ?? target;
+            target = Expand(target);
             var ts = TypeShape.Parse(target);
             var rec = _s.FindRecord(ts.Head);
             if (rec == null) return null;
             foreach (var e in _s.MembersOf(rec).Members)
             {
                 var d = e.Decl;
-                if (d.Name == name && (d.Kind == SymbolKind.Field || d.Kind == SymbolKind.Variable)) return Clean(d.Type) ?? TypeText.TypeFromSignature(d.Signature, d.Name);
+                if (d.Name == name && (d.Kind == SymbolKind.Field || d.Kind == SymbolKind.Variable))
+                {
+                    string t = Clean(d.Type) ?? TypeText.TypeFromSignature(d.Signature, d.Name);
+                    return tpl != null && t != null ? tpl.MemberType(_s, e, rec, ts.Args, t) : t;
+                }
             }
             var hits = _s.Ctx.MemberLookup(name, ts.Head, out _);
             var v = hits.FirstOrDefault(c => c.Kind == SymbolKind.Field || c.Kind == SymbolKind.Variable);
@@ -240,6 +328,9 @@ namespace UEToVS.Engine.IntelliSense
             if (ev != null) return ev.Container;
             return null;
         }
+
+        /// <summary>v0.4.5 inlay hints: the type of a local as written, or deduced from its <c>auto</c> initializer / range (null when unknown).</summary>
+        public string DeducedType(LocalVariable l) => l == null ? null : LocalType(l, 0);
 
         private string LocalType(LocalVariable l, int depth)
         {

@@ -108,6 +108,8 @@ namespace UEToVS.Host.IntelliSense
                 foreach (var b in m.Badges) meta.Add(new ClassifiedTextRun(SemanticClassificationNames.UeMacro, b + "  "));
                 if (m.Location != null) meta.Add(new ClassifiedTextRun(PredefinedClassificationTypeNames.Comment, m.Location));
                 if (meta.Count > 0) parts.Add(new ClassifiedTextElement(meta));
+                if (m.Deprecation != null && IntelliSenseContext.Settings?.DeprecationHints != false) // v0.4.5 编辑体验
+                    parts.Add(new ClassifiedTextElement(new ClassifiedTextRun(PredefinedClassificationTypeNames.Keyword, "⚠ " + m.Deprecation)));
                 if (m.Documentation != null)
                     parts.Add((object)TranslatedDoc(m.Documentation, showOriginal: true) ??
                               new ClassifiedTextElement(new ClassifiedTextRun(PredefinedClassificationTypeNames.NaturalLanguage, m.Documentation)));
@@ -141,6 +143,19 @@ namespace UEToVS.Host.IntelliSense
                     steps.Add(new MacroStepView(null, new ClassifiedTextElement(new ClassifiedTextRun(PredefinedClassificationTypeNames.Comment, IntelliSenseStrings.MacroExpansionTruncated))));
                 string final = m.MacroSteps.Count > 0 ? m.MacroSteps[m.MacroSteps.Count - 1].Text : m.MacroExpansion;
                 parts.Add(new MacroExpansionElement(IntelliSenseStrings.MacroExpansionTitle, steps, final, expanded: m.MacroExpansionLines <= 6));
+            }
+            // ---- v0.4.5 navigation gaps: GENERATED_BODY() → UHT output
+            if (m.GeneratedCode != null)
+            {
+                if (parts.Count > 0) parts.Add(new ThematicBreakElement());
+                var runs = DeclarationTokenizer.Tokenize(m.GeneratedCode).Select(t => new ClassifiedTextRun(IntelliSenseEditor.ClassificationFor(t), t.Text)).ToList();
+                var steps = new List<MacroStepView> { new MacroStepView(NavGapStrings.GeneratedCodeFrom(m.GeneratedCodeFile), new ClassifiedTextElement(runs)) };
+                parts.Add(new MacroExpansionElement(NavGapStrings.GeneratedCodeTitle, steps, m.GeneratedCode, expanded: m.GeneratedCodeLines <= 12));
+            }
+            else if (m.GeneratedNote != null)
+            {
+                if (parts.Count > 0) parts.Add(new ThematicBreakElement());
+                parts.Add(new ClassifiedTextElement(new ClassifiedTextRun(PredefinedClassificationTypeNames.Comment, m.GeneratedNote)));
             }
             if (!ueOnly && m.ConfidenceNote != null)
                 parts.Add(new ClassifiedTextElement(new ClassifiedTextRun(PredefinedClassificationTypeNames.Comment, m.ConfidenceNote)));

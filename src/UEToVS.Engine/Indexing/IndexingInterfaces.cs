@@ -188,4 +188,16 @@ namespace UEToVS.Engine.Indexing
         /// <summary>Publishes a result of <see cref="PrepareBatch"/>; callers serialize calls and keep batch order.</summary>
         void PublishBatch(IDisposable prepared);
     }
+
+    // ---- v0.4.5 heavy features
+    /// <summary>
+    /// Optional backend capability (the segmented index has it): deprecation markers stored at index time and project-only
+    /// occurrence lookups. Used by the upgrade assistant; a backend without it reports "no deprecation data".
+    /// </summary>
+    public interface IDeprecationIndex
+    {
+        IReadOnlyList<UEToVS.Engine.Index.DeprecatedSymbol> ListDeprecated(CancellationToken ct);
+
+        IReadOnlyList<UEToVS.Engine.Index.OccurrenceHit> FindProjectOccurrences(string name, bool includePlugins, CancellationToken ct);
+    }
 }

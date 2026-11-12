@@ -50,13 +50,40 @@ namespace UEToVS.Engine
             Navigation = new Navigation.NavigationService(Index.Backend, Index.Files, () => Index.Phase == IndexPhase.Ready);
             IntelliSense = new IntelliSense.IntelliSenseService(Index.Backend, Index.Files, () => Index.Phase == IndexPhase.Ready, Navigation.Documents,
                 assets: Index.Assets);
-            Refactoring = new Refactoring.RefactoringService(Index.Backend, Index.Files, Navigation.Documents, () => Index.Phase == IndexPhase.Ready);
+            UeCode = new UeCode.UeCodeService(Index); // v0.4.5 editor link: tests / log sites, scanned on demand
+            Refactoring = new Refactoring.RefactoringService(Index.Backend, Index.Files, Navigation.Documents, () => Index.Phase == IndexPhase.Ready)
+            {
+                MemberTables = IntelliSense.MemberTables, // v0.4.5: Introduce Variable types expressions with the IntelliSense member tables
+            };
             Changes = new FileChangeTracker(batch => Index.ApplyChangesAsync(batch, _shutdown.Token));
             Watchdog = new Watchdog { Context = () => QueueContext() };
             Performance = new PerformanceMonitor();
             Lua = new LuaIndexService(Paths.Lua, options.SolutionDir, watch: !options.NoWatch, _shutdown.Token);
             if (options.LuaScriptPaths != null) Lua.Configure(options.LuaScriptPaths, "commandLine");
             Index.WorkspaceDiscovered += OnWorkspaceDiscovered;
+            // ---- v0.4.5 heavy features (on demand; switches from the settings window)
+            Inspection = new Inspection.ProjectInspectionService(IntelliSense, plugins => UEToVS.Engine.Inspection.ProjectInspectionService.ProjectFiles(Index.Files, plugins),
+                () => Index.Config.CppThreads, () => Index.Phase == IndexPhase.Ready, System.IO.Path.Combine(Paths.Root, "inspections"), options.SolutionDir)
+            {
+                ShouldPause = () => Scheduler.IsUserPaused || (Scheduler.IsBuildInProgress && Scheduler.BuildPolicy == BuildPolicy.Pause),
+            };
+            Upgrade = new Deprecation.DeprecationScanService(Index.Backend, Index.Files, () => Index.Phase == IndexPhase.Ready);
+            ApplyHeavyFeatureSettings(options.InitialIndexingSettings());
+        }
+
+        /// <summary>v0.4.5 whole-project UE rule inspection.</summary>
+        public Inspection.ProjectInspectionService Inspection { get; }
+
+        /// <summary>v0.4.5 engine upgrade assistant (deprecated API references).</summary>
+        public Deprecation.DeprecationScanService Upgrade { get; }
+
+        /// <summary>The three heavy-feature switches; off cancels a running job and frees the template cache.</summary>
+        private void ApplyHeavyFeatureSettings(IndexingSettings settings)
+        {
+            if (settings == null) return;
+            Inspection.Enabled = settings.ProjectInspectionEnabled;
+            Upgrade.Enabled = settings.UpgradeAssistantEnabled;
+            IntelliSense.ConfigureTemplates(settings.TemplateInstantiationEnabled, settings.TemplateCacheCapacity);
         }
 
         public EngineOptions Options { get; }
@@ -72,6 +99,9 @@ namespace UEToVS.Engine
 
         /// <summary>M4 refactoring queries (read-only; the host edits).</summary>
         public Refactoring.RefactoringService Refactoring { get; }
+
+        /// <summary>v0.4.5: automation tests and log categories in the project sources (on demand, cached per file).</summary>
+        public UeCode.UeCodeService UeCode { get; }
         public FileChangeTracker Changes { get; }
         public Watchdog Watchdog { get; }
         public PerformanceMonitor Performance { get; }
@@ -119,6 +149,7 @@ namespace UEToVS.Engine
             var config = IndexingConfig.From(settings);
             Scheduler.BuildPolicy = config.DuringBuild;
             Lua.Configure(settings.LuaScriptPaths, "settings");
+            ApplyHeavyFeatureSettings(settings);
             bool restart = Index.ApplyConfig(config);
             if (restart && CurrentWorkspaceOptions != null)
             {
@@ -351,6 +382,8 @@ namespace UEToVS.Engine
         {
             Interlocked.Exchange(ref _stopped, 1);
             try { _shutdown.Cancel(); } catch { }
+            Inspection.Dispose();
+            Upgrade.Dispose();
             lock (_gate) _watchTracker?.Dispose();
             Lua.Dispose();
             Changes.Dispose();

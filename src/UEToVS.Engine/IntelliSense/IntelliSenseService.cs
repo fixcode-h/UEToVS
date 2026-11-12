@@ -56,6 +56,44 @@ namespace UEToVS.Engine.IntelliSense
 
         public double QuickInfoBudgetMs { get; set; } = 50;
 
+        // ---- v0.4.5 heavy features: generic template instantiation (switch + LRU capacity from the settings window) ----
+        private readonly TemplateInstantiator _templates = new TemplateInstantiator();
+        private volatile bool _templatesEnabled = true;
+
+        /// <summary>The (template, arguments) binding cache: hit rate in the log as <c>intellisense.templates</c>.</summary>
+        public TemplateInstanceCache TemplateCache => _templates.Cache;
+
+        public bool TemplateInstantiationEnabled => _templatesEnabled;
+
+        /// <summary>Turns generic template instantiation on / off and sets the cache capacity. Off drops the cache (no memory kept).</summary>
+        public void ConfigureTemplates(bool enabled, int cacheCapacity)
+        {
+            bool changed = enabled != _templatesEnabled || (cacheCapacity > 0 && cacheCapacity != _templates.Cache.Capacity);
+            _templatesEnabled = enabled;
+            if (cacheCapacity > 0) _templates.Cache.Capacity = cacheCapacity;
+            if (!enabled) _templates.Cache.Clear();
+            if (changed)
+                L.Info("intellisense.templates.config", null, ("enabled", enabled), ("capacity", _templates.Cache.Capacity), ("maxDepth", _templates.MaxDepth));
+        }
+
+        /// <summary>A diagnostics provider configured like the squiggle one (gameplay tags, assets, index readiness), for whole-project inspection.</summary>
+        internal DiagnosticsProvider CreateDiagnosticsProvider() => new DiagnosticsProvider
+        {
+            Strings = _completion.Strings,
+            IndexReady = _indexReady,
+            GamePackageExists = _completion.GamePackageExists,
+        };
+
+        internal ISymbolIndexBackend Backend => _backend;
+        internal FileTable Files => _files;
+
+        /// <summary>
+        /// A session over an already parsed document with caller-owned caches (whole-project inspection: each run has its own
+        /// document / member caches, so it neither evicts the editor's documents nor keeps memory after it ends).
+        /// </summary>
+        internal IsSession CreateSession(DocumentModel doc, DocumentCache documents, MemberTableCache members, CancellationToken ct) =>
+            new IsSession(new NavContext(_backend, _files, doc, ct), doc, documents, members, Knowledge) { Templates = _templatesEnabled ? _templates : null };
+
         private IsSession Session(CaretRequest caret, CancellationToken ct, out DocumentModel doc)
         {
             doc = null;
@@ -63,7 +101,7 @@ namespace UEToVS.Engine.IntelliSense
             doc = Documents.Get(caret.FilePath, caret.Text, caret.TextVersion);
             if (doc == null) return null;
             var ctx = new NavContext(_backend, _files, doc, ct);
-            return new IsSession(ctx, doc, Documents, _members, Knowledge);
+            return new IsSession(ctx, doc, Documents, _members, Knowledge) { Templates = _templatesEnabled ? _templates : null };
         }
 
         private static int Offset(DocumentModel doc, CaretRequest caret) => doc.OffsetOf(Math.Max(0, caret.Line), Math.Max(0, caret.Column));
@@ -108,6 +146,7 @@ namespace UEToVS.Engine.IntelliSense
             var s = Session(caret, ct, out var doc);
             if (s == null) return new QuickInfoResponse { ElapsedMs = Ms(sw) };
             var resp = QuickInfoProvider.Get(s, Offset(doc, caret));
+            AddDeprecation(s, resp);
             resp.ElapsedMs = Ms(sw);
             var data = new (string, object)[]
             {
@@ -118,6 +157,28 @@ namespace UEToVS.Engine.IntelliSense
             if (resp.ElapsedMs > QuickInfoBudgetMs) L.Warn("is.quickinfo", "Quick Info over budget", data);
             else L.Debug("is.quickinfo", null, data);
             return resp;
+        }
+
+        /// <summary>v0.4.5: Quick Info names the deprecation of the hovered symbol (<see cref="DeprecationInfo"/>).</summary>
+        private static void AddDeprecation(IsSession s, QuickInfoResponse resp)
+        {
+            if (resp?.Symbol == null) return;
+            try
+            {
+                var info = DeprecationInfo.Of(s, resp.Symbol);
+                if (info == null) return;
+                resp.IsDeprecated = true;
+                resp.DeprecatedVersion = info.Version;
+                resp.DeprecationMessage = info.Message;
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                L.Warn("is.quickinfo.deprecation.failed", "Deprecation lookup failed", ex, ("symbol", resp.Symbol.Name));
+            }
         }
 
         // ================================================================== signature help
@@ -177,7 +238,8 @@ namespace UEToVS.Engine.IntelliSense
             int to = Math.Min(lineCount - 1, Math.Max(from, request.EndLine));
             int caret = request.Document.Line > 0 || request.Document.Column > 0 ? Offset(doc, request.Document) : -1;
             var stats = new DiagnosticsStats();
-            var items = _diagnostics.Run(s, from, to, caret, stats, request.UnsavedFiles);
+            var options = new DiagnosticsOptions { CheckDeprecated = request.CheckDeprecated, CheckNaming = request.CheckNaming };
+            var items = _diagnostics.Run(s, from, to, caret, stats, request.UnsavedFiles, options);
             var resp = new CodeDiagnosticsResponse
             {
                 TextVersion = request.Document.TextVersion != 0 ? request.Document.TextVersion : doc.Version,
@@ -198,6 +260,45 @@ namespace UEToVS.Engine.IntelliSense
             if (resp.ElapsedMs > budget) L.Warn("intellisense.diagnostics", "Diagnostics over budget", data);
             else if (items.Count > 0) L.Info("intellisense.diagnostics", null, data);
             else L.Debug("intellisense.diagnostics", null, data);
+            return resp;
+        }
+
+        // ================================================================== v0.4.5 inlay hints
+
+        /// <summary>Inlay hints budget for a viewport (~100 lines): they run after a scroll / edit pause, never per keystroke.</summary>
+        public double InlayHintsBudgetMs { get; set; } = 40;
+
+        public InlayHintsResponse GetInlayHints(InlayHintsRequest request, CancellationToken ct)
+        {
+            var sw = Stopwatch.StartNew();
+            var s = Session(request?.Document, ct, out var doc);
+            if (s == null) return new InlayHintsResponse { TextVersion = request?.Document?.TextVersion ?? 0, ElapsedMs = Ms(sw) };
+            int lineCount = doc.Lines.LineCount;
+            int from = Math.Max(0, request.StartLine);
+            int to = Math.Min(lineCount - 1, Math.Max(from, request.EndLine));
+            var stats = new InlayHintsStats();
+            var items = InlayHintsProvider.Run(s, from, to, request.ParameterNames, request.AutoTypes, stats);
+            var resp = new InlayHintsResponse
+            {
+                TextVersion = request.Document.TextVersion != 0 ? request.Document.TextVersion : doc.Version,
+                StartLine = from,
+                EndLine = to,
+                Items = items,
+                Calls = stats.Calls,
+                Resolved = stats.Resolved,
+                AutoVariables = stats.AutoVariables,
+                ElapsedMs = Ms(sw),
+            };
+            var data = new (string, object)[]
+            {
+                ("file", FileName(doc.Path)), ("lines", from + ".." + to), ("version", request.Document.TextVersion), ("items", items.Count),
+                ("parameterNames", request.ParameterNames), ("autoTypes", request.AutoTypes), ("calls", stats.Calls), ("resolved", stats.Resolved),
+                ("ambiguous", stats.Ambiguous), ("autoVariables", stats.AutoVariables), ("autoDeduced", stats.AutoDeduced), ("indexQueries", s.Ctx.IndexQueries),
+                ("ms", resp.ElapsedMs),
+            };
+            double budget = InlayHintsBudgetMs * Math.Max(1.0, (to - from + 1) / 100.0);
+            if (resp.ElapsedMs > budget) L.Warn("editor.inlayHints", "Inlay hints over budget", data);
+            else L.Debug("editor.inlayHints", null, data);
             return resp;
         }
 

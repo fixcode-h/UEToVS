@@ -93,7 +93,7 @@ namespace UEToVS.Host.IntelliSense
     /// then these are the user's only error marks. Requests the viewport ± 50 lines after an edit pause (500 ms) or a scroll out
     /// of the checked lines (200 ms); a newer request cancels the older one (<see cref="LatestRequestGate"/>); answers for another
     /// text version are dropped; until the new answer arrives the old squiggles are translated through the edits (no flicker).
-    /// The include check runs again only when the file's #include lines change. Error List integration is out of scope.
+    /// The include check runs again only when the file's #include lines change. v0.4.5: the items also go to the Error List (Build/ErrorListService.cs).
     /// </summary>
     internal sealed class CodeDiagnosticsTagger : ITagger<IErrorTag>
     {
@@ -132,6 +132,31 @@ namespace UEToVS.Host.IntelliSense
         }
 
         public event EventHandler<SnapshotSpanEventArgs> TagsChanged;
+
+        // ---- v0.4.5 编辑体验: the deprecated-API strikethrough and the Alt+Enter fixes read the current answer
+
+        /// <summary>The diagnostics tagger of a view, or null.</summary>
+        public static CodeDiagnosticsTagger For(ITextView view) =>
+            view != null && view.Properties.TryGetProperty(typeof(CodeDiagnosticsTagger), out CodeDiagnosticsTagger t) ? t : null;
+
+        /// <summary>Diagnostics of <paramref name="codes"/> (all when empty) with their spans in <paramref name="target"/> (translated through edits).</summary>
+        public List<(CodeDiagnostic Item, SnapshotSpan Span)> Spans(ITextSnapshot target, params string[] codes)
+        {
+            var list = new List<(CodeDiagnostic, SnapshotSpan)>();
+            var source = _snapshot;
+            if (source == null || target == null || target.TextBuffer != source.TextBuffer || !Enabled) return list;
+            foreach (var (item, _) in _items)
+            {
+                if (codes.Length > 0 && Array.IndexOf(codes, item.Code) < 0) continue;
+                if (item.Line < 0 || item.Line >= source.LineCount) continue;
+                var line = source.GetLineFromLineNumber(item.Line);
+                if (item.Column < 0 || item.Length <= 0 || item.Column + item.Length > line.Length) continue;
+                var span = new SnapshotSpan(source, line.Start.Position + item.Column, item.Length);
+                if (target != source) span = span.TranslateTo(target, SpanTrackingMode.EdgeExclusive);
+                if (!span.IsEmpty) list.Add((item, span));
+            }
+            return list;
+        }
 
         private static bool Enabled => IntelliSenseContext.DiagnosticsActive;
 
@@ -234,13 +259,18 @@ namespace UEToVS.Host.IntelliSense
             var unsaved = OpenCppDocuments.UnsavedExcept(path);
             var package = HostPackage.Instance;
             bool checkIncludes = package?.Unreal?.IsUnreal == true && IncludeDependencyChecker.IsCppFile(path);
+            bool checkDeprecated = IntelliSenseContext.Settings.DeprecationHints, checkNaming = IntelliSenseContext.Settings.NamingConventionCheck;
             var (gen, ct) = _gate.Begin(NavigationContext.Disposal);
             int n = ++_requests;
             Safe.RunAsync(L, "intellisense.diagnostics.request", async () =>
             {
                 var total = Stopwatch.StartNew();
                 var doc = await Task.Run(capture, ct).ConfigureAwait(false);
-                var request = new CodeDiagnosticsRequest { Document = doc, StartLine = range.Start, EndLine = range.End, UnsavedFiles = unsaved };
+                var request = new CodeDiagnosticsRequest
+                {
+                    Document = doc, StartLine = range.Start, EndLine = range.End, UnsavedFiles = unsaved,
+                    CheckDeprecated = checkDeprecated, CheckNaming = checkNaming, // v0.4.5 编辑体验
+                };
                 var engineTask = engine.GetDiagnosticsAsync(request, ct);
                 var includes = checkIncludes ? await Task.Run(() => IncludeDependencyChecker.ParseIncludes(snapshot.GetText()), ct).ConfigureAwait(false) : null;
                 var r = await engineTask.ConfigureAwait(false);
@@ -297,6 +327,8 @@ namespace UEToVS.Host.IntelliSense
                                                                   CodeDiagnosticText.ToolTip(d)))).ToList();
             var current = _view.TextSnapshot;
             TagsChanged?.Invoke(this, new SnapshotSpanEventArgs(new SnapshotSpan(current, 0, current.Length)));
+            // ---- v0.4.5 错误列表: the same items under source "UEToVS" (errorList.enabled)
+            UEToVS.Host.Build.ErrorListService.Instance?.SetRules(_document?.FilePath, items);
         }
 
         private void Report(string path, long version, LineRange range, EngineCallResult<CodeDiagnosticsResponse> r, List<CodeDiagnostic> items, bool includeRan, double totalMs, bool first)
@@ -325,6 +357,7 @@ namespace UEToVS.Host.IntelliSense
             _snapshot = null;
             _covered = new LineRange(0, -1);
             _coveredVersion = -1;
+            UEToVS.Host.Build.ErrorListService.Instance?.SetRules(_document?.FilePath, null); // ---- v0.4.5 错误列表
             if (had)
             {
                 var s = _view.TextSnapshot;
@@ -334,7 +367,9 @@ namespace UEToVS.Host.IntelliSense
 
         private void OnSettingsChanged(object sender, Options.SettingsChangedEventArgs e) => Safe.Execute(L, "intellisense.diagnostics.settings", () =>
         {
-            if (e.Old.DiagnosticsEnabled == e.New.DiagnosticsEnabled) return;
+            if (e.Old.DiagnosticsEnabled == e.New.DiagnosticsEnabled && e.Old.DeprecationHints == e.New.DeprecationHints &&
+                e.Old.NamingConventionCheck == e.New.NamingConventionCheck) return;
+            _coveredVersion = -1; // v0.4.5: a rule switched on / off, check again
             if (!e.New.DiagnosticsEnabled) ClearAll();
             else Schedule(ScrollDelay);
         });
@@ -345,6 +380,7 @@ namespace UEToVS.Host.IntelliSense
             _gate.Dispose();
             _items = new List<(CodeDiagnostic, IErrorTag)>();
             _snapshot = null;
+            Safe.Execute(L, "errorList.closed", () => UEToVS.Host.Build.ErrorListService.Instance?.SetRules(_document?.FilePath, null)); // ---- v0.4.5 错误列表
             _view.LayoutChanged -= OnLayoutChanged;
             _view.TextBuffer.Changed -= OnBufferChanged;
             _view.Closed -= OnClosed;

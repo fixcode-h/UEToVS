@@ -23,6 +23,7 @@
     <!-- The VSCT is checked against Logic/Commands/CommandCatalog.cs (ids, key bindings). -->
     <None Include="..\..\src\UEToVS.Host\UEToVSHostPackage.vsct" Link="UEToVSHostPackage.vsct" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\..\src\UEToVS.Host\Resources\UEToVS.natvis" Link="UEToVS.natvis" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\src\UEToVS.Host\Resources\UEToVS.natstepfilter" Link="UEToVS.natstepfilter" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\..\src\UEToVS.Host\source.extension.vsixmanifest" Link="source.extension.vsixmanifest" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <ItemGroup>

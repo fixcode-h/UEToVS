@@ -1,9 +1,13 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.Shell;
+using Microsoft.VisualStudio.Shell.Interop;
 using UEToVS.Core.Diagnostics;
+using UEToVS.Host.Diagnostics;
+using UEToVS.Host.Logic.Build;
 using UEToVS.Host.Link;
 using UEToVS.Host.Logic.Localization;
 using UEToVS.Host.Shell;
@@ -40,6 +44,12 @@ namespace UEToVS.Host.Unreal
             return null;
         }
 
+        // ---- v0.4.5 生成 Visual Studio 项目文件: one run at a time, live output in Output > UEToVS, status bar animation.
+        private static int _generating;
+
+        /// <summary>True while UBT regenerates the project files (the command, toolbar button and context menus are disabled).</summary>
+        public static bool IsGeneratingProjectFiles => Volatile.Read(ref _generating) != 0;
+
         public static async Task GenerateProjectFilesAsync(HostPackage package)
         {
             string uproject = package.Unreal?.ProjectFile;
@@ -57,22 +67,82 @@ namespace UEToVS.Host.Unreal
                 VsStatusBar.SetText(FeatureStrings.NoUbt);
                 return;
             }
-            await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-            VsEditor_SaveAll();
-            VsStatusBar.SetText(FeatureStrings.GeneratingProjectFiles);
-            L.Info("ubt.projectFiles.start", null, ("exe", cmd.Value.Exe), ("args", cmd.Value.Args));
-            using (var t = L.Time("ubt.projectFiles"))
+            if (Interlocked.CompareExchange(ref _generating, 1, 0) != 0)
             {
-                int code = await RunAsync(cmd.Value.Exe, cmd.Value.Args, Path.GetDirectoryName(uproject)).ConfigureAwait(false);
-                if (code != 0) t.Fail();
-                L.Info("ubt.projectFiles.done", null, ("exitCode", code));
-                VsStatusBar.SetText(code == 0 ? FeatureStrings.ProjectFilesGenerated : FeatureStrings.ProjectFilesFailed);
+                VsStatusBar.SetText(BuildStrings.UbtAlreadyRunning);
+                return;
             }
+            object icon = (short)Constants.SBAI_Build;
+            var pane = HostLog.Pane;
+            var tail = new UbtOutputTail();
+            var sw = Stopwatch.StartNew();
+            try
+            {
+                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                RefreshCommands();
+                VsEditor_SaveAll();
+                Safe.Execute(L, "ubt.pane.activate", () => pane?.Activate());
+                pane?.WriteRaw(BuildStrings.UbtPaneHeader(uproject));
+                pane?.WriteRaw("> \"" + cmd.Value.Exe + "\" " + cmd.Value.Args);
+                Animate(true, ref icon);
+                VsStatusBar.SetText(BuildStrings.UbtProgress);
+                L.Info("ubt.projectFiles.start", null, ("exe", cmd.Value.Exe), ("args", cmd.Value.Args));
+                using (var t = L.Time("ubt.projectFiles"))
+                {
+                    int code = await RunAsync(cmd.Value.Exe, cmd.Value.Args, Path.GetDirectoryName(uproject), (line, err) =>
+                    {
+                        tail.Add(line, err);
+                        pane?.WriteRaw(line);
+                    }).ConfigureAwait(false);
+                    if (code != 0) t.Fail();
+                    L.Info("ubt.projectFiles.done", null, ("exitCode", code), ("lines", tail.Lines), ("sec", Math.Round(sw.Elapsed.TotalSeconds, 1)));
+                    if (code == 0) pane?.WriteRaw(BuildStrings.UbtPaneDone(sw.Elapsed.TotalSeconds));
+                    else
+                    {
+                        pane?.WriteRaw(BuildStrings.UbtPaneFailed(code));
+                        var last = tail.FailureLines();
+                        if (last.Count > 0)
+                        {
+                            pane?.WriteRaw(BuildStrings.UbtPaneLastErrors);
+                            foreach (var line in last) pane?.WriteRaw("  " + line);
+                        }
+                        L.Warn("ubt.projectFiles.failed", "Generating project files failed", ("exitCode", code), ("lastLines", last));
+                    }
+                    VsStatusBar.SetText(code == 0 ? FeatureStrings.ProjectFilesGenerated : FeatureStrings.ProjectFilesFailed);
+                }
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _generating, 0);
+                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                Animate(false, ref icon);
+                RefreshCommands();
+            }
+        }
+
+        private static void Animate(bool on, ref object icon)
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+            try
+            {
+                if (Package.GetGlobalService(typeof(SVsStatusbar)) is IVsStatusbar bar) bar.Animation(on ? 1 : 0, ref icon);
+            }
+            catch (Exception ex)
+            {
+                L.Debug("ubt.statusbar.animation.failed", ex.Message);
+            }
+        }
+
+        /// <summary>Re-query command state now (enabled / disabled while UBT runs).</summary>
+        private static void RefreshCommands()
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+            if (Package.GetGlobalService(typeof(SVsUIShell)) is IVsUIShell shell) shell.UpdateCommandUI(0);
         }
 
         private static void VsEditor_SaveAll() => Navigation.VsEditor.TryExecute("File.SaveAll");
 
-        private static Task<int> RunAsync(string exe, string args, string workDir)
+        private static Task<int> RunAsync(string exe, string args, string workDir, Action<string, bool> onLine = null)
         {
             var tcs = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
             try
@@ -89,13 +159,23 @@ namespace UEToVS.Host.Unreal
                     },
                     EnableRaisingEvents = true,
                 };
-                // UBT output goes to the log (Info → also the UEToVS output pane).
-                p.OutputDataReceived += (s, e) => { if (!string.IsNullOrEmpty(e.Data)) Ubt.Info("ubt.out", e.Data); };
-                p.ErrorDataReceived += (s, e) => { if (!string.IsNullOrEmpty(e.Data)) Ubt.Warn("ubt.err", e.Data); };
+                // UBT output goes to the log file (ubt.out / ubt.err) and, verbatim, to the UEToVS output pane (onLine).
+                p.OutputDataReceived += (s, e) =>
+                {
+                    if (string.IsNullOrEmpty(e.Data)) return;
+                    Ubt.Info("ubt.out", e.Data);
+                    onLine?.Invoke(e.Data, false);
+                };
+                p.ErrorDataReceived += (s, e) =>
+                {
+                    if (string.IsNullOrEmpty(e.Data)) return;
+                    Ubt.Warn("ubt.err", e.Data);
+                    onLine?.Invoke(e.Data, true);
+                };
                 p.Exited += (s, e) =>
                 {
                     int code;
-                    try { code = p.ExitCode; } catch (Exception) { code = -1; }
+                    try { p.WaitForExit(); code = p.ExitCode; } catch (Exception) { code = -1; }
                     tcs.TrySetResult(code);
                     p.Dispose();
                 };
@@ -106,49 +186,18 @@ namespace UEToVS.Host.Unreal
             catch (Exception ex)
             {
                 L.Error("ubt.start.failed", "Starting UnrealBuildTool failed", ex, ("exe", exe));
+                onLine?.Invoke(ex.Message, true);
                 tcs.TrySetResult(-1);
             }
             return tcs.Task;
         }
 
         /// <summary>Copies the bundled UEToVSLink plugin (&lt;extension&gt;/EditorPlugin/UEToVSLink) into &lt;Project&gt;/Plugins.</summary>
-        public static Task InstallEditorPluginAsync(HostPackage package)
+        public static async Task InstallEditorPluginAsync(HostPackage package)
         {
-            string projectRoot = EditorLinkService.Instance?.ProjectRoot;
-            if (projectRoot == null)
-            {
-                VsStatusBar.SetText(FeatureStrings.NoUProject);
-                return Task.CompletedTask;
-            }
-            string source = Path.Combine(HostPackage.ExtensionDirectory, "EditorPlugin", "UEToVSLink");
-            string target = Path.Combine(projectRoot, "Plugins", "UEToVSLink");
-            if (!Directory.Exists(source))
-            {
-                L.Error("link.plugin.sourceMissing", "Plugin source missing in the extension", null, ("source", source));
-                VsStatusBar.SetText(FeatureStrings.PluginSourceMissing(source));
-                return Task.CompletedTask;
-            }
-            return Task.Run(() =>
-            {
-                try
-                {
-                    int n = 0;
-                    foreach (var file in Directory.GetFiles(source, "*", SearchOption.AllDirectories))
-                    {
-                        string dest = Path.Combine(target, file.Substring(source.Length).TrimStart('\\', '/'));
-                        Directory.CreateDirectory(Path.GetDirectoryName(dest));
-                        File.Copy(file, dest, true);
-                        n++;
-                    }
-                    L.Info("link.plugin.installed", null, ("target", target), ("files", n));
-                    VsStatusBar.SetText(FeatureStrings.PluginInstalled);
-                }
-                catch (Exception ex)
-                {
-                    L.Error("link.plugin.install.failed", "Installing UEToVSLink failed", ex, ("target", target));
-                    VsStatusBar.SetText(FeatureStrings.PluginInstallFailed);
-                }
-            });
+            // v0.4.5: same code path as the settings card (update in place, lock check, link.plugin.install log).
+            string text = await Link.LinkPluginManager.InstallAsync(package, "command");
+            if (text != null) VsStatusBar.SetText(text);
         }
     }
 }

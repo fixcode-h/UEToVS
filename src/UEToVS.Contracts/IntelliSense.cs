@@ -132,8 +132,27 @@ namespace UEToVS.Contracts
         /// <summary>Other overloads / declarations (count shown as "+N overloads").</summary>
         public int OverloadCount { get; set; }
 
+        // ---- v0.4.5 GENERATED_BODY() preview
+        /// <summary>GENERATED_BODY() / GENERATED_UCLASS_BODY(): whether UHT output was found (None for other identifiers).</summary>
+        public GeneratedCodeState GeneratedCodeState { get; set; }
+
+        /// <summary>The UHT-generated code of that line, sub-macros expanded and one statement per line (capped).</summary>
+        public string GeneratedCode { get; set; }
+
+        /// <summary>The .generated.h the code was read from (or would be read from).</summary>
+        public string GeneratedCodeFile { get; set; }
+
         public ResolutionConfidence Confidence { get; set; }
         public double ElapsedMs { get; set; }
+
+        /// <summary>v0.4.5: the symbol is deprecated (UE_DEPRECATED / [[deprecated]] / DeprecatedFunction meta / _DEPRECATED).</summary>
+        public bool IsDeprecated { get; set; }
+
+        /// <summary>Engine version it was deprecated in ("5.1"), or null.</summary>
+        public string DeprecatedVersion { get; set; }
+
+        /// <summary>The deprecation message, or null.</summary>
+        public string DeprecationMessage { get; set; }
     }
 
     public sealed class SignatureParameter

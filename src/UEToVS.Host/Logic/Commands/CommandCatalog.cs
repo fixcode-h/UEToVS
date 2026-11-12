@@ -105,6 +105,21 @@ namespace UEToVS.Host.Logic.Commands
         public const int ShrinkSelection = 0x0164;
         /// <summary>注释翻译 (Translation/TranslationActions.cs): editor context menu.</summary>
         public const int TranslateSelection = 0x0165;
+        // ---- v0.4.5 构建结果 / 错误列表 / 新建 UE 类 (0x0170–0x017F)
+        public const int NewUeClass = 0x0170;
+        public const int NextBuildError = 0x0171;
+        public const int ClearBuildErrors = 0x0172;
+        // ---- v0.4.5 编辑体验 (0x0180–0x019F): Editing/EditorFeatureActions.cs
+        public const int SurroundWith = 0x0180;
+        public const int ToggleInlayHints = 0x0181;
+        public const int ShowHashtags = 0x0182;
+        public const int PasteFromHistory = 0x0183;
+        // ---- v0.4.5 heavy features (0x01A0–0x01AF): Inspection/HeavyFeatureActions.cs
+        public const int RunProjectInspection = 0x01A0;
+        public const int ShowInspectionResults = 0x01A1;
+        public const int RunUpgradeAssistant = 0x01A2;
+        public const int ShowUpgradeResults = 0x01A3;
+        public const int CancelHeavyJob = 0x01A4;
 
         // ---- M2 navigation (0x0200–0x02FF): Navigation/NavigationActions.cs
         public const int GoToDefinition = 0x0200;
@@ -113,6 +128,8 @@ namespace UEToVS.Host.Logic.Commands
         public const int TypeHierarchy = 0x0203;
         public const int ListMembersInFile = 0x0204;
         public const int ListTypeMembers = 0x0205;
+        // ---- v0.4.5 navigation gaps (0x0210–0x022F): Navigation/CallHierarchyFeature.cs
+        public const int CallHierarchy = 0x0210;
 
         // ---- M1 features (0x0300–0x03FF): Features/M1Feature.cs
         public const int SearchEverywhere = 0x0300;
@@ -137,6 +154,9 @@ namespace UEToVS.Host.Logic.Commands
         public const int LiveCoding = 0x0360;
         public const int GenerateProjectFiles = 0x0361;
         public const int InstallEditorPlugin = 0x0362;
+        // ---- v0.4.5 UE editor link (0x0370–0x037F): Link/LinkFeature.cs
+        public const int UeLogWindow = 0x0370;
+        public const int UeTestRunner = 0x0371;
 
         // ---- settings / windows / toolbar (0x0400–0x04FF)
         public const int Toolbar = 0x0400;
@@ -147,11 +167,21 @@ namespace UEToVS.Host.Logic.Commands
         public const int TbGoToDefinition = 0x0484;
         public const int TbFindReferences = 0x0485;
         public const int TbPerformance = 0x0486;
+        // ---- v0.4.5 构建结果 / 新建 UE 类
+        public const int TbGenerateProjectFiles = 0x0487;
 
         // ---- M4 refactoring (0x0700–0x07FF): Refactoring/RefactoringFeature.cs
         public const int QuickActions = 0x0700;
         public const int Rename = 0x0701;
         public const int ImplementVirtual = 0x0702;
+        // ---- v0.4.5 refactoring batch 2 (0x0710–0x073F): Refactoring/Batch2/*
+        public const int ChangeSignature = 0x0710;
+        public const int MoveImplementation = 0x0711;
+        public const int AddForwardDeclaration = 0x0712;
+        public const int IntroduceVariable = 0x0713;
+        public const int ExtractMethod = 0x0714;
+        public const int EncapsulateField = 0x0715;
+        public const int GenerateGetterSetter = 0x0716;
 
         /// <summary>Action ids of the M1/M2 commands (mirrors NavigationActionIds / M1ActionIds, which are host-internal).</summary>
         public static class ActionIds
@@ -162,6 +192,9 @@ namespace UEToVS.Host.Logic.Commands
             public const string TypeHierarchy = "uetovs.navigation.typeHierarchy";
             public const string ListMembersInFile = "uetovs.navigation.listMembersInFile";
             public const string ListTypeMembers = "uetovs.navigation.listTypeMembers";
+            // ---- v0.4.5 navigation gaps
+            public const string CallHierarchy = "uetovs.navigation.callHierarchy";
+            public const string PeekDefinition = "uetovs.navigation.peekDefinition";
             public const string SearchEverywhere = "uetovs.search.everywhere";
             public const string GoToType = "uetovs.search.type";
             public const string GoToSymbol = "uetovs.search.symbol";
@@ -184,6 +217,9 @@ namespace UEToVS.Host.Logic.Commands
             public const string LiveCoding = "uetovs.unreal.liveCoding";
             public const string GenerateProjectFiles = "uetovs.unreal.generateProjectFiles";
             public const string InstallEditorPlugin = "uetovs.unreal.installEditorPlugin";
+            // ---- v0.4.5 UE editor link
+            public const string UeLogWindow = "uetovs.unreal.logWindow";
+            public const string UeTestRunner = "uetovs.unreal.testRunner";
 
             // host (mirror of Shell/ActionIds)
             public const string FindAction = "uetovs.findAction";
@@ -194,6 +230,19 @@ namespace UEToVS.Host.Logic.Commands
             public const string QuickActions = "uetovs.refactor.quickActions";
             public const string Rename = "uetovs.refactor.rename";
             public const string ImplementVirtual = "uetovs.refactor.implementVirtual";
+
+            // ---- v0.4.5 构建结果 / 错误列表 / 新建 UE 类 (Build/BuildFeature.cs)
+            public const string NewUeClass = "uetovs.unreal.newClass";
+            public const string NextBuildError = "uetovs.build.nextError";
+            public const string ClearBuildErrors = "uetovs.build.clearErrors";
+            // ---- v0.4.5 refactoring batch 2 (mirror of RefactorActionIds)
+            public const string ChangeSignature = "uetovs.refactor.changeSignature";
+            public const string MoveImplementation = "uetovs.refactor.moveImplementation";
+            public const string AddForwardDeclaration = "uetovs.refactor.addForwardDeclaration";
+            public const string IntroduceVariable = "uetovs.refactor.introduceVariable";
+            public const string ExtractMethod = "uetovs.refactor.extractMethod";
+            public const string EncapsulateField = "uetovs.refactor.encapsulateField";
+            public const string GenerateGetterSetter = "uetovs.generate.getterSetter";
         }
 
         private static CommandInfo C(CommandOwner owner, int id, string name, string action, string zh, string en, string group, CommandScope scope,
@@ -217,6 +266,8 @@ namespace UEToVS.Host.Logic.Commands
             C(M2, TypeHierarchy, "TypeHierarchy", ActionIds.TypeHierarchy, "类型层次", "Type Hierarchy", "navigation", Ed, "Shift+Alt+H", "Ctrl+H", null),
             C(M2, ListMembersInFile, "ListMembersInFile", ActionIds.ListMembersInFile, "文件成员", "List Members in File", "navigation", Ed, "Alt+M", null, null),
             C(M2, ListTypeMembers, "ListTypeMembers", ActionIds.ListTypeMembers, "类型成员（含继承）", "Type Members (with Inherited)", "navigation", Ed, "Shift+Alt+M", null, null),
+            // ---- v0.4.5 navigation gaps: call hierarchy (VS: View Call Hierarchy = Ctrl+K, Ctrl+T)
+            C(M2, CallHierarchy, "CallHierarchy", ActionIds.CallHierarchy, "调用层次", "Call Hierarchy", "navigation", Ed, "Ctrl+Shift+Alt+U, H", "Ctrl+Alt+H", "Ctrl+K, Ctrl+T"),
             // navigation history (M1, global)
             C(M1, NavigateBack, "NavigateBack", ActionIds.NavigateBack, "后退", "Navigate Back", "navigation", Gl, "Alt+Left Arrow", "Ctrl+Alt+Left Arrow", "Ctrl+-"),
             C(M1, NavigateForward, "NavigateForward", ActionIds.NavigateForward, "前进", "Navigate Forward", "navigation", Gl, "Alt+Right Arrow", "Ctrl+Alt+Right Arrow", "Ctrl+Shift+-"),
@@ -247,8 +298,11 @@ namespace UEToVS.Host.Logic.Commands
 
             // Unreal (M1)
             C(M1, LiveCoding, "LiveCoding", ActionIds.LiveCoding, "Live Coding（UE 编辑器）", "Live Coding (Unreal Editor)", "unreal", Gl, "Ctrl+Alt+F11", "Ctrl+Alt+F11", "Ctrl+Alt+F11"),
-            C(M1, GenerateProjectFiles, "GenerateProjectFiles", ActionIds.GenerateProjectFiles, "生成项目文件", "Generate Project Files", "unreal", Gl, "Ctrl+Shift+Alt+U, G", null, null),
+            C(M1, GenerateProjectFiles, "GenerateProjectFiles", ActionIds.GenerateProjectFiles, "生成 Visual Studio 项目文件", "Generate Visual Studio Project Files", "unreal", Gl, "Ctrl+Shift+Alt+U, G", null, null),
             C(M1, InstallEditorPlugin, "InstallEditorPlugin", ActionIds.InstallEditorPlugin, "安装 UEToVSLink 编辑器插件", "Install UEToVSLink Editor Plugin", "unreal", Gl, "Ctrl+Shift+Alt+U, E", null, null),
+            // ---- v0.4.5 UE editor link (Link/LinkFeature.cs binds them)
+            C(M1, UeLogWindow, "UeLogWindow", ActionIds.UeLogWindow, "UE 日志窗口", "Unreal Log Window", "unreal", Gl, "Ctrl+Shift+Alt+U, J", null, null),
+            C(M1, UeTestRunner, "UeTestRunner", ActionIds.UeTestRunner, "UE 自动化测试", "Unreal Automation Tests", "unreal", Gl, "Ctrl+Shift+Alt+U, Z", null, null),
 
             // tools / settings / diagnostics (host)
             C(H, ShowPerformancePanel, "PerformancePanel", ActionIds.ShowPerformancePanel, "性能面板", "Performance Panel", "tools", Gl, "Ctrl+Shift+Alt+U, P", null, null),
@@ -265,6 +319,14 @@ namespace UEToVS.Host.Logic.Commands
             C(M4, QuickActions, "QuickActions", ActionIds.QuickActions, "上下文操作（Alt+Enter）", "Context Actions (Alt+Enter)", "refactor", Ed, "Alt+Enter", "Alt+Enter", "Alt+Enter"),
             C(M4, Rename, "Rename", ActionIds.Rename, "重命名…", "Rename...", "refactor", Ed, "Ctrl+R, Ctrl+R", "Shift+F6", "Ctrl+R, Ctrl+R"),
             C(M4, ImplementVirtual, "ImplementVirtual", ActionIds.ImplementVirtual, "实现虚函数 / 重写…", "Implement Virtual Methods / Override...", "refactor", Ed, "Ctrl+Shift+Alt+U, V", "Ctrl+O", null),
+            // ---- v0.4.5 refactoring batch 2 (Ctrl+R chords; UEToVS wins over VS's own Refactor.* bindings and falls back to them outside UE C++)
+            C(M4, ChangeSignature, "ChangeSignature", ActionIds.ChangeSignature, "更改签名…", "Change Signature...", "refactor", Ed, "Ctrl+R, Ctrl+O", "Ctrl+F6", null),
+            C(M4, MoveImplementation, "MoveImplementation", ActionIds.MoveImplementation, "移动实现（头文件 ↔ 源文件）", "Move Implementation (Header ↔ Source)", "refactor", Ed, "Ctrl+R, Ctrl+I", "F6", null),
+            C(M4, AddForwardDeclaration, "AddForwardDeclaration", ActionIds.AddForwardDeclaration, "添加前置声明", "Add Forward Declaration", "refactor", Ed, "Ctrl+R, Ctrl+F", null, null),
+            C(M4, IntroduceVariable, "IntroduceVariable", ActionIds.IntroduceVariable, "引入变量…", "Introduce Variable...", "refactor", Ed, "Ctrl+R, Ctrl+V", "Ctrl+Alt+V", null),
+            C(M4, ExtractMethod, "ExtractMethod", ActionIds.ExtractMethod, "提取方法…", "Extract Method...", "refactor", Ed, "Ctrl+R, Ctrl+M", "Ctrl+Alt+M", null),
+            C(M4, EncapsulateField, "EncapsulateField", ActionIds.EncapsulateField, "封装字段…", "Encapsulate Field...", "refactor", Ed, "Ctrl+R, Ctrl+E", null, null),
+            C(M4, GenerateGetterSetter, "GenerateGetterSetter", ActionIds.GenerateGetterSetter, "生成 Getter / Setter…", "Generate Getter / Setter...", "refactor", Ed, "Ctrl+R, Ctrl+P", null, null),
             // generate (v0.4.2, host; later also offered by the Alt+Enter hub through the same action ids)
             C(H, GenerateConstructor, "GenerateConstructor", "uetovs.generate.constructor", "生成构造函数", "Generate Constructor", "unreal", Gl, "Ctrl+Shift+Alt+U, K", null, null),
             C(H, GenerateReplication, "GenerateReplication", "uetovs.generate.replication", "生成 GetLifetimeReplicatedProps", "Generate GetLifetimeReplicatedProps", "unreal", Gl, "Ctrl+Shift+Alt+U, Y", null, null),
@@ -272,6 +334,21 @@ namespace UEToVS.Host.Logic.Commands
             C(H, ExpandSelection, "ExpandSelection", "uetovs.edit.expandSelection", "扩大选区", "Extend Selection", "navigation", Ed, "Shift+Alt+W", null, null),
             C(H, ShrinkSelection, "ShrinkSelection", "uetovs.edit.shrinkSelection", "缩小选区", "Shrink Selection", "navigation", Ed, "Ctrl+Shift+Alt+W", null, null),
             C(H, TranslateSelection, "TranslateSelection", "uetovs.translate.selection", "翻译选中内容", "Translate Selection", "tools", Gl, "Ctrl+Shift+Alt+U, T", null, null),
+            // ---- v0.4.5 构建结果 / 错误列表 / 新建 UE 类 (host; Build/BuildFeature.cs)
+            C(H, NewUeClass, "NewUeClass", ActionIds.NewUeClass, "新建 UE 类…", "New Unreal Class...", "unreal", Gl, "Ctrl+Shift+Alt+U, N", null, null),
+            C(H, NextBuildError, "NextBuildError", ActionIds.NextBuildError, "下一个编译错误", "Next Build Error", "tools", Gl, "Ctrl+Shift+Alt+U, Q", null, null),
+            C(H, ClearBuildErrors, "ClearBuildErrors", ActionIds.ClearBuildErrors, "清除编译错误标记", "Clear Build Error Marks", "tools", Gl, "Ctrl+Shift+Alt+U, X", null, null),
+            // ---- v0.4.5 编辑体验 (host; Editing/EditorFeatureActions.cs)
+            C(H, SurroundWith, "SurroundWith", "uetovs.edit.surroundWith", "Surround With…", "Surround With...", "refactor", Ed, "Ctrl+Shift+Alt+U, 1", "Ctrl+Alt+J", null),
+            C(H, ToggleInlayHints, "ToggleInlayHints", "uetovs.edit.toggleInlayHints", "显示 / 隐藏内嵌提示", "Toggle Inlay Hints", "tools", Ed, "Ctrl+Shift+Alt+U, 2", null, null),
+            C(H, ShowHashtags, "ShowHashtags", "uetovs.edit.hashtags", "#tag 书签", "#tag Bookmarks", "bookmarks", Gl, "Ctrl+Shift+Alt+U, 3", null, null),
+            C(H, PasteFromHistory, "PasteFromHistory", "uetovs.edit.pasteFromHistory", "从剪贴板历史粘贴…", "Paste from Clipboard History...", "tools", Ed, "Ctrl+Shift+V", "Ctrl+Shift+V", null),
+            // ---- v0.4.5 heavy features (each behind a plugin switch in Settings > Inspections / IntelliSense)
+            C(H, RunProjectInspection, "RunProjectInspection", "uetovs.inspection.run", "全项目 UE 规则检查", "Inspect Whole Project (UE Rules)", "unreal", Gl, "Ctrl+Shift+Alt+U, 6", null, null),
+            C(H, ShowInspectionResults, "ShowInspectionResults", "uetovs.inspection.show", "全项目检查结果", "Project Inspection Results", "unreal", Gl, "Ctrl+Shift+Alt+U, 7", null, null),
+            C(H, RunUpgradeAssistant, "RunUpgradeAssistant", "uetovs.upgrade.run", "引擎升级助手：查找弃用 API", "Engine Upgrade Assistant: Find Deprecated APIs", "unreal", Gl, "Ctrl+Shift+Alt+U, 8", null, null),
+            C(H, ShowUpgradeResults, "ShowUpgradeResults", "uetovs.upgrade.show", "引擎升级助手结果", "Engine Upgrade Assistant Results", "unreal", Gl, "Ctrl+Shift+Alt+U, 9", null, null),
+            C(H, CancelHeavyJob, "CancelHeavyJob", "uetovs.heavy.cancel", "取消全项目检查 / 升级扫描", "Cancel Project Inspection / Upgrade Scan", "unreal", Gl, "Ctrl+Shift+Alt+U, U", null, null),
         };
 
         public static CommandInfo ById(int id)
@@ -315,6 +392,8 @@ namespace UEToVS.Host.Logic.Commands
             new ToolbarButtonInfo("searchEverywhere", CommandCatalog.TbSearchEverywhere, CommandCatalog.ActionIds.SearchEverywhere, "Search Everywhere", "Search Everywhere"),
             new ToolbarButtonInfo("goToDefinition", CommandCatalog.TbGoToDefinition, CommandCatalog.ActionIds.GoToDefinition, "转到定义", "Go to Definition"),
             new ToolbarButtonInfo("findReferences", CommandCatalog.TbFindReferences, CommandCatalog.ActionIds.FindReferences, "查找引用", "Find References"),
+            // ---- v0.4.5 构建结果 / 新建 UE 类
+            new ToolbarButtonInfo("generateProjectFiles", CommandCatalog.TbGenerateProjectFiles, CommandCatalog.ActionIds.GenerateProjectFiles, "生成 Visual Studio 项目文件", "Generate Visual Studio Project Files"),
             new ToolbarButtonInfo("performance", CommandCatalog.TbPerformance, CommandCatalog.ActionIds.ShowPerformancePanel, "性能面板", "Performance Panel"),
         };
 

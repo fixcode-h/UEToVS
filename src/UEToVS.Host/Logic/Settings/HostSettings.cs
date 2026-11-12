@@ -19,6 +19,16 @@ namespace UEToVS.Host.Logic.Settings
         FullSpeed = 2,
     }
 
+    /// <summary>v0.4.5: what Ctrl+R, Ctrl+R does in a C++ editor.</summary>
+    public enum RenameMode
+    {
+        /// <summary>Edit every occurrence in the current file in place; Enter opens the project-wide preview, Esc cancels.</summary>
+        Inline = 0,
+
+        /// <summary>The preview dialog right away (v0.4.2 behaviour).</summary>
+        Dialog = 1,
+    }
+
     /// <summary>
     /// Effective host settings. Layers (§10.3): built-in defaults (the initializers below) &lt; user settings (Tools &gt;
     /// Options &gt; UEToVS, persisted in the VS settings store) &lt; solution settings (&lt;solution&gt;/.uetovs/settings.json,
@@ -81,6 +91,16 @@ namespace UEToVS.Host.Logic.Settings
 
         /// <summary>UEToVSLink editor plugin TCP port; 0 = read &lt;Project&gt;/Saved/UEToVSLink/port.txt.</summary>
         public int EditorLinkPort { get; set; } = 0;
+
+        // ---- v0.4.5 UE editor link (log window, test runner, Live Coding errors)
+        /// <summary>UE log window ring buffer size (lines); older lines are dropped.</summary>
+        public int LinkLogMaxLines { get; set; } = 20000;
+
+        /// <summary>Keep receiving editor log lines after the log window is closed (it was opened once this session).</summary>
+        public bool LinkLogKeepReceiving { get; set; } = true;
+
+        /// <summary>Collect Live Coding compiler output from the editor and report its errors in VS.</summary>
+        public bool LinkLiveCodingErrors { get; set; } = true;
 
         // ---- 导航（M2）----
         /// <summary>Ctrl+left-click on an identifier = go to definition (hover with Ctrl underlines it).</summary>
@@ -204,6 +224,31 @@ namespace UEToVS.Host.Logic.Settings
         /// <summary>Inlay hints: deduced type after <c>auto</c> variables.</summary>
         public bool InlayAutoTypes { get; set; }
 
+        // ---- v0.4.5 编辑体验（rows: Logic/Settings/EditorFeatureSettings.cs）----
+        /// <summary>Surround With (Ctrl+Shift+Alt+U, 1 / Rider Ctrl+Alt+J).</summary>
+        public bool SurroundWithEnabled { get; set; } = true;
+
+        /// <summary>Deprecated API squiggles / strikethrough / Quick Info note / Alt+Enter fix in the current file (UE0011).</summary>
+        public bool DeprecationHints { get; set; } = true;
+
+        /// <summary>UE naming convention suggestions for types and bool members declared in the current file (UE0012).</summary>
+        public bool NamingConventionCheck { get; set; } = false;
+
+        /// <summary>Deploy UEToVS.natstepfilter to the user's Visualizers folder (removed when off).</summary>
+        public bool DebugStepFilter { get; set; } = true;
+
+        /// <summary>Ctrl+R, Ctrl+R: edit the name in place (Inline) or open the preview dialog right away (Dialog).</summary>
+        public RenameMode RenameMode { get; set; } = RenameMode.Inline;
+
+        /// <summary>Remember copied / cut text for Ctrl+Shift+V (paste from history).</summary>
+        public bool ClipboardHistoryEnabled { get; set; } = true;
+
+        /// <summary>Entries kept in the clipboard history.</summary>
+        public int ClipboardHistorySize { get; set; } = 16;
+
+        /// <summary>#tag bookmarks: collect #tags written in comments of the open files.</summary>
+        public bool HashtagsEnabled { get; set; } = true;
+
         // ---- 字体（设置 > 外观 > 字体；值见 UEToVS.UI.Logic.FontChoice，VS 类别见 Logic/Fonts/VsFontCategories）----
         /// <summary>英文字体: Latin part of the UEToVS UI font ("bundled:IBM Plex Sans", "vs" or an installed family).</summary>
         public string UiLatinFont { get; set; } = UEToVS.UI.Logic.FontSettings.DefaultUiLatin.ToString();
@@ -219,6 +264,30 @@ namespace UEToVS.Host.Logic.Settings
 
         /// <summary>Per VS category family/size, only the ones that differ from the defaults (Logic/Fonts/VsFontSettingsText).</summary>
         public string VsFonts { get; set; } = string.Empty;
+        // ---- v0.4.5 构建结果 / 错误列表
+        /// <summary>Squiggles for the last build's compiler errors / warnings (independent of the IntelliSense takeover).</summary>
+        public bool BuildErrorSquiggles { get; set; } = true;
+
+        /// <summary>UEToVS diagnostics (UE rule squiggles of open files) in the VS Error List, source "UEToVS".</summary>
+        public bool ErrorListEnabled { get; set; } = true;
+
+        /// <summary>Also list the parsed build errors under "UEToVS" (VS already lists most of them under "Build").</summary>
+        public bool ErrorListIncludeBuild { get; set; }
+        // ---- v0.4.5 heavy features（插件开关：默认开；关闭后不允许运行，后台也不跑）----
+        /// <summary>Whole-project UE rule inspection (command, settings button, MCP run_project_inspection).</summary>
+        public bool ProjectInspectionEnabled { get; set; } = true;
+
+        /// <summary>Whole-project inspection also covers project plugins.</summary>
+        public bool InspectionIncludePlugins { get; set; } = false;
+
+        /// <summary>Engine upgrade assistant (deprecated API references, batch replacement).</summary>
+        public bool UpgradeAssistantEnabled { get; set; } = true;
+
+        /// <summary>Generic template instantiation in IntelliSense; off = the built-in UE template rules only.</summary>
+        public bool TemplateInstantiationEnabled { get; set; } = true;
+
+        /// <summary>LRU capacity of instantiated (template, arguments) bindings in the engine.</summary>
+        public int TemplateCacheCapacity { get; set; } = 2048;
 
         public HostSettings Clone() => (HostSettings)MemberwiseClone();
     }

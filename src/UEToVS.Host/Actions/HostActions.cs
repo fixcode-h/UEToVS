@@ -58,6 +58,11 @@ namespace UEToVS.Host.Actions
             Generate.GenerateActions.Register(registry, package);
             Editing.SmartSelectActions.Register(registry);
             Translation.TranslationActions.Register(registry);
+            // ---- v0.4.5 构建结果 / 错误列表 / 新建 UE 类
+            Build.BuildFeature.Register(package, registry);
+            Editing.EditorFeatureActions.Register(registry); // v0.4.5 编辑体验
+            // ---- v0.4.5 heavy features (whole-project inspection / upgrade assistant)
+            Inspection.HeavyFeatureActions.Register(registry, package);
             L.Info("actions.registered", null, ("count", registry.Count));
         }
 

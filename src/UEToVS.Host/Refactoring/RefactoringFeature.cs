@@ -67,33 +67,71 @@ namespace UEToVS.Host.Refactoring
             registry.Register(new DelegateAction(RefactorActionIds.Rename, RefactorStrings.CmdRename, ActionCategory.Refactoring,
                 RenameFeature.ExecuteAsync, Editing, null, RefactorStrings.KwRename));
             if (mcs != null && router != null) router.RegisterMap(mcs, Commands);
+            // ---- v0.4.5 refactoring batch 2 (Change Signature, Move Implementation, Forward Declaration, Introduce Variable, Extract Method, Encapsulate Field)
+            Batch2.RefactoringBatch2.Initialize(registry, Hub, router, mcs);
             L.Info("refactor.registered", null, ("actions", 6), ("providers", Hub.Count), ("commands", Commands.Count));
         }
 
         // ---------------------------------------------------------------- context
 
         /// <summary>Engine context for the caret of <paramref name="view"/> (null when the view is not a C++ editor or the engine is down).</summary>
-        public static async Task<RefactorContext> BuildContextAsync(IWpfTextView view, bool checkIncludes, CancellationToken ct)
+        public static async Task<RefactorContext> BuildContextAsync(IWpfTextView view, bool checkIncludes, CancellationToken ct,
+                                                                    Action<RefactoringContextRequest> configure = null)
         {
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync(ct);
             if (view == null || view.IsClosed || !EditorServices.IsCpp(view.TextBuffer)) return null;
             var loc = EditorServices.Location(view);
             if (loc == null) return null;
-            long version = view.TextBuffer.CurrentSnapshot.Version.VersionNumber;
+            var snapshot = view.TextBuffer.CurrentSnapshot;
+            long version = snapshot.Version.VersionNumber;
+            var selection = Batch2.RefactoringBatch2.Selection(view, snapshot); // v0.4.5 batch 2
             var caret = await EditorServices.CaretRequestAsync(view);
             if (caret == null) return null;
             var engine = IntelliSenseContext.Engine;
             RefactoringContextResponse resp = null;
             if (engine != null && engine.IsConnected)
             {
-                var r = await engine.GetRefactoringContextAsync(new RefactoringContextRequest { Caret = caret, CheckIncludes = checkIncludes }, ct);
+                var request = new RefactoringContextRequest { Caret = caret, CheckIncludes = checkIncludes };
+                Batch2.RefactoringBatch2.Prepare(request, snapshot, selection);
+                configure?.Invoke(request);
+                var r = await engine.GetRefactoringContextAsync(request, ct);
                 if (r.Ok) resp = r.Value;
             }
-            return new RefactorContext
+            var context = new RefactorContext
             {
                 FilePath = loc.FilePath, Line = loc.Line, Column = loc.Column, Version = version, Engine = resp,
                 IsProjectFile = IsProjectPath(loc.FilePath),
+                Diagnostics = CaretDiagnostics(view, loc.Line, loc.Column), // v0.4.5 编辑体验
             };
+            Batch2.RefactoringBatch2.Attach(context, view, snapshot, selection);
+            return context;
+        }
+
+        /// <summary>v0.4.5: the squiggles under the caret (current snapshot coordinates) for the Alt+Enter fixes.</summary>
+        private static List<CodeDiagnostic> CaretDiagnostics(IWpfTextView view, int line, int column)
+        {
+            try
+            {
+                var tagger = CodeDiagnosticsTagger.For(view);
+                if (tagger == null) return new List<CodeDiagnostic>();
+                var snapshot = view.TextBuffer.CurrentSnapshot;
+                var moved = new List<CodeDiagnostic>();
+                foreach (var (item, span) in tagger.Spans(snapshot, CodeDiagnosticCodes.DeprecatedApi, CodeDiagnosticCodes.NamingConvention))
+                {
+                    var l = span.Start.GetContainingLine();
+                    moved.Add(new CodeDiagnostic
+                    {
+                        Code = item.Code, Severity = item.Severity, Args = item.Args, Message = item.Message,
+                        Line = l.LineNumber, Column = span.Start.Position - l.Start.Position, Length = span.Length,
+                    });
+                }
+                return Logic.Editing.EditorFixProvider.At(moved, line, column);
+            }
+            catch (Exception ex)
+            {
+                L.Warn("refactor.context.diagnostics.failed", "Reading the squiggles at the caret failed", ex);
+                return new List<CodeDiagnostic>();
+            }
         }
 
         /// <summary>Editable = inside the solution / project folder and not under the engine root.</summary>

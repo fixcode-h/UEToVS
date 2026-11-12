@@ -402,8 +402,22 @@ namespace UEToVS.Engine.Navigation
             else if (Tokens[p].Kind != TokenKind.Identifier) return false;
             else if (Tokens[p].Flags.HasFlag(TokenFlags.MacroLike) && !inParams && TokenText(p).EndsWith("_API", StringComparison.Ordinal)) return false;
 
-            // qualified type A::B::C
-            while (p - 2 >= 0 && Tokens[p - 1].Is(Punct.ColonColon) && Tokens[p - 2].Kind == TokenKind.Identifier) p -= 2;
+            // qualified type A::B::C (and, v0.4.5, dependent members TBox<T>::ValueType)
+            while (p - 2 >= 0 && Tokens[p - 1].Is(Punct.ColonColon))
+            {
+                if (Tokens[p - 2].Kind == TokenKind.Identifier) { p -= 2; continue; }
+                if (!Tokens[p - 2].Is(Punct.Gt) && !Tokens[p - 2].Is(Punct.GtGt)) break;
+                int q = p - 2, angle = 0;
+                for (; q >= 0; q--)
+                {
+                    if (Tokens[q].Is(Punct.Gt)) angle++;
+                    else if (Tokens[q].Is(Punct.GtGt)) angle += 2;
+                    else if (Tokens[q].Is(Punct.Lt)) { if (--angle == 0) break; }
+                    else if (Tokens[q].Is(Punct.Semicolon) || Tokens[q].Is(Punct.LBrace) || Tokens[q].Is(Punct.RBrace)) return false;
+                }
+                if (q - 1 < 0 || Tokens[q - 1].Kind != TokenKind.Identifier) return false;
+                p = q - 1;
+            }
             if (p - 1 >= 0 && Tokens[p - 1].Is(Punct.ColonColon)) p--;
             // leading cv / storage keywords belong to the type
             while (p - 1 >= 0 && Tokens[p - 1].Kind == TokenKind.Keyword && DeclPrefixKeywords.Contains(TokenText(p - 1))) p--;

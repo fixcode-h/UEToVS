@@ -135,6 +135,7 @@ namespace UEToVS.Engine.Index.Query
                     IsDefinition = r.IsDefinition,
                     IsConditional = r.IsConditional,
                     Bases = NullIfEmpty(seg.BaseStrings(f.FirstSymbol + (uint)i)),
+                    Deprecation = r.IsDeprecated && seg.TryGetDeprecation(f.FirstSymbol + (uint)i, out string ver, out string msg) ? new DeclDeprecation(ver, msg) : null,
                 };
             }
             var inc = seg.Includes.Slice((int)f.FirstInclude, (int)f.IncludeCount);

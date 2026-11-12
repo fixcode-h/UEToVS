@@ -290,6 +290,20 @@ namespace UEToVS.Contracts
         /// (incrementally: files already in the Lua index whose size and timestamp did not change are not re-read).
         /// </summary>
         public List<string> LuaScriptPaths { get; set; }
+
+        // ---- v0.4.5 heavy features: plugin switches (on by default; off = the feature refuses to run, nothing in the background)
+
+        /// <summary>Whole-project UE rule inspection (ProjectInspectionAsync / MCP run_project_inspection).</summary>
+        public bool ProjectInspectionEnabled { get; set; } = true;
+
+        /// <summary>Engine upgrade assistant (DeprecationScanAsync).</summary>
+        public bool UpgradeAssistantEnabled { get; set; } = true;
+
+        /// <summary>Generic template instantiation in IntelliSense; off = the rule-based UE template table only.</summary>
+        public bool TemplateInstantiationEnabled { get; set; } = true;
+
+        /// <summary>LRU capacity of (template, arguments) bindings; 0 = default (2048).</summary>
+        public int TemplateCacheCapacity { get; set; }
     }
 
     public enum RebuildScope : byte

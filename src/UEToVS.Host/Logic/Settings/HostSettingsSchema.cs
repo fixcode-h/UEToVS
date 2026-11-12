@@ -26,6 +26,8 @@ namespace UEToVS.Host.Logic.Settings
         public const string Agent = "agent";
         public const string Logging = "logging";
         public const string Performance = "performance";
+        // ---- v0.4.5 heavy features: whole-project inspection / upgrade assistant page
+        public const string Inspection = "inspection";
 
         /// <summary>Action ids only the settings window resolves (not registered in the ActionRegistry).</summary>
         public static class WindowActions
@@ -45,6 +47,10 @@ namespace UEToVS.Host.Logic.Settings
             public const string VsUnrealIntegration = "settings.general.vsUnrealIntegration";
             /// <summary>"检查更新": latest GitHub release → download VSIX → start VSIXInstaller.</summary>
             public const string CheckForUpdates = "settings.general.checkForUpdates";
+            // ---- v0.4.5 UE editor link: UEToVSLink status card / install / uninstall (Link/LinkPluginManager.cs)
+            public const string LinkPluginStatus = "settings.link.pluginStatus";
+            public const string LinkPluginInstall = "settings.link.pluginInstall";
+            public const string LinkPluginUninstall = "settings.link.pluginUninstall";
         }
 
         public static IReadOnlyList<SettingCategory> Categories { get; } = new[]
@@ -55,6 +61,8 @@ namespace UEToVS.Host.Logic.Settings
             new SettingCategory(Keymap, "快捷键", "Keyboard"),
             new SettingCategory(Navigation, "导航", "Navigation"),
             new SettingCategory(IntelliSense, "代码感知", "IntelliSense"),
+            // ---- v0.4.5 heavy features
+            new SettingCategory(Inspection, "检查", "Inspections"),
             new SettingCategory(Agent, "Agent / API", "Agent / API"),
             new SettingCategory(Logging, "日志与诊断", "Logs & Diagnostics"),
             new SettingCategory(Performance, "性能", "Performance"),
@@ -129,6 +137,11 @@ namespace UEToVS.Host.Logic.Settings
                 "false", gCpp, gCppEn));
             list.Add(A(General, "vs.unrealIntegration", WindowActions.VsUnrealIntegration, "VS 自带的 Unreal Engine 集成", "VS's built-in Unreal Engine integration",
                 null, null, gCpp, gCppEn, SettingKind.Info));
+            // ---- v0.4.5 navigation gaps: what VS loses after the takeover and the UEToVS replacement (table drawn by the settings window)
+            list.Add(A(General, "intelliSense.featureMatrix", UEToVS.Host.Logic.IntelliSense.TakeoverFeatures.SettingsInfoId, "接管后 VS 自带功能", "VS features after the takeover",
+                "接管后 VS 的 C++ IntelliSense 和浏览数据库关闭，依赖它们的 VS 功能会失效；下表列出 UEToVS 的替代命令和默认快捷键。",
+                "With VS's C++ IntelliSense and browse database off, the VS features built on them stop working; the table lists the UEToVS replacements and their default keys.",
+                gCpp, gCppEn, SettingKind.Info));
 
             list.Add(A(General, "update.check", WindowActions.CheckForUpdates, "检查更新", "Check for updates",
                 "查询 GitHub 上的最新版本；有新版本时显示版本号和安装包大小，点“下载并安装”后显示下载进度，下载完启动 VS 的扩展安装程序，关闭 VS 后完成安装。",
@@ -171,6 +184,30 @@ namespace UEToVS.Host.Logic.Settings
                 "勾选“自动”时读取 <项目>/Saved/UEToVSLink/port.txt。", "“Auto” reads <Project>/Saved/UEToVSLink/port.txt.", "0", gUe, gUeEn);
             port.Min = 0; port.Max = 65535; port.AutoLabelZh = "自动"; port.AutoLabelEn = "Auto";
             list.Add(port);
+
+            // ---- v0.4.5 UE editor link
+            const string gLink = "UE 编辑器联动（UEToVSLink）", gLinkEn = "Unreal Editor link (UEToVSLink)";
+            list.Add(A(General, "link.pluginStatus", WindowActions.LinkPluginStatus, "UEToVSLink 插件", "UEToVSLink plugin", null, null, gLink, gLinkEn, SettingKind.Info));
+            list.Add(A(General, "link.pluginInstall", WindowActions.LinkPluginInstall, "安装 / 更新 UEToVSLink", "Install / update UEToVSLink",
+                "把扩展自带的插件复制到 <项目>/Plugins/UEToVSLink（更新时先删掉旧的 Binaries / Intermediate），重新打开 UE 编辑器后生效。",
+                "Copies the bundled plugin to <Project>/Plugins/UEToVSLink (an update removes the old Binaries / Intermediate first); reopen the Unreal Editor to load it.",
+                gLink, gLinkEn));
+            list.Add(A(General, "link.pluginUninstall", WindowActions.LinkPluginUninstall, "卸载 UEToVSLink", "Uninstall UEToVSLink",
+                "删除插件目录（含 Binaries / Intermediate）并从 .uproject 的 Plugins 列表移除；UE 编辑器运行中（DLL 被占用）时不会删除。",
+                "Deletes the plugin folder (including Binaries / Intermediate) and removes it from the .uproject Plugins list; nothing is deleted while the Unreal Editor holds the DLL.",
+                gLink, gLinkEn));
+            var logLines = D(General, "link.logMaxLines", SettingKind.Int, "UE 日志窗口最多保留行数", "UE log window: max lines kept",
+                "超过后丢弃最旧的行，避免内存增长。", "Older lines are dropped beyond this, so memory stays bounded.", "20000", gLink, gLinkEn);
+            logLines.Min = 1000; logLines.Max = 500000; logLines.Keywords = "log 日志 buffer 缓冲 memory 内存";
+            list.Add(logLines);
+            list.Add(D(General, "link.logKeepReceiving", SettingKind.Bool, "关闭日志窗口后继续接收日志", "Keep receiving the log after closing the window",
+                "打开过一次 UE 日志窗口后，关闭窗口也继续接收（再打开时能看到期间的日志）；关闭此项则窗口关闭时停止接收。",
+                "Once the UE log window was opened, keep receiving lines while it is closed (they show when it reopens); off stops receiving when it closes.",
+                "true", gLink, gLinkEn));
+            list.Add(D(General, "link.liveCodingErrors", SettingKind.Bool, "Live Coding 错误映射到 VS", "Report Live Coding errors in VS",
+                "从编辑器收集 Live Coding 的编译输出，把错误交给 VS 显示（状态栏 / 信息栏，跳到第一个错误）。",
+                "Collects the Live Coding compiler output from the editor and reports its errors in VS (status bar / info bar, go to the first error).",
+                "true", gLink, gLinkEn));
 
             // ================= 索引
             const string gIdx = "索引", gIdxEn = "Indexing";
@@ -304,6 +341,20 @@ namespace UEToVS.Host.Logic.Settings
                 "接管 VS IntelliSense 后提供：未知成员、缺少 GENERATED_BODY()、#include 的模块不在 Build.cs 依赖中。只报确定的问题，不因 .generated.h 缺失报错。",
                 "Shown once VS IntelliSense is taken over: unknown members, missing GENERATED_BODY(), #include of a module missing from Build.cs. Only certain problems; a missing .generated.h is never reported.",
                 "true", gSquiggle, gSquiggleEn));
+            // ---- v0.4.5 构建结果 / 错误列表
+            const string gBuild = "构建结果与错误列表", gBuildEn = "Build results & Error List";
+            list.Add(D(IntelliSense, "build.squiggles", SettingKind.Bool, "编译错误波浪线", "Compiler error squiggles",
+                "VS 生成结束后解析“生成”输出（UBT / MSVC / clang / UHT），在源码里标出错误和警告；下次生成开始时清除。不依赖接管 IntelliSense。",
+                "After a VS build, parses the Build output (UBT / MSVC / clang / UHT) and marks errors and warnings in the source; cleared when the next build starts. Works without the IntelliSense takeover.",
+                "true", gBuild, gBuildEn));
+            list.Add(D(IntelliSense, "errorList.enabled", SettingKind.Bool, "写入错误列表", "Show in the Error List",
+                "把 UEToVS 的 UE 规则诊断（已打开文件的可见部分）写到 VS 错误列表，来源为“UEToVS”。",
+                "Lists UEToVS's UE rule diagnostics (visible part of open files) in the VS Error List, source \"UEToVS\".",
+                "true", gBuild, gBuildEn));
+            list.Add(D(IntelliSense, "errorList.includeBuild", SettingKind.Bool, "错误列表包含编译错误", "Error List includes build errors",
+                "同时以“UEToVS”来源列出解析出的编译错误。VS 自己的“生成”来源通常已列出它们，打开后可能重复。",
+                "Also lists the parsed build errors under \"UEToVS\". VS's own \"Build\" source usually lists them already, so they may appear twice.",
+                "false", gBuild, gBuildEn));
             const string gTpl = "代码模板", gTplEn = "Templates";
             list.Add(D(IntelliSense, "snippets.enabled", SettingKind.Bool, "UE 代码模板", "UE live templates",
                 "在行首输入缩写（uclass、ustruct、uprop、ufunc、uelog …）后按 Tab 展开，或在补全列表里选择；Tab / Shift+Tab 在占位符之间跳转，Enter / Esc 结束。",
@@ -314,10 +365,44 @@ namespace UEToVS.Host.Logic.Settings
                 "true", gTpl, gTplEn));
             const string gInlay = "内嵌提示", gInlayEn = "Inlay hints";
             list.Add(D(IntelliSense, "inlay.parameterNames", SettingKind.Bool, "参数名提示", "Parameter name hints",
-                "实参是字面量或 nullptr 时，在它前面显示形参名。只计算可见区域。", "Shows the parameter name before literal / nullptr arguments. Only the visible lines are computed.",
+                "实参是字面量、nullptr、true / false 时，在它前面显示形参名（和 Rider 一致）。只计算可见区域，Ctrl+Shift+Alt+U, 2 临时开关。",
+                "Shows the parameter name before literal / nullptr / true / false arguments (like Rider). Only the visible lines are computed; Ctrl+Shift+Alt+U, 2 toggles.",
                 "true", gInlay, gInlayEn));
             list.Add(D(IntelliSense, "inlay.autoTypes", SettingKind.Bool, "auto 推导类型", "Deduced auto types",
-                "在 auto 变量后显示推导出的类型。", "Shows the deduced type after auto variables.", "false", gInlay, gInlayEn));
+                "在 auto 变量名后显示推导出的类型（推导不出时不显示）。", "Shows the deduced type after auto variable names (nothing when it cannot be deduced).", "false", gInlay, gInlayEn));
+            // ---- v0.4.5 编辑体验
+            EditorFeatureSettings.AddDescriptors(list, IntelliSense);
+
+            // ---- v0.4.5 heavy features: generic template instantiation (IntelliSense page)
+            const string gTi = "模板实例化", gTiEn = "Template instantiation";
+            list.Add(D(IntelliSense, "templates.enabled", SettingKind.Bool, "通用模板实例化", "Generic template instantiation",
+                "把模板实参代入成员的返回 / 字段类型（TOptional、TSharedPtr、TWeakObjectPtr、自定义类模板、typedef / using 别名、Cast<T> 等），补全更准。可能占用较多 CPU/内存；关闭后回到内置的 UE 模板规则。",
+                "Substitutes template arguments into member return / field types (TOptional, TSharedPtr, TWeakObjectPtr, your class templates, typedef / using aliases, Cast<T>…) for more exact completion. May use more CPU/memory; off = the built-in UE template rules only.",
+                "true", gTi, gTiEn));
+            var tplCache = D(IntelliSense, "templates.cacheCapacity", SettingKind.Int, "实例缓存容量", "Instance cache capacity",
+                "引擎里缓存的（模板, 实参）实例数（LRU），越大命中率越高、占内存越多。命中率见日志 intellisense.templates。",
+                "(template, arguments) instances cached in the engine (LRU); larger = more hits and more memory. Hit rate: log event intellisense.templates.",
+                "2048", gTi, gTiEn);
+            tplCache.Min = 64; tplCache.Max = 65536;
+            list.Add(tplCache);
+
+            // ================= v0.4.5 检查（全项目检查 / 引擎升级助手）
+            const string gInsp = "全项目检查", gInspEn = "Whole-project inspection";
+            list.Add(D(Inspection, "inspection.enabled", SettingKind.Bool, "启用全项目检查", "Enable whole-project inspection",
+                "按需（命令 / 本页按钮 / MCP run_project_inspection）用波浪线的 UE 规则检查整个项目源码，结果写到 .vs\\UEToVS\\inspections。可能占用较多 CPU/内存；关闭后不允许运行。",
+                "On demand (command / this page / MCP run_project_inspection) runs the squiggle UE rules over all project sources; results go to .vs\\UEToVS\\inspections. May use a lot of CPU/memory; when off it cannot run.",
+                "true", gInsp, gInspEn));
+            list.Add(D(Inspection, "inspection.includePlugins", SettingKind.Bool, "包含项目插件", "Include project plugins",
+                "同时检查项目 Plugins 目录下的源码（文件更多，耗时更长）。", "Also inspects sources under the project's Plugins folder (more files, takes longer).", "false", gInsp, gInspEn));
+            list.Add(A(Inspection, "inspection.run", "uetovs.inspection.run", "运行全项目检查", "Run whole-project inspection",
+                "在后台低优先级线程上运行（线程数同 C++ 索引），可随时取消。", "Runs on low-priority background threads (as many as C++ indexing), cancellable at any time.", gInsp, gInspEn));
+            list.Add(A(Inspection, "inspection.results", "uetovs.inspection.show", "查看结果", "Show results", null, null, gInsp, gInspEn));
+            const string gUpg = "引擎升级助手", gUpgEn = "Engine upgrade assistant";
+            list.Add(D(Inspection, "upgrade.enabled", SettingKind.Bool, "启用引擎升级助手", "Enable the engine upgrade assistant",
+                "按需查找项目对 UE_DEPRECATED / [[deprecated]] API 的引用，按弃用版本分组，签名兼容时可批量替换（一次撤销）。可能占用较多 CPU/内存；关闭后不允许运行。",
+                "On demand, finds project references to UE_DEPRECATED / [[deprecated]] APIs grouped by deprecation version, with batch replacement (one undo) when the replacement is signature-compatible. May use a lot of CPU/memory; when off it cannot run.",
+                "true", gUpg, gUpgEn));
+            list.Add(A(Inspection, "upgrade.run", "uetovs.upgrade.run", "查找弃用 API", "Find deprecated APIs", null, null, gUpg, gUpgEn));
 
             // ================= 日志与诊断
             const string gLog = "日志", gLogEn = "Logs";
@@ -385,6 +470,12 @@ namespace UEToVS.Host.Logic.Settings
             ["diagnostics.createPackage"] = ("生成", "Create"),
             ["diagnostics.componentGallery"] = ("打开", "Open"),
             ["perf.open"] = ("打开", "Open"),
+            ["link.pluginInstall"] = ("安装 / 更新", "Install / Update"),
+            ["link.pluginUninstall"] = ("卸载", "Uninstall"),
+            // ---- v0.4.5 heavy features
+            ["inspection.run"] = ("运行", "Run"),
+            ["inspection.results"] = ("打开", "Open"),
+            ["upgrade.run"] = ("运行", "Run"),
         };
 
         /// <summary>HostSettings ⇄ invariant string values, keyed by descriptor key.</summary>
@@ -416,6 +507,9 @@ namespace UEToVS.Host.Logic.Settings
                     ["unreal.checkIncludesOnSave"] = B(s.CheckIncludesOnSave),
                     ["mcp.enable"] = B(s.EnableMcpServer),
                     ["unreal.editorLinkPort"] = I(s.EditorLinkPort),
+                    ["link.logMaxLines"] = I(s.LinkLogMaxLines),
+                    ["link.logKeepReceiving"] = B(s.LinkLogKeepReceiving),
+                    ["link.liveCodingErrors"] = B(s.LinkLiveCodingErrors),
                     ["indexing.cppThreads"] = I(s.CppIndexThreads),
                     ["indexing.blueprintThreads"] = I(s.BlueprintIndexThreads),
                     ["indexing.duringBuild"] = s.IndexDuringBuild.ToString(),
@@ -452,11 +546,22 @@ namespace UEToVS.Host.Logic.Settings
                     ["postfix.enabled"] = B(s.PostfixTemplatesEnabled),
                     ["inlay.parameterNames"] = B(s.InlayParameterNames),
                     ["inlay.autoTypes"] = B(s.InlayAutoTypes),
+                    // ---- v0.4.5 构建结果 / 错误列表
+                    ["build.squiggles"] = B(s.BuildErrorSquiggles),
+                    ["errorList.enabled"] = B(s.ErrorListEnabled),
+                    ["errorList.includeBuild"] = B(s.ErrorListIncludeBuild),
+                    // ---- v0.4.5 heavy features
+                    ["templates.enabled"] = B(s.TemplateInstantiationEnabled),
+                    ["templates.cacheCapacity"] = I(s.TemplateCacheCapacity),
+                    ["inspection.enabled"] = B(s.ProjectInspectionEnabled),
+                    ["inspection.includePlugins"] = B(s.InspectionIncludePlugins),
+                    ["upgrade.enabled"] = B(s.UpgradeAssistantEnabled),
                 };
                 foreach (var b in ToolbarButtons.All)
                     if (b.Key != "settings") d["toolbar.button." + b.Key] = B(!hidden.Contains(b.Key));
                 UEToVS.Host.Logic.Fonts.FontSettingsSchema.ToValues(s, d);
                 UEToVS.Host.Logic.Translation.TranslationSettingsSchema.ToValues(s, d);
+                EditorFeatureSettings.ToValues(s, d); // v0.4.5 编辑体验
                 return d;
             }
 
@@ -470,6 +575,11 @@ namespace UEToVS.Host.Logic.Settings
                 SharedEngineCache = s.ShareEngineIndex,
                 EngineCacheDirectory = string.IsNullOrWhiteSpace(s.EngineIndexPath) ? null : s.EngineIndexPath,
                 LuaScriptPaths = SplitPaths(s.LuaScriptPaths),
+                // ---- v0.4.5 heavy features
+                ProjectInspectionEnabled = s.ProjectInspectionEnabled,
+                UpgradeAssistantEnabled = s.UpgradeAssistantEnabled,
+                TemplateInstantiationEnabled = s.TemplateInstantiationEnabled,
+                TemplateCacheCapacity = Math.Max(0, s.TemplateCacheCapacity),
             };
 
             /// <summary>"a; b;;c" → [a, b, c]. ';' (or a new line) separates; ',' does not, folder names may contain it.</summary>
@@ -517,6 +627,9 @@ namespace UEToVS.Host.Logic.Settings
                         case "unreal.checkIncludesOnSave": s.CheckIncludesOnSave = PB(v); break;
                         case "mcp.enable": s.EnableMcpServer = PB(v); break;
                         case "unreal.editorLinkPort": s.EditorLinkPort = PI(v, 0); break;
+                        case "link.logMaxLines": s.LinkLogMaxLines = PI(v, 20000); break;
+                        case "link.logKeepReceiving": s.LinkLogKeepReceiving = PB(v); break;
+                        case "link.liveCodingErrors": s.LinkLiveCodingErrors = PB(v); break;
                         case "indexing.cppThreads": s.CppIndexThreads = PI(v, 0); break;
                         case "indexing.blueprintThreads": s.BlueprintIndexThreads = PI(v, 0); break;
                         case "indexing.duringBuild": s.IndexDuringBuild = PE(v, IndexDuringBuild.SingleThread); break;
@@ -553,9 +666,20 @@ namespace UEToVS.Host.Logic.Settings
                         case "postfix.enabled": s.PostfixTemplatesEnabled = PB(v); break;
                         case "inlay.parameterNames": s.InlayParameterNames = PB(v); break;
                         case "inlay.autoTypes": s.InlayAutoTypes = PB(v); break;
+                        // ---- v0.4.5 构建结果 / 错误列表
+                        case "build.squiggles": s.BuildErrorSquiggles = PB(v); break;
+                        case "errorList.enabled": s.ErrorListEnabled = PB(v); break;
+                        case "errorList.includeBuild": s.ErrorListIncludeBuild = PB(v); break;
+                        // ---- v0.4.5 heavy features
+                        case "templates.enabled": s.TemplateInstantiationEnabled = PB(v); break;
+                        case "templates.cacheCapacity": s.TemplateCacheCapacity = PI(v, 2048); break;
+                        case "inspection.enabled": s.ProjectInspectionEnabled = PB(v); break;
+                        case "inspection.includePlugins": s.InspectionIncludePlugins = PB(v); break;
+                        case "upgrade.enabled": s.UpgradeAssistantEnabled = PB(v); break;
                         default:
                             if (UEToVS.Host.Logic.Fonts.FontSettingsSchema.TrySet(s, d.Key, v)) break;
                             if (UEToVS.Host.Logic.Translation.TranslationSettingsSchema.TrySet(s, d.Key, v)) break;
+                            if (EditorFeatureSettings.TrySet(s, d.Key, v)) break; // v0.4.5 编辑体验
                             if (d.Key.StartsWith("toolbar.button.", StringComparison.Ordinal))
                             {
                                 string key = d.Key.Substring("toolbar.button.".Length);

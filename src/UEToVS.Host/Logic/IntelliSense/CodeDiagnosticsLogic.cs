@@ -10,6 +10,9 @@ namespace UEToVS.Host.Logic.IntelliSense
     /// <summary>Localized squiggle texts from rule code + arguments (the engine sends English fallbacks only). Pure.</summary>
     public static class CodeDiagnosticText
     {
+        /// <summary>Argument <paramref name="i"/> or null when missing / empty (v0.4.5 rules use "" for "none").</summary>
+        private static string Arg(CodeDiagnostic d, int i) => d.Args != null && i < d.Args.Count && !string.IsNullOrEmpty(d.Args[i]) ? d.Args[i] : null;
+
         public static string Message(CodeDiagnostic d)
         {
             if (d == null) return string.Empty;
@@ -44,6 +47,11 @@ namespace UEToVS.Host.Logic.IntelliSense
                     return A(3) == "blueprint"
                         ? Loc.F("参数 “{0}” 的类型 {1} 不能用于蓝图函数 {2}（UHT 会报错）", "Parameter '{0}' of type {1} is not supported by Blueprint in {2} (UHT will fail)", A(0), A(1), A(2))
                         : Loc.F("参数 “{0}” 的类型 {1} 不能用于 UFUNCTION {2}（UHT 会报错）", "Parameter '{0}' of type {1} cannot be used in UFUNCTION {2} (UHT will fail)", A(0), A(1), A(2));
+                // ---- v0.4.5 编辑体验
+                case CodeDiagnosticCodes.DeprecatedApi:
+                    return UEToVS.Host.Logic.Localization.EditorFeatureStrings.Deprecated(A(0), Arg(d, 1), Arg(d, 2));
+                case CodeDiagnosticCodes.NamingConvention:
+                    return UEToVS.Host.Logic.Localization.EditorFeatureStrings.Naming(A(0), A(1), A(2));
                 default:
                     return d.Message ?? d.Code ?? string.Empty;
             }

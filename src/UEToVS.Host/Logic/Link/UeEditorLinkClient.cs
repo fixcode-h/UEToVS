@@ -121,8 +121,29 @@ namespace UEToVS.Host.Logic.Link
             }
         }
 
+        /// <summary>Ping with the protocol version (v0.4.5); a protocol-1 plugin ignores the field and answers as before.</summary>
         public Task<EditorLinkReply> PingAsync(CancellationToken ct = default) =>
-            SendAsync(new JObject { ["cmd"] = "ping" }, 1000, ct);
+            SendAsync(LinkProtocol.Ping(), 1000, ct);
+
+        private string _lastCapabilities;
+
+        /// <summary>What the running plugin supports (null when the editor is not reachable).</summary>
+        public async Task<LinkCapabilities> GetCapabilitiesAsync(CancellationToken ct = default)
+        {
+            var r = await PingAsync(ct).ConfigureAwait(false);
+            if (!r.Reached) return null;
+            var caps = LinkProtocol.ParseCapabilities(r.Raw);
+            // Polled by the settings card: log only when something changed.
+            string key = caps.ToString() + "|" + caps.Project + "|" + caps.EngineVersion;
+            if (Interlocked.Exchange(ref _lastCapabilities, key) == key) return caps;
+            L.Info("link.capabilities", null, ("protocol", caps.Protocol), ("plugin", caps.PluginVersion), ("features", string.Join(",", caps.Features)),
+                ("project", caps.Project), ("engine", caps.EngineVersion));
+            return caps;
+        }
+
+        /// <summary>v0.4.5 (protocol 2): asks the editor to run "Automation RunTests &lt;filter&gt;"; results arrive as tests events.</summary>
+        public Task<EditorLinkReply> RunTestsAsync(string runId, string filter, CancellationToken ct = default) =>
+            SendAsync(LinkProtocol.RunTests(runId, filter), 5000, ct);
 
         public Task<EditorLinkReply> OpenAssetAsync(string objectPath, CancellationToken ct = default) =>
             SendAsync(new JObject { ["cmd"] = "openAsset", ["path"] = objectPath }, 3000, ct);

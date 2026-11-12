@@ -77,6 +77,8 @@ namespace UEToVS.Engine.Rpc
             ["rpc.getDiagnostics"] = 100,  // viewport ± 50 lines, after an edit pause (squiggles)
             ["rpc.getRefactoringContext"] = 100,   // M4 Alt+Enter / light bulb (include walk bounded, cached)
             ["rpc.getOverridableMethods"] = 500,   // M4 Implement Virtual dialog
+            ["rpc.findAutomationTests"] = 3000,    // v0.4.5 test runner: cold scan of the project sources, warm < 100 ms
+            ["rpc.findLogSites"] = 3000,           // v0.4.5 log window double-click / related items (same cache)
         };
 
         public static double For(string evt) => ByEvent.TryGetValue(evt, out var b) ? b : double.MaxValue;

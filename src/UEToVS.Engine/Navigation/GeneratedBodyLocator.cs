@@ -25,16 +25,27 @@ namespace UEToVS.Engine.Navigation
 
         public static bool IsBodyMacro(string word) => word != null && BodyMacros.Contains(word);
 
+        /// <summary>"Foo.generated.h" from the header's <c>#include "Foo.generated.h"</c>, or null.</summary>
+        public static string GeneratedHeaderName(string headerText)
+        {
+            if (headerText == null) return null;
+            var m = GeneratedInclude.Match(headerText);
+            return m.Success ? Path.GetFileName(m.Groups[1].Value) + ".generated.h" : null;
+        }
+
+        /// <summary>Suffix of UHT's per-line macro for a body macro: _GENERATED_BODY or _GENERATED_BODY_LEGACY.</summary>
+        public static string MacroSuffix(string word) =>
+            word == "GENERATED_BODY" || word == "GENERATED_USTRUCT_BODY" ? "_GENERATED_BODY" : "_GENERATED_BODY_LEGACY";
+
         /// <summary>The expansion of the body macro used on 0-based <paramref name="line"/> of <paramref name="headerPath"/>, or null.</summary>
         public static SymbolInfo Find(string headerPath, string headerText, string word, int line)
         {
             if (!IsBodyMacro(word) || string.IsNullOrEmpty(headerPath) || headerText == null) return null;
-            var m = GeneratedInclude.Match(headerText);
-            if (!m.Success) return null;
-            string genName = Path.GetFileName(m.Groups[1].Value) + ".generated.h";
+            string genName = GeneratedHeaderName(headerText);
+            if (genName == null) return null;
             string file = FindGeneratedHeader(headerPath, genName);
             if (file == null) return null;
-            int defLine = FindDefineLine(File.ReadLines(file), line + 1, word == "GENERATED_BODY" || word == "GENERATED_USTRUCT_BODY" ? "_GENERATED_BODY" : "_GENERATED_BODY_LEGACY");
+            int defLine = FindDefineLine(File.ReadLines(file), line + 1, MacroSuffix(word));
             if (defLine < 0) return null;
             return new SymbolInfo
             {

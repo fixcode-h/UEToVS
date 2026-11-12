@@ -113,6 +113,7 @@ namespace UEToVS.Host
             EditorLinkService.Initialize(package);
             RegisterActions(package, registry);
             if (mcs != null && router != null) router.RegisterMap(mcs, Commands);
+            LinkFeature.Initialize(package, registry, router, mcs); // ---- v0.4.5 UE editor link (log window, tests, Live Coding)
 
             DoubleShift.Triggered += (s, e) => Safe.Execute(L, "input.doubleShift", () =>
             {
@@ -160,6 +161,7 @@ namespace UEToVS.Host
             NavigationService.Instance.Close();
             BookmarkService.Close();
             SearchEverywhere.Instance?.Dismiss();
+            LinkFeature.OnSolutionClosing();
         }
 
         public static void Dispose()
@@ -168,6 +170,7 @@ namespace UEToVS.Host
             {
                 _input?.Dispose();
                 _input = null;
+                LinkFeature.Dispose();
             }
             catch (Exception)
             {
@@ -273,7 +276,8 @@ namespace UEToVS.Host
             }
 
             Add(M1ActionIds.LiveCoding, FeatureStrings.CmdLiveCoding, ActionCategory.Unreal, ctx => EditorLinkService.Instance.LiveCodingAsync(), Unreal, FeatureStrings.KwUnreal);
-            Add(M1ActionIds.GenerateProjectFiles, FeatureStrings.CmdGenerateProjectFiles, ActionCategory.Unreal, ctx => UnrealTools.GenerateProjectFilesAsync(p), Unreal, FeatureStrings.KwUnreal);
+            Add(M1ActionIds.GenerateProjectFiles, FeatureStrings.CmdGenerateProjectFiles, ActionCategory.Unreal, ctx => UnrealTools.GenerateProjectFilesAsync(p),
+                c => c.IsUnrealSolution && !UnrealTools.IsGeneratingProjectFiles, FeatureStrings.KwUnreal); // v0.4.5: disabled while UBT runs
             Add(M1ActionIds.InstallEditorPlugin, FeatureStrings.CmdInstallEditorPlugin, ActionCategory.Unreal, ctx => UnrealTools.InstallEditorPluginAsync(p), Unreal, FeatureStrings.KwUnreal);
 
             // Optional full Rider layouts through DTE bindings (backed up; restorable).

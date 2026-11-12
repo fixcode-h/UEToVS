@@ -20,9 +20,9 @@ namespace UEToVS.Mcp.Tests
     {
         private static readonly string[] ExpectedTools =
         {
-            "find_delegate_bindings", "find_references", "get_file_outline", "get_lua_outline", "get_members", "get_module_info", "get_reflection_info",
-            "get_type_hierarchy", "go_to_definition", "index_status", "search_assets", "search_config", "search_files", "search_lua", "search_lua_files",
-            "search_symbols", "suggest_include",
+            "find_delegate_bindings", "find_references", "get_build_errors", "get_diagnostics", "get_file_outline", "get_lua_outline", "get_members",
+            "get_module_info", "get_reflection_info", "get_type_hierarchy", "go_to_definition", "index_status", "rename_symbol", "run_project_inspection",
+            "search_assets", "search_config", "search_files", "search_lua", "search_lua_files", "search_symbols", "suggest_include",
         };
 
         private readonly OfflineFixture _f;
@@ -68,7 +68,8 @@ namespace UEToVS.Mcp.Tests
             // The instructions are what makes agents pick these tools over grep: every search tool must be named, and they must fit
             // in the 2 KB some clients (Claude Code) keep.
             foreach (var name in new[] { "search_files", "search_assets", "find_references", "search_lua", "search_lua_files", "get_lua_outline",
-                                         "get_reflection_info", "get_module_info", "suggest_include", "search_config", "find_delegate_bindings" })
+                                         "get_reflection_info", "get_module_info", "suggest_include", "search_config", "find_delegate_bindings",
+                                         "get_diagnostics", "get_build_errors", "rename_symbol" })
                 Assert.Contains(name, c.ServerInstructions);
             Assert.Contains("Grep", c.ServerInstructions);
             Assert.True(c.ServerInstructions.Length < 2000, "instructions are long: " + c.ServerInstructions.Length);
@@ -83,7 +84,8 @@ namespace UEToVS.Mcp.Tests
                 var schema = t.ProtocolTool.InputSchema;
                 Assert.Equal("object", schema.GetProperty("type").GetString());
                 Assert.False(schema.GetProperty("additionalProperties").GetBoolean());
-                Assert.True(t.ProtocolTool.Annotations.ReadOnlyHint);
+                // rename_symbol (apply=true) is the only tool that writes files
+                Assert.Equal(t.Name != "rename_symbol", t.ProtocolTool.Annotations.ReadOnlyHint);
                 Assert.False(string.IsNullOrWhiteSpace(t.Description));
                 Assert.True(t.Description.Length < 1200, t.Name + " description is long: " + t.Description.Length);
             }

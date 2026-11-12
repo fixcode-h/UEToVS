@@ -56,6 +56,9 @@ namespace UEToVS.Host.Diagnostics
         public void Write(LogEvent e)
         {
             if (e.Level < MinLevel) return;
+            // ---- v0.4.5: UBT output is streamed verbatim through WriteRaw (Unreal/UnrealTools.cs); only the log file gets the events.
+            if (string.Equals(e.Module, RawModule, StringComparison.Ordinal) && e.Event != null && e.Event.StartsWith("ubt.out", StringComparison.Ordinal)) return;
+            if (string.Equals(e.Module, RawModule, StringComparison.Ordinal) && string.Equals(e.Event, "ubt.err", StringComparison.Ordinal)) return;
             if (Interlocked.Increment(ref _queued) > MaxQueued)
             {
                 Interlocked.Decrement(ref _queued);
@@ -63,6 +66,23 @@ namespace UEToVS.Host.Diagnostics
                 return;
             }
             _pending.Enqueue(Format(e));
+            Schedule();
+        }
+
+        /// <summary>Logger module whose ubt.out / ubt.err lines are written raw instead of formatted.</summary>
+        public const string RawModule = "UBT";
+
+        /// <summary>A line written as is (tool output such as UBT), in order with the log lines; any thread.</summary>
+        public void WriteRaw(string line)
+        {
+            if (line == null) return;
+            if (Interlocked.Increment(ref _queued) > MaxQueued)
+            {
+                Interlocked.Decrement(ref _queued);
+                Interlocked.Increment(ref _dropped);
+                return;
+            }
+            _pending.Enqueue(line);
             Schedule();
         }
 

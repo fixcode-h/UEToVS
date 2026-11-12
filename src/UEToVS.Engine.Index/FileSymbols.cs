@@ -57,6 +57,37 @@ namespace UEToVS.Engine.Index
         /// arguments (e.g. <c>ACharacter</c>, <c>TSharedFromThis&lt;FFoo&gt;</c>); null for everything else.
         /// </summary>
         public string[] Bases;
+
+        /// <summary>v0.4.5: deprecation marker of the declaration (UE_DEPRECATED(ver, msg) / [[deprecated(msg)]]); null for almost everything.</summary>
+        public DeclDeprecation Deprecation;
+    }
+
+    /// <summary>
+    /// Deprecation marker of a declaration as written: version (<c>5.1</c>, empty for <c>[[deprecated]]</c>) and message.
+    /// Stored in the segment's string pool (the symbol record only gets a flag bit), so it costs nothing for the
+    /// overwhelming majority of symbols that are not deprecated.
+    /// </summary>
+    public sealed class DeclDeprecation
+    {
+        public DeclDeprecation(string version, string message)
+        {
+            Version = version ?? string.Empty;
+            Message = message ?? string.Empty;
+        }
+
+        public string Version { get; }
+        public string Message { get; }
+
+        public override string ToString() => "deprecated(" + Version + ", \"" + Message + "\")";
+    }
+
+    /// <summary>A deprecated symbol listed from the index.</summary>
+    public sealed class DeprecatedSymbol
+    {
+        public UEToVS.Contracts.SymbolInfo Symbol { get; set; }
+        public string Version { get; set; }
+        public string Message { get; set; }
+        public override string ToString() => Symbol?.Container + "::" + Symbol?.Name + " " + Version;
     }
 
     /// <summary>One identifier occurrence (reference). Role is producer defined (read/write/call/...).</summary>

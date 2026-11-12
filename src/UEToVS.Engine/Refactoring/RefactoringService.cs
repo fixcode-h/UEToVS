@@ -8,6 +8,7 @@ using UEToVS.Contracts;
 using UEToVS.Core.Diagnostics;
 using UEToVS.Engine.Index;
 using UEToVS.Engine.Indexing;
+using UEToVS.Engine.IntelliSense;
 using UEToVS.Engine.Navigation;
 using UEToVS.Engine.Syntax;
 
@@ -41,6 +42,9 @@ namespace UEToVS.Engine.Refactoring
             _documents = documents ?? new DocumentCache();
             _indexReady = indexReady ?? (() => true);
         }
+
+        /// <summary>Member tables shared with IntelliSense (expression typing for Introduce Variable); a small private cache when not set.</summary>
+        public MemberTableCache MemberTables { get; set; }
 
         /// <summary>Include lists of indexed files (tests may replace it; default: the segmented index's file records, else null).</summary>
         public Func<string, IReadOnlyList<string>> IncludesOf { get; set; }
@@ -91,6 +95,11 @@ namespace UEToVS.Engine.Refactoring
             resp.Class = ClassAt(ctx, doc, offset, resp.Function);
             if (resp.Symbol != null && IsTypeLike(resp.Symbol.Kind) && !resp.OnDeclaration)
                 resp.Type = TypeInfo(ctx, doc, resp.Symbol, r, request.CheckIncludes, ct);
+
+            // ---- v0.4.5 refactoring batch 2 (all opt-in: nothing extra is computed for a plain Alt+Enter)
+            if (request.SelectionEndLine >= 0) resp.ExpressionType = ExpressionTypeAt(ctx, doc, request);
+            if (request.IncludeLocals) FillLocals(ctx, doc, offset, resp);
+            if (request.IncludeSignatureFamily && fi >= 0) FillFamily(ctx, doc, fi, resp, ct);
             return Finish(resp, sw, request, null);
         }
 
@@ -100,9 +109,114 @@ namespace UEToVS.Engine.Refactoring
             L.Info("refactor.context", null, ("word", resp.Word), ("reason", reason), ("function", resp.Function?.Name),
                 ("decls", resp.Declarations.Count), ("defs", resp.Definitions.Count), ("class", resp.Class?.Symbol?.Name),
                 ("type", resp.Type?.Symbol?.Name), ("include", resp.Type?.Include.ToString()), ("visited", resp.Type?.FilesVisited),
-                ("checkIncludes", request?.CheckIncludes), ("ms", resp.ElapsedMs),
+                ("checkIncludes", request?.CheckIncludes), ("exprType", resp.ExpressionType), ("locals", resp.Locals.Count),
+                ("bases", resp.BaseDeclarations.Count), ("overrides", resp.Overrides.Count), ("ms", resp.ElapsedMs),
                 ("file", Path.GetFileName(request?.Caret?.FilePath ?? string.Empty)), ("line", request?.Caret?.Line));
             return resp;
+        }
+
+        // ================================================================== v0.4.5: expression type, locals, override chain
+
+        /// <summary>Type of the expression ending at the selection end (ExpressionTypes), or null.</summary>
+        private string ExpressionTypeAt(NavContext ctx, DocumentModel doc, RefactoringContextRequest request)
+        {
+            try
+            {
+                int end = doc.OffsetOf(Math.Max(0, request.SelectionEndLine), Math.Max(0, request.SelectionEndColumn));
+                int ti = doc.TokenIndexFrom(end) - 1;
+                if (ti < 0 || doc.Tokens[ti].End > end) return null;
+                if (request.SelectionStartLine >= 0)
+                {
+                    int start = doc.OffsetOf(Math.Max(0, request.SelectionStartLine), Math.Max(0, request.SelectionStartColumn));
+                    if (doc.Tokens[ti].Start < start) return null;
+                }
+                var session = new IsSession(ctx, doc, _documents, MemberTables ?? (MemberTables = new MemberTableCache(16)), null);
+                string type = new ExpressionTypes(session, doc.EnclosingClass(doc.Tokens[ti].Start, out _)).TypeOf(ti);
+                return string.IsNullOrWhiteSpace(type) ? null : type.Trim();
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                L.Warn("refactor.expressionType.failed", "Typing the selected expression failed", ex, ("file", Path.GetFileName(doc.Path)));
+                return null;
+            }
+        }
+
+        /// <summary>The function whose body contains the caret and its locals / parameters (positions as line / UTF-16 column).</summary>
+        private static void FillLocals(NavContext ctx, DocumentModel doc, int offset, RefactoringContextResponse resp)
+        {
+            int fi = doc.EnclosingFunction(offset);
+            if (fi < 0) return;
+            var sig = ToSignature(ctx, doc, fi);
+            sig.Container = OwnerOf(doc, fi);
+            resp.EnclosingFunction = sig;
+            foreach (var l in doc.LocalsOf(fi))
+            {
+                var (line, col) = doc.PositionOf(l.Offset);
+                int scopeEnd = Math.Min(l.ScopeEnd, doc.Text.Length);
+                var (eLine, eCol) = doc.PositionOf(scopeEnd);
+                resp.Locals.Add(new LocalSymbol
+                {
+                    Name = l.Name, Type = l.Type, Line = line, Column = col, IsParameter = l.IsParameter, ScopeEndLine = eLine, ScopeEndColumn = eCol,
+                });
+            }
+        }
+
+        /// <summary>
+        /// The override chain of a function (Change Signature): same name and parameter count in base types (nearest first) and
+        /// overrides in derived types (Name and Name_Implementation). Bounded: 64 base types, 2000 derived types.
+        /// </summary>
+        private static void FillFamily(NavContext ctx, DocumentModel doc, int fi, RefactoringContextResponse resp, CancellationToken ct)
+        {
+            var d = doc.Decls[fi];
+            string owner = OwnerOf(doc, fi);
+            if (string.IsNullOrEmpty(owner) || doc.IsKnownNamespace(owner)) return;
+            var root = ctx.FindType(owner);
+            if (root == null) return;
+            int count = TypeText.ParameterCount(d.Signature);
+            bool SameShape(SymbolInfo s) => TypeText.IsCallableKind(s.Kind) && (count < 0 || TypeText.ParameterCount(s.Signature) == count);
+
+            var seen = new HashSet<string>(StringComparer.Ordinal) { TypeText.Qualified(root.Symbol.Container, root.Symbol.Name) };
+            var level = root.Bases.ToList();
+            for (int depth = 0; depth < 32 && level.Count > 0 && seen.Count < 64; depth++)
+            {
+                var next = new List<string>();
+                foreach (var baseText in level)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    var be = ctx.FindType(baseText);
+                    if (be?.Symbol == null) continue;
+                    string q = TypeText.Qualified(be.Symbol.Container, be.Symbol.Name);
+                    if (!seen.Add(q)) continue;
+                    foreach (var s in ctx.ByName(d.Name))
+                        if (SameShape(s) && string.Equals(s.Container, q, StringComparison.Ordinal)) resp.BaseDeclarations.Add(s);
+                    next.AddRange(be.Bases);
+                }
+                level = next;
+            }
+
+            var queue = new Queue<TypeEntry>();
+            queue.Enqueue(root);
+            int visited = 0;
+            while (queue.Count > 0 && visited < 2000)
+            {
+                foreach (var t in ctx.DerivedOf(queue.Dequeue()))
+                {
+                    ct.ThrowIfCancellationRequested();
+                    string q = TypeText.Qualified(t.Symbol.Container, t.Symbol.Name);
+                    if (!seen.Add(q)) continue;
+                    visited++;
+                    queue.Enqueue(t);
+                    foreach (var name in new[] { d.Name, d.Name + "_Implementation" })
+                        foreach (var s in ctx.ByName(name))
+                            if (SameShape(s) && string.Equals(s.Container, q, StringComparison.Ordinal)) resp.Overrides.Add(s);
+                }
+            }
+            L.Debug("refactor.family", null, ("name", d.Name), ("owner", owner), ("bases", resp.BaseDeclarations.Count), ("overrides", resp.Overrides.Count),
+                ("types", seen.Count));
         }
 
         private static bool IsTypeLike(SymbolKind k) => TypeText.IsRecordKind(k) || k == SymbolKind.Enum || k == SymbolKind.Typedef || k == SymbolKind.Delegate;

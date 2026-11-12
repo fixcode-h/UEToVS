@@ -147,6 +147,7 @@ namespace UEToVS.Host.Options
                 ["enableMcpServer"] = s.EnableMcpServer,
             };
             UEToVS.Host.Logic.Fonts.FontSettingsSchema.Describe(s, d);
+            UEToVS.Host.Logic.Settings.EditorFeatureSettings.Describe(s, d); // v0.4.5 编辑体验
             return Sanitizer.MaskSecrets(d);
         }
 

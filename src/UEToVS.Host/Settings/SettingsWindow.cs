@@ -442,6 +442,10 @@ namespace UEToVS.Host.Settings
                 return card;
             }
 
+            // ---- v0.4.5 navigation gaps: VS features after the takeover (a table under the title, no editor)
+            if (d.Kind == SettingKind.Info && d.ActionId == Logic.IntelliSense.TakeoverFeatures.SettingsInfoId)
+                return new SettingsRow(d.Title(English), d.Description(English)) { Below = new TakeoverFeatureTable() };
+
             var row = new SettingsRow(d.Title(English), d.Description(English));
             var labels = row.Labels;
             if (d.RequiresRestart)

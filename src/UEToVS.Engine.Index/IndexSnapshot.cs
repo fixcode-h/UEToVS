@@ -345,6 +345,115 @@ namespace UEToVS.Engine.Index
             return more && st.Read < reader.Count;
         }
 
+        // ------------------------------------------------------------------ v0.4.5 deprecation markers
+
+        /// <summary>
+        /// Every live deprecated symbol (UE_DEPRECATED / [[deprecated]] / UE_DEPRECATED_FORGAME): base segments read only their
+        /// DeprecationEntries section (a few thousand 12-byte records for a whole engine), then the delta. Order: segments
+        /// in snapshot order, delta files in path order.
+        /// </summary>
+        public IReadOnlyList<DeprecatedSymbol> ListDeprecated(CancellationToken ct = default)
+        {
+            var result = new List<DeprecatedSymbol>();
+            var snap = Inner;
+            using (L.Time("index.list_deprecated", 100))
+            {
+                foreach (var view in snap.Bases)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    var seg = view.Segment;
+                    var entries = seg.Deprecations;
+                    for (int k = 0; k < entries.Length; k++)
+                    {
+                        var e = entries[k];
+                        if (view.IsDead(seg.Symbols[(int)e.Symbol].FileId)) continue;
+                        result.Add(new DeprecatedSymbol
+                        {
+                            Symbol = Dto.Symbol(seg, e.Symbol),
+                            Version = seg.GetString(e.VersionId) ?? string.Empty,
+                            Message = seg.GetString(e.MessageId) ?? string.Empty,
+                        });
+                    }
+                }
+                foreach (var df in snap.DeltaSorted)
+                {
+                    for (int i = 0; i < df.Decls.Length; i++)
+                    {
+                        var dep = df.Decls[i].Deprecation;
+                        if (dep != null) result.Add(new DeprecatedSymbol { Symbol = Dto.Symbol(df, i), Version = dep.Version, Message = dep.Message });
+                    }
+                }
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Occurrences of <paramref name="name"/> in project files only (Project, plus ProjectPlugin when
+        /// <paramref name="includePlugins"/>): segments without project files are skipped without decoding anything.
+        /// </summary>
+        public IEnumerable<OccurrenceHit> FindProjectOccurrences(string name, bool includePlugins, CancellationToken ct = default)
+        {
+            if (string.IsNullOrEmpty(name)) yield break;
+            var snap = Inner;
+            var batch = new List<OccurrenceHit>(256);
+            foreach (var view in snap.Bases)
+            {
+                var seg = view.Segment;
+                if (!seg.HasProjectFiles) continue;
+                int n = seg.FindName(name);
+                if (n < 0) continue;
+                var state = new DecodeState();
+                while (true)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    batch.Clear();
+                    bool more = DecodeProjectBatch(view, n, includePlugins, ref state, batch, 256);
+                    foreach (var h in batch) yield return h;
+                    if (!more) break;
+                }
+            }
+            foreach (var df in snap.DeltaSorted)
+            {
+                ct.ThrowIfCancellationRequested();
+                var o0 = df.Source.Origin;
+                if (!(o0 == ItemOrigin.Project || (includePlugins && o0 == ItemOrigin.ProjectPlugin))) continue;
+                foreach (var o in df.Occurrences)
+                    if (string.Equals(o.Name, name, StringComparison.Ordinal))
+                        yield return new OccurrenceHit(df.Source.Path, o.Offset, o.Role);
+            }
+        }
+
+        private static bool DecodeProjectBatch(SegmentView view, int nameIndex, bool includePlugins, ref DecodeState st, List<OccurrenceHit> into, int max)
+        {
+            var seg = view.Segment;
+            var reader = seg.ReadOccurrences(nameIndex);
+            reader.Restore(st.Pos, st.Read, st.File, st.Offset);
+            bool more = true;
+            while (into.Count < max)
+            {
+                if (!reader.Next(out uint file, out int offset, out byte role))
+                {
+                    more = false;
+                    break;
+                }
+                if (view.IsDead(file)) continue;
+                var origin = seg.Files[(int)file].ItemOrigin;
+                if (!(origin == ItemOrigin.Project || (includePlugins && origin == ItemOrigin.ProjectPlugin))) continue;
+                if (!st.HasCache || st.CachedFile != file)
+                {
+                    st.CachedFile = file;
+                    st.CachedPath = seg.GetString(seg.Files[(int)file].PathId);
+                    st.HasCache = true;
+                }
+                into.Add(new OccurrenceHit(st.CachedPath, offset, role));
+            }
+            st.Pos = reader.Position;
+            st.Read = reader.ReadCount;
+            st.File = reader.LastFile;
+            st.Offset = reader.LastOffset;
+            return more && st.Read < reader.Count;
+        }
+
         // ------------------------------------------------------------------ stats
 
         public IndexStats GetStats()

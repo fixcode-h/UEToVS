@@ -64,6 +64,20 @@ namespace UEToVS.Host.Shell
 
         // ---- 注释翻译 (Translation/TranslationActions.cs) ----
         public const int TranslateSelection = 0x0165;
+        // ---- v0.4.5 构建结果 / 错误列表 / 新建 UE 类 (0x0170–0x017F; toolbar 0x0487) ----
+        public const int NewUeClass = 0x0170;
+        public const int NextBuildError = 0x0171;
+        public const int ClearBuildErrors = 0x0172;
+        /// <summary>Solution Explorer context-menu variants (solution / game project / .uproject; folder / project).</summary>
+        public const int CtxGenerateProjectFiles = 0x0173;
+        public const int CtxNewUeClass = 0x0174;
+        public const int TbGenerateProjectFiles = 0x0487;
+        // ---- v0.4.5 heavy features (0x01A0–0x01AF) ----
+        public const int RunProjectInspection = 0x01A0;
+        public const int ShowInspectionResults = 0x01A1;
+        public const int RunUpgradeAssistant = 0x01A2;
+        public const int ShowUpgradeResults = 0x01A3;
+        public const int CancelHeavyJob = 0x01A4;
     }
 
     /// <summary>Stable action ids (§7.4). Commands dispatch to these.</summary>
@@ -93,5 +107,15 @@ namespace UEToVS.Host.Shell
         // ---- 注释翻译 (Translation/TranslationActions.cs) ----
         public const string TranslateSelection = "uetovs.translate.selection";
         public const string ClearTranslationCache = Logic.Translation.TranslationSettingsSchema.ClearCacheAction;
+        // ---- v0.4.5 构建结果 / 错误列表 / 新建 UE 类 ----
+        public const string NewUeClass = "uetovs.unreal.newClass";
+        public const string NextBuildError = "uetovs.build.nextError";
+        public const string ClearBuildErrors = "uetovs.build.clearErrors";
+        // ---- v0.4.5 heavy features ----
+        public const string RunProjectInspection = "uetovs.inspection.run";
+        public const string ShowInspectionResults = "uetovs.inspection.show";
+        public const string RunUpgradeAssistant = "uetovs.upgrade.run";
+        public const string ShowUpgradeResults = "uetovs.upgrade.show";
+        public const string CancelHeavyJob = "uetovs.heavy.cancel";
     }
 }
