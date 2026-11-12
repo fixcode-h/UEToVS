@@ -17,6 +17,9 @@
 - **ini 键补全** — `GConfig->GetString/GetBool/GetInt…(TEXT("Section"), TEXT("Key"), …, GGameIni)` 的 section 和 key 补全，来源为项目 Config/*.ini，按 `GGameIni` / `GEngineIni` 等过滤对应文件；普通字符串（日志文本等）不会弹出列表
 - **#include 补全后立即检查模块依赖** — 选中的头文件属于当前模块 Build.cs 未依赖的模块时，提交后马上弹出“添加到 Public/PrivateDependencyModuleNames”横幅，不必等保存
 
+### 新功能
+- **高置信度错误波浪线** — 接管 VS C++ IntelliSense 后，UEToVS 提供唯一的错误提示，只报确定的问题（宁可漏报，不误报）：UE0001 未知成员（`expr.Name` / `expr->Name`，且类型和所有基类都已完整解析；模板、宏、auto、未索引或模板基类、重载返回类型不一致等一律不报）、UE0002 `#include` 的头文件所在模块不在 Build.cs 依赖中（警告，消息里给出模块名）、UE0003 UCLASS / USTRUCT / UINTERFACE 缺少 GENERATED_BODY()。不因 `.generated.h` 缺失报错，引擎代码不检查，正在输入的单词和未保存头文件里声明的类型不报。只检查可见区域 ±50 行，编辑后约 500 ms 刷新；设置“代码感知 > 波浪线”可关闭。日志 `intellisense.diagnostics` 记录各规则命中数和“不确定而跳过”的数量及原因
+
 ### 改进
 - **每个命令都有默认快捷键** — 之前很多命令（最近位置、上/下一个编辑位置、文件结构、Search Everywhere、转到类型/文件等）没有默认键。现在全部补齐：Search Everywhere Ctrl+T，转到类型 Shift+Alt+T，最近文件/位置 Shift+Alt+E / Shift+Alt+L，上/下一个编辑位置 Ctrl+Shift+Backspace / Ctrl+Shift+Alt+Backspace，文件结构 Ctrl+Shift+Alt+M，导航到 Shift+Alt+N，转到资产 Shift+Alt+B，相关项 Shift+Alt+R，书签 Ctrl+F2 / Ctrl+Shift+F2；设置、日志、诊断、生成工程文件等工具命令统一为 Ctrl+Shift+Alt+U 再按一个字母（如 U, S 打开设置）。Rider / VS 预设里没有对应键的命令沿用这套默认
 - **快捷键冲突时 UEToVS 优先** — 默认键、套用预设和在快捷键页修改时，如果 VS 自带命令占用了同一按键（含和弦前缀、编辑器范围遮挡全局范围的情况），会把该按键从 VS 命令上移除，让 UEToVS 生效；改动前自动备份，“还原上次备份”可一键恢复。用户自己给 UEToVS 命令设置的键不会被覆盖

@@ -287,6 +287,11 @@ namespace UEToVS.Host.Logic.Settings
                 "选择 VA 导出的 .vssettings 文件。", "Pick a .vssettings file exported from Visual Assist.", gCol, gColEn));
             list.Add(A(IntelliSense, "coloring.reset", "uetovs.intellisense.resetSemanticColors", "恢复默认语义配色", "Reset semantic colors",
                 null, null, gCol, gColEn));
+            const string gSquiggle = "波浪线", gSquiggleEn = "Squiggles";
+            list.Add(D(IntelliSense, "diagnostics.enabled", SettingKind.Bool, "高置信度错误波浪线", "High-confidence error squiggles",
+                "接管 VS IntelliSense 后提供：未知成员、缺少 GENERATED_BODY()、#include 的模块不在 Build.cs 依赖中。只报确定的问题，不因 .generated.h 缺失报错。",
+                "Shown once VS IntelliSense is taken over: unknown members, missing GENERATED_BODY(), #include of a module missing from Build.cs. Only certain problems; a missing .generated.h is never reported.",
+                "true", gSquiggle, gSquiggleEn));
 
             // ================= 日志与诊断
             const string gLog = "日志", gLogEn = "Logs";
@@ -411,6 +416,7 @@ namespace UEToVS.Host.Logic.Settings
                     ["coloring.enabled"] = B(s.SemanticColoring),
                     ["coloring.overrides"] = s.SemanticColorOverrides ?? "",
                     ["coloring.marginLines"] = I(s.SemanticColoringMarginLines),
+                    ["diagnostics.enabled"] = B(s.DiagnosticsEnabled),
                 };
                 foreach (var b in ToolbarButtons.All)
                     if (b.Key != "settings") d["toolbar.button." + b.Key] = B(!hidden.Contains(b.Key));
@@ -504,6 +510,7 @@ namespace UEToVS.Host.Logic.Settings
                         case "coloring.enabled": s.SemanticColoring = PB(v); break;
                         case "coloring.overrides": s.SemanticColorOverrides = v; break;
                         case "coloring.marginLines": s.SemanticColoringMarginLines = PI(v, 50); break;
+                        case "diagnostics.enabled": s.DiagnosticsEnabled = PB(v); break;
                         default:
                             if (d.Key.StartsWith("toolbar.button.", StringComparison.Ordinal))
                             {

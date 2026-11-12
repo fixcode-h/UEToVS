@@ -344,6 +344,20 @@ namespace UEToVS.Engine.Tests
             Assert.Contains(cls.Spans, s => s.Kind == SemanticKind.Method && s.Modifiers.HasFlag(SemanticModifiers.Declaration));
             Assert.Contains(cls.Spans, s => s.Kind == SemanticKind.Parameter && s.Modifiers.HasFlag(SemanticModifiers.Declaration));
 
+            // squiggles over the pipe (request / response shape; the rules have their own tests)
+            var diag = await c.Engine.GetDiagnosticsAsync(new CodeDiagnosticsRequest
+            {
+                Document = new CaretRequest { FilePath = source, Text = buffer, TextVersion = 5 },
+                StartLine = 0,
+                EndLine = lines.Length,
+                UnsavedFiles = new List<string> { "C:/x.h" },
+            }, CancellationToken.None);
+            Assert.Equal(5, diag.TextVersion);
+            Assert.True(diag.Checked > 0);
+            Assert.All(diag.Items, d => Assert.False(string.IsNullOrEmpty(d.Code)));
+            var none = await c.Engine.GetDiagnosticsAsync(new CodeDiagnosticsRequest(), CancellationToken.None);
+            Assert.Empty(none.Items);
+
             var bad = await Assert.ThrowsAsync<RemoteInvocationException>(() => c.Engine.GetCompletionsAsync(new CompletionRequest(), CancellationToken.None));
             Assert.Equal(RpcErrorCodes.InvalidArgument, bad.ErrorCode);
         }
