@@ -491,7 +491,8 @@ namespace UEToVS.Host
                 L.Info("engine.settings.changed", "Engine path/root changed; restarting the engine", ("enginePath", now.EnginePathOverride), ("ueRoot", now.UnrealEngineRootOverride));
                 if (_unreal.IsUnreal) await StartEngineAsync();
             }
-            if (old.CppIndexThreads != now.CppIndexThreads || old.BlueprintIndexThreads != now.BlueprintIndexThreads ||
+            if (old.ShareEngineIndex != now.ShareEngineIndex || !string.Equals(old.EngineIndexPath, now.EngineIndexPath, StringComparison.OrdinalIgnoreCase) ||
+                old.CppIndexThreads != now.CppIndexThreads || old.BlueprintIndexThreads != now.BlueprintIndexThreads ||
                 old.IndexDuringBuild != now.IndexDuringBuild || old.IndexEngineSource != now.IndexEngineSource)
                 PushIndexingSettings(_engine, "settingsChanged");
             if (old.PerformanceSampleSeconds != now.PerformanceSampleSeconds)

@@ -314,6 +314,8 @@ namespace UEToVS.Host.Logic.Settings
                 AssetThreads = Math.Max(0, s.BlueprintIndexThreads),
                 DuringBuild = (int)s.IndexDuringBuild,
                 IncludeEngine = s.IndexEngineSource,
+                SharedEngineCache = s.ShareEngineIndex,
+                EngineCacheDirectory = string.IsNullOrWhiteSpace(s.EngineIndexPath) ? null : s.EngineIndexPath,
             };
 
             /// <summary>

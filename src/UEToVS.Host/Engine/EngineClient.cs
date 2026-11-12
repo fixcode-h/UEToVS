@@ -555,8 +555,8 @@ namespace UEToVS.Host.Engine
         }
 
         /// <summary>Contract values of <see cref="RebuildScope"/> added by the engine side (Project = 3, Engine = 4); cast until the contract has them.</summary>
-        public const RebuildScope ScopeProject = (RebuildScope)3;
-        public const RebuildScope ScopeEngine = (RebuildScope)4;
+        public const RebuildScope ScopeProject = RebuildScope.Project;
+        public const RebuildScope ScopeEngine = RebuildScope.Engine;
 
         /// <summary>Settings window "重建项目索引 / 重建引擎索引 / 重建蓝图索引": the engine drops that index part and re-scans in the background.</summary>
         public async Task<bool> RebuildIndexAsync(RebuildScope scope)
