@@ -25,6 +25,9 @@
       <Group guid="guidUEToVSHostCmdSet" id="grpTopLevel" priority="0x0100">
         <Parent guid="guidVsExtensionsMenu" id="IDM_VS_MENU_EXTENSIONS" />
       </Group>
+      <Group guid="guidUEToVSHostCmdSet" id="grpSearch" priority="0x0050">
+        <Parent guid="guidUEToVSHostCmdSet" id="menuUEToVS" />
+      </Group>
       <Group guid="guidUEToVSHostCmdSet" id="grpEngine" priority="0x0100">
         <Parent guid="guidUEToVSHostCmdSet" id="menuUEToVS" />
       </Group>
@@ -40,6 +43,16 @@
     </Groups>
 
     <Buttons>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdFindAction" priority="0x0100" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpSearch" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Find Action...</ButtonText>
+          <CanonicalName>UEToVS.FindAction</CanonicalName>
+          <LocCanonicalName>UEToVS.FindAction</LocCanonicalName>
+        </Strings>
+      </Button>
+
       <Button guid="guidUEToVSHostCmdSet" id="cmdRestartEngine" priority="0x0100" type="Button">
         <Parent guid="guidUEToVSHostCmdSet" id="grpEngine" />
         <CommandFlag>TextChanges</CommandFlag>
@@ -141,6 +154,7 @@
       <IDSymbol name="grpIntelliSense" value="0x1012" />
       <IDSymbol name="grpDiagnostics" value="0x1013" />
       <IDSymbol name="grpSettings" value="0x1014" />
+      <IDSymbol name="grpSearch" value="0x1015" />
       <IDSymbol name="cmdOpenLogFolder" value="0x0100" />
       <IDSymbol name="cmdOpenCurrentLog" value="0x0101" />
       <IDSymbol name="cmdCreateDiagnostics" value="0x0102" />
@@ -150,6 +164,7 @@
       <IDSymbol name="cmdRestoreIntelliSense" value="0x0121" />
       <IDSymbol name="cmdShowComponentGallery" value="0x0130" />
       <IDSymbol name="cmdSettings" value="0x0140" />
+      <IDSymbol name="cmdFindAction" value="0x0150" />
     </GuidSymbol>
   </Symbols>
 </CommandTable>

@@ -53,7 +53,9 @@
   <ItemGroup>
     <ProjectReference Include="..\UEToVS.Contracts\UEToVS.Contracts.csproj" />
     <ProjectReference Include="..\UEToVS.Core\UEToVS.Core.csproj" />
-    <!-- TODO(integration/UI): add ..\UEToVS.UI\UEToVS.UI.csproj here and wire HostIntegration (see Integration\). -->
+    <!-- UI component library; wired in Integration\ (HostPackage.InitializeIntegrations). Like Core/Contracts, its
+         UEToVS.UI.dll is copy-local and therefore packaged into the VSIX next to UEToVS.Host.dll by the VSSDK targets. -->
+    <ProjectReference Include="..\UEToVS.UI\UEToVS.UI.csproj" />
   </ItemGroup>
 
   <ItemGroup>

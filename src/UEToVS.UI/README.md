@@ -174,6 +174,13 @@ panel.Update(new PerformanceViewData
 
 `Update` 只更新文本和数值，不重建可视树：表格和列表复用虚拟化行，曲线只重绘一次 `StreamGeometry`。`PerformanceViewData` 是 UI 本地的数据结构，由宿主把 Core 的诊断快照映射过来。
 
+`PerformanceViewData` 及其行类型放在 `Logic/PerformanceViewData.cs`（不依赖 WPF，命名空间仍为 `UEToVS.UI.Perf`），宿主的映射代码因此可以在 net8.0 上做单元测试。可选字段：
+- `EngineMemoryDetail` / `HostMemoryDetail`：指标卡第二行（如工作集、托管堆、自加载以来的增量）。
+- `HostMemoryHistory`：第二张曲线 “VS 进程内存”，为 null 时隐藏。
+- `ActiveDetail`：“正在进行” 下方的说明（队列长度、是否暂停）。
+- `Notice` / `NoticeSeverity`：面板顶部的 `Banner`（如 “引擎不可用”），为 null 时隐藏。
+- `OperationView.OverBudget`：由数据提供方判定是否超预算；为 null 时按 p95 > 预算 计算。
+
 ## 无障碍
 
 - 所有交互控件都可以用键盘操作，焦点框使用 `Border.Focus` 令牌。

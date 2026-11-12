@@ -19,8 +19,8 @@ namespace UEToVS.Host.Performance
     /// <summary>
     /// Tool window "UEToVS 性能" (§9.8). Polls through <see cref="PerformanceMonitor"/> only while visible
     /// (WPF IsVisibleChanged follows tab switches, auto-hide and close); logs perf.panel.open / perf.panel.close.
-    /// Content: <see cref="HostIntegration.PerformancePanel"/> (UEToVS.UI's PerformancePanel at integration), otherwise a
-    /// plain-text placeholder that still shows the numbers.
+    /// Content: <see cref="HostIntegration.PerformancePanel"/> (UEToVS.UI's PerformancePanel); if the slot is empty or
+    /// creating it fails, a plain-text placeholder that still shows the numbers.
     /// </summary>
     [Guid(PackageGuids.PerformanceToolWindowString)]
     public sealed class PerformanceToolWindow : ToolWindowPane
@@ -53,7 +53,7 @@ namespace UEToVS.Host.Performance
             _content = provider != null
                 ? Safe.Execute(L, "perf.panel.create", () => provider.Create(commands), null)
                 : null;
-            if (_content == null) _content = new PlaceholderContent(); // TODO(integration/UI): PerformancePanel
+            if (_content == null) _content = new PlaceholderContent();
             _root.Child = _content.Element;
         }
 
@@ -110,7 +110,7 @@ namespace UEToVS.Host.Performance
             base.Dispose(disposing);
         }
 
-        /// <summary>Text-only stand-in until UEToVS.UI's PerformancePanel is plugged in.</summary>
+        /// <summary>Text-only fallback when UEToVS.UI's PerformancePanel is unavailable.</summary>
         private sealed class PlaceholderContent : IPerformancePanelContent
         {
             private readonly TextBlock _text = new TextBlock

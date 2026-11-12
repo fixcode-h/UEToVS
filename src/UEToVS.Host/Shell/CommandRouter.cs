@@ -38,6 +38,7 @@ namespace UEToVS.Host.Shell
             (CommandIds.RestoreIntelliSense, ActionIds.RestoreIntelliSense, () => Strings.CmdRestoreIntelliSense),
             (CommandIds.ShowComponentGallery, ActionIds.ShowComponentGallery, () => Strings.CmdComponentGallery),
             (CommandIds.Settings, ActionIds.Settings, () => Strings.CmdSettings),
+            (CommandIds.FindAction, ActionIds.FindAction, () => Strings.CmdFindAction),
         };
 
         public void Register(OleMenuCommandService mcs)

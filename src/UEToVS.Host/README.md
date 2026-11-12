@@ -13,13 +13,14 @@
 
 | 命令 | Action ID | 说明 |
 | --- | --- | --- |
+| 查找操作… | `uetovs.findAction` | 命令面板（UI 组件库的 `CommandPalette`），列出当前可用的全部操作；可在 工具 > 选项 > 环境 > 键盘 中为 `UEToVS.FindAction` 绑定快捷键 |
 | 重启引擎 | `uetovs.engine.restart` | 手动重启，同时重置自动重启次数 |
 | 接管 VS C++ IntelliSense | `uetovs.intellisense.takeOver` | 立即执行接管（会先备份） |
 | 恢复 VS 自带 C++ IntelliSense | `uetovs.intellisense.restore` | 按备份逐项还原 |
 | 打开日志文件夹 / 打开当前日志 | `uetovs.diagnostics.openLogFolder` / `openCurrentLog` | |
 | 生成诊断包 | `uetovs.diagnostics.createPackage` | zip：日志、脱敏设置、索引 manifest、环境/引擎/IntelliSense/性能快照 |
 | 性能面板 | `uetovs.diagnostics.performancePanel` | 工具窗口“UEToVS 性能”，仅可见时每秒采样 |
-| 组件画廊 | `uetovs.ui.componentGallery` | 占位，UI 组件库集成后提供 |
+| 组件画廊 | `uetovs.ui.componentGallery` | UI 组件库的 `ComponentGallery` 窗口（开发用），父窗口为 VS 主窗口 |
 | 设置… | `uetovs.settings.open` | 打开 工具 > 选项 > UEToVS |
 
 所有命令都注册为 `IAction`（`Logic/Actions`），菜单只是转发；Find Action / Alt+Enter 将列出同一批动作。菜单文字在 VSCT 中是英文默认值，运行时按语言替换（`TextChanges`）。
@@ -27,7 +28,7 @@
 ## 设置（工具 > 选项 > UEToVS）
 
 - **General（常规）**：日志级别（应用后立即对宿主和引擎生效）、引擎路径覆盖、UE 根目录、请求超时、是否接管 C++ IntelliSense、接管范围（Global / UnrealSolutionOnly）、是否同时禁用浏览数据库。
-- **Appearance（外观）**：内容由 UI 组件库的 `AppearanceSettingsPanel` 提供（`IAppearancePageContentProvider`），目前为占位。
+- **Appearance（外观）**：UI 组件库的 `AppearanceSettingsPanel`，修改即实时预览；确定/应用时提交并以 `AppearanceSettings.ToStorageString()` 文本保存在 VS 用户设置存储（`UEToVS\Appearance`），取消时撤销预览。包加载时读取并应用到 `ThemeManager`。
 - **Logging（日志）**：保留天数（默认 7）、总大小上限（默认 200 MB）、打开日志文件夹。
 
 三层覆盖（§10.3）：内置默认 < 用户设置（VS 设置存储）< 解决方案设置 `<解决方案>\.uetovs\settings.json`（只读，团队共享）。示例：
@@ -85,7 +86,7 @@
 | `Options/` | 选项页与设置合并 |
 | `Performance/` | 性能采样与工具窗口 |
 | `Shell/` | GUID/命令 ID、命令路由、InfoBar、状态栏、构建监视 |
-| `Integration/` | UI 组件库接入点（外观页、命令面板、组件画廊、性能面板、Banner） |
+| `Integration/` | UI 组件库接入（`HostPackage.InitializeIntegrations`）：外观页、Find Action 命令面板、组件画廊、性能面板、弹窗尺寸存储（VS 用户设置存储 `UEToVS\Popups`）；VS 级通知仍用 InfoBar。性能数据到面板的映射是纯逻辑 `Logic/Performance/PerformanceViewMapper.cs`（有单元测试） |
 
 ## 构建
 

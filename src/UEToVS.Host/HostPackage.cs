@@ -27,6 +27,7 @@ using UEToVS.Host.Logic.Unreal;
 using UEToVS.Host.Options;
 using UEToVS.Host.Performance;
 using UEToVS.Host.Shell;
+using UEToVS.UI.Shells;
 using SolutionEvents = Microsoft.VisualStudio.Shell.Events.SolutionEvents;
 using Task = System.Threading.Tasks.Task;
 using TaskScheduler = System.Threading.Tasks.TaskScheduler;
@@ -126,7 +127,7 @@ namespace UEToVS.Host
                 L.Info("package.loaded", "UEToVS package loaded", ("version", HostVersion), ("uiLanguage", Loc.Language.ToString()), ("vsLcid", _vsLcid),
                        ("extensionDir", ExtensionDirectory));
 
-                // 3. Integration slots (UI component library plugs in here at integration time).
+                // 3. UI component library: theme from stored appearance settings, then the integration slots.
                 InitializeIntegrations();
 
                 // 4. Services, actions, commands.
@@ -183,19 +184,31 @@ namespace UEToVS.Host
         }
 
         /// <summary>
-        /// Wires components from other assemblies. TODO(integration/UI): once UEToVS.Host references UEToVS.UI, assign
-        /// HostIntegration.Appearance (AppearanceSettingsPanel), CommandPalette, ComponentGallery, PerformancePanel and
-        /// optionally Banner here.
+        /// Wires the UEToVS.UI component library into the host slots (UI thread, after <see cref="Loc"/> is initialized so
+        /// every UI string is created in the right language). Each step is isolated: a failure is logged and leaves that
+        /// slot on its placeholder; the package keeps loading.
         /// </summary>
         private static void InitializeIntegrations()
         {
+            // Theme first: stored appearance settings → ThemeManager (creating it also hooks VS theme changes).
+            Safe.Execute(L, "integration.theme", UiAppearancePage.ApplyStored);
+            Safe.Execute(L, "integration.popupStore", () => PopupShell.DefaultStateStore = new VsPopupStateStore());
+            Safe.Execute(L, "integration.slots", () =>
+            {
+                if (HostIntegration.Appearance == null) HostIntegration.Appearance = new UiAppearancePage();
+                if (HostIntegration.CommandPalette == null) HostIntegration.CommandPalette = new ActionPaletteProvider();
+                if (HostIntegration.ComponentGallery == null) HostIntegration.ComponentGallery = new UiComponentGalleryProvider();
+                if (HostIntegration.PerformancePanel == null) HostIntegration.PerformancePanel = new UiPerformancePanelProvider();
+            });
+            // VS-level notifications stay on the VS InfoBar (UEToVS.UI's Banner is used inside UEToVS windows).
             if (HostIntegration.Banner == null) HostIntegration.Banner = new InfoBarPresenter();
             L.Info("integration.slots", null,
                    ("appearance", HostIntegration.Appearance?.GetType().FullName ?? "placeholder"),
                    ("commandPalette", HostIntegration.CommandPalette?.GetType().FullName ?? "none"),
                    ("componentGallery", HostIntegration.ComponentGallery?.GetType().FullName ?? "none"),
                    ("performancePanel", HostIntegration.PerformancePanel?.GetType().FullName ?? "placeholder"),
-                   ("banner", HostIntegration.Banner.GetType().FullName));
+                   ("banner", HostIntegration.Banner.GetType().FullName),
+                   ("popupStateStore", PopupShell.DefaultStateStore?.GetType().FullName));
         }
 
         private async System.Threading.Tasks.Task<bool> IsSolutionOpenAsync()

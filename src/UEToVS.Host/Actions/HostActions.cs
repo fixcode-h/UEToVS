@@ -54,6 +54,8 @@ namespace UEToVS.Host.Actions
                     await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
                     package.ShowOptionPage(typeof(GeneralOptionsPage));
                 }, null, null, Strings.KwSettings));
+            registry.Register(new DelegateAction(ActionIds.FindAction, Strings.CmdFindAction, ActionCategory.Navigation,
+                ctx => ShowFindActionAsync(package, registry), null, null, Strings.KwFindAction));
             L.Info("actions.registered", null, ("count", registry.Count));
         }
 
@@ -82,13 +84,26 @@ namespace UEToVS.Host.Actions
             L.Info("logs.file.opened", null, ("file", file));
         }
 
+        /// <summary>Find Action palette (§7.4); the palette lists every other available action.</summary>
+        private static async Task ShowFindActionAsync(HostPackage package, ActionRegistry registry)
+        {
+            await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+            var palette = HostIntegration.CommandPalette;
+            if (palette == null)
+            {
+                L.Warn("findAction.unavailable", "Command palette slot is empty");
+                return;
+            }
+            using (UiThread.Measure(L, "findAction.show"))
+                palette.Show(registry, package.CreateActionContext(ActionSource.FindAction), null);
+        }
+
         private static async Task ShowGalleryAsync()
         {
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
             var gallery = HostIntegration.ComponentGallery;
             if (gallery == null)
             {
-                // TODO(integration/UI): UEToVS.UI provides the gallery window.
                 L.Info("gallery.unavailable", "Component gallery not integrated yet");
                 Banners.Show("ui.gallery", Strings.GalleryNotAvailable, BannerKind.Info);
                 return;

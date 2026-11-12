@@ -25,6 +25,7 @@ namespace UEToVS.Host.Logic.Localization
         public static string CmdPerformancePanel => Loc.T("性能面板", "Performance Panel");
         public static string CmdComponentGallery => Loc.T("组件画廊", "Component Gallery");
         public static string CmdSettings => Loc.T("设置…", "Settings...");
+        public static string CmdFindAction => Loc.T("查找操作…", "Find Action...");
 
         // ---- action keywords (searchable in both languages regardless of UI language) ----
         public static readonly string[] KwLogs = { "log", "logs", "日志", "folder", "文件夹" };
@@ -34,6 +35,27 @@ namespace UEToVS.Host.Logic.Localization
         public static readonly string[] KwPerformance = { "performance", "性能", "memory", "内存", "cpu", "latency", "延迟" };
         public static readonly string[] KwGallery = { "gallery", "components", "组件", "画廊", "ui" };
         public static readonly string[] KwSettings = { "settings", "options", "设置", "选项", "preferences" };
+        public static readonly string[] KwFindAction = { "find action", "actions", "command", "palette", "查找", "操作", "命令" };
+
+        // ---- Find Action palette ----
+        public static string PaletteTabActions => Loc.T("操作", "Actions");
+        public static string PalettePlaceholder => Loc.T("输入操作名称、关键字或 id", "Type an action name, keyword or id");
+        public static string PaletteEmptyHint => Loc.T("输入以查找 UEToVS 操作", "Type to find a UEToVS action");
+
+        public static string CategoryName(Logic.Actions.ActionCategory category)
+        {
+            switch (category)
+            {
+                case Logic.Actions.ActionCategory.Navigation: return Loc.T("导航", "Navigation");
+                case Logic.Actions.ActionCategory.Refactoring: return Loc.T("重构", "Refactoring");
+                case Logic.Actions.ActionCategory.Generate: return Loc.T("生成", "Generate");
+                case Logic.Actions.ActionCategory.Fix: return Loc.T("修复", "Fix");
+                case Logic.Actions.ActionCategory.Unreal: return Loc.T("Unreal", "Unreal Engine");
+                case Logic.Actions.ActionCategory.Settings: return Loc.T("设置", "Settings");
+                case Logic.Actions.ActionCategory.Diagnostics: return Loc.T("诊断", "Diagnostics");
+                default: return category.ToString();
+            }
+        }
 
         // ---- IntelliSense takeover ----
         public static string BannerTakenOver => Loc.T("UEToVS 已接管 C++ 感知，已关闭 VS 自带 IntelliSense（原设置已备份）。",
@@ -97,7 +119,7 @@ namespace UEToVS.Host.Logic.Localization
         public static string DiagnosticsCreated(string path) => Loc.F("诊断包已生成：{0}", "Diagnostics package created: {0}", path);
         public static string DiagnosticsFailed => Loc.T("生成诊断包失败（详见日志）。", "Creating the diagnostics package failed (see the log).");
         public static string NoUnrealSolution => Loc.T("当前不是 Unreal Engine 解决方案，UEToVS 未启动引擎。", "The open solution is not an Unreal Engine solution; the UEToVS engine is not running.");
-        public static string GalleryNotAvailable => Loc.T("组件画廊将由 UI 组件库提供（尚未集成）。", "The component gallery is provided by the UI component library (not integrated yet).");
+        public static string GalleryNotAvailable => Loc.T("组件画廊不可用（UI 组件库未能加载，详见日志）。", "The component gallery is unavailable (the UI component library failed to load; see the log).");
         public static string ActionFailed(string title) => Loc.F("“{0}”执行失败（详见日志）。", "\"{0}\" failed (see the log).", title);
 
         // ---- options pages (page names are fixed English in ProvideOptionPage; content is localized) ----
@@ -134,10 +156,10 @@ namespace UEToVS.Host.Logic.Localization
         public static string LoggingRetentionDays => Loc.T("保留天数", "Days to keep");
         public static string LoggingMaxTotal => Loc.T("最大总大小 (MB)", "Maximum total size (MB)");
 
-        // ---- performance panel placeholder ----
+        // ---- performance panel text fallback (PerformanceToolWindow.PlaceholderContent) ----
         public static string PerfSampling => Loc.T("正在采样…", "Sampling...");
-        public static string PerfPlaceholderTitle => Loc.T("UEToVS 性能（占位视图，UI 组件库的 PerformancePanel 接入后替换）",
-                                                           "UEToVS Performance (placeholder view until the UI library's PerformancePanel is plugged in)");
+        public static string PerfPlaceholderTitle => Loc.T("UEToVS 性能（纯文本视图：UI 组件库的性能面板不可用，详见日志）",
+                                                           "UEToVS Performance (text view: the UI library's performance panel is unavailable, see the log)");
         public static string PerfHostHeader => Loc.T("[VS 进程 devenv]", "[VS process devenv]");
         public static string PerfHostMemory(string priv, string delta, string ws) => Loc.F("  私有内存 {0}（自加载以来 {1}）  工作集 {2}", "  Private {0} (since load {1})  Working set {2}", priv, delta, ws);
         public static string PerfHostHeap(string heap, string gc, int threads) => Loc.F("  托管堆 {0}  GC {1}  线程 {2}", "  Managed heap {0}  GC {1}  Threads {2}", heap, gc, threads);
@@ -159,5 +181,37 @@ namespace UEToVS.Host.Logic.Localization
         public static string PerfBudget(double ms) => Loc.F("预算 {0:F0}", "budget {0:F0}", ms);
         public static string PerfEngineNotStarted => Loc.T("引擎未启动", "Engine not started");
         public static string PerfEngineState(string state) => Loc.F("引擎状态：{0}", "Engine state: {0}", state);
+
+        // ---- performance panel (UEToVS.UI PerformancePanel; mapping in Logic/Performance/PerformanceViewMapper.cs) ----
+        /// <summary>EngineClient state name ("Connected", "Unavailable", …, "None") → localized; unknown names as-is.</summary>
+        public static string EngineStateName(string state)
+        {
+            switch (state)
+            {
+                case "None": return Loc.T("未启动", "Not started");
+                case "Stopped": return Loc.T("已停止", "Stopped");
+                case "Starting": return Loc.T("正在启动", "Starting");
+                case "Connected": return Loc.T("已连接", "Connected");
+                case "Restarting": return Loc.T("正在重启", "Restarting");
+                case "Unavailable": return Loc.T("不可用", "Unavailable");
+                case "Incompatible": return Loc.T("版本不匹配", "Incompatible");
+                case "NotInstalled": return Loc.T("未安装", "Not installed");
+                default: return string.IsNullOrEmpty(state) ? Loc.T("未知", "Unknown") : state;
+            }
+        }
+
+        public static string PerfViewEngineUnavailable(string state, string error) =>
+            string.IsNullOrEmpty(error)
+                ? Loc.F("引擎不可用（{0}），以下仅显示 VS 侧数据。", "Engine unavailable ({0}); only VS-side data is shown.", state)
+                : Loc.F("引擎不可用（{0}）：{1}。以下仅显示 VS 侧数据。", "Engine unavailable ({0}): {1}. Only VS-side data is shown.", state, error);
+        public static string PerfViewEngineMemoryDetail(string workingSet, string heap) => Loc.F("工作集 {0} · 托管堆 {1}", "working set {0} · heap {1}", workingSet, heap);
+        public static string PerfViewHostMemoryDetail(string delta, string heap) => Loc.F("自加载 {0} · 托管堆 {1}", "since load {0} · heap {1}", delta, heap);
+        public static string PerfViewIndexProgress(int parsed, int toParse, int symbols) =>
+            Loc.F("{0:N0}/{1:N0} 文件 · {2:N0} 符号", "{0:N0}/{1:N0} files · {2:N0} symbols", parsed, toParse, symbols);
+        public static string PerfViewIndexSummary(int symbols, int files) => Loc.F("{0:N0} 符号 · {1:N0} 文件", "{0:N0} symbols · {1:N0} files", symbols, files);
+        public static string PerfViewQueues(int interactive, int background, bool paused) =>
+            Loc.F("排队：交互 {0} · 后台 {1}{2}", "Queued: interactive {0} · background {1}{2}", interactive, background, paused ? Loc.T("（后台索引已暂停）", " (background indexing paused)") : "");
+        public static string PerfViewOpEngine(string name) => Loc.F("引擎 · {0}", "Engine · {0}", name);
+        public static string PerfViewOpHost(string name) => Loc.F("VS · {0}", "VS · {0}", name);
     }
 }

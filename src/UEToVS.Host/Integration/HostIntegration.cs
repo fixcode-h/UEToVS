@@ -8,19 +8,27 @@ namespace UEToVS.Host.Integration
 {
     // =====================================================================================================================
     // Integration points for components built in other workstreams (UEToVS.UI component library, UEToVS.Engine).
-    // The host compiles and runs without them (placeholders); at integration, UEToVS.Host references UEToVS.UI and
-    // assigns the slots in HostIntegration (one place: HostPackage.InitializeIntegrations).
+    // UEToVS.Host references UEToVS.UI; the slots are assigned in one place (HostPackage.InitializeIntegrations):
+    //   Appearance       → UiAppearancePage            (AppearanceSettingsPanel, VS settings store)
+    //   CommandPalette   → ActionPaletteProvider       (CommandPalette<ActionMatch> over ActionRegistry)
+    //   ComponentGallery → UiComponentGalleryProvider  (ComponentGallery window owned by the VS main window)
+    //   PerformancePanel → UiPerformancePanelProvider  (PerformancePanel + Logic/Performance/PerformanceViewMapper)
+    //   Banner           → InfoBarPresenter            (VS InfoBar, kept on purpose)
+    // plus PopupShell.DefaultStateStore → VsPopupStateStore. Callers still null-check: a slot left empty degrades to the
+    // placeholders (options page text, plain-text performance view, "not available" banner).
     // =====================================================================================================================
 
     /// <summary>
-    /// Supplies the content of Tools > Options > UEToVS > 外观 (§8.2.1).
-    /// TODO(integration/UI): implement with UEToVS.UI's AppearanceSettingsPanel (bind to the design-token settings,
-    /// apply live; Apply/Cancel come from the VS options dialog).
+    /// Supplies the content of Tools > Options > UEToVS > 外观 (§8.2.1). Implemented by <see cref="UiAppearancePage"/>
+    /// (UEToVS.UI's AppearanceSettingsPanel; live preview; Apply/Cancel come from the VS options dialog).
     /// </summary>
     public interface IAppearancePageContentProvider
     {
         /// <summary>Creates the page content (called once per options-dialog session, on the UI thread).</summary>
         UIElement CreateContent();
+
+        /// <summary>The page is shown (again): reload the committed settings into the editor.</summary>
+        void Activate();
 
         /// <summary>User pressed OK/Apply.</summary>
         void Apply();
@@ -34,8 +42,8 @@ namespace UEToVS.Host.Integration
 
     /// <summary>
     /// Find Action / command palette popup (§7.4). The host owns the data (ActionRegistry); the UI owns the popup.
-    /// TODO(integration/UI): implement with UEToVS.UI's CommandPalette; call registry.Query(text, context) per keystroke
-    /// and registry.ExecuteAsync(id, context) on Enter.
+    /// Implemented by <see cref="ActionPaletteProvider"/> (UEToVS.UI's CommandPalette): registry.Query(text, context) per
+    /// keystroke, registry.ExecuteAsync(id, context) on Enter.
     /// </summary>
     public interface ICommandPaletteProvider
     {
@@ -44,7 +52,7 @@ namespace UEToVS.Host.Integration
 
     /// <summary>
     /// Component gallery (§8.7): a window listing every UI component in all states.
-    /// TODO(integration/UI): implement with UEToVS.UI's gallery window.
+    /// Implemented by <see cref="UiComponentGalleryProvider"/> (UEToVS.UI's ComponentGallery).
     /// </summary>
     public interface IComponentGalleryProvider
     {
@@ -54,7 +62,8 @@ namespace UEToVS.Host.Integration
     /// <summary>
     /// Content of the "UEToVS 性能" tool window (§9.8). The UI library's PerformancePanel has its own view-data type;
     /// <see cref="IPerformancePanelContent.Update"/> is THE mapping point from the host's <see cref="PerformanceData"/> to it.
-    /// TODO(integration/UI): implement with UEToVS.UI's PerformancePanel:
+    /// Implemented by <see cref="UiPerformancePanelProvider"/> (UEToVS.UI's PerformancePanel); the mapping below is coded in
+    /// Logic/Performance/PerformanceViewMapper.cs (unit-tested):
     ///   - Engine metric card  ← data.Engine.Resources.PrivateBytes / WorkingSetBytes / ManagedHeapBytes, data.Engine.CpuPercent
     ///   - VS-side card        ← data.Host.PrivateBytes, data.Host.PrivateBytesDelta (since load), data.Host.ManagedHeapBytes
     ///   - Index state card    ← data.Engine.Status (Phase, FilesParsed/FilesToParse, SymbolCount)
@@ -91,7 +100,8 @@ namespace UEToVS.Host.Integration
     }
 
     /// <summary>
-    /// Banner (InfoBar) presenter. Defaults to the VS InfoBar; TODO(integration/UI): may be replaced by UEToVS.UI's Banner.
+    /// Banner (InfoBar) presenter: the VS InfoBar (<see cref="Shell.InfoBarPresenter"/>). UEToVS.UI's Banner is used inside
+    /// UEToVS tool windows (e.g. the performance panel's engine-unavailable notice), not for VS-level notifications.
     /// </summary>
     public interface IBannerPresenter
     {

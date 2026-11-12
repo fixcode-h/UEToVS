@@ -41,6 +41,7 @@ namespace UEToVS.Host.Shell
         public const int RestoreIntelliSense = 0x0121;
         public const int ShowComponentGallery = 0x0130;
         public const int Settings = 0x0140;
+        public const int FindAction = 0x0150;
     }
 
     /// <summary>Stable action ids (§7.4). Commands dispatch to these.</summary>
@@ -55,5 +56,6 @@ namespace UEToVS.Host.Shell
         public const string RestoreIntelliSense = "uetovs.intellisense.restore";
         public const string ShowComponentGallery = "uetovs.ui.componentGallery";
         public const string Settings = "uetovs.settings.open";
+        public const string FindAction = "uetovs.findAction";
     }
 }

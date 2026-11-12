@@ -113,6 +113,8 @@ namespace UEToVS.UI
         public static string PerfOverBudget => Loc.T("超出预算", "Over budget");
         public static string PerfSeriesCpu => Loc.T("CPU %", "CPU %");
         public static string PerfSeriesMemory => Loc.T("内存", "Memory");
+        public static string PerfSeriesHostMemory => Loc.T("VS 进程内存", "VS process memory");
+        public static string PerfHostChart => Loc.T("VS 进程内存（最近 10 分钟）", "VS process memory (last 10 min)");
         public static string GalleryTitle => Loc.T("UEToVS 组件画廊", "UEToVS Component Gallery");
 
         public static string PerfNow => Loc.T("现在", "now");

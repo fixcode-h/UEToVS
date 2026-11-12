@@ -6,85 +6,13 @@ using System.Windows.Controls.Primitives;
 using UEToVS.UI.Atoms;
 using UEToVS.UI.Controls;
 using UEToVS.UI.Logic;
+using UEToVS.UI.Molecules;
 using UEToVS.UI.Shells;
 using UEToVS.UI.Theming;
 
 namespace UEToVS.UI.Perf
 {
-    // ------------------------------------------------------------------ view data (UI-local, no Contracts dependency)
-
-    /// <summary>Everything the performance panel shows. The host maps engine snapshots to this ~1/s.</summary>
-    public sealed class PerformanceViewData
-    {
-        public double EngineMemoryBytes { get; set; } = double.NaN;
-        /// <summary>Optional budget; the tile turns warning at 85% and error above it.</summary>
-        public double EngineMemoryBudgetBytes { get; set; }
-        public double HostMemoryBytes { get; set; } = double.NaN;
-        public double HostMemoryBudgetBytes { get; set; }
-        /// <summary>Engine CPU, 0–100 % of the machine.</summary>
-        public double CpuPercent { get; set; } = double.NaN;
-
-        /// <summary>Short index state ("就绪", "索引中", "已暂停"…); host-localized.</summary>
-        public string IndexState { get; set; }
-        public Severity IndexSeverity { get; set; } = Severity.Info;
-        /// <summary>0..1, null when not indexing.</summary>
-        public double? IndexProgress { get; set; }
-        public string IndexDetail { get; set; }
-
-        /// <summary>Oldest first, one sample per <see cref="SampleIntervalSeconds"/> (max 600 shown).</summary>
-        public IReadOnlyList<double> CpuHistory { get; set; }
-        /// <summary>Bytes, same timeline as <see cref="CpuHistory"/>.</summary>
-        public IReadOnlyList<double> MemoryHistory { get; set; }
-        public double SampleIntervalSeconds { get; set; } = 1;
-
-        public IReadOnlyList<ActiveWorkView> Active { get; set; }
-        public IReadOnlyList<PhaseView> Phases { get; set; }
-        public IReadOnlyList<MemoryPartView> MemoryParts { get; set; }
-        public IReadOnlyList<OperationView> Operations { get; set; }
-
-        public bool BackgroundPaused { get; set; }
-    }
-
-    public sealed class ActiveWorkView
-    {
-        public string Name { get; set; }
-        public string Lane { get; set; }
-        public long Done { get; set; }
-        public long Total { get; set; }
-        public double ElapsedMs { get; set; }
-    }
-
-    public sealed class PhaseView
-    {
-        public string Name { get; set; }
-        public double DurationMs { get; set; }
-        public double CpuMs { get; set; }
-        public long Items { get; set; }
-        public string Detail { get; set; }
-        public bool Running { get; set; }
-    }
-
-    public sealed class MemoryPartView
-    {
-        public string Name { get; set; }
-        public long ManagedBytes { get; set; }
-        public long MappedBytes { get; set; }
-        public long DiskBytes { get; set; }
-    }
-
-    public sealed class OperationView
-    {
-        public string Name { get; set; }
-        public long Count { get; set; }
-        public long Errors { get; set; }
-        public double P50Ms { get; set; }
-        public double P95Ms { get; set; }
-        public double MaxMs { get; set; }
-        /// <summary>0 = no budget.</summary>
-        public double BudgetMs { get; set; }
-
-        public bool IsOverBudget => BudgetMs > 0 && P95Ms > BudgetMs;
-    }
+    // View data (PerformanceViewData, ActiveWorkView, PhaseView, MemoryPartView, OperationView): Logic/PerformanceViewData.cs.
 
     // ------------------------------------------------------------------ panel
 
@@ -103,6 +31,10 @@ namespace UEToVS.UI.Perf
         private readonly StatTile _index = new StatTile(() => Strings.PerfIndex);
         private readonly UniformGrid _tiles = new UniformGrid { Columns = 4 };
         private readonly LineChart _chart = new LineChart { Height = 170 };
+        private readonly LineChart _hostChart = new LineChart { Height = 120 };
+        private readonly FrameworkElement _hostChartSection;
+        private readonly UiText _activeDetail = new UiText((string)null, TextVariant.Small) { Margin = new Thickness(0, 4, 0, 0), Visibility = Visibility.Collapsed };
+        private readonly Banner _notice = new Banner(Severity.Warning) { CanClose = false, Visibility = Visibility.Collapsed };
         private readonly StackPanel _activeList = new StackPanel();
         private readonly List<ProgressRow> _activeRows = new List<ProgressRow>();
         private readonly UiText _activeEmpty = new UiText(() => Strings.PerfActiveNone, TextVariant.Secondary) { Margin = new Thickness(0, 4, 0, 4) };
@@ -140,19 +72,25 @@ namespace UEToVS.UI.Perf
 
             _chart.AddSeries(new ChartSeries(() => Strings.PerfSeriesCpu, ChartCapacity, Tokens.Accent, v => v.ToString("0") + "%") { FixedMin = 0, FixedMax = 100 });
             _chart.AddSeries(new ChartSeries(() => Strings.PerfSeriesMemory, ChartCapacity, Tokens.BadgeSolid(BadgeKind.UFunction), PerfMath.FormatBytes) { FixedMin = 0 });
+            _hostChart.AddSeries(new ChartSeries(() => Strings.PerfSeriesHostMemory, ChartCapacity, Tokens.BadgeSolid(BadgeKind.UProperty), PerfMath.FormatBytes) { FixedMin = 0 });
 
             BuildTables();
 
             var content = new StackPanel { Margin = new Thickness(12, 10, 4, 12) };
             content.Children.Add(_tiles);
             content.Children.Add(Section(() => Strings.PerfChart, _chart));
+            _hostChartSection = Section(() => Strings.PerfHostChart, _hostChart);
+            _hostChartSection.Visibility = Visibility.Collapsed;
+            content.Children.Add(_hostChartSection);
             _activeList.Children.Add(_activeEmpty);
+            _activeList.Children.Add(_activeDetail);
             content.Children.Add(Section(() => Strings.PerfActive, _activeList));
             content.Children.Add(Section(() => Strings.PerfPhases, _phases));
             content.Children.Add(Section(() => Strings.PerfMemory, BuildMemory()));
             content.Children.Add(Section(() => Strings.PerfOps, _ops));
             var scroll = new UiScrollViewer { Content = content };
             Root.Body = scroll;
+            Root.ShowBanner(_notice);
             Root.SizeChanged += (s, e) => Ui.Safe("ui.perf.size", () => _tiles.Columns = e.NewSize.Width < 560 ? 2 : 4);
         }
 
@@ -242,6 +180,9 @@ namespace UEToVS.UI.Perf
             }
         }
 
+        private static string Join(string a, string b) =>
+            string.IsNullOrEmpty(a) ? b : string.IsNullOrEmpty(b) ? a : a + " · " + b;
+
         private static Severity? BudgetState(double value, double budget)
         {
             if (budget <= 0 || double.IsNaN(value)) return null;
@@ -253,10 +194,10 @@ namespace UEToVS.UI.Perf
         private void UpdateCore(PerformanceViewData d)
         {
             _engineMem.Set(double.IsNaN(d.EngineMemoryBytes) ? "—" : PerfMath.FormatBytes(d.EngineMemoryBytes),
-                d.EngineMemoryBudgetBytes > 0 ? Strings.PerfBudgetOf(PerfMath.FormatBytes(d.EngineMemoryBudgetBytes)) : null,
+                Join(d.EngineMemoryDetail, d.EngineMemoryBudgetBytes > 0 ? Strings.PerfBudgetOf(PerfMath.FormatBytes(d.EngineMemoryBudgetBytes)) : null),
                 BudgetState(d.EngineMemoryBytes, d.EngineMemoryBudgetBytes));
             _hostMem.Set(double.IsNaN(d.HostMemoryBytes) ? "—" : PerfMath.FormatBytes(d.HostMemoryBytes),
-                d.HostMemoryBudgetBytes > 0 ? Strings.PerfBudgetOf(PerfMath.FormatBytes(d.HostMemoryBudgetBytes)) : null,
+                Join(d.HostMemoryDetail, d.HostMemoryBudgetBytes > 0 ? Strings.PerfBudgetOf(PerfMath.FormatBytes(d.HostMemoryBudgetBytes)) : null),
                 BudgetState(d.HostMemoryBytes, d.HostMemoryBudgetBytes));
             _cpu.Set(double.IsNaN(d.CpuPercent) ? "—" : d.CpuPercent.ToString("0") + "%", null,
                 double.IsNaN(d.CpuPercent) ? (Severity?)null : d.CpuPercent > 80 ? Severity.Warning : (Severity?)null);
@@ -267,6 +208,19 @@ namespace UEToVS.UI.Perf
             _chart.SampleIntervalSeconds = d.SampleIntervalSeconds > 0 ? d.SampleIntervalSeconds : 1;
             if (d.CpuHistory != null) _chart.SetData(0, d.CpuHistory);
             if (d.MemoryHistory != null) _chart.SetData(1, d.MemoryHistory);
+            _hostChartSection.Visibility = d.HostMemoryHistory != null ? Visibility.Visible : Visibility.Collapsed;
+            if (d.HostMemoryHistory != null)
+            {
+                _hostChart.SampleIntervalSeconds = _chart.SampleIntervalSeconds;
+                _hostChart.SetData(0, d.HostMemoryHistory);
+            }
+
+            _notice.Visibility = string.IsNullOrEmpty(d.Notice) ? Visibility.Collapsed : Visibility.Visible;
+            if (!string.IsNullOrEmpty(d.Notice))
+            {
+                if (_notice.Severity != d.NoticeSeverity) _notice.Severity = d.NoticeSeverity;
+                if (_notice.Message != d.Notice) _notice.Message = d.Notice;
+            }
 
             // Active work: reuse rows by position.
             var active = d.Active ?? Array.Empty<ActiveWorkView>();
@@ -287,6 +241,8 @@ namespace UEToVS.UI.Perf
                 else _activeRows[i].Visibility = Visibility.Collapsed;
             }
             _activeEmpty.Visibility = active.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+            _activeDetail.Text = d.ActiveDetail ?? string.Empty;
+            _activeDetail.Visibility = string.IsNullOrEmpty(d.ActiveDetail) ? Visibility.Collapsed : Visibility.Visible;
 
             _phases.SetItems(d.Phases);
             _ops.SetItems(d.Operations);

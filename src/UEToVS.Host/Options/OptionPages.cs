@@ -84,7 +84,8 @@ namespace UEToVS.Host.Options
 
     /// <summary>
     /// Tools > Options > UEToVS > 外观. The content comes from <see cref="HostIntegration.Appearance"/> (UEToVS.UI's
-    /// AppearanceSettingsPanel at integration); until then a placeholder is shown.
+    /// AppearanceSettingsPanel); the settings are persisted by the provider (not as DialogPage properties). A placeholder
+    /// is shown only when the slot is empty.
     /// </summary>
     [Guid("e3b2a2f4-6a55-4c33-9a4e-1f3d6f0c8a02")]
     public sealed class AppearanceOptionsPage : UIElementDialogPage
@@ -99,7 +100,6 @@ namespace UEToVS.Host.Options
         {
             var provider = HostIntegration.Appearance;
             if (provider != null) return provider.CreateContent();
-            // TODO(integration/UI): replaced by AppearanceSettingsPanel via HostIntegration.Appearance.
             return Placeholder(Strings.AppearancePlaceholder);
         }
 
@@ -110,6 +110,7 @@ namespace UEToVS.Host.Options
         {
             base.OnActivate(e);
             _applied = false;
+            if (_child != null) Safe.Execute(L, "options.appearance.activate", () => HostIntegration.Appearance?.Activate());
         }
 
         protected override void OnApply(PageApplyEventArgs e)
