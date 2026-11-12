@@ -3,7 +3,7 @@
 面向 Unreal Engine 5 C++ 工程的 Visual Studio 2022 / 2026 扩展：对标 Visual Assist 的 C++ / UE 感知能力，交互参考 Rider。
 
 - 整体设计：[docs/design/UEToVS-架构设计.md](docs/design/UEToVS-架构设计.md)
-- 当前状态：**M0 骨架重建**。新架构的各模块已就位并有单元测试；编辑器内的补全、跳转等 IntelliSense 功能从 M2/M3 开始实现。`legacy/` 是早期原型，只作对照，不参与构建。
+- 当前状态：**M1 原型功能对齐**。早期原型的全部功能（Search Everywhere、导航历史、书签、相关项、Build.cs 依赖修复、资产搜索、Live Coding、Rider 键位）已在新架构上重新实现，`legacy/` 已删除；编辑器内的补全、转到定义等 IntelliSense 功能从 M2/M3 开始实现。
 
 ## 结构
 
@@ -18,8 +18,26 @@ src/
   UEToVS.UI               WPF 组件库（设计令牌、Rider 风格、可在设置页微调、性能面板）
   UEToVS.Host             VSIX：包加载、命令、设置页、接管 VS C++ IntelliSense、Engine 客户端
 tests/                    各模块单元测试（dotnet test）
-legacy/                   旧原型，仅供参考
+ue/UEToVSLink             UE 编辑器插件（打开资产、Live Coding），由“安装 UEToVSLink 插件”复制到项目 Plugins/
 ```
+
+## 功能（扩展 > UEToVS）
+
+| 功能 | 默认快捷键 | 说明 |
+| --- | --- | --- |
+| Search Everywhere | 双击 Shift | 页签：全部 / 类型 / 符号 / 文件 / 资产（蓝图） / 操作；`/types` `/files` 等前缀，`AActor::Tick`，`Foo.cpp:120:8`；再双击 Shift 切换“包含非项目项”；Ctrl+Enter 结果放到工具窗口 |
+| 转到类型 / 符号 / 文件 / 资产 | — | 直接打开对应页签 |
+| 后退 / 前进 | Alt+← / Alt+→，鼠标侧键 | 记录跳转和较大的光标移动（同文件超过 15 行） |
+| 最近的文件 / 最近的位置 | — | 弹窗中再按一次 Ctrl+E / Ctrl+Shift+E 只看已编辑 |
+| 上一个 / 下一个编辑位置、文件结构、跳转到… | — | |
+| 切换头文件/源文件 | Alt+O | Public/Private 目录感知；多个候选时弹出列表 |
+| 相关项 | — | `Foo_Implementation` / `Foo_Validate`、对应文件、`.generated.h` |
+| 打开所属模块的 Build.cs / 为 #include 添加模块依赖 | — | 保存 .h/.cpp 时也会自动检查 |
+| 书签 | — | 切换、0–9 数字书签、书签列表（Delete 删除） |
+| Live Coding / 生成工程文件 / 安装 UEToVSLink 插件 | Ctrl+Alt+F11（Live Coding） | Live Coding 与打开资产需要编辑器启用 UEToVSLink 插件 |
+| 应用 Rider 键位方案 / 恢复 VS 键位 | — | 在 Find Action 中执行；修改前备份到 `%LocalAppData%\UEToVS\keymap-backup.json` |
+
+所有功能都注册为操作，可在“查找操作…”和 Search Everywhere 的“操作”页签中搜索；快捷键可在 工具 > 选项 > 环境 > 键盘 中按 `UEToVS.*` 修改。
 
 ## 数据与日志位置
 
@@ -27,6 +45,7 @@ legacy/                   旧原型，仅供参考
 
 - `Index\` 索引
 - `Logs\` 日志：`host-*.log`、`engine-*.log`，JSON Lines，含会话信息、异常堆栈、每 60 秒资源采样、每 5 分钟各操作延迟统计，可直接交给 AI 分析
+- `Navigation\` 导航历史、最近文件、编辑位置、书签
 - `Cache\` 其他缓存
 
 ## 构建
