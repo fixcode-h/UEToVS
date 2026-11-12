@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using UEToVS.Contracts;
 using UEToVS.Core.Diagnostics;
 
 namespace UEToVS.Engine
@@ -29,7 +30,13 @@ Options:
   --skip-engine          index the project only
   --watch-engine         watch engine folders for changes (default: on for Windows)
   --no-watch             no file system watchers (changes only via the host)
-  --max-parallelism <n>  worker threads (default: cores - 1)
+  --max-parallelism <n>  request worker threads (default: cores - 1)
+  --cpp-threads <n>      C++ indexing threads (default: max(1, cores / 4)); the settings window overrides it
+  --asset-threads <n>    Blueprint/asset scan threads (default: max(1, cores / 4))
+  --during-build <mode>  indexing during a build: pause | single (default) | full
+  --shared-engine-cache  keep the engine index in the shared per-engine folder (default: in the solution)
+  --engine-cache-dir <d> root of the shared engine index (default: %LocalAppData%\UEToVS\EngineIndex)
+  --exclude-dir <name>   folder name never indexed (repeatable; replaces Intermediate/Binaries/Saved/DerivedDataCache)
   --query <text>         CLI: print search results
   --all                  CLI: include engine / non-project results
   --max <n>              CLI: results per category (default 20)
@@ -46,6 +53,24 @@ Options:
         public bool WatchEngine { get; set; } = OperatingSystem.IsWindows();
         public bool NoWatch { get; set; }
         public int MaxParallelism { get; set; }
+        public int CppThreads { get; set; }
+        public int AssetThreads { get; set; }
+        public int DuringBuild { get; set; } = 1;
+        public bool SharedEngineCache { get; set; }
+        public string EngineCacheDirectory { get; set; }
+        public List<string> ExcludedFolders { get; set; }
+
+        /// <summary>Initial indexing settings from the command line (the host's settings replace them at runtime).</summary>
+        public IndexingSettings InitialIndexingSettings() => new IndexingSettings
+        {
+            CppThreads = CppThreads,
+            AssetThreads = AssetThreads,
+            DuringBuild = DuringBuild,
+            IncludeEngine = !SkipEngine,
+            SharedEngineCache = SharedEngineCache,
+            EngineCacheDirectory = EngineCacheDirectory,
+            ExcludedFolders = ExcludedFolders,
+        };
         public string Query { get; set; }
         public bool QueryAll { get; set; }
         public int QueryMax { get; set; } = 20;
@@ -87,6 +112,24 @@ Options:
                         case "--max-parallelism":
                             o.MaxParallelism = int.TryParse(Next(), out int mp) && mp > 0 ? mp : throw new ArgumentException("--max-parallelism expects a positive number");
                             break;
+                        case "--cpp-threads":
+                            o.CppThreads = int.TryParse(Next(), out int ct) && ct > 0 ? ct : throw new ArgumentException("--cpp-threads expects a positive number");
+                            break;
+                        case "--asset-threads":
+                            o.AssetThreads = int.TryParse(Next(), out int at) && at > 0 ? at : throw new ArgumentException("--asset-threads expects a positive number");
+                            break;
+                        case "--during-build":
+                            o.DuringBuild = Next().ToLowerInvariant() switch
+                            {
+                                "pause" or "0" => 0,
+                                "single" or "1" => 1,
+                                "full" or "2" => 2,
+                                _ => throw new ArgumentException("--during-build expects pause, single or full"),
+                            };
+                            break;
+                        case "--shared-engine-cache": o.SharedEngineCache = true; break;
+                        case "--engine-cache-dir": o.EngineCacheDirectory = Next(); break;
+                        case "--exclude-dir": (o.ExcludedFolders ??= new List<string>()).Add(Next()); break;
                         case "--query": o.Query = Next(); break;
                         case "--all": o.QueryAll = true; break;
                         case "--max":

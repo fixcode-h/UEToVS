@@ -26,7 +26,7 @@ namespace UEToVS.Engine.Index
     /// The delta is not persisted: after a restart the caller re-checks files (mtime / <see cref="IndexedFile.ContentHash"/>)
     /// and re-applies changes. Removals and compacted changes are persisted in manifest.json.
     /// </summary>
-    public sealed class SymbolIndex : IDisposable
+    public sealed partial class SymbolIndex : IDisposable
     {
         private static readonly Logger L = Log.For("Index");
 
@@ -77,7 +77,9 @@ namespace UEToVS.Engine.Index
                 var kept = new List<ManifestSegment>();
                 foreach (var entry in manifest.Segments)
                 {
-                    string path = Path.Combine(options.Directory, entry.File ?? string.Empty);
+                    // Relative names resolve against the index folder ("../engine/x.seg" for the engine folder); shared
+                    // engine segments are stored with their absolute path.
+                    string path = Path.GetFullPath(Path.Combine(options.Directory, entry.File ?? string.Empty));
                     var status = Segment.TryOpen(path, options.KnowledgeBaseVersion, options.EngineBuildId, options.VerifyChecksums,
                         out var seg, out string detail);
                     if (status == SegmentLoadStatus.Ok && seg.Kind != entry.Kind)
@@ -92,7 +94,7 @@ namespace UEToVS.Engine.Index
                     {
                         L.Warn("index.segment.rejected", "Segment rejected; it must be rebuilt", ("file", entry.File), ("kind", entry.Kind.ToString()),
                             ("status", status.ToString()), ("detail", detail));
-                        TryDelete(path);
+                        if (IsOwnedPath(options, path)) TryDelete(path); // never delete a shared (external) segment
                         continue;
                     }
                     opened.Add(seg);
@@ -111,7 +113,9 @@ namespace UEToVS.Engine.Index
                 result.NeedsProjectRebuild = !ordered.Any(v => v.Segment.Kind == SegmentKind.Project);
 
                 var index = new SymbolIndex(options, snap, Math.Max(1, manifest.NextSegmentNumber));
-                CleanupStrayFiles(options.Directory, kept.Select(k => k.File));
+                CleanupStrayFiles(options.Directory, kept.Select(k => Path.GetFullPath(Path.Combine(options.Directory, k.File))));
+                if (!string.IsNullOrEmpty(options.EngineDirectory) && System.IO.Directory.Exists(options.EngineDirectory))
+                    CleanupStrayFiles(options.EngineDirectory, kept.Select(k => Path.GetFullPath(Path.Combine(options.Directory, k.File))));
                 if (kept.Count != manifest.Segments.Count || result.ManifestMissing) index.SaveManifest(snap);
 
                 L.Info("index.opened", "Index opened", ("dir", options.Directory), ("segments", ordered.Length),
@@ -129,7 +133,7 @@ namespace UEToVS.Engine.Index
                 foreach (var f in System.IO.Directory.EnumerateFiles(dir))
                 {
                     string name = Path.GetFileName(f);
-                    bool stray = (name.EndsWith(".seg", StringComparison.OrdinalIgnoreCase) && !keepSet.Contains(name)) ||
+                    bool stray = (name.EndsWith(".seg", StringComparison.OrdinalIgnoreCase) && !keepSet.Contains(Path.GetFullPath(f))) ||
                                  name.EndsWith(".seg.tmp", StringComparison.OrdinalIgnoreCase);
                     if (stray) TryDelete(f);
                 }
@@ -211,7 +215,7 @@ namespace UEToVS.Engine.Index
                             bases.AddRange(cur.Bases.Where(b => b.Segment.Kind != kind));
                             if (kind != SegmentKind.Engine) bases.Add(newView);
                             published = new Snapshot(bases.ToArray(), delta, cur.Version + 1);
-                            foreach (var r in retired) r.Retire(); // before publish: the last release deletes the file
+                            foreach (var r in retired) RetireIfOwned(r); // before publish: the last release deletes the file
                             Publish(published);
                         }
                         seg.Release();
@@ -240,7 +244,9 @@ namespace UEToVS.Engine.Index
             string name = kind == SegmentKind.Engine
                 ? $"engine-{Sanitize(_options.EngineBuildId)}-{number:D4}.seg"
                 : $"project-{number:D4}.seg";
-            string path = Path.Combine(_options.Directory, name);
+            string dir = kind == SegmentKind.Engine && !string.IsNullOrEmpty(_options.EngineDirectory) ? _options.EngineDirectory : _options.Directory;
+            System.IO.Directory.CreateDirectory(dir);
+            string path = Path.Combine(dir, name);
             try
             {
                 SegmentWriter.Write(path, kind, _options.KnowledgeBaseVersion, _options.EngineBuildId, files, ct);
@@ -388,7 +394,7 @@ namespace UEToVS.Engine.Index
                                 if (s1.Delta.TryGetValue(kv.Key, out var e1) && ReferenceEquals(e1, kv.Value)) delta = delta.Remove(kv.Key);
                             var bases = s1.Bases.Where(b => b.Segment.Kind != SegmentKind.Project).Append(view).ToArray();
                             published = new Snapshot(bases, delta, s1.Version + 1);
-                            foreach (var old in oldProject) old.Segment.Retire(); // before publish: the last release deletes the file
+                            foreach (var old in oldProject) RetireIfOwned(old.Segment); // before publish: the last release deletes the file
                             Publish(published);
                         }
                         seg.Release();
@@ -429,7 +435,7 @@ namespace UEToVS.Engine.Index
             };
             foreach (var view in snap.Bases)
             {
-                var entry = new ManifestSegment { File = view.Segment.FileName, Kind = view.Segment.Kind };
+                var entry = new ManifestSegment { File = ManifestName(view.Segment.FullPath), Kind = view.Segment.Kind };
                 foreach (int fi in view.DeadFiles())
                 {
                     string path = view.Segment.GetString(view.Segment.Files[fi].PathId);

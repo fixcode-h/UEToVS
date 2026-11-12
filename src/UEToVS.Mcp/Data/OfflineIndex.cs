@@ -38,7 +38,12 @@ namespace UEToVS.Mcp.Data
         public OfflineIndex(string solutionDir)
         {
             _solutionDir = solutionDir;
-            _symbolsDir = Path.Combine(StoragePaths.ForSolution(solutionDir).Index, "symbols");
+            // Index layout: manifest + project segments in Index/project (engine segments in Index/engine or a shared
+            // cache, referenced from the manifest). Older builds used Index/symbols.
+            string indexRoot = StoragePaths.ForSolution(solutionDir).Index;
+            string project = Path.Combine(indexRoot, "project");
+            string legacy = Path.Combine(indexRoot, "symbols");
+            _symbolsDir = !Directory.Exists(project) && Directory.Exists(legacy) ? legacy : project;
         }
 
         public string SymbolsDirectory => _symbolsDir;

@@ -133,6 +133,15 @@ namespace UEToVS.Engine.Indexing
 
         public bool ContainsFile(string filePath) => _files.ContainsKey(filePath);
 
+        public void Reset(bool project, bool engine)
+        {
+            foreach (var kv in _files.ToList())
+            {
+                bool isProject = kv.Value.Length > 0 && IsProject(kv.Value[0].Origin);
+                if (kv.Value.Length == 0 || (isProject ? project : engine)) RemoveFile(kv.Key);
+            }
+        }
+
         public IndexStats GetStats() => new IndexStats
         {
             Files = _files.Count,

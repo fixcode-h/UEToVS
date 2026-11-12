@@ -81,16 +81,22 @@ namespace UEToVS.Engine.Unreal
             [".uplugin"] = SourceFileKind.Descriptor,
         };
 
-        private static readonly HashSet<string> SkippedDirectories = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
-            "Intermediate", "Binaries", "Saved", "DerivedDataCache", ".git", ".vs",
-        };
+        public static readonly IReadOnlyCollection<string> DefaultSkippedDirectories = new[] { "Intermediate", "Binaries", "Saved", "DerivedDataCache" };
+
+        private static volatile HashSet<string> _skippedDirectories = new HashSet<string>(DefaultSkippedDirectories, StringComparer.OrdinalIgnoreCase);
 
         public static IReadOnlyCollection<string> ListedExtensions => Extensions.Keys;
 
-        /// <summary>Intermediate, Binaries, Saved, DerivedDataCache, .git, .vs and any other dot-folder.</summary>
+        /// <summary>Folder names skipped by listing and change handling (settings window). Null or empty = defaults.</summary>
+        public static IReadOnlyCollection<string> SkippedDirectories
+        {
+            get => _skippedDirectories;
+            set => _skippedDirectories = new HashSet<string>(value == null || value.Count == 0 ? DefaultSkippedDirectories : value, StringComparer.OrdinalIgnoreCase);
+        }
+
+        /// <summary>Configured folder names (default Intermediate, Binaries, Saved, DerivedDataCache) and any dot-folder (.git, .vs…).</summary>
         public static bool IsSkippedDirectory(string name) =>
-            string.IsNullOrEmpty(name) || SkippedDirectories.Contains(name) || name[0] == '.';
+            string.IsNullOrEmpty(name) || name[0] == '.' || _skippedDirectories.Contains(name);
 
         public static bool TryGetKind(string path, out SourceFileKind kind)
         {

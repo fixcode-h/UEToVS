@@ -31,9 +31,21 @@
 - **MCP 服务（给 AI Agent 用）** — 自带 `UEToVS.Mcp.exe`（stdio），让 VS Copilot Agent 模式、Claude Code、Cursor、VS Code 直接查 UEToVS 的索引：`search_symbols`、`search_files`、`search_assets`（蓝图等资产）、`get_file_outline`、`go_to_definition`、`find_references`、`get_type_hierarchy`、`get_members`、`index_status`。VS 开着时问 Engine，没开时读磁盘索引。合成工程上常见查询比 rg 快 13–25 倍，详见 docs/design/MCP.md
 - **自动注册到 Visual Studio** — 打开 UE 解决方案时把服务写进 `.vs\mcp.json`，在 Copilot Agent 模式的工具列表里就能勾选。可在 工具 > 选项 > UEToVS > 启用 MCP 服务 关闭
 - **写入 .mcp.json 到解决方案目录** — 新命令（扩展 > UEToVS），生成 Claude Code / Cursor / VS Code 也能读的 `.mcp.json`；已有文件会合并，不覆盖其他服务器
+- **C++ / 蓝图索引线程数可配置** — 两者各自设置并发线程数，默认 = 逻辑核心数 / 4（至少 1）；运行时修改立即生效，不用重启引擎（引擎命令行也可用 `--cpp-threads` / `--asset-threads` 指定初始值）
+- **编译期间的索引策略** — 编译时可选“暂停 / 单线程继续（默认）/ 全速”；索引线程平时为 BelowNormal，编译期间降为 Lowest，不拖慢编译
+- **分开重建** — 可单独重建项目索引、引擎索引、蓝图索引，或全部重建；进度显示在状态里，连续点多次会合并成一次
+- **引擎索引与项目索引分开存放** — 引擎部分在 `.vs\UEToVS\Index\engine`，项目部分与增量在 `Index\project`；改项目文件只更新项目部分。可选把引擎部分放进按引擎版本 + 构建号共享的目录（`%LocalAppData%\UEToVS\EngineIndex`，默认关闭），同一引擎的第二个工程几秒内就能打开
 
 ### 改进
 - **索引记录继承关系** — 类的基类（含模板实参原文）和“基类 → 派生类”倒排表写入索引段；项目文件额外索引声明里出现的类型名（字段 / 参数 / 基类），查找引用能找到头文件里的用法
+- **索引速度** — 2 万文件的合成 UE 工程（2 线程）：首次索引 41.9 s → 10.2 s，引擎解析 723 → 2301 文件/秒；解析结果按批写成索引段，写段与解析并行，不再逐文件进增量再反复合并
+- **索引顺序** — 项目源码先于引擎；引擎里 Public/Classes 头文件先于其他头文件，再到 .cpp，ThirdParty 最后
+- **吞吐统计** — 日志新增 `index.throughput`（每 5 秒）和 `index.done`（每阶段汇总：文件/秒、MB/秒、每文件解析 p50/p95/max、最慢 20 个文件、IO/CPU 占比、线程利用率），性能面板快照也带这些数据
+- **跳过的目录可配置** — 默认跳过 Intermediate、Binaries、Saved、DerivedDataCache 和点开头的目录
+
+### Bug 修复
+- **重启 VS 后索引缓存不生效** — 以前每次打开都把全部 C++ 文件重新解析一遍（2 万文件 62 s），现在直接复用缓存（0.6 s）
+- **.ini 等非 C++ 文件不再进入解析** — 配置文件、插件描述等只用于文件搜索；它们变化时也不再计入“已解析”进度
 
 ### 注意
 - 旧原型目录 `legacy/` 已删除，原型的全部功能已在新架构上重新实现

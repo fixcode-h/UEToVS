@@ -63,6 +63,13 @@ namespace UEToVS.Engine.Index
         /// <summary>Folder holding segments and manifest.json, normally &lt;solution&gt;/.vs/UEToVS/Index.</summary>
         public string Directory { get; set; }
 
+        /// <summary>
+        /// Folder for engine segments written by this index (e.g. &lt;solution&gt;/.vs/UEToVS/Index/engine), kept apart from
+        /// the project segments and the manifest in <see cref="Directory"/>. Null = <see cref="Directory"/>. Segments
+        /// outside both folders (a shared engine cache) are referenced by absolute path and never deleted by this index.
+        /// </summary>
+        public string EngineDirectory { get; set; }
+
         /// <summary>Version of parser rules / knowledge base. Segments written with another value are rebuilt.</summary>
         public string KnowledgeBaseVersion { get; set; } = "0";
 

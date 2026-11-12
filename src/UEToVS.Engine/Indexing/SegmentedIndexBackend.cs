@@ -30,17 +30,38 @@ namespace UEToVS.Engine.Indexing
 
         private SymbolIndex Current => Volatile.Read(ref _index);
 
+        /// <summary>The open store (null before <see cref="TryLoad"/>); used by the shared engine cache.</summary>
+        public SymbolIndex Store => Current;
+
+        /// <summary>Bulk stages leave at most this many base segments per kind; more are merged at the end of the stage.</summary>
+        public int MaxBulkSegments { get; set; } = 64;
+
+        /// <summary>Segments merged together per step when there are more than <see cref="MaxBulkSegments"/>.</summary>
+        public int MergeFanIn { get; set; } = 6;
+
         public bool TryLoad(string indexDir, string key)
         {
             lock (_gate)
             {
                 if (_index != null && _key == key) return true;
                 _index?.Dispose();
-                var options = new IndexOptions { Directory = Path.Combine(indexDir, "symbols"), KnowledgeBaseVersion = key, EngineBuildId = "keyed" };
+                // Project segments + manifest in Index/project, engine segments in Index/engine (or, when shared, in the
+                // shared engine cache, referenced by absolute path). They are written and updated separately.
+                var options = new IndexOptions
+                {
+                    Directory = Path.Combine(indexDir, "project"),
+                    EngineDirectory = Path.Combine(indexDir, "engine"),
+                    KnowledgeBaseVersion = key,
+                    EngineBuildId = "keyed",
+                };
+                DeleteLegacy(Path.Combine(indexDir, "symbols"));
                 var idx = SymbolIndex.Open(options, out var result);
                 _key = key;
                 Volatile.Write(ref _index, idx);
-                bool ok = !result.ManifestMissing && !result.NeedsEngineRebuild && !result.NeedsProjectRebuild;
+                // Usable as soon as a manifest exists: files whose segment was rejected (or that were never indexed) are
+                // simply not found by ContainsFile and get re-parsed. (Requiring both an engine and a project segment
+                // made every restart a full re-index.)
+                bool ok = !result.ManifestMissing;
                 L.Info("index.store.open", null, ("dir", options.Directory), ("loaded", ok), ("manifestMissing", result.ManifestMissing),
                     ("segments", result.Segments.Select(s => s.ToString()).ToArray()));
                 return ok;
@@ -133,10 +154,62 @@ namespace UEToVS.Engine.Indexing
         {
             if (result.Payload is FileSymbols fs)
             {
-                fs.Path = filePath;
-                Apply(fs);
+                Apply(Fill(fs, filePath, result));
             }
             else UpdateFile(filePath, result.Symbols);
+        }
+
+        private static FileSymbols Fill(FileSymbols fs, string filePath, ParseResult result)
+        {
+            fs.Path = filePath;
+            fs.MtimeTicks = result.MtimeTicks;
+            fs.Length = result.Length;
+            fs.ContentHash = result.ContentHash;
+            return fs;
+        }
+
+        public void AppendBatch(bool engine, IReadOnlyList<(string Path, ParseResult Result)> batch, CancellationToken ct)
+        {
+            var idx = Current ?? throw new InvalidOperationException("Index store not opened (TryLoad was not called)");
+            var list = new List<FileSymbols>(batch.Count);
+            foreach (var (path, result) in batch)
+            {
+                if (result.Payload is FileSymbols fs) list.Add(Fill(fs, path, result));
+                else UpdateFile(path, result.Symbols); // foreign payload: delta path
+            }
+            idx.AppendSegment(engine ? SegmentKind.Engine : SegmentKind.Project, list, ct);
+        }
+
+        public void FinishBulk(bool engine, CancellationToken ct)
+        {
+            var idx = Current;
+            if (idx == null) return;
+            var kind = engine ? SegmentKind.Engine : SegmentKind.Project;
+            // Tiered: merge the smallest few at a time so one merge never materialises the whole engine in memory.
+            int guard = 0;
+            while (idx.BaseSegmentCount(kind) > MaxBulkSegments && guard++ < 64)
+                if (!idx.MergeBases(kind, MergeFanIn, ct)) break;
+        }
+
+        public void Reset(bool project, bool engine)
+        {
+            var kinds = new List<SegmentKind>();
+            if (project) kinds.Add(SegmentKind.Project);
+            if (engine) kinds.Add(SegmentKind.Engine);
+            if (kinds.Count > 0) Current?.Reset(kinds.ToArray());
+        }
+
+        /// <summary>v0.2 stored everything in Index/symbols; that layout is never read again.</summary>
+        private static void DeleteLegacy(string dir)
+        {
+            try
+            {
+                if (Directory.Exists(dir)) Directory.Delete(dir, true);
+            }
+            catch (Exception ex)
+            {
+                L.Debug("index.legacy.delete_failed", ex.Message, ("dir", dir));
+            }
         }
 
         private void Apply(FileSymbols fs)
