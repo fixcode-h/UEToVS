@@ -5,7 +5,7 @@ namespace UEToVS.Host.Logic.Localization
     /// <summary>User-visible strings of the MCP integration (kept apart from <see cref="Strings"/> to keep merges simple).</summary>
     public static class McpStrings
     {
-        public static string CmdWriteMcpConfig => Loc.T("写入 .mcp.json 到解决方案目录", "Write .mcp.json to Solution Folder");
+        public static string CmdWriteMcpConfig => Loc.T("写入 .mcp.json 到项目根目录", "Write .mcp.json to Project Root");
 
         public static readonly string[] KwMcp = { "mcp", "agent", "ai", "copilot", "claude", "cursor", ".mcp.json", "智能体", "代理", "配置" };
 
@@ -20,8 +20,8 @@ namespace UEToVS.Host.Logic.Localization
         public static string NotInstalled(string path) => Loc.F("未找到 MCP 服务程序：{0}（请重新安装扩展）。", "MCP server not found: {0} (reinstall the extension).", path);
 
         public static string Written(string path, int otherServers) => otherServers > 0
-            ? Loc.F("已写入 {0}（保留了其他 {1} 个服务器）。VS、Claude Code、Cursor、VS Code 均可读取。", "Wrote {0} (kept {1} other server(s)). Visual Studio, Claude Code, Cursor and VS Code read it.", path, otherServers)
-            : Loc.F("已写入 {0}。VS、Claude Code、Cursor、VS Code 均可读取。", "Wrote {0}. Visual Studio, Claude Code, Cursor and VS Code read it.", path);
+            ? Loc.F("已写入 {0}（保留了其他 {1} 个服务器）。在该目录启动 Claude Code 即可使用。", "Wrote {0} (kept {1} other server(s)). Start Claude Code in that folder to use it.", path, otherServers)
+            : Loc.F("已写入 {0}。在该目录启动 Claude Code 即可使用。", "Wrote {0}. Start Claude Code in that folder to use it.", path);
 
         public static string AlreadyUpToDate(string path) => Loc.F("{0} 已是最新。", "{0} is already up to date.", path);
 

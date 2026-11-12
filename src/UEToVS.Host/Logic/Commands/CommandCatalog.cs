@@ -234,7 +234,7 @@ namespace UEToVS.Host.Logic.Commands
             C(H, OpenCurrentLog, "OpenCurrentLog", "uetovs.diagnostics.openCurrentLog", "打开当前日志", "Open Current Log", "diagnostics", Gl, null, null, null),
             C(H, CreateDiagnostics, "CreateDiagnosticsPackage", "uetovs.diagnostics.createPackage", "生成诊断包", "Create Diagnostics Package", "diagnostics", Gl, null, null, null),
             C(H, ShowComponentGallery, "ShowComponentGallery", "uetovs.ui.componentGallery", "组件画廊", "Component Gallery", "diagnostics", Gl, null, null, null),
-            C(H, WriteMcpConfig, "WriteMcpConfig", "uetovs.mcp.writeConfig", "写入 .mcp.json 到解决方案目录", "Write .mcp.json to Solution Folder", "tools", Gl, null, null, null),
+            C(H, WriteMcpConfig, "WriteMcpConfig", "uetovs.mcp.writeConfig", "写入 .mcp.json 到项目根目录", "Write .mcp.json to Project Root", "tools", Gl, null, null, null),
         };
 
         public static CommandInfo ById(int id)

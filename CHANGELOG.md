@@ -6,6 +6,14 @@
 - 节内用 `### 新功能`、`### 改进`、`### Bug 修复`、`### 注意` 等小标题，条目写成 `- **短标题** — 说明`。
 - 改了 `src/` 的 PR 必须在最上面加一个新版本节（PR 检查会验证），这样每次合并都会出一个带更新日志的包。
 
+## v0.3.3
+
+### 改进
+- **写入 .mcp.json 到项目根目录** — 原“写入 .mcp.json 到解决方案目录”改名。先从解决方案目录往上找版本库根目录（Git、SVN、Perforce、Mercurial、Plastic；Perforce 认 P4CONFIG 文件，没有时问 `p4` 的客户端根目录），找到就写在版本库根目录，否则写在 UE 项目根目录；Claude Code 一般在版本库根目录启动，这样直接能识别。之前写在解决方案目录里的 uetovs 条目会自动清掉
+
+### Bug 修复
+- **.mcp.json 里 uetovs 出现两份** — 之前同时写了 `servers` 和 `mcpServers`。`servers` 只有 VS 读，而 VS 已经通过 `.vs\mcp.json` 自动注册了 uetovs，两处都有会重复；Cursor、VS Code 也不读根目录的 `.mcp.json`。现在只写 Claude Code 用的 `mcpServers`，并删掉旧版本写入的 `servers.uetovs`（其他服务器不动）
+
 ## v0.3.2
 
 ### 改进

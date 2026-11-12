@@ -11,15 +11,27 @@ namespace UEToVS.Host.Logic.Mcp
     public sealed class McpConfigTarget
     {
         public McpConfigTarget(string path, params string[] rootKeys)
+            : this(path, rootKeys, Array.Empty<string>())
+        {
+        }
+
+        public McpConfigTarget(string path, IReadOnlyList<string> rootKeys, IReadOnlyList<string> dropKeys)
         {
             Path = path;
             RootKeys = rootKeys;
+            DropKeys = dropKeys ?? Array.Empty<string>();
         }
 
         public string Path { get; }
 
-        /// <summary>"servers" (Visual Studio, VS Code .vscode/mcp.json) and/or "mcpServers" (Claude Code, Cursor, VS Code workspace-root .mcp.json).</summary>
+        /// <summary>"servers" (Visual Studio .vs\mcp.json, VS Code .vscode/mcp.json) and/or "mcpServers" (Claude Code .mcp.json, Cursor .cursor/mcp.json).</summary>
         public IReadOnlyList<string> RootKeys { get; }
+
+        /// <summary>Root keys whose uetovs entry is removed when writing (written by older versions, no longer wanted here).</summary>
+        public IReadOnlyList<string> DropKeys { get; }
+
+        /// <summary>Every key that may hold a uetovs entry in this file.</summary>
+        public IReadOnlyList<string> AllKeys => RootKeys.Concat(DropKeys).ToArray();
 
         /// <summary>
         /// &lt;solution&gt;\.vs\mcp.json: Visual Studio's per-user, per-solution MCP file (not source-controlled). The host keeps
@@ -29,10 +41,17 @@ namespace UEToVS.Host.Logic.Mcp
             new McpConfigTarget(System.IO.Path.Combine(solutionDir, ".vs", "mcp.json"), McpConfig.VsRootKey);
 
         /// <summary>
-        /// &lt;solution&gt;\.mcp.json: read by Visual Studio ("servers"), Claude Code and VS Code's workspace-root config ("mcpServers").
-        /// Written on request (command), with both keys so one file serves every agent.
+        /// &lt;dir&gt;\.mcp.json, the shareable project-scope file Claude Code reads ("mcpServers") from the folder it starts in.
+        /// &lt;dir&gt; is the version-control root above the solution, else the solution folder (McpRegistration resolves it).
+        /// Only "mcpServers" is written: Visual Studio also reads &lt;solution&gt;\.mcp.json's "servers" and already gets
+        /// uetovs from .vs\mcp.json, so a "servers" copy here would register the same server twice. A "servers" uetovs
+        /// entry written by earlier versions is removed.
         /// </summary>
-        public static McpConfigTarget SolutionRoot(string solutionDir) =>
+        public static McpConfigTarget SharedProject(string dir) =>
+            new McpConfigTarget(System.IO.Path.Combine(dir, ".mcp.json"), new[] { McpConfig.PortableRootKey }, new[] { McpConfig.VsRootKey });
+
+        /// <summary>&lt;solution&gt;\.mcp.json as earlier versions wrote it (both keys): only used to clean it up after the shared file moved.</summary>
+        public static McpConfigTarget LegacySolutionRoot(string solutionDir) =>
             new McpConfigTarget(System.IO.Path.Combine(solutionDir, ".mcp.json"), McpConfig.VsRootKey, McpConfig.PortableRootKey);
     }
 
@@ -85,7 +104,7 @@ namespace UEToVS.Host.Logic.Mcp
         /// "type" and "command" are replaced and the "--solution-dir" value is updated; any other args, "env" and other
         /// fields the user added are kept.
         /// </summary>
-        public static McpMergeResult Merge(string existingJson, IReadOnlyList<string> rootKeys, JObject entry)
+        public static McpMergeResult Merge(string existingJson, IReadOnlyList<string> rootKeys, JObject entry, IReadOnlyList<string> dropKeys = null)
         {
             bool created = string.IsNullOrWhiteSpace(existingJson);
             JObject root;
@@ -120,6 +139,12 @@ namespace UEToVS.Host.Logic.Mcp
                     servers[ServerName] = entry.DeepClone();
                     changed = true;
                 }
+            }
+            foreach (var key in dropKeys ?? Array.Empty<string>())
+            {
+                if (rootKeys.Contains(key) || !(root[key] is JObject servers) || !servers.Remove(ServerName)) continue;
+                changed = true;
+                if (!servers.HasValues) root.Remove(key);
             }
             return new McpMergeResult
             {
@@ -207,12 +232,20 @@ namespace UEToVS.Host.Logic.Mcp
             }
         }
 
-        /// <summary>Reads, merges (or removes) and writes <paramref name="target"/> atomically. Returns the outcome; throws on I/O errors.</summary>
-        public static McpMergeResult ApplyToFile(McpConfigTarget target, JObject entry, bool remove = false)
+        /// <summary>
+        /// Reads, merges (or removes) and writes <paramref name="target"/> atomically. Returns the outcome; throws on I/O errors.
+        /// With <paramref name="deleteIfEmpty"/>, a removal that leaves an empty object deletes the file instead.
+        /// </summary>
+        public static McpMergeResult ApplyToFile(McpConfigTarget target, JObject entry, bool remove = false, bool deleteIfEmpty = false)
         {
             string existing = File.Exists(target.Path) ? File.ReadAllText(target.Path) : null;
             if (remove && existing == null) return new McpMergeResult { Outcome = McpMergeOutcome.Unchanged };
-            var result = remove ? Remove(existing, target.RootKeys) : Merge(existing, target.RootKeys, entry);
+            var result = remove ? Remove(existing, target.AllKeys) : Merge(existing, target.RootKeys, entry, target.DropKeys);
+            if (remove && deleteIfEmpty && result.Outcome == McpMergeOutcome.Removed && TryParse(result.Json, out var left, out _) && !left.HasValues)
+            {
+                File.Delete(target.Path);
+                return result;
+            }
             if (result.Outcome == McpMergeOutcome.Created || result.Outcome == McpMergeOutcome.Updated || result.Outcome == McpMergeOutcome.Removed)
             {
                 Directory.CreateDirectory(System.IO.Path.GetDirectoryName(target.Path));
