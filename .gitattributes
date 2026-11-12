@@ -1,0 +1,2 @@
+# Test sources whose verbatim C++ samples must keep LF line endings on Windows checkouts (the assertions expect "\n").
+tests/UEToVS.Host.Logic.Tests/RefactoringBatch2Tests.cs text eol=lf
