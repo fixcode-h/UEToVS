@@ -31,7 +31,20 @@ namespace UEToVS.Engine.Navigation
         /// <summary>Enclosing class at the position (qualified), or null.</summary>
         public string ClassContext { get; set; }
 
+        /// <summary>For a call <c>name(args)</c>: a rough class of each argument (for picking among overloads); null otherwise.</summary>
+        public List<ArgClass> CallArguments { get; set; }
+
         public bool IsEmpty => Candidates.Count == 0 && Include == null;
+    }
+
+    /// <summary>Rough argument / parameter category used to choose among overloads.</summary>
+    public enum ArgClass : byte
+    {
+        Unknown = 0,
+        Number = 1,
+        Text = 2,
+        Pointer = 3,
+        Object = 4,
     }
 
     /// <summary>
@@ -115,6 +128,7 @@ namespace UEToVS.Engine.Navigation
 
             bool typePosition = doc.Is(ti + 1, Punct.ColonColon) || (doc.OccurrenceRoleAt(offset) & OccurrenceRole.TypeUse) != 0;
             string cls = r.ClassContext;
+            if (doc.Is(ti + 1, Punct.LParen) && depth == 0) r.CallArguments = CallArguments(ctx, doc, ti + 1, cls);
 
             if (doc.Is(ti - 1, Punct.ColonColon))
             {
@@ -257,7 +271,8 @@ namespace UEToVS.Engine.Navigation
             // enclosing class and its bases
             if (cls != null)
             {
-                var hits = ctx.MemberLookup(word, cls, out int level);
+                // a class name inside a class (own or base) means the type, not its constructor
+                var hits = ctx.MemberLookup(word, cls, out int level).Where(s => s.Kind != SymbolKind.Constructor).ToList();
                 var preferred = Prefer(hits, typePosition);
                 if (typePosition) preferred = preferred.Where(s => TypeText.IsTypeKind(s.Kind)).ToList();
                 if (preferred.Count > 0)
@@ -394,6 +409,118 @@ namespace UEToVS.Engine.Navigation
             foreach (var w in new[] { "virtual ", "static ", "inline ", "FORCEINLINE ", "explicit ", "constexpr " })
                 if (t.StartsWith(w, StringComparison.Ordinal)) t = t.Substring(w.Length);
             return t.Trim();
+        }
+
+        // ------------------------------------------------------------------ overloads
+
+        private static List<ArgClass> CallArguments(NavContext ctx, DocumentModel doc, int open, string cls)
+        {
+            var args = new List<ArgClass>();
+            int depth = 0, start = open + 1;
+            for (int k = open; k < doc.Tokens.Length; k++)
+            {
+                var t = doc.Tokens[k];
+                if (t.Is(Punct.LParen) || t.Is(Punct.LBracket) || t.Is(Punct.LBrace)) depth++;
+                else if (t.Is(Punct.RParen) || t.Is(Punct.RBracket) || t.Is(Punct.RBrace))
+                {
+                    if (--depth == 0)
+                    {
+                        if (k > start) args.Add(Classify(doc, start, k));
+                        return args;
+                    }
+                }
+                else if (t.Is(Punct.Comma) && depth == 1)
+                {
+                    args.Add(Classify(doc, start, k));
+                    start = k + 1;
+                }
+                else if (t.Is(Punct.Semicolon)) break;
+            }
+            return null;
+        }
+
+        private static ArgClass Classify(DocumentModel doc, int from, int to)
+        {
+            if (to - from == 1)
+            {
+                var t = doc.Tokens[from];
+                if (t.Kind == TokenKind.Number) return ArgClass.Number;
+                if (t.Kind == TokenKind.String) return ArgClass.Text;
+                if (t.Is(Keyword.This) || t.Is(Keyword.Nullptr)) return ArgClass.Pointer;
+                if (t.Is(Keyword.True) || t.Is(Keyword.False)) return ArgClass.Number;
+                if (t.Kind == TokenKind.Identifier)
+                {
+                    int fn = doc.EnclosingFunction(t.Start);
+                    var l = doc.FindLocal(fn, doc.TokenText(from), t.Start);
+                    if (l != null) return ParamClass(l.Type);
+                }
+            }
+            if (doc.Is(from, Punct.Amp)) return ArgClass.Pointer;
+            if (doc.Is(from, Punct.Minus) && to - from == 2 && doc.Tokens[from + 1].Kind == TokenKind.Number) return ArgClass.Number;
+            return ArgClass.Unknown;
+        }
+
+        /// <summary>Category of a parameter / variable type text.</summary>
+        public static ArgClass ParamClass(string type)
+        {
+            if (string.IsNullOrWhiteSpace(type)) return ArgClass.Unknown;
+            if (type.Contains('*')) return ArgClass.Pointer;
+            string core = LastWord(type);
+            if (TypeText.IsBuiltin(core) || core == "unsigned" || core == "signed") return ArgClass.Number;
+            if (core == "FString" || core == "FName" || core == "FText" || core == "TCHAR") return ArgClass.Text;
+            if (core.StartsWith("TObjectPtr", StringComparison.Ordinal) || core.StartsWith("TWeakObjectPtr", StringComparison.Ordinal)) return ArgClass.Pointer;
+            return ArgClass.Object;
+        }
+
+        private static string LastWord(string type)
+        {
+            string t = type.Replace("const ", " ").Replace("&", " ").Trim();
+            int sp = t.LastIndexOf(' ');
+            return sp >= 0 ? t.Substring(sp + 1) : t;
+        }
+
+        /// <summary>Keeps the overloads whose parameter list fits the call's arguments best (arity, then argument categories).</summary>
+        public static List<SymbolInfo> FilterByCall(List<SymbolInfo> candidates, List<ArgClass> args)
+        {
+            if (args == null || candidates.Count < 2) return candidates;
+            var scored = new List<(SymbolInfo S, int Score)>();
+            foreach (var c in candidates)
+            {
+                var ps = ParameterTypes(c.Signature, out int required);
+                if (ps == null) { scored.Add((c, 0)); continue; }
+                if (args.Count < required || args.Count > ps.Count) { scored.Add((c, -100)); continue; }
+                int score = 10;
+                for (int i = 0; i < args.Count; i++)
+                {
+                    if (args[i] == ArgClass.Unknown) continue;
+                    var pc = ParamClass(ps[i]);
+                    if (pc == args[i]) score += 3;
+                    else if (pc != ArgClass.Unknown && !(pc == ArgClass.Object && args[i] == ArgClass.Pointer)) score -= 3;
+                }
+                scored.Add((c, score));
+            }
+            int best = scored.Max(x => x.Score);
+            return scored.Where(x => x.Score == best).Select(x => x.S).ToList();
+        }
+
+        /// <summary>Parameter type texts of a signature (names and defaults removed); <paramref name="required"/> = parameters without defaults.</summary>
+        private static List<string> ParameterTypes(string signature, out int required)
+        {
+            required = 0;
+            string key = TypeText.ParameterKey(signature);
+            if (key == null) return null;
+            var list = key.Length == 0 ? new List<string>() : key.Split('|').ToList();
+            int open = signature.IndexOf('(');
+            string inner = open >= 0 ? signature.Substring(open) : string.Empty;
+            int defaults = 0, depth = 0;
+            foreach (char ch in inner)
+            {
+                if (ch == '(' || ch == '<') depth++;
+                else if (ch == ')' || ch == '>') depth--;
+                else if (ch == '=' && depth == 1) defaults++;
+            }
+            required = Math.Max(0, list.Count - defaults);
+            return list;
         }
 
         // ------------------------------------------------------------------ includes

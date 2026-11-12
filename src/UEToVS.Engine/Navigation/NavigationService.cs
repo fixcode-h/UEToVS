@@ -127,6 +127,15 @@ namespace UEToVS.Engine.Navigation
                 }
                 var defs = syms.Where(s => s.IsDefinition).ToList();
                 var decls = syms.Where(s => !s.IsDefinition).ToList();
+                if (self == null && r.CallArguments != null)
+                {
+                    // a call: the overloads whose parameters fit the arguments
+                    var fitting = SymbolResolver.FilterByCall(decls.Count > 0 ? decls : defs, r.CallArguments);
+                    var keys = new HashSet<string>(fitting.Select(f => TypeText.ParameterKey(f.Signature)));
+                    if (decls.Count > 0) decls = fitting;
+                    var matchingDefs = defs.Where(d => keys.Contains(TypeText.ParameterKey(d.Signature))).ToList();
+                    if (matchingDefs.Count > 0) defs = matchingDefs;
+                }
                 if (self != null)
                 {
                     // overloads: the definition / declaration with the same parameter list as the caret's

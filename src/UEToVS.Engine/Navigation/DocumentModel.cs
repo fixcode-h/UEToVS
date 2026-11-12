@@ -173,7 +173,9 @@ namespace UEToVS.Engine.Navigation
         {
             var d = Decls[declIndex];
             if (d.Body.IsNone) return TextRange.None;
-            if (d.Kind == SymbolKind.Namespace) return d.Body;
+            // namespaces and types: their body (a class's base clause is not inside the class); functions: from the name
+            // (parameters are in scope) to the end of the body
+            if (!TypeText.IsCallableKind(d.Kind)) return d.Body;
             int start = Math.Min(d.Offset, d.Body.Start);
             return new TextRange(start, d.Body.End - start);
         }
@@ -298,8 +300,7 @@ namespace UEToVS.Engine.Navigation
                 if (Tokens[j].Kind != TokenKind.Identifier) continue;
                 bool inParams = Tokens[j].Start < bodyStart;
                 if (!LooksLikeDeclarator(j, inParams, out int typeStart)) continue;
-                string type = Encoding.UTF8.GetString(Text, Tokens[typeStart].Start, Tokens[j].Start - Tokens[typeStart].Start).Trim();
-                type = CollapseSpaces(type);
+                string type = TokensText(typeStart, j);
                 if (type == "auto" || type.StartsWith("auto", StringComparison.Ordinal) || type.StartsWith("const auto", StringComparison.Ordinal))
                 {
                     string inferred = InferFromInitializer(j);
@@ -310,16 +311,14 @@ namespace UEToVS.Engine.Navigation
             return list;
         }
 
-        private static string CollapseSpaces(string s)
+        /// <summary>Text of tokens [from, to) joined with single spaces where the source had whitespace or comments.</summary>
+        public string TokensText(int from, int to)
         {
-            var sb = new StringBuilder(s.Length);
-            bool space = false;
-            foreach (char c in s)
+            var sb = new StringBuilder();
+            for (int k = from; k < to && k < Tokens.Length; k++)
             {
-                if (char.IsWhiteSpace(c)) { space = true; continue; }
-                if (space && sb.Length > 0) sb.Append(' ');
-                space = false;
-                sb.Append(c);
+                if (k > from && (Tokens[k].Flags & TokenFlags.PrecededBySpace) != 0) sb.Append(' ');
+                sb.Append(TokenText(k));
             }
             return sb.ToString();
         }
