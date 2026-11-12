@@ -43,11 +43,19 @@ v0.3.0 起顶层菜单只保留 搜索组、导航组、性能面板 和 设置�
 
 所有命令都注册为 `IAction`（`Logic/Actions`），菜单只是转发；Find Action / Alt+Enter 将列出同一批动作。菜单文字在 VSCT 中是英文默认值，运行时按语言替换（`TextChanges`）。
 
-## 设置（工具 > 选项 > UEToVS）
+## 设置（UEToVS 设置窗口）
 
-- **General（常规）**：日志级别（应用后立即对宿主和引擎生效）、引擎路径覆盖、UE 根目录、请求超时、是否接管 C++ IntelliSense、接管范围（Global / UnrealSolutionOnly）、是否同时禁用浏览数据库、是否关闭 VS C++ 后台代码分析（默认关）。
-- **Appearance（外观）**：UI 组件库的 `AppearanceSettingsPanel`，修改即实时预览；确定/应用时提交并以 `AppearanceSettings.ToStorageString()` 文本保存在 VS 用户设置存储（`UEToVS\Appearance`），取消时撤销预览。包加载时读取并应用到 `ThemeManager`。
-- **Logging（日志）**：保留天数（默认 7）、总大小上限（默认 200 MB）、打开日志文件夹。
+v0.3.0 起所有设置在独立的“UEToVS 设置”窗口（`Settings/SettingsWindow.cs`，扩展 > UEToVS > 设置… / 工具栏 UEToVS 图标 / Find Action），行由 `Logic/Settings/HostSettingsSchema.cs` 的声明式描述生成，值保存在 VS 用户设置存储 `UEToVS\Settings`（首次运行从旧的 工具 > 选项 页迁移）：
+
+- **常规**：引擎路径 / UE 根目录 / 请求超时 / 重启引擎；C++ IntelliSense 接管、范围、数据库、后台代码分析、立即接管 / 恢复；工具栏及每个按钮的显隐；双击 Shift（开关、间隔、只认左 Shift）；MCP（启用、写入 .mcp.json）；Unreal（保存时检查 include 依赖、编辑器联动端口）。
+- **外观**：UI 组件库的 `AppearanceSettingsPanel`（实时预览，应用 / 确定提交，取消撤销；保存在 `UEToVS\Appearance`）。
+- **索引**：C++ / 蓝图线程数（0 = 逻辑核心数 / 4）、编译期间策略、索引引擎源码、共享引擎索引（`ShareEngineIndex` / `EngineIndexPath`）、重建项目 / 引擎 / 蓝图索引、实时状态。
+- **快捷键**：`Settings/KeymapPage.cs`（预设、录制、冲突、备份 / 还原）。
+- **导航**：Ctrl+点击、引用高亮及颜色、导航栏、鼠标侧键、历史阈值和容量、Search Everywhere 每类结果数。
+- **日志与诊断**：日志级别、保留天数、总大小、日志目录、打开日志、诊断包、组件画廊。
+- **性能**：性能面板采样间隔、打开性能面板。
+
+工具 > 选项 > UEToVS 只剩一个跳转按钮。
 
 三层覆盖（§10.3）：内置默认 < 用户设置（VS 设置存储）< 解决方案设置 `<解决方案>\.uetovs\settings.json`（只读，团队共享）。示例：
 
