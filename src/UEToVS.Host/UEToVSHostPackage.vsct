@@ -1,15 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <CommandTable xmlns="http://schemas.microsoft.com/VisualStudio/2005-10-18/CommandTable" xmlns:xs="http://www.w3.org/2001/XMLSchema">
   <!--
-    Command ids must match Shell/PackageIds.cs (CommandIds). Every command is also registered as an IAction
-    (Actions/HostActions.cs) so Find Action / Alt+Enter list it; the menu handler only dispatches to the action.
-    Texts: the English default is here; the host sets the localized text (Chinese unless VS is English) at runtime in
-    BeforeQueryStatus, which is why every button has the TextChanges flag (Shell/CommandRouter.cs, Logic/Localization/Strings.cs).
-    The menu lives under Extensions > UEToVS and is always visible (restore IntelliSense must stay reachable
-    even for non-UE solutions); availability is decided in BeforeQueryStatus.
+    Command ids must match Shell/PackageIds.cs (CommandIds) and Logic/Commands/CommandCatalog.cs (a unit test checks
+    ids and key bindings). Every command dispatches to an IAction (Actions/HostActions.cs) so Find Action lists it.
+    Texts: the English default is here; the host sets the localized text at runtime in BeforeQueryStatus, which is
+    why every button has the TextChanges flag (Shell/CommandRouter.cs, Logic/Localization/Strings.cs).
+
+    Layout (v0.3.0):
+    - Extensions > UEToVS keeps only the everyday items: Find Action, Search Everywhere, the navigation group
+      (reserved for M2; items appear once the navigation module registers their actions), Performance Panel, Settings.
+    - Restart engine, IntelliSense take over/restore, logs, diagnostics package and the component gallery live in the
+      settings window (and Find Action); they stay declared here without a parent so they keep their key bindings.
+    - The "UEToVS" toolbar: brand-icon button (opens the settings window) + Search Everywhere, back/forward, go to
+      definition, find references, performance panel. Visibility per button comes from the settings window.
+    Id ranges: 0x01xx existing, 0x02xx M2 navigation, 0x03xx M1 features, 0x04xx settings / windows / toolbar.
   -->
   <Extern href="stdidcmd.h" />
   <Extern href="vsshlids.h" />
+  <Include href="KnownImageIds.vsct" />
 
   <Commands package="guidUEToVSHostPackage">
     <Menus>
@@ -17,6 +25,13 @@
         <Parent guid="guidUEToVSHostCmdSet" id="grpTopLevel" />
         <Strings>
           <ButtonText>UEToVS</ButtonText>
+        </Strings>
+      </Menu>
+      <Menu guid="guidUEToVSHostCmdSet" id="tbUEToVS" priority="0x0100" type="Toolbar">
+        <CommandFlag>DefaultDocked</CommandFlag>
+        <Strings>
+          <ButtonText>UEToVS</ButtonText>
+          <CommandName>UEToVS</CommandName>
         </Strings>
       </Menu>
     </Menus>
@@ -28,22 +43,28 @@
       <Group guid="guidUEToVSHostCmdSet" id="grpSearch" priority="0x0050">
         <Parent guid="guidUEToVSHostCmdSet" id="menuUEToVS" />
       </Group>
-      <Group guid="guidUEToVSHostCmdSet" id="grpEngine" priority="0x0100">
+      <Group guid="guidUEToVSHostCmdSet" id="grpNavigation" priority="0x0080">
         <Parent guid="guidUEToVSHostCmdSet" id="menuUEToVS" />
       </Group>
-      <Group guid="guidUEToVSHostCmdSet" id="grpIntelliSense" priority="0x0200">
-        <Parent guid="guidUEToVSHostCmdSet" id="menuUEToVS" />
-      </Group>
-      <Group guid="guidUEToVSHostCmdSet" id="grpDiagnostics" priority="0x0300">
+      <Group guid="guidUEToVSHostCmdSet" id="grpTools" priority="0x0300">
         <Parent guid="guidUEToVSHostCmdSet" id="menuUEToVS" />
       </Group>
       <Group guid="guidUEToVSHostCmdSet" id="grpSettings" priority="0x0400">
         <Parent guid="guidUEToVSHostCmdSet" id="menuUEToVS" />
       </Group>
+      <Group guid="guidUEToVSHostCmdSet" id="grpToolbarMain" priority="0x0100">
+        <Parent guid="guidUEToVSHostCmdSet" id="tbUEToVS" />
+      </Group>
+      <Group guid="guidUEToVSHostCmdSet" id="grpToolbarNav" priority="0x0200">
+        <Parent guid="guidUEToVSHostCmdSet" id="tbUEToVS" />
+      </Group>
+      <Group guid="guidUEToVSHostCmdSet" id="grpToolbarTools" priority="0x0300">
+        <Parent guid="guidUEToVSHostCmdSet" id="tbUEToVS" />
+      </Group>
     </Groups>
 
     <Buttons>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdFindAction" priority="0x0100" type="Button">
+      <Button guid="guidUEToVSHostCmdSet" id="cmdFindAction" priority="0x0050" type="Button">
         <Parent guid="guidUEToVSHostCmdSet" id="grpSearch" />
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
@@ -52,58 +73,119 @@
           <LocCanonicalName>UEToVS.FindAction</LocCanonicalName>
         </Strings>
       </Button>
-
-      <Button guid="guidUEToVSHostCmdSet" id="cmdRestartEngine" priority="0x0100" type="Button">
-        <Parent guid="guidUEToVSHostCmdSet" id="grpEngine" />
-        <CommandFlag>TextChanges</CommandFlag>
-        <CommandFlag>DefaultDisabled</CommandFlag>
-        <Strings>
-          <ButtonText>Restart Engine</ButtonText>
-          <CanonicalName>UEToVS.RestartEngine</CanonicalName>
-          <LocCanonicalName>UEToVS.RestartEngine</LocCanonicalName>
-        </Strings>
-      </Button>
-
-      <!-- One toggle item: text and action switch between take over / restore in BeforeQueryStatus (CommandRouter). -->
-      <Button guid="guidUEToVSHostCmdSet" id="cmdToggleIntelliSense" priority="0x0100" type="Button">
-        <Parent guid="guidUEToVSHostCmdSet" id="grpIntelliSense" />
+      <Button guid="guidUEToVSHostCmdSet" id="cmdSearchEverywhere" priority="0x0000" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpSearch" />
+        <Icon guid="ImageCatalogGuid" id="Search" />
+        <CommandFlag>IconIsMoniker</CommandFlag>
+        <CommandFlag>DynamicVisibility</CommandFlag>
+        <CommandFlag>DefaultInvisible</CommandFlag>
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
-          <ButtonText>Take Over C++ IntelliSense</ButtonText>
-          <CanonicalName>UEToVS.ToggleIntelliSense</CanonicalName>
-          <LocCanonicalName>UEToVS.ToggleIntelliSense</LocCanonicalName>
+          <ButtonText>Search Everywhere</ButtonText>
+          <CanonicalName>UEToVS.SearchEverywhere</CanonicalName>
+          <LocCanonicalName>UEToVS.SearchEverywhere</LocCanonicalName>
         </Strings>
       </Button>
-
-      <Button guid="guidUEToVSHostCmdSet" id="cmdOpenLogFolder" priority="0x0100" type="Button">
-        <Parent guid="guidUEToVSHostCmdSet" id="grpDiagnostics" />
+      <Button guid="guidUEToVSHostCmdSet" id="cmdGoToDefinition" priority="0x0000" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpNavigation" />
+        <Icon guid="ImageCatalogGuid" id="GoToDefinition" />
+        <CommandFlag>IconIsMoniker</CommandFlag>
+        <CommandFlag>DynamicVisibility</CommandFlag>
+        <CommandFlag>DefaultInvisible</CommandFlag>
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
-          <ButtonText>Open Log Folder</ButtonText>
-          <CanonicalName>UEToVS.OpenLogFolder</CanonicalName>
-          <LocCanonicalName>UEToVS.OpenLogFolder</LocCanonicalName>
+          <ButtonText>Go to Definition</ButtonText>
+          <CanonicalName>UEToVS.GoToDefinition</CanonicalName>
+          <LocCanonicalName>UEToVS.GoToDefinition</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdOpenCurrentLog" priority="0x0101" type="Button">
-        <Parent guid="guidUEToVSHostCmdSet" id="grpDiagnostics" />
+      <Button guid="guidUEToVSHostCmdSet" id="cmdGoToImplementation" priority="0x0001" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpNavigation" />
+        <CommandFlag>DynamicVisibility</CommandFlag>
+        <CommandFlag>DefaultInvisible</CommandFlag>
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
-          <ButtonText>Open Current Log</ButtonText>
-          <CanonicalName>UEToVS.OpenCurrentLog</CanonicalName>
-          <LocCanonicalName>UEToVS.OpenCurrentLog</LocCanonicalName>
+          <ButtonText>Go to Implementation</ButtonText>
+          <CanonicalName>UEToVS.GoToImplementation</CanonicalName>
+          <LocCanonicalName>UEToVS.GoToImplementation</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdCreateDiagnostics" priority="0x0102" type="Button">
-        <Parent guid="guidUEToVSHostCmdSet" id="grpDiagnostics" />
+      <Button guid="guidUEToVSHostCmdSet" id="cmdFindReferences" priority="0x0002" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpNavigation" />
+        <Icon guid="ImageCatalogGuid" id="ShowReferencedElements" />
+        <CommandFlag>IconIsMoniker</CommandFlag>
+        <CommandFlag>DynamicVisibility</CommandFlag>
+        <CommandFlag>DefaultInvisible</CommandFlag>
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
-          <ButtonText>Create Diagnostics Package</ButtonText>
-          <CanonicalName>UEToVS.CreateDiagnosticsPackage</CanonicalName>
-          <LocCanonicalName>UEToVS.CreateDiagnosticsPackage</LocCanonicalName>
+          <ButtonText>Find References</ButtonText>
+          <CanonicalName>UEToVS.FindReferences</CanonicalName>
+          <LocCanonicalName>UEToVS.FindReferences</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdShowPerformancePanel" priority="0x0103" type="Button">
-        <Parent guid="guidUEToVSHostCmdSet" id="grpDiagnostics" />
+      <Button guid="guidUEToVSHostCmdSet" id="cmdTypeHierarchy" priority="0x0003" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpNavigation" />
+        <CommandFlag>DynamicVisibility</CommandFlag>
+        <CommandFlag>DefaultInvisible</CommandFlag>
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Type Hierarchy</ButtonText>
+          <CanonicalName>UEToVS.TypeHierarchy</CanonicalName>
+          <LocCanonicalName>UEToVS.TypeHierarchy</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdNavigateBack" priority="0x0004" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpNavigation" />
+        <Icon guid="ImageCatalogGuid" id="Backwards" />
+        <CommandFlag>IconIsMoniker</CommandFlag>
+        <CommandFlag>DynamicVisibility</CommandFlag>
+        <CommandFlag>DefaultInvisible</CommandFlag>
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Navigate Back</ButtonText>
+          <CanonicalName>UEToVS.NavigateBack</CanonicalName>
+          <LocCanonicalName>UEToVS.NavigateBack</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdNavigateForward" priority="0x0005" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpNavigation" />
+        <Icon guid="ImageCatalogGuid" id="Forwards" />
+        <CommandFlag>IconIsMoniker</CommandFlag>
+        <CommandFlag>DynamicVisibility</CommandFlag>
+        <CommandFlag>DefaultInvisible</CommandFlag>
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Navigate Forward</ButtonText>
+          <CanonicalName>UEToVS.NavigateForward</CanonicalName>
+          <LocCanonicalName>UEToVS.NavigateForward</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdFileMembers" priority="0x0006" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpNavigation" />
+        <CommandFlag>DynamicVisibility</CommandFlag>
+        <CommandFlag>DefaultInvisible</CommandFlag>
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>File Members</ButtonText>
+          <CanonicalName>UEToVS.FileMembers</CanonicalName>
+          <LocCanonicalName>UEToVS.FileMembers</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdToggleHeaderSource" priority="0x0007" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpNavigation" />
+        <CommandFlag>DynamicVisibility</CommandFlag>
+        <CommandFlag>DefaultInvisible</CommandFlag>
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Toggle Header/Source</ButtonText>
+          <CanonicalName>UEToVS.ToggleHeaderSource</CanonicalName>
+          <LocCanonicalName>UEToVS.ToggleHeaderSource</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdShowPerformancePanel" priority="0x0004" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpTools" />
+        <Icon guid="ImageCatalogGuid" id="Performance" />
+        <CommandFlag>IconIsMoniker</CommandFlag>
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
           <ButtonText>Performance Panel</ButtonText>
@@ -111,18 +193,9 @@
           <LocCanonicalName>UEToVS.PerformancePanel</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdShowComponentGallery" priority="0x0104" type="Button">
-        <Parent guid="guidUEToVSHostCmdSet" id="grpDiagnostics" />
-        <CommandFlag>TextChanges</CommandFlag>
-        <Strings>
-          <ButtonText>Component Gallery</ButtonText>
-          <CanonicalName>UEToVS.ShowComponentGallery</CanonicalName>
-          <LocCanonicalName>UEToVS.ShowComponentGallery</LocCanonicalName>
-        </Strings>
-      </Button>
-
-      <Button guid="guidUEToVSHostCmdSet" id="cmdSettings" priority="0x0100" type="Button">
+      <Button guid="guidUEToVSHostCmdSet" id="cmdSettings" priority="0x0040" type="Button">
         <Parent guid="guidUEToVSHostCmdSet" id="grpSettings" />
+        <Icon guid="guidUEToVSImages" id="bmpLogo" />
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
           <ButtonText>Settings...</ButtonText>
@@ -130,8 +203,200 @@
           <LocCanonicalName>UEToVS.Settings</LocCanonicalName>
         </Strings>
       </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdOpenFile" priority="0x0001" type="Button">
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Open File in Solution</ButtonText>
+          <CanonicalName>UEToVS.OpenFile</CanonicalName>
+          <LocCanonicalName>UEToVS.OpenFile</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdSearchSymbol" priority="0x0002" type="Button">
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Find Symbol</ButtonText>
+          <CanonicalName>UEToVS.SearchSymbol</CanonicalName>
+          <LocCanonicalName>UEToVS.SearchSymbol</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdToggleBookmark" priority="0x0003" type="Button">
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Toggle Bookmark</ButtonText>
+          <CanonicalName>UEToVS.ToggleBookmark</CanonicalName>
+          <LocCanonicalName>UEToVS.ToggleBookmark</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdShowBookmarks" priority="0x0004" type="Button">
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Bookmarks</ButtonText>
+          <CanonicalName>UEToVS.ShowBookmarks</CanonicalName>
+          <LocCanonicalName>UEToVS.ShowBookmarks</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdRecentLocations" priority="0x0005" type="Button">
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Recent Locations</ButtonText>
+          <CanonicalName>UEToVS.RecentLocations</CanonicalName>
+          <LocCanonicalName>UEToVS.RecentLocations</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdRestartEngine" priority="0x0010" type="Button">
+        <CommandFlag>DefaultDisabled</CommandFlag>
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Restart Engine</ButtonText>
+          <CanonicalName>UEToVS.RestartEngine</CanonicalName>
+          <LocCanonicalName>UEToVS.RestartEngine</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdToggleIntelliSense" priority="0x0020" type="Button">
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Take Over C++ IntelliSense</ButtonText>
+          <CanonicalName>UEToVS.ToggleIntelliSense</CanonicalName>
+          <LocCanonicalName>UEToVS.ToggleIntelliSense</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdOpenLogFolder" priority="0x0000" type="Button">
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Open Log Folder</ButtonText>
+          <CanonicalName>UEToVS.OpenLogFolder</CanonicalName>
+          <LocCanonicalName>UEToVS.OpenLogFolder</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdOpenCurrentLog" priority="0x0001" type="Button">
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Open Current Log</ButtonText>
+          <CanonicalName>UEToVS.OpenCurrentLog</CanonicalName>
+          <LocCanonicalName>UEToVS.OpenCurrentLog</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdCreateDiagnostics" priority="0x0002" type="Button">
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Create Diagnostics Package</ButtonText>
+          <CanonicalName>UEToVS.CreateDiagnosticsPackage</CanonicalName>
+          <LocCanonicalName>UEToVS.CreateDiagnosticsPackage</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdShowComponentGallery" priority="0x0030" type="Button">
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Component Gallery</ButtonText>
+          <CanonicalName>UEToVS.ShowComponentGallery</CanonicalName>
+          <LocCanonicalName>UEToVS.ShowComponentGallery</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdTbSettings" priority="0x0080" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpToolbarMain" />
+        <Icon guid="guidUEToVSImages" id="bmpLogo" />
+        <CommandFlag>DynamicVisibility</CommandFlag>
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>UEToVS Settings</ButtonText>
+          <CanonicalName>UEToVS.Toolbar.Settings</CanonicalName>
+          <LocCanonicalName>UEToVS.Toolbar.Settings</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdTbSearchEverywhere" priority="0x0081" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpToolbarNav" />
+        <Icon guid="ImageCatalogGuid" id="Search" />
+        <CommandFlag>IconIsMoniker</CommandFlag>
+        <CommandFlag>DynamicVisibility</CommandFlag>
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Search Everywhere</ButtonText>
+          <CanonicalName>UEToVS.Toolbar.SearchEverywhere</CanonicalName>
+          <LocCanonicalName>UEToVS.Toolbar.SearchEverywhere</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdTbBack" priority="0x0082" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpToolbarNav" />
+        <Icon guid="ImageCatalogGuid" id="Backwards" />
+        <CommandFlag>IconIsMoniker</CommandFlag>
+        <CommandFlag>DynamicVisibility</CommandFlag>
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Navigate Back</ButtonText>
+          <CanonicalName>UEToVS.Toolbar.NavigateBack</CanonicalName>
+          <LocCanonicalName>UEToVS.Toolbar.NavigateBack</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdTbForward" priority="0x0083" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpToolbarNav" />
+        <Icon guid="ImageCatalogGuid" id="Forwards" />
+        <CommandFlag>IconIsMoniker</CommandFlag>
+        <CommandFlag>DynamicVisibility</CommandFlag>
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Navigate Forward</ButtonText>
+          <CanonicalName>UEToVS.Toolbar.NavigateForward</CanonicalName>
+          <LocCanonicalName>UEToVS.Toolbar.NavigateForward</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdTbGoToDefinition" priority="0x0084" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpToolbarNav" />
+        <Icon guid="ImageCatalogGuid" id="GoToDefinition" />
+        <CommandFlag>IconIsMoniker</CommandFlag>
+        <CommandFlag>DynamicVisibility</CommandFlag>
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Go to Definition</ButtonText>
+          <CanonicalName>UEToVS.Toolbar.GoToDefinition</CanonicalName>
+          <LocCanonicalName>UEToVS.Toolbar.GoToDefinition</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdTbFindReferences" priority="0x0085" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpToolbarNav" />
+        <Icon guid="ImageCatalogGuid" id="ShowReferencedElements" />
+        <CommandFlag>IconIsMoniker</CommandFlag>
+        <CommandFlag>DynamicVisibility</CommandFlag>
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Find References</ButtonText>
+          <CanonicalName>UEToVS.Toolbar.FindReferences</CanonicalName>
+          <LocCanonicalName>UEToVS.Toolbar.FindReferences</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdTbPerformance" priority="0x0086" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpToolbarTools" />
+        <Icon guid="ImageCatalogGuid" id="Performance" />
+        <CommandFlag>IconIsMoniker</CommandFlag>
+        <CommandFlag>DynamicVisibility</CommandFlag>
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Performance Panel</ButtonText>
+          <CanonicalName>UEToVS.Toolbar.PerformancePanel</CanonicalName>
+          <LocCanonicalName>UEToVS.Toolbar.PerformancePanel</LocCanonicalName>
+        </Strings>
+      </Button>
     </Buttons>
+
+    <Bitmaps>
+      <!-- Brand mark (Resources/UEToVS.svg), 16x16 for the toolbar / menu; see Resources/README.md. -->
+      <Bitmap guid="guidUEToVSImages" href="Resources\UEToVS16.png" usedList="bmpLogo" />
+    </Bitmaps>
   </Commands>
+
+  <KeyBindings>
+    <!-- Visual Assist style defaults (CommandCatalog.VaKeys). Search Everywhere = double Shift (DoubleShiftMonitor). -->
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdGoToDefinition" editor="guidVSStd97" key1="G" mod1="Alt" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdGoToImplementation" editor="guidVSStd97" key1="G" mod1="Shift Alt" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdFindReferences" editor="guidVSStd97" key1="F" mod1="Shift Alt" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdTypeHierarchy" editor="guidVSStd97" key1="H" mod1="Control Alt" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdNavigateBack" editor="guidVSStd97" key1="VK_LEFT" mod1="Alt" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdNavigateForward" editor="guidVSStd97" key1="VK_RIGHT" mod1="Alt" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdFileMembers" editor="guidVSStd97" key1="M" mod1="Alt" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdToggleHeaderSource" editor="guidVSStd97" key1="O" mod1="Alt" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdOpenFile" editor="guidVSStd97" key1="O" mod1="Shift Alt" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdSearchSymbol" editor="guidVSStd97" key1="S" mod1="Shift Alt" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdFindAction" editor="guidVSStd97" key1="A" mod1="Control Shift Alt" />
+  </KeyBindings>
 
   <Symbols>
     <!-- Extensions menu, declared locally (not every VSSDK version exposes it in vsshlids.h). -->
@@ -139,14 +404,20 @@
       <IDSymbol name="IDM_VS_MENU_EXTENSIONS" value="0x0091" />
     </GuidSymbol>
     <GuidSymbol name="guidUEToVSHostPackage" value="{b77c0841-5e27-4061-b4ec-364fc5d594a6}" />
+    <GuidSymbol name="guidUEToVSImages" value="{5e0b7f1c-8d3a-4a51-9c2e-2b7d6f4a9e31}">
+      <IDSymbol name="bmpLogo" value="1" />
+    </GuidSymbol>
     <GuidSymbol name="guidUEToVSHostCmdSet" value="{aacea68e-71c0-4b88-baf0-43e34d9fa8a7}">
       <IDSymbol name="menuUEToVS" value="0x1000" />
       <IDSymbol name="grpTopLevel" value="0x1010" />
-      <IDSymbol name="grpEngine" value="0x1011" />
-      <IDSymbol name="grpIntelliSense" value="0x1012" />
-      <IDSymbol name="grpDiagnostics" value="0x1013" />
+      <IDSymbol name="grpTools" value="0x1013" />
       <IDSymbol name="grpSettings" value="0x1014" />
       <IDSymbol name="grpSearch" value="0x1015" />
+      <IDSymbol name="tbUEToVS" value="0x0400" />
+      <IDSymbol name="grpToolbarMain" value="0x0401" />
+      <IDSymbol name="grpNavigation" value="0x0402" />
+      <IDSymbol name="grpToolbarNav" value="0x0403" />
+      <IDSymbol name="grpToolbarTools" value="0x0404" />
       <IDSymbol name="cmdOpenLogFolder" value="0x0100" />
       <IDSymbol name="cmdOpenCurrentLog" value="0x0101" />
       <IDSymbol name="cmdCreateDiagnostics" value="0x0102" />
@@ -156,6 +427,27 @@
       <IDSymbol name="cmdShowComponentGallery" value="0x0130" />
       <IDSymbol name="cmdSettings" value="0x0140" />
       <IDSymbol name="cmdFindAction" value="0x0150" />
+      <IDSymbol name="cmdGoToDefinition" value="0x0200" />
+      <IDSymbol name="cmdGoToImplementation" value="0x0201" />
+      <IDSymbol name="cmdFindReferences" value="0x0202" />
+      <IDSymbol name="cmdTypeHierarchy" value="0x0203" />
+      <IDSymbol name="cmdNavigateBack" value="0x0204" />
+      <IDSymbol name="cmdNavigateForward" value="0x0205" />
+      <IDSymbol name="cmdFileMembers" value="0x0206" />
+      <IDSymbol name="cmdToggleHeaderSource" value="0x0207" />
+      <IDSymbol name="cmdSearchEverywhere" value="0x0300" />
+      <IDSymbol name="cmdOpenFile" value="0x0301" />
+      <IDSymbol name="cmdSearchSymbol" value="0x0302" />
+      <IDSymbol name="cmdToggleBookmark" value="0x0303" />
+      <IDSymbol name="cmdShowBookmarks" value="0x0304" />
+      <IDSymbol name="cmdRecentLocations" value="0x0305" />
+      <IDSymbol name="cmdTbSettings" value="0x0480" />
+      <IDSymbol name="cmdTbSearchEverywhere" value="0x0481" />
+      <IDSymbol name="cmdTbBack" value="0x0482" />
+      <IDSymbol name="cmdTbForward" value="0x0483" />
+      <IDSymbol name="cmdTbGoToDefinition" value="0x0484" />
+      <IDSymbol name="cmdTbFindReferences" value="0x0485" />
+      <IDSymbol name="cmdTbPerformance" value="0x0486" />
     </GuidSymbol>
   </Symbols>
 </CommandTable>

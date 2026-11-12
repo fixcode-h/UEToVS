@@ -11,6 +11,14 @@ namespace UEToVS.Host.Logic.Settings
         UnrealSolutionOnly = 1,
     }
 
+    /// <summary>What background indexing does while VS/UBT builds (maps to IndexingSettings.DuringBuild).</summary>
+    public enum IndexDuringBuild
+    {
+        Pause = 0,
+        SingleThread = 1,
+        FullSpeed = 2,
+    }
+
     /// <summary>
     /// Effective host settings. Layers (§10.3): built-in defaults (the initializers below) &lt; user settings (Tools &gt;
     /// Options &gt; UEToVS, persisted in the VS settings store) &lt; solution settings (&lt;solution&gt;/.uetovs/settings.json,
@@ -42,6 +50,36 @@ namespace UEToVS.Host.Logic.Settings
         public int LogRetentionDays { get; set; } = 7;
 
         public int LogMaxTotalMB { get; set; } = 200;
+
+        // ---- 索引（设置窗口；0 = 默认 = max(1, 逻辑核心数 / 4)）----
+        public int CppIndexThreads { get; set; } = 0;
+
+        public int BlueprintIndexThreads { get; set; } = 0;
+
+        public IndexDuringBuild IndexDuringBuild { get; set; } = IndexDuringBuild.SingleThread;
+
+        public bool IndexEngineSource { get; set; } = true;
+
+        // ---- 导航（M2 预留：高亮 / 导航栏 / Ctrl+点击）----
+        public bool HighlightReferences { get; set; } = true;
+
+        public bool ShowNavigationBar { get; set; } = true;
+
+        public bool CtrlClickGoToDefinition { get; set; } = true;
+
+        // ---- 工具栏 ----
+        public bool ShowToolbar { get; set; } = true;
+
+        /// <summary>Comma separated toolbar button keys that are hidden (see ToolbarButtons). Empty = all visible.</summary>
+        public string HiddenToolbarButtons { get; set; } = string.Empty;
+
+        // ---- 键盘 ----
+        /// <summary>Press Shift twice to open Search Everywhere (Rider style).</summary>
+        public bool DoubleShiftSearchEverywhere { get; set; } = true;
+
+        // ---- 性能 ----
+        /// <summary>Performance panel sampling interval in seconds.</summary>
+        public int PerformanceSampleSeconds { get; set; } = 1;
 
         public HostSettings Clone() => (HostSettings)MemberwiseClone();
     }

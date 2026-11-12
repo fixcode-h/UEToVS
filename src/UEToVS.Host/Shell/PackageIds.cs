@@ -42,6 +42,33 @@ namespace UEToVS.Host.Shell
         public const int ShowComponentGallery = 0x0130;
         public const int Settings = 0x0140;
         public const int FindAction = 0x0150;
+
+        // ---- v0.3.0: reserved ids (see Logic/Commands/CommandCatalog.cs for names, actions and default keys)
+        // M2 navigation 0x0200–0x02FF
+        public const int GoToDefinition = 0x0200;
+        public const int GoToImplementation = 0x0201;
+        public const int FindReferences = 0x0202;
+        public const int TypeHierarchy = 0x0203;
+        public const int NavigateBack = 0x0204;
+        public const int NavigateForward = 0x0205;
+        public const int FileMembers = 0x0206;
+        public const int ToggleHeaderSource = 0x0207;
+        // M1 features 0x0300–0x03FF
+        public const int SearchEverywhere = 0x0300;
+        public const int OpenFile = 0x0301;
+        public const int SearchSymbol = 0x0302;
+        public const int ToggleBookmark = 0x0303;
+        public const int ShowBookmarks = 0x0304;
+        public const int RecentLocations = 0x0305;
+        // settings / windows / toolbar 0x0400–0x04FF
+        public const int Toolbar = 0x0400;
+        public const int TbSettings = 0x0480;
+        public const int TbSearchEverywhere = 0x0481;
+        public const int TbBack = 0x0482;
+        public const int TbForward = 0x0483;
+        public const int TbGoToDefinition = 0x0484;
+        public const int TbFindReferences = 0x0485;
+        public const int TbPerformance = 0x0486;
     }
 
     /// <summary>Stable action ids (§7.4). Commands dispatch to these.</summary>
