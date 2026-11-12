@@ -50,6 +50,7 @@ namespace UEToVS.Host
     [ProvideOptionPage(typeof(AppearanceOptionsPage), "UEToVS", "Appearance", 0, 0, true, Sort = 1)]
     [ProvideOptionPage(typeof(LoggingOptionsPage), "UEToVS", "Logging", 0, 0, true, Sort = 2)]
     [ProvideToolWindow(typeof(PerformanceToolWindow), Style = VsDockStyle.Tabbed, Window = ToolWindowGuids.Outputwindow, MultiInstances = false)]
+    [ProvideToolWindow(typeof(Search.SearchResultsWindow), Style = VsDockStyle.Tabbed, Window = ToolWindowGuids.Outputwindow, MultiInstances = false)]
     [ProvideUIContextRule(PackageGuids.CppSolutionContextString,
         name: "UEToVS C++ solution",
         expression: "SolutionReady & VisualCpp",
@@ -137,6 +138,9 @@ namespace UEToVS.Host
                 _commands = new CommandRouter(this, Actions);
                 if (await GetServiceAsync(typeof(System.ComponentModel.Design.IMenuCommandService)) is OleMenuCommandService mcs) _commands.Register(mcs);
                 else L.Error("package.commands.unavailable", "IMenuCommandService unavailable; menu commands not registered", null);
+                // M1 prototype features (Search Everywhere, navigation history, bookmarks, related, Build.cs, UE link).
+                Safe.Execute(L, "m1.initialize", () => M1Feature.Initialize(this, Actions, _commands,
+                    GetService(typeof(System.ComponentModel.Design.IMenuCommandService)) as OleMenuCommandService));
 
                 // 5. VS build begin/end → engine pauses background indexing.
                 _build = new BuildMonitor(building =>
@@ -272,6 +276,9 @@ namespace UEToVS.Host
                 };
             }
             await SetUnrealContextAsync(true);
+            await JoinableTaskFactory.SwitchToMainThreadAsync(DisposalToken);
+            Safe.Execute(L, "m1.solutionOpened", () => M1Feature.OnUnrealSolutionOpened(dir));
+            await TaskScheduler.Default;
 
             await _intelliSense.OnUnrealSolutionOpenedAsync();
             await StartEngineAsync();
@@ -279,6 +286,7 @@ namespace UEToVS.Host
 
         private void OnSolutionClosing()
         {
+            Safe.Execute(L, "m1.solutionClosing", M1Feature.OnSolutionClosing);
             if (!_unreal.IsUnreal) return;
             L.Info("solution.closing", null, ("solution", _solutionFile));
             var engine = _engine;
@@ -518,6 +526,7 @@ namespace UEToVS.Host
                     _engine?.Dispose();
                     _engine = null;
                     _build?.Dispose();
+                    M1Feature.Dispose();
                     Performance?.Dispose();
                     _reporter?.Dispose();
                     _reporter = null;
