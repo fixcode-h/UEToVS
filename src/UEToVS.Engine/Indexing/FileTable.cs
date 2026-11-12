@@ -77,18 +77,71 @@ namespace UEToVS.Engine.Indexing
     }
 
     /// <summary>Assets by file path.</summary>
+    /// <summary>
+    /// One asset in the in-memory table. Big UE projects list close to a million assets, so the entry keeps only what search
+    /// needs per item (name, path, origin) plus the package folder, interned and shared by every asset in that folder;
+    /// the object path and class are rebuilt for the few hits that are returned (<see cref="ToItem"/>).
+    /// </summary>
+    public sealed class AssetEntry
+    {
+        public AssetEntry(string filePath, string name, string packageDir, ItemOrigin origin, bool isMap)
+        {
+            FilePath = filePath;
+            Name = name;
+            PackageDir = packageDir;
+            Origin = origin;
+            IsMap = isMap;
+        }
+
+        public string FilePath { get; }
+        public string Name { get; }
+
+        /// <summary>"/Game/Characters" for /Game/Characters/BP_Hero.BP_Hero; null when the object path was unknown.</summary>
+        public string PackageDir { get; }
+
+        public ItemOrigin Origin { get; }
+        public bool IsMap { get; }
+
+        public string ObjectPath => PackageDir == null ? null : PackageDir + "/" + Name + "." + Name;
+
+        public AssetItem ToItem() => new AssetItem
+        {
+            Name = Name,
+            FilePath = FilePath,
+            ObjectPath = ObjectPath,
+            ClassName = IsMap ? "World" : null,
+            Origin = Origin,
+        };
+    }
+
     public sealed class AssetTable
     {
-        private readonly ConcurrentDictionary<string, AssetItem> _assets = new ConcurrentDictionary<string, AssetItem>(StringComparer.OrdinalIgnoreCase);
-        private AssetItem[] _snapshot = Array.Empty<AssetItem>();
+        private readonly ConcurrentDictionary<string, AssetEntry> _assets = new ConcurrentDictionary<string, AssetEntry>(StringComparer.OrdinalIgnoreCase);
+        private readonly ConcurrentDictionary<string, string> _dirs = new ConcurrentDictionary<string, string>(StringComparer.Ordinal);
+        private AssetEntry[] _snapshot = Array.Empty<AssetEntry>();
         private int _version;
         private int _snapshotVersion = -1;
 
         public int Count => _assets.Count;
 
+        /// <summary>Distinct package folders (interned strings) — for memory diagnostics.</summary>
+        public int PackageDirCount => _dirs.Count;
+
         public void Upsert(AssetItem a)
         {
-            _assets[a.FilePath] = a;
+            if (a == null || string.IsNullOrEmpty(a.FilePath)) return;
+            string dir = null;
+            if (!string.IsNullOrEmpty(a.ObjectPath))
+            {
+                int slash = a.ObjectPath.LastIndexOf('/');
+                if (slash >= 0)
+                {
+                    string d = a.ObjectPath.Substring(0, slash);
+                    dir = _dirs.GetOrAdd(d, d);
+                }
+            }
+            bool isMap = string.Equals(a.ClassName, "World", StringComparison.Ordinal);
+            _assets[a.FilePath] = new AssetEntry(a.FilePath, a.Name ?? Path.GetFileNameWithoutExtension(a.FilePath), dir, a.Origin, isMap);
             Interlocked.Increment(ref _version);
         }
 
@@ -105,7 +158,7 @@ namespace UEToVS.Engine.Indexing
             return _assets.Keys.Where(k => k.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)).ToList();
         }
 
-        public AssetItem[] Snapshot()
+        public AssetEntry[] Snapshot()
         {
             int v = Volatile.Read(ref _version);
             if (_snapshotVersion == v) return _snapshot;
@@ -116,7 +169,6 @@ namespace UEToVS.Engine.Indexing
         }
     }
 
-    /// <summary>Per-file size/mtime/hash persisted between sessions (Index/files-state.bin) + a readable manifest.json.</summary>
     public sealed class IndexStateStore
     {
         public sealed class FileState

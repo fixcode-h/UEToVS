@@ -308,7 +308,39 @@ namespace UEToVS.Engine.Indexing
 
         private void ThrowIfFailed()
         {
-            if (_error != null) throw new InvalidOperationException("Writing index segments failed: " + _error.Message, _error);
+            if (_error != null) throw new SegmentWriteFailedException("Writing index segments failed: " + _error.Message, _error);
+        }
+
+        /// <summary>
+        /// Writes one batch; when memory runs out it collects, splits the batch in halves and retries, so a heavy batch
+        /// (or a tight heap) costs a few smaller segments instead of failing the whole index run. A single file that still
+        /// cannot be written is dropped from the segment (it stays searchable by file name) and logged.
+        /// </summary>
+        private void AppendResilient(bool engine, List<(string, ParseResult)> batch, int depth)
+        {
+            try
+            {
+                _backend.AppendBatch(engine, batch, _ct);
+                SegmentsWritten++;
+            }
+            catch (OutOfMemoryException ex)
+            {
+                long before = GC.GetTotalMemory(false);
+                System.Runtime.GCSettings.LargeObjectHeapCompactionMode = System.Runtime.GCLargeObjectHeapCompactionMode.CompactOnce;
+                GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking: true, compacting: true);
+                long after = GC.GetTotalMemory(false);
+                if (batch.Count <= 1)
+                {
+                    L.Error("index.segment.file_dropped", "Out of memory writing a single file; it stays file-only", ex,
+                        ("path", batch.Count == 1 ? batch[0].Item1 : null), ("engine", engine), ("managedMBBefore", before / 1048576), ("managedMBAfter", after / 1048576));
+                    return;
+                }
+                int half = batch.Count / 2;
+                L.Warn("index.segment.split_retry", "Out of memory writing a segment; retrying in two halves", null,
+                    ("files", batch.Count), ("depth", depth), ("engine", engine), ("managedMBBefore", before / 1048576), ("managedMBAfter", after / 1048576));
+                AppendResilient(engine, batch.GetRange(0, half), depth + 1);
+                AppendResilient(engine, batch.GetRange(half, batch.Count - half), depth + 1);
+            }
         }
 
         private void WriterLoop()
@@ -322,9 +354,8 @@ namespace UEToVS.Engine.Indexing
                         if (_error == null && !_ct.IsCancellationRequested)
                         {
                             long t0 = Stopwatch.GetTimestamp();
-                            _backend.AppendBatch(engine, batch, _ct);
+                            AppendResilient(engine, batch, 0);
                             Recorder?.RecordSegment(Stopwatch.GetTimestamp() - t0);
-                            SegmentsWritten++;
                         }
                     }
                     catch (OperationCanceledException)
@@ -357,5 +388,11 @@ namespace UEToVS.Engine.Indexing
             try { _writer.Wait(TimeSpan.FromSeconds(30)); } catch (Exception) { }
             _queue.Dispose();
         }
+    }
+
+    /// <summary>The segment writer stopped: the whole stage fails once instead of every remaining file logging a parse failure.</summary>
+    public sealed class SegmentWriteFailedException : InvalidOperationException
+    {
+        public SegmentWriteFailedException(string message, Exception inner) : base(message, inner) { }
     }
 }

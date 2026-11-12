@@ -26,7 +26,7 @@ namespace UEToVS.Engine
         private static readonly Logger L = Log.For("Engine");
 
         /// <summary>§9.2: Engine private bytes budget.</summary>
-        public const long PrivateBytesBudget = 400L * 1024 * 1024;
+        public const long PrivateBytesBudget = 1536L * 1024 * 1024; // warning threshold for resource.over_budget (large UE projects need ~1 GB)
 
         private readonly CancellationTokenSource _shutdown = new CancellationTokenSource();
         private readonly object _gate = new object();
@@ -234,7 +234,7 @@ namespace UEToVS.Engine
             snap.IndexParts.AddRange(Index.Backend.GetMemoryParts());
             long fileTable = Index.Files.Count * 360L; // ListedFile + entry + path string, estimated
             snap.IndexParts.Add(new MemoryPart { Name = "file-table", ManagedBytes = fileTable });
-            snap.IndexParts.Add(new MemoryPart { Name = "asset-table", ManagedBytes = Index.Assets.Count * 300L });
+            snap.IndexParts.Add(new MemoryPart { Name = "asset-table", ManagedBytes = Index.Assets.Count * 420L + Index.Assets.PackageDirCount * 120L });
             snap.IndexParts.Add(new MemoryPart { Name = "index-folder", DiskBytes = IndexBytesOnDisk() });
 
             foreach (var s in Log.LatencySinceStart.Snapshot())

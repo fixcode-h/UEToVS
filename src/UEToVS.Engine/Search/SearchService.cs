@@ -79,7 +79,7 @@ namespace UEToVS.Engine.Search
 
             if (req.IncludeAssets && plainQuery)
             {
-                var top = new TopN<SearchHit>(max, h => h.Score);
+                var top = new TopN<(SearchHit Hit, AssetEntry Entry)>(max, h => h.Hit.Score);
                 var assets = _index.Assets.Snapshot();
                 for (int i = 0; i < assets.Length; i++)
                 {
@@ -93,15 +93,18 @@ namespace UEToVS.Engine.Search
                         resp.NonProjectHitCount++;
                         continue;
                     }
-                    top.Add(new SearchHit
+                    top.Add((new SearchHit
                     {
                         Category = ResultCategory.Asset,
                         Score = m.Score + (project ? 50 : 0) + RecentBoost(recent, a.FilePath),
                         Highlights = InMemorySymbolIndex.Ranges(m),
-                        Asset = a,
-                    });
+                    }, a));
                 }
-                resp.Hits.AddRange(top.ToSortedList());
+                foreach (var (hit, entry) in top.ToSortedList())
+                {
+                    hit.Asset = entry.ToItem(); // object path / class only for returned hits
+                    resp.Hits.Add(hit);
+                }
             }
 
             resp.ElapsedMs = sw.Elapsed.TotalMilliseconds;

@@ -321,7 +321,8 @@ namespace UEToVS.Engine.Indexing
                 SetPhase(IndexPhase.ListingFiles);
                 var listed = new List<ListedFile>();
                 var buildFiles = new List<FoundBuildCs>();
-                var allAssets = new List<AssetItem>();
+                // Paths only (the strings are shared with the asset table): the full AssetItem list of a big project is hundreds of MB.
+                var listedAssets = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 foreach (bool project in new[] { true, false })
                 {
                     if (!project && !options.IncludeEngine) break;
@@ -337,18 +338,23 @@ namespace UEToVS.Engine.Indexing
                     }
                     buildFiles.AddRange(listing.BuildCsFiles);
                     var assets = ScanAssets(ws.ContentRoots.Where(r => r.IsProject == project), stage, ct);
-                    foreach (var a in assets) Assets.Upsert(a);
-                    allAssets.AddRange(assets);
+                    foreach (var a in assets)
+                    {
+                        Assets.Upsert(a);
+                        listedAssets.Add(a.FilePath);
+                    }
                     p.Items = listing.Files.Count;
                     p.Add("dirs", listing.Directories);
                     p.Add("cpp", listing.Files.Count(f => f.IsCpp));
                     p.Add("assets", assets.Count);
+                    assets = null;
                     p.Add("modules", listing.BuildCsFiles.Count);
                     p.Timing.ItemsPerSecond = Rate(listing.Files.Count, listing.ElapsedMs);
                     RaiseStatus();
                 }
                 RemoveStale(listed);
-                RemoveStaleAssets(allAssets);
+                RemoveStaleAssets(listedAssets);
+                listedAssets = null;
                 _buildFiles = buildFiles;
                 using (var p = Phases.Begin(IndexPhase.ListingFiles, "modules"))
                 {
@@ -573,9 +579,8 @@ namespace UEToVS.Engine.Indexing
             }
         }
 
-        private void RemoveStaleAssets(List<AssetItem> listed)
+        private void RemoveStaleAssets(HashSet<string> keep)
         {
-            var keep = new HashSet<string>(listed.Select(a => a.FilePath), StringComparer.OrdinalIgnoreCase);
             foreach (var a in Assets.Snapshot())
                 if (!keep.Contains(a.FilePath)) Assets.Remove(a.FilePath);
         }
@@ -774,6 +779,10 @@ namespace UEToVS.Engine.Indexing
             {
                 throw;
             }
+            catch (SegmentWriteFailedException)
+            {
+                throw; // not this file's fault: the stage fails once (index.failed) instead of logging every remaining file
+            }
             catch (Exception ex)
             {
                 // §10.2: one bad file never stops the index; it stays file-only.
@@ -821,11 +830,21 @@ namespace UEToVS.Engine.Indexing
                 {
                     if (Files.Remove(path)) { _backend.RemoveFile(path); removed++; }
                     else if (Assets.Remove(path)) assetsChanged++;
+                    else if (Directory.Exists(path))
+                    {
+                        // A "deleted" event for a folder that still exists (rename back, atomic replace, watcher overflow
+                        // replay): keep its contents; real changes below it arrive as their own events.
+                        L.Debug("index.update.dir_still_exists", null, ("path", path), ("kind", change.Kind.ToString()));
+                    }
                     else
                     {
                         // A deleted directory: drop everything below it.
-                        foreach (var p in Files.PathsUnder(path)) { Files.Remove(p); _backend.RemoveFile(p); removed++; }
-                        foreach (var p in Assets.PathsUnder(path)) { Assets.Remove(p); assetsChanged++; }
+                        int files = 0, assets = 0;
+                        foreach (var p in Files.PathsUnder(path)) { Files.Remove(p); _backend.RemoveFile(p); removed++; files++; }
+                        foreach (var p in Assets.PathsUnder(path)) { Assets.Remove(p); assetsChanged++; assets++; }
+                        if (files + assets > 0)
+                            L.Info("index.update.dir_removed", "A deleted folder took its files out of the index", ("path", path), ("files", files), ("assets", assets),
+                                ("kind", change.Kind.ToString()), ("source", batch.Source));
                     }
                     continue;
                 }

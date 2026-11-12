@@ -14,8 +14,10 @@
     <NoWarn>$(NoWarn);VSTHRD002;VSTHRD003;VSTHRD103;VSTHRD105;VSTHRD110;VSTHRD200;CA1416</NoWarn>
   </PropertyGroup>
   <ItemGroup>
-    <!-- 1 GiB; override with DOTNET_GCHeapHardLimit. -->
-    <RuntimeHostConfigurationOption Include="System.GC.HeapHardLimit" Value="1073741824" />
+    <!-- Safety net against runaway growth, as a share of physical RAM: a fixed 1 GiB was too small for big UE projects
+         (146k sources + 840k assets ran out while writing the first project segment). Override with DOTNET_GCHeapHardLimitPercent
+         (hex) or DOTNET_GCHeapHardLimit. -->
+    <RuntimeHostConfigurationOption Include="System.GC.HeapHardLimitPercent" Value="25" />
     <RuntimeHostConfigurationOption Include="System.GC.ConserveMemory" Value="5" />
   </ItemGroup>
   <ItemGroup>

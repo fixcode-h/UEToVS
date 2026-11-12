@@ -160,6 +160,8 @@ namespace UEToVS.Engine
                     ["serverGc"] = GCSettings.IsServerGC,
                     ["gcLatency"] = GCSettings.LatencyMode.ToString(),
                     ["heapHardLimit"] = AppContext.GetData("System.GC.HeapHardLimit")?.ToString(),
+                    ["heapHardLimitPercent"] = AppContext.GetData("System.GC.HeapHardLimitPercent")?.ToString(),
+                    ["gcTotalAvailableMB"] = GC.GetGCMemoryInfo().TotalAvailableMemoryBytes / 1048576,
                     ["privateBytesBudgetMB"] = EngineHost.PrivateBytesBudget / 1048576,
                 }),
             };

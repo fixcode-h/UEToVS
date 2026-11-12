@@ -900,7 +900,7 @@ struct SymbolRecord        // 32 bytes
 
 ### 9.5 GC 与运行时
 
-- Engine：Workstation 并发 GC（现有配置）；设置 `GCHeapHardLimit`（例如 512 MB）作为保险，超限触发降级而不是让系统换页；考虑 `GCConserveMemory`。
+- Engine：Workstation 并发 GC（现有配置）；设置 `GCHeapHardLimitPercent = 25`（物理内存的 25%）作为保险；固定 1 GB 对 14 万源文件 + 84 万资产的工程不够（v0.3.0 实测在写第一个项目段时内存不足）。写段遇到内存不足时拆半重试而不是整体失败；`GCConserveMemory = 5`。
 - 启动性能：Engine 使用 ReadyToRun 编译，减少 JIT 时间；评估 NativeAOT（需要把 StreamJsonRpc 替换为源生成器友好的序列化，见 ADR-04）。
 - VS 侧（.NET Framework 4.8）：避免 LINQ 和闭包出现在按键路径；大集合使用数组池；不持有对 `ITextSnapshot` 的长期引用（防止旧快照无法回收）。
 
