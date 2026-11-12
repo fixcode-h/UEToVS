@@ -632,7 +632,14 @@ namespace UEToVS.Host.Engine
                 {
                     try
                     {
-                        if (!p.HasExited && !p.WaitForExit(1500)) KillQuietly(p);
+                        // a normal stop gives the engine time to write its index delta (<= 5 s, see IndexOrchestrator.FlushForShutdown)
+                        // so the offline MCP server sees the latest edits; off the UI thread, VS never waits for this
+                        int waitMs = reason.StartsWith("restart", StringComparison.Ordinal) ? 1500 : 7000;
+                        if (!p.HasExited && !p.WaitForExit(waitMs))
+                        {
+                            L.Info("engine.stop.kill", "Engine did not exit in time; killing it", ("waitMs", waitMs), ("reason", reason));
+                            KillQuietly(p);
+                        }
                     }
                     catch (Exception) { }
                 }).ConfigureAwait(false);

@@ -987,6 +987,59 @@ namespace UEToVS.Engine.Indexing
         // ---------------------------------------------------------------- persistence / status
 
         /// <summary>Saves the index (graceful shutdown). Safe to call at any phase; never throws.</summary>
+        /// <summary>Upper bound for <see cref="FlushForShutdown"/>: the host waits for the engine only a few seconds on close.</summary>
+        public static readonly TimeSpan ShutdownFlushBudget = TimeSpan.FromSeconds(5);
+
+        /// <summary>
+        /// Engine shutdown: writes the delta (files re-parsed since the last compaction) as a small extra segment, so the
+        /// on-disk index that UEToVS.Mcp reads offline has the latest edits. Bounded by <paramref name="budget"/> (cancelled
+        /// beyond it; the delta then stays unsaved, as before). Returns true when the delta is on disk (or was empty).
+        /// </summary>
+        public bool FlushForShutdown(TimeSpan budget)
+        {
+            if (Workspace == null || _phase < IndexPhase.Parsing)
+            {
+                L.Info("index.shutdown.flush", "Nothing to flush (index not started)", ("phase", _phase.ToString()));
+                return true;
+            }
+            var sw = Stopwatch.StartNew();
+            int files = 0;
+            bool done = false, timedOut = false;
+            using (var cts = new CancellationTokenSource(budget))
+            {
+                try
+                {
+                    var work = Task.Run(() => _backend.PersistDelta(cts.Token));
+                    // the write lock may be held by a stage that is still stopping: never wait past the budget
+                    if (work.Wait(budget + TimeSpan.FromMilliseconds(250)))
+                    {
+                        files = work.Result;
+                        done = true;
+                    }
+                    else
+                    {
+                        timedOut = true;
+                        cts.Cancel();
+                    }
+                }
+                catch (AggregateException ex) when (ex.InnerException is OperationCanceledException)
+                {
+                    timedOut = true;
+                }
+                catch (Exception ex)
+                {
+                    L.Error("index.shutdown.flush.failed", "Writing the index delta on shutdown failed", ex);
+                }
+            }
+            double ms = Math.Round(sw.Elapsed.TotalMilliseconds, 1);
+            if (timedOut)
+                L.Warn("index.shutdown.flush.timeout", "Index delta not written within the shutdown budget; the offline index misses the latest edits",
+                    ("budgetMs", budget.TotalMilliseconds), ("ms", ms));
+            else
+                L.Info("index.shutdown.flush", null, ("files", files), ("written", done), ("ms", ms), ("budgetMs", budget.TotalMilliseconds));
+            return done;
+        }
+
         public void SaveState()
         {
             if (Workspace == null || _phase < IndexPhase.Parsing) return;
