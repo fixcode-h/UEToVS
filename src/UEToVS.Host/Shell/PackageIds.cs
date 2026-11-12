@@ -43,6 +43,17 @@ namespace UEToVS.Host.Shell
         public const int Settings = 0x0140;
         public const int FindAction = 0x0150;
 
+        // ---- v0.3.0 (M2 0x0200–0x02FF: NavigationCommandIds; M1 0x0300–0x03FF: M1CommandIds; catalog: Logic/Commands/CommandCatalog.cs)
+        // settings / windows / toolbar 0x0400–0x04FF
+        public const int Toolbar = 0x0400;
+        public const int TbSettings = 0x0480;
+        public const int TbSearchEverywhere = 0x0481;
+        public const int TbBack = 0x0482;
+        public const int TbForward = 0x0483;
+        public const int TbGoToDefinition = 0x0484;
+        public const int TbFindReferences = 0x0485;
+        public const int TbPerformance = 0x0486;
+
         // ---- MCP (0x0500–0x05FF) ----
         public const int WriteMcpConfig = 0x0500;
     }

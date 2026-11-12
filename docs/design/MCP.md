@@ -30,7 +30,7 @@
 
 既然没有注册 API，“按 VS 的标准”就是**写 VS 会读的配置文件**：
 
-1. **自动注册（默认开）**：打开 UE 解决方案时，扩展在 `<解决方案目录>\.vs\mcp.json` 的 `servers` 里维护一个 `uetovs` 条目，指向 VSIX 里自带的 `Engine\Mcp\UEToVS.Mcp.exe`。这个文件只属于当前用户、不进版本库，正好对应“这台机器装了扩展才有”。扩展升级后安装目录会变，所以每次打开解决方案都会刷新路径。设置 **工具 > 选项 > UEToVS > 启用 MCP 服务（给 AI Agent 用）**（`HostSettings.EnableMcpServer`，默认开）关掉时删掉这个条目。
+1. **自动注册（默认开）**：打开 UE 解决方案时，扩展在 `<解决方案目录>\.vs\mcp.json` 的 `servers` 里维护一个 `uetovs` 条目，指向 VSIX 里自带的 `Engine\Mcp\UEToVS.Mcp.exe`。这个文件只属于当前用户、不进版本库，正好对应“这台机器装了扩展才有”。扩展升级后安装目录会变，所以每次打开解决方案都会刷新路径。设置 **UEToVS 设置 > 常规 > MCP > 启用 MCP 服务（给 AI Agent 用）**（`HostSettings.EnableMcpServer`，默认开）关掉时删掉这个条目。
 2. **命令写共享配置**：**扩展 > UEToVS > 写入 .mcp.json 到解决方案目录**（命令 ID `0x0500`，动作 `uetovs.mcp.writeConfig`）在 `<解决方案目录>\.mcp.json` 里同时写入 `servers`（VS 读）和 `mcpServers`（Claude Code / Cursor 读）。
 3. **合并而不是覆盖**：两种写入都只动 `uetovs` 这一项里的 `type`、`command` 和 `--solution-dir` 的值。别的服务器、未知字段、用户自己加的 `args` / `env` 原样保留。文件不是合法 JSON 时不写，提示用户。写入用临时文件 + `File.Replace`，是原子的。
 4. **选 stdio 而不是 HTTP**：VS、Claude Code、Cursor、VS Code 都支持 stdio。stdio 不占端口，没有鉴权和跨用户访问问题，生命周期由 Agent 管理，VS 不开着也能用（直接读磁盘索引）。

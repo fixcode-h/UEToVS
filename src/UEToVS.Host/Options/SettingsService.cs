@@ -21,27 +21,52 @@ namespace UEToVS.Host.Options
     }
 
     /// <summary>
-    /// Effective settings = defaults &lt; user (option pages, VS settings store) &lt; solution (.uetovs/settings.json, read-only).
-    /// Recomputed when an option page is applied or a solution opens; <see cref="Changed"/> lets services apply live.
+    /// Effective settings = defaults &lt; user (UEToVS settings window, <see cref="SettingsStore"/>) &lt; solution
+    /// (.uetovs/settings.json, read-only). Recomputed when the settings window applies or a solution opens;
+    /// <see cref="Changed"/> lets services apply live. The old Tools &gt; Options pages are only read once, for migration.
     /// </summary>
     internal sealed class SettingsService
     {
         private static readonly Logger L = Log.For("Settings");
         private readonly GeneralOptionsPage _general;
-        private readonly LoggingOptionsPage _logging;
+        private readonly SettingsStore _store;
         private SettingsMergeResult _current;
         private string _solutionDir;
 
         public SettingsService(GeneralOptionsPage general, LoggingOptionsPage logging)
         {
             _general = general;
-            _logging = logging;
+            Schema = HostSettingsSchema.Build(Environment.ProcessorCount);
+            _store = new SettingsStore(Schema, () =>
+            {
+                var legacy = new HostSettings();
+                general.Fill(legacy);
+                logging.Fill(legacy);
+                return legacy;
+            });
             _current = SettingsMerger.Merge(UserSettings(), null);
-            _general.Applied += (s, e) => Recompute("options");
-            _logging.Applied += (s, e) => Recompute("options");
         }
 
         public GeneralOptionsPage General => _general;
+
+        /// <summary>Descriptors of every setting in the settings window (built for this machine's core count).</summary>
+        public IReadOnlyList<UEToVS.UI.Logic.SettingDescriptor> Schema { get; }
+
+        /// <summary>Stored user values (descriptor key → invariant string), defaults filled in.</summary>
+        public Dictionary<string, string> UserValues()
+        {
+            var d = UEToVS.UI.Logic.SettingsModel.Defaults(Schema);
+            foreach (var kv in _store.Values) d[kv.Key] = kv.Value;
+            return d;
+        }
+
+        /// <summary>Settings window "应用/确定": persists the values and recomputes (raises <see cref="Changed"/>).</summary>
+        public void ApplyUserValues(IReadOnlyDictionary<string, string> values, string reason)
+        {
+            var changed = _store.Write(values);
+            L.Info("settings.window.applied", null, ("reason", reason), ("changed", changed));
+            if (changed.Count > 0) Recompute(reason);
+        }
 
         public HostSettings Effective => _current.Effective;
 
@@ -51,9 +76,9 @@ namespace UEToVS.Host.Options
 
         public HostSettings UserSettings()
         {
-            var s = new HostSettings();
-            _general.Fill(s);
-            _logging.Fill(s);
+            var problems = new List<string>();
+            var s = HostSettingsSchema.Codec.FromValues(_store.Values, Schema, new HostSettings(), problems);
+            foreach (var p in problems) L.Warn("settings.store.invalid", p);
             return s;
         }
 
@@ -94,11 +119,29 @@ namespace UEToVS.Host.Options
                 ["disableBackgroundCodeAnalysis"] = s.DisableBackgroundCodeAnalysis,
                 ["logRetentionDays"] = s.LogRetentionDays,
                 ["logMaxTotalMB"] = s.LogMaxTotalMB,
+                ["cppIndexThreads"] = s.CppIndexThreads,
+                ["blueprintIndexThreads"] = s.BlueprintIndexThreads,
+                ["indexDuringBuild"] = s.IndexDuringBuild.ToString(),
+                ["indexEngineSource"] = s.IndexEngineSource,
+                ["engineIndexPath"] = s.EngineIndexPath ?? "",
+                ["shareEngineIndex"] = s.ShareEngineIndex,
+                ["showToolbar"] = s.ShowToolbar,
+                ["hiddenToolbarButtons"] = s.HiddenToolbarButtons,
+                ["performanceSampleSeconds"] = s.PerformanceSampleSeconds,
                 ["ctrlClickNavigation"] = s.CtrlClickNavigation,
                 ["referenceHighlighting"] = s.ReferenceHighlighting,
                 ["referenceHighlightReadColor"] = s.ReferenceHighlightReadColor ?? "",
                 ["referenceHighlightWriteColor"] = s.ReferenceHighlightWriteColor ?? "",
                 ["navigationBar"] = s.NavigationBar,
+                ["doubleShiftEnabled"] = s.DoubleShiftEnabled,
+                ["doubleShiftIntervalMs"] = s.DoubleShiftIntervalMs,
+                ["doubleShiftLeftOnly"] = s.DoubleShiftLeftOnly,
+                ["searchMaxResultsPerCategory"] = s.SearchMaxResultsPerCategory,
+                ["mouseButtonsNavigate"] = s.MouseButtonsNavigate,
+                ["navigationLineThreshold"] = s.NavigationLineThreshold,
+                ["navigationHistoryCapacity"] = s.NavigationHistoryCapacity,
+                ["checkIncludesOnSave"] = s.CheckIncludesOnSave,
+                ["editorLinkPort"] = s.EditorLinkPort,
                 ["enableMcpServer"] = s.EnableMcpServer,
             };
             return Sanitizer.MaskSecrets(d);

@@ -6,6 +6,7 @@
     <Description xml:space="preserve">Unreal Engine aware C++ assistant for Visual Studio: UE-aware navigation, search and code insight provided by an out-of-process engine. Activates only for Unreal Engine solutions.</Description>
     <License>LICENSE.txt</License>
     <Icon>Resources\Icon.png</Icon>
+    <PreviewImage>Resources\PreviewImage.png</PreviewImage>
     <Tags>Unreal Engine, UE5, C++, IntelliSense, Navigation, Visual Assist</Tags>
   </Metadata>
   <Installation>

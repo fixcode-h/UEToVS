@@ -11,6 +11,14 @@ namespace UEToVS.Host.Logic.Settings
         UnrealSolutionOnly = 1,
     }
 
+    /// <summary>What background indexing does while VS/UBT builds (maps to IndexingSettings.DuringBuild).</summary>
+    public enum IndexDuringBuild
+    {
+        Pause = 0,
+        SingleThread = 1,
+        FullSpeed = 2,
+    }
+
     /// <summary>
     /// Effective host settings. Layers (§10.3): built-in defaults (the initializers below) &lt; user settings (Tools &gt;
     /// Options &gt; UEToVS, persisted in the VS settings store) &lt; solution settings (&lt;solution&gt;/.uetovs/settings.json,
@@ -93,6 +101,34 @@ namespace UEToVS.Host.Logic.Settings
         /// 关闭时移除。文案见 McpStrings.SettingEnableMcp / SettingEnableMcpDescription；docs/design/MCP.md。
         /// </summary>
         public bool EnableMcpServer { get; set; } = true;
+
+        // ---- 索引（设置窗口；0 = 默认 = max(1, 逻辑核心数 / 4)）----
+        public int CppIndexThreads { get; set; } = 0;
+
+        public int BlueprintIndexThreads { get; set; } = 0;
+
+        public IndexDuringBuild IndexDuringBuild { get; set; } = IndexDuringBuild.SingleThread;
+
+        public bool IndexEngineSource { get; set; } = true;
+
+        /// <summary>
+        /// Share the engine index between projects. Off (default): the engine index lives in the solution's
+        /// .vs\UEToVS\Index; on: in <see cref="EngineIndexPath"/> (empty = %LocalAppData%\UEToVS\EngineIndex\&lt;engine version&gt;).
+        /// </summary>
+        public bool ShareEngineIndex { get; set; } = false;
+
+        /// <summary>Shared engine index folder, used only when <see cref="ShareEngineIndex"/> is on. Empty = default location.</summary>
+        public string EngineIndexPath { get; set; } = string.Empty;
+
+        // ---- 工具栏 ----
+        public bool ShowToolbar { get; set; } = true;
+
+        /// <summary>Comma separated toolbar button keys that are hidden (see ToolbarButtons). Empty = all visible.</summary>
+        public string HiddenToolbarButtons { get; set; } = string.Empty;
+
+        // ---- 性能 ----
+        /// <summary>Performance panel sampling interval in seconds.</summary>
+        public int PerformanceSampleSeconds { get; set; } = 1;
 
         public HostSettings Clone() => (HostSettings)MemberwiseClone();
     }

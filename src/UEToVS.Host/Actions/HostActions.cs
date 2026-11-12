@@ -49,11 +49,7 @@ namespace UEToVS.Host.Actions
             registry.Register(new DelegateAction(ActionIds.ShowComponentGallery, Strings.CmdComponentGallery, ActionCategory.Diagnostics,
                 ctx => ShowGalleryAsync(), null, null, Strings.KwGallery));
             registry.Register(new DelegateAction(ActionIds.Settings, Strings.CmdSettings, ActionCategory.Settings,
-                async ctx =>
-                {
-                    await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-                    package.ShowOptionPage(typeof(GeneralOptionsPage));
-                }, null, null, Strings.KwSettings));
+                ctx => package.ShowSettingsWindowAsync(), null, null, Strings.KwSettings));
             registry.Register(new DelegateAction(ActionIds.FindAction, Strings.CmdFindAction, ActionCategory.Navigation,
                 ctx => ShowFindActionAsync(package, registry), null, null, Strings.KwFindAction));
             Navigation.NavigationActions.Register(registry);

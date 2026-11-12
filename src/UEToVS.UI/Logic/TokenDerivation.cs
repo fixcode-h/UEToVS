@@ -97,7 +97,7 @@ namespace UEToVS.UI.Logic
             // ---- accent
             Rgba accent;
             if (settings.AccentMode == AccentMode.Custom && Rgba.TryParse(settings.CustomAccent, out var custom)) accent = custom.Opaque();
-            else accent = (palette.Accent ?? Rgba.FromHex(0x3574F0)).Opaque();
+            else accent = (palette.Accent ?? Rgba.FromHex(0x0078D4)).Opaque();
             if (hc) accent = (palette.Accent ?? fg).Opaque();
 
             // ---- surfaces
@@ -132,7 +132,7 @@ namespace UEToVS.UI.Logic
             C[TokenNames.AccentSubtle] = hc ? popup : Rgba.Mix(popup, accent, dark ? 0.22 : 0.12);
             C[TokenNames.TextOnAccent] = Rgba.Contrast(Rgba.White, accent) >= 3.0 ? Rgba.White : Rgba.FromHex(0x111111);
 
-            // ---- selection (Rider: tinted accent row, text keeps its color)
+            // ---- selection (VS 2026 / Fluent: soft accent-tinted row + accent indicator pill, text keeps its color)
             Rgba selBg, selFg;
             if (hc)
             {
@@ -141,7 +141,7 @@ namespace UEToVS.UI.Logic
             }
             else
             {
-                selBg = Rgba.Mix(popup, accent, dark ? 0.38 : 0.20);
+                selBg = Rgba.Mix(popup, accent, dark ? 0.30 : 0.16);
                 selFg = popupFg.EnsureContrast(selBg, 7);
             }
             C[TokenNames.SelectionBackground] = selBg;
@@ -182,9 +182,9 @@ namespace UEToVS.UI.Logic
             C[TokenNames.ToggleThumb] = hc ? fg : Rgba.White;
 
             // ---- misc chrome
-            C[TokenNames.ScrollThumb] = hc ? fg : popupFg.WithAlpha(dark ? 0.22 : 0.25);
-            C[TokenNames.ScrollThumbHover] = hc ? fg : popupFg.WithAlpha(dark ? 0.38 : 0.42);
-            C[TokenNames.Shadow] = Rgba.Black.WithAlpha(hc ? 0 : dark ? 0.55 : 0.20);
+            C[TokenNames.ScrollThumb] = hc ? fg : popupFg.WithAlpha(dark ? 0.30 : 0.32);
+            C[TokenNames.ScrollThumbHover] = hc ? fg : popupFg.WithAlpha(dark ? 0.48 : 0.52);
+            C[TokenNames.Shadow] = Rgba.Black.WithAlpha(hc ? 0 : dark ? 0.45 : 0.16);
             C[TokenNames.KbdBackground] = hc ? popup : Rgba.Mix(popup, popupFg, dark ? 0.09 : 0.05);
             C[TokenNames.KbdBorder] = hc ? fg : Rgba.Mix(popup, popupFg, dark ? 0.22 : 0.22);
             C[TokenNames.KbdForeground] = hc ? fg : C[TokenNames.TextSecondary];
@@ -194,6 +194,14 @@ namespace UEToVS.UI.Logic
             C[TokenNames.TooltipBorder] = C[TokenNames.BorderStrong];
             C[TokenNames.CodeLineHighlight] = hc ? selBg : Rgba.Mix(C[TokenNames.SurfaceSunken], accent, dark ? 0.20 : 0.12);
             C[TokenNames.CodeLineNumber] = hc ? fg : Rgba.Mix(popupFg, popup, 0.55);
+
+            // ---- VS 2026 (Fluent) additions
+            C[TokenNames.FocusStroke] = hc ? fg : popupFg;
+            C[TokenNames.InputFocusUnderline] = hc ? accent : accent.EnsureContrast(inBg, 3);
+            C[TokenNames.ControlStrokeBottom] = hc ? (palette.Border ?? fg) : Rgba.Mix(popup, popupFg, dark ? 0.12 : 0.32);
+            C[TokenNames.SegmentTrack] = hc ? popup : Rgba.Mix(popup, dark ? Rgba.Black : popupFg, dark ? 0.16 : 0.04);
+            C[TokenNames.SelectionIndicator] = hc ? selFg : accent.EnsureContrast(selBg, 3);
+            C[TokenNames.SurfaceNav] = hc ? bg : Rgba.Mix(bg, dark ? Rgba.Black : popupFg, dark ? 0.10 : 0.025);
 
             // ---- severities
             foreach (var kv in SeverityBase)
@@ -263,8 +271,9 @@ namespace UEToVS.UI.Logic
             N[TokenNames.FontSizeBody] = body;
             N[TokenNames.FontSizeSmall] = Math.Max(8, body - 1);
             N[TokenNames.FontSizeCaption] = Math.Max(8, body - 2);
-            N[TokenNames.FontSizeTitle] = body + 2;
-            N[TokenNames.FontSizeInput] = body + (s.Preset == StylePreset.Compact ? 1 : 3);
+            N[TokenNames.FontSizeTitle] = body + 3;
+            // VS 2026 search boxes use the body size (Rider used a much larger input font).
+            N[TokenNames.FontSizeInput] = body + (s.Preset == StylePreset.Compact ? 0 : 1);
             N[TokenNames.FontSizeCode] = body;
 
             // Row must fit the text: never smaller than ~1.45 line heights of body text.
@@ -281,15 +290,19 @@ namespace UEToVS.UI.Logic
             for (int i = 1; i <= 8; i++) N[TokenNames.Space(i)] = 4 * i;
             double k = s.SpacingScale;
             N[TokenNames.PadRowX] = Snap(8 * k);
-            N[TokenNames.PadControlX] = Snap(10 * k);
+            N[TokenNames.PadControlX] = Snap(12 * k);
             N[TokenNames.PadControlY] = Snap(4 * k);
             N[TokenNames.PadPopup] = Snap(8 * k);
-            N[TokenNames.GapInline] = Snap(6 * k);
+            N[TokenNames.GapInline] = Snap(8 * k);
+            // Fluent standard control height is 32 at 14px text; VS 2026 shell uses ~26 at 12px.
+            N[TokenNames.ControlHeight] = Math.Max(Math.Ceiling(body * 1.6 + 4), Snap(26 * (0.5 + 0.5 * k)));
+            N[TokenNames.FocusThickness] = hc ? 2 : 2;
 
+            // Fluent flyout shadow: soft and wide, lighter than Rider's.
             bool shadow = s.PopupShadow && !hc;
-            N[TokenNames.ShadowBlur] = shadow ? (dark ? 18 : 16) : 0;
-            N[TokenNames.ShadowDepth] = shadow ? 3 : 0;
-            N[TokenNames.ShadowMargin] = shadow ? 16 : 1;
+            N[TokenNames.ShadowBlur] = shadow ? (dark ? 24 : 20) : 0;
+            N[TokenNames.ShadowDepth] = shadow ? 4 : 0;
+            N[TokenNames.ShadowMargin] = shadow ? 20 : 1;
             N[TokenNames.AnimationMs] = s.Animations ? Math.Min(s.AnimationMs, AppearanceSettings.MaxAnimationMs) : 0;
             N[TokenNames.MatchBold] = (s.MatchStyle & MatchHighlightStyle.Bold) != 0 ? 1 : 0;
             N[TokenNames.MatchUnderline] = (s.MatchStyle & MatchHighlightStyle.Underline) != 0 ? 1 : 0;

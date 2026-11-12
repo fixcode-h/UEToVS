@@ -543,6 +543,30 @@ namespace UEToVS.Host.Engine
             return ok;
         }
 
+        /// <summary>Settings window → engine: indexing thread counts, build policy, engine sources (0 threads = engine default).</summary>
+        public async Task<bool> SetIndexingSettingsAsync(IndexingSettings settings)
+        {
+            if (settings == null) return false;
+            var (ok, _) = await TryInvokeAsync("setIndexingSettings", async (s, ct) => { await s.SetIndexingSettingsAsync(settings, ct).ConfigureAwait(false); return true; },
+                                               CancellationToken.None, TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            L.Info("engine.indexing.settings", null, ("cppThreads", settings.CppThreads), ("assetThreads", settings.AssetThreads),
+                   ("duringBuild", settings.DuringBuild), ("includeEngine", settings.IncludeEngine), ("applied", ok));
+            return ok;
+        }
+
+        /// <summary>Contract values of <see cref="RebuildScope"/> added by the engine side (Project = 3, Engine = 4); cast until the contract has them.</summary>
+        public const RebuildScope ScopeProject = (RebuildScope)3;
+        public const RebuildScope ScopeEngine = (RebuildScope)4;
+
+        /// <summary>Settings window "重建项目索引 / 重建引擎索引 / 重建蓝图索引": the engine drops that index part and re-scans in the background.</summary>
+        public async Task<bool> RebuildIndexAsync(RebuildScope scope)
+        {
+            var (ok, _) = await TryInvokeAsync("rebuildIndex", async (s, ct) => { await s.RebuildIndexAsync(scope, ct).ConfigureAwait(false); return true; },
+                                               CancellationToken.None, TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            L.Info("engine.index.rebuild", null, ("scope", scope.ToString()), ("scopeValue", (int)scope), ("applied", ok));
+            return ok;
+        }
+
         // ------------------------------------------------------------------ IEngineCallbacks
 
         public Task OnStatusChangedAsync(EngineStatus status)

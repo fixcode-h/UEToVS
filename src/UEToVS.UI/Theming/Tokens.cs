@@ -97,6 +97,12 @@ namespace UEToVS.UI.Theming
         public static readonly ComponentResourceKey TooltipBorder = Key(TokenNames.TooltipBorder);
         public static readonly ComponentResourceKey CodeLineHighlight = Key(TokenNames.CodeLineHighlight);
         public static readonly ComponentResourceKey CodeLineNumber = Key(TokenNames.CodeLineNumber);
+        public static readonly ComponentResourceKey FocusStroke = Key(TokenNames.FocusStroke);
+        public static readonly ComponentResourceKey InputFocusUnderline = Key(TokenNames.InputFocusUnderline);
+        public static readonly ComponentResourceKey ControlStrokeBottom = Key(TokenNames.ControlStrokeBottom);
+        public static readonly ComponentResourceKey SegmentTrack = Key(TokenNames.SegmentTrack);
+        public static readonly ComponentResourceKey SelectionIndicator = Key(TokenNames.SelectionIndicator);
+        public static readonly ComponentResourceKey SurfaceNav = Key(TokenNames.SurfaceNav);
 
         // ---- numbers (double)
         public static readonly ComponentResourceKey FontSizeBody = Key(TokenNames.FontSizeBody);
@@ -114,13 +120,22 @@ namespace UEToVS.UI.Theming
         public static readonly ComponentResourceKey PadRowX = Key(TokenNames.PadRowX);
         public static readonly ComponentResourceKey GapInline = Key(TokenNames.GapInline);
         public static readonly ComponentResourceKey AnimationMs = Key(TokenNames.AnimationMs);
+        public static readonly ComponentResourceKey ControlHeight = Key(TokenNames.ControlHeight);
+        public static readonly ComponentResourceKey FocusThickness = Key(TokenNames.FocusThickness);
 
         // ---- WPF-typed derived resources
         public static readonly ComponentResourceKey CornerRadiusPopup = Key("CornerRadius.Popup");
         public static readonly ComponentResourceKey CornerRadiusControl = Key("CornerRadius.Control");
         public static readonly ComponentResourceKey CornerRadiusBadge = Key("CornerRadius.Badge");
-        /// <summary>Fully rounded (pill) corner radius for chips/toggles.</summary>
+        /// <summary>Fully rounded (pill) corner radius. Only for the toggle-switch track and tiny dots; chips and
+        /// segmented controls are rounded rectangles (<see cref="CornerRadiusControl"/>) since v0.3.0.</summary>
         public static readonly ComponentResourceKey CornerRadiusPill = Key("CornerRadius.Pill");
+        /// <summary>Control radius minus 1 (inner element inside a control-radius container, e.g. a segment).</summary>
+        public static readonly ComponentResourceKey CornerRadiusInner = Key("CornerRadius.Inner");
+        /// <summary>Control radius plus the focus-ring offset (the ring sits 3px outside the control).</summary>
+        public static readonly ComponentResourceKey CornerRadiusFocus = Key("CornerRadius.Focus");
+        /// <summary>Focus ring thickness as a <c>Thickness</c>.</summary>
+        public static readonly ComponentResourceKey ThicknessFocus = Key("Thickness.Focus");
         public static readonly ComponentResourceKey ThicknessControlPadding = Key("Thickness.ControlPadding");
         public static readonly ComponentResourceKey ThicknessRowPadding = Key("Thickness.RowPadding");
         public static readonly ComponentResourceKey ThicknessPopupPadding = Key("Thickness.PopupPadding");

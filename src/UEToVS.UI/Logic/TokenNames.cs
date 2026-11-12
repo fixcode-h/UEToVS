@@ -70,6 +70,20 @@ namespace UEToVS.UI.Logic
         public const string CodeLineHighlight = "Code.LineHighlight";
         public const string CodeLineNumber = "Code.LineNumber";
 
+        // ---- VS 2026 (Fluent) additions (v0.3.0)
+        /// <summary>Keyboard focus ring (Fluent focus visual: high-contrast outer stroke).</summary>
+        public const string FocusStroke = "Focus.Stroke";
+        /// <summary>Accent bar under a focused text input (Fluent "active" bottom stroke).</summary>
+        public const string InputFocusUnderline = "Input.FocusUnderline";
+        /// <summary>Bottom edge of raised controls (Fluent elevation stroke; a touch darker than the border).</summary>
+        public const string ControlStrokeBottom = "Control.StrokeBottom";
+        /// <summary>Background of the segmented-control track (the container behind the segments).</summary>
+        public const string SegmentTrack = "Segment.Track";
+        /// <summary>Small accent pill at the left of the selected list row (Fluent selection indicator).</summary>
+        public const string SelectionIndicator = "Selection.Indicator";
+        /// <summary>Title / navigation pane background of windows (settings window left rail).</summary>
+        public const string SurfaceNav = "Surface.Nav";
+
         // ---- numbers (DIPs unless noted)
         public const string FontSizeBody = "Font.Size.Body";
         public const string FontSizeSmall = "Font.Size.Small";
@@ -92,6 +106,10 @@ namespace UEToVS.UI.Logic
         public const string ShadowDepth = "Shadow.Depth";
         public const string ShadowMargin = "Shadow.Margin";
         public const string AnimationMs = "Animation.Ms";
+        /// <summary>Standard height of buttons, inputs and segmented controls.</summary>
+        public const string ControlHeight = "Control.Height";
+        /// <summary>Thickness of the keyboard focus ring.</summary>
+        public const string FocusThickness = "Focus.Thickness";
         /// <summary>1 when matched characters are bold, else 0.</summary>
         public const string MatchBold = "Match.Bold";
         /// <summary>1 when matched characters are underlined, else 0.</summary>

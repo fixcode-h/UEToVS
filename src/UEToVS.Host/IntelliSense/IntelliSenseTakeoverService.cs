@@ -163,7 +163,7 @@ namespace UEToVS.Host.IntelliSense
                 {
                     Banners.Show(BannerId, Strings.BannerTakenOver, BannerKind.Info,
                         (Strings.Restore, () => _ = RestoreAsync("banner")),
-                        (Strings.Settings, () => _package.ShowOptionPage(typeof(GeneralOptionsPage))));
+                        (Strings.Settings, () => HostPackage.Instance?.ExecuteAction(UEToVS.Host.Shell.ActionIds.Settings)));
                     await MarkNoticeShownAsync();
                 }
             }
