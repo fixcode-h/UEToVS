@@ -74,6 +74,8 @@
     <Content Include="Resources\PreviewImage.png" IncludeInVSIX="true" />
     <!-- v0.4.2 debugger visualizers for UE types the engine natvis does not cover (NativeVisualizer asset) -->
     <Content Include="Resources\UEToVS.natvis" IncludeInVSIX="true" />
+    <!-- v0.4.5 debug step filter: copied to Documents\Visual Studio *\Visualizers by StepFilterDeployer (no VSIX asset type for it) -->
+    <Content Include="Resources\UEToVS.natstepfilter" IncludeInVSIX="true" />
     <None Include="Resources\UEToVS.svg" />
     <None Include="Resources\UEToVS16.png" />
     <None Include="Resources\UEToVS32.png" />
