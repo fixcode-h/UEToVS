@@ -298,8 +298,32 @@ namespace UEToVS.Host.Logic.Settings
             list.Add(sample);
             list.Add(A(Performance, "perf.open", "uetovs.diagnostics.performancePanel", "打开性能面板", "Open performance panel", null, null, gPerf, gPerfEn));
 
+            // Short button verbs (the card already shows the full title on the left).
+            foreach (var d in list)
+            {
+                if (d.Kind != SettingKind.Action || !ActionLabels.TryGetValue(d.Key, out var label)) continue;
+                d.ActionLabelZh = label.Zh;
+                d.ActionLabelEn = label.En;
+            }
             return list;
         }
+
+        private static readonly Dictionary<string, (string Zh, string En)> ActionLabels = new Dictionary<string, (string Zh, string En)>(StringComparer.Ordinal)
+        {
+            ["engine.restart"] = ("重启", "Restart"),
+            ["intelliSense.toggle"] = ("执行", "Run"),
+            ["mcp.writeConfig"] = ("写入", "Write"),
+            ["indexing.rebuildProject"] = ("重建", "Rebuild"),
+            ["indexing.rebuildEngine"] = ("重建", "Rebuild"),
+            ["indexing.rebuildBlueprint"] = ("重建", "Rebuild"),
+            ["coloring.importVa"] = ("导入…", "Import…"),
+            ["coloring.reset"] = ("恢复", "Reset"),
+            ["log.openFolder"] = ("打开", "Open"),
+            ["log.openCurrent"] = ("打开", "Open"),
+            ["diagnostics.createPackage"] = ("生成", "Create"),
+            ["diagnostics.componentGallery"] = ("打开", "Open"),
+            ["perf.open"] = ("打开", "Open"),
+        };
 
         /// <summary>HostSettings ⇄ invariant string values, keyed by descriptor key.</summary>
         public static class Codec

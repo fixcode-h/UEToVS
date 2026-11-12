@@ -63,6 +63,9 @@ namespace UEToVS.UI.Logic
         /// <summary>What "auto" (stored 0) resolves to on this machine, shown greyed in the disabled number box; null = unknown.</summary>
         public int? AutoValue { get; set; }
         public IReadOnlyList<SettingOption> Options { get; set; } = Array.Empty<SettingOption>();
+        /// <summary>Action: short button text ("重建", "打开"); null = the title is used.</summary>
+        public string ActionLabelZh { get; set; }
+        public string ActionLabelEn { get; set; }
         /// <summary>Action/Info: id the host resolves (action id, or info provider id).</summary>
         public string ActionId { get; set; }
         /// <summary>Extra search words (both languages).</summary>
@@ -75,6 +78,7 @@ namespace UEToVS.UI.Logic
         public string Title(bool english) => english ? (TitleEn ?? TitleZh) : (TitleZh ?? TitleEn);
         public string Description(bool english) => english ? (DescriptionEn ?? DescriptionZh) : (DescriptionZh ?? DescriptionEn);
         public string Group(bool english) => english ? (GroupEn ?? GroupZh) : (GroupZh ?? GroupEn);
+        public string ActionLabel(bool english) => english ? (ActionLabelEn ?? ActionLabelZh) : (ActionLabelZh ?? ActionLabelEn);
 
         public override string ToString() => Category + "/" + Key;
     }

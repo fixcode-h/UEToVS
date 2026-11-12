@@ -124,6 +124,17 @@ namespace UEToVS.Host.Logic.Tests
         }
 
         [Fact]
+        public void EveryActionHasAShortButtonLabelInBothLanguages()
+        {
+            foreach (var d in HostSettingsSchema.Build(8).Where(x => x.Kind == SettingKind.Action))
+            {
+                Assert.False(string.IsNullOrEmpty(d.ActionLabelZh), d.Key);
+                Assert.False(string.IsNullOrEmpty(d.ActionLabelEn), d.Key);
+                Assert.True(d.ActionLabel(false).Length < d.Title(false).Length, d.Key);
+            }
+        }
+
+        [Fact]
         public void ThreadDescriptorsCarryTheirAutoValue()
         {
             var schema = HostSettingsSchema.Build(16);

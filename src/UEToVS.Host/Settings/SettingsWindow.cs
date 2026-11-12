@@ -173,7 +173,8 @@ namespace UEToVS.Host.Settings
                 bool match = CategoryMatches(c, q);
                 bool selected = string.IsNullOrWhiteSpace(q) && c.Id == _category;
                 var text = new UiText(c.Title(English), selected ? TextVariant.Strong : TextVariant.Body) { VerticalAlignment = VerticalAlignment.Center };
-                // Fluent NavigationView: 3x16 accent pill on the selected item, subtle fill; hover = subtle fill only.
+                // Fluent NavigationView: 3x16 accent pill + selection fill on the selected item; hover = subtle fill only
+                // (kept distinct so a hovered item never looks selected).
                 var indicator = new Border { Width = 3, Height = 16, CornerRadius = new CornerRadius(1.5), Margin = new Thickness(0, 0, 10, 0), VerticalAlignment = VerticalAlignment.Center };
                 indicator.Bind(Border.BackgroundProperty, Tokens.SelectionIndicator);
                 indicator.Visibility = selected ? Visibility.Visible : Visibility.Hidden;
@@ -183,7 +184,7 @@ namespace UEToVS.Host.Settings
                 var item = new Border { Child = row, Padding = new Thickness(2, 0, 8, 0), Margin = new Thickness(0, 1, 0, 1), Cursor = Cursors.Hand, Focusable = true, FocusVisualStyle = null };
                 item.MinHeight = 32;
                 item.Bind(Border.CornerRadiusProperty, Tokens.CornerRadiusControl);
-                if (selected) item.Bind(Border.BackgroundProperty, Tokens.SurfaceHover);
+                if (selected) item.Bind(Border.BackgroundProperty, Tokens.SelectionBackground);
                 else item.Background = Brushes.Transparent;
                 item.Opacity = match ? 1 : 0.45;
                 System.Windows.Automation.AutomationProperties.SetName(item, c.Title(English));
@@ -471,7 +472,9 @@ namespace UEToVS.Host.Settings
                         VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 12, 0), MaxWidth = 260,
                         TextWrapping = TextWrapping.Wrap, TextTrimming = TextTrimming.None,
                     };
-                    var button = new UiButton(d.Title(English)) { MinWidth = SettingsPageLayout.FooterButtonMinWidth };
+                    // The card already shows the title; the button gets a short verb ("重建", "打开"…) when the schema has one.
+                    var button = new UiButton(d.ActionLabel(English) ?? d.Title(English)) { MinWidth = SettingsPageLayout.FooterButtonMinWidth };
+                    System.Windows.Automation.AutomationProperties.SetName(button, d.Title(English));
                     button.Click += (s, e) => Safe.RunAsync(L, "settings.action", async () =>
                     {
                         button.IsEnabled = false;
