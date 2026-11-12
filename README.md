@@ -2,7 +2,7 @@
 
 把 Rider 里好用的导航和搜索带到 Visual Studio 2022 / 2026，专门针对 Unreal Engine 5 C++ 工程。个人自用，通过本地 VSIX 安装。
 
-设计文档：<https://claude.ai/artifact/HcUc6HctbS8dY84XXWVkJC>
+设计文档：<https://claude.ai/artifact/HcUc6HctbS8dY84XXWVkJC>（早期导航功能）；整体架构设计见 [docs/design/UEToVS-架构设计.md](docs/design/UEToVS-架构设计.md)
 
 ## 功能
 
