@@ -173,6 +173,10 @@ namespace UEToVS.Host.Logic.Settings
                     s.DisableDatabase = v.Value<bool>();
                     applied = s.DisableDatabase;
                     return true;
+                case "intellisense.disablebackgroundcodeanalysis":
+                    s.DisableBackgroundCodeAnalysis = v.Value<bool>();
+                    applied = s.DisableBackgroundCodeAnalysis;
+                    return true;
                 default:
                     applied = null;
                     return false;

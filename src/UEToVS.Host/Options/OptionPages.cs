@@ -53,6 +53,11 @@ namespace UEToVS.Host.Options
         [UiDescription(nameof(Strings.OptDisableDbDesc))]
         public bool DisableDatabase { get; set; } = true;
 
+        [UiCategory(nameof(Strings.CatCppInsight))]
+        [UiDisplayName(nameof(Strings.OptDisableBgAnalysis))]
+        [UiDescription(nameof(Strings.OptDisableBgAnalysisDesc))]
+        public bool DisableBackgroundCodeAnalysis { get; set; } = false;
+
         [Browsable(false)]
         public bool TakeoverNoticeShown { get; set; }
 
@@ -79,6 +84,7 @@ namespace UEToVS.Host.Options
             s.IntelliSenseTakeover = IntelliSenseTakeover;
             s.IntelliSenseTakeoverMode = IntelliSenseTakeoverMode;
             s.DisableDatabase = DisableDatabase;
+            s.DisableBackgroundCodeAnalysis = DisableBackgroundCodeAnalysis;
         }
     }
 

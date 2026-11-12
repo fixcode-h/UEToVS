@@ -27,7 +27,7 @@
 
 ## 设置（工具 > 选项 > UEToVS）
 
-- **General（常规）**：日志级别（应用后立即对宿主和引擎生效）、引擎路径覆盖、UE 根目录、请求超时、是否接管 C++ IntelliSense、接管范围（Global / UnrealSolutionOnly）、是否同时禁用浏览数据库。
+- **General（常规）**：日志级别（应用后立即对宿主和引擎生效）、引擎路径覆盖、UE 根目录、请求超时、是否接管 C++ IntelliSense、接管范围（Global / UnrealSolutionOnly）、是否同时禁用浏览数据库、是否关闭 VS C++ 后台代码分析（默认关）。
 - **Appearance（外观）**：UI 组件库的 `AppearanceSettingsPanel`，修改即实时预览；确定/应用时提交并以 `AppearanceSettings.ToStorageString()` 文本保存在 VS 用户设置存储（`UEToVS\Appearance`），取消时撤销预览。包加载时读取并应用到 `ThemeManager`。
 - **Logging（日志）**：保留天数（默认 7）、总大小上限（默认 200 MB）、打开日志文件夹。
 
@@ -67,6 +67,14 @@
 **恢复**：命令“恢复 VS 自带 C++ IntelliSense”按备份逐项写回原值；全部成功后删除备份，失败项保留以便重试。
 
 **卸载前请先执行恢复。** VSIX 卸载时无法运行代码；如果已卸载，请手动恢复：工具 > 选项 > 文本编辑器 > C/C++ > 高级，把 “禁用 IntelliSense”、“禁用自动快速信息”、“禁用错误报告”、“禁用波浪线”、“禁用语义着色”、“禁用外部依赖项文件夹”、“禁用数据库” 等改回 False（备份文件 `%LocalAppData%\UEToVS\intellisense-backup.json` 中记录了原值）。
+
+## 关闭 VS C++ 后台代码分析
+
+VS 每次打开或保存 .cpp 都会在后台用编译器（/analyze）完整分析整个编译单元，也就是任务中心里的“C++ 后台 Code Analysis”。UE 源文件会展开数千个头文件，单个文件常要几十秒。设置“关闭 VS C++ 后台代码分析”（默认关，独立于 IntelliSense 接管；解决方案设置键 `intelliSense.disableBackgroundCodeAnalysis`）开启后：
+
+1. 打开 UE 解决方案时，把 工具 > 选项 > 文本编辑器 > C/C++ > 高级 > Code Analysis 下的 “Disable Background Code Analysis” 设为 True（DTE 属性候选名见 `CppIntelliSenseSettings.BackgroundCodeAnalysis`）。
+2. 原值先备份到 `%LocalAppData%\UEToVS\code-analysis-backup.json`，日志事件 `codeAnalysis.*`。
+3. 关闭此设置即写回原值并删除备份。手动“分析 > 运行代码分析”不受影响。
 
 ## 引擎进程
 

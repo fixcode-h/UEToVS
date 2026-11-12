@@ -45,6 +45,15 @@ namespace UEToVS.Host.Logic.Tests
         }
 
         [Fact]
+        public void BackgroundCodeAnalysisIsOffByDefaultAndOverridable()
+        {
+            Assert.False(new HostSettings().DisableBackgroundCodeAnalysis);
+            var r = SettingsMerger.Merge(new HostSettings(), @"{ ""intelliSense"": { ""disableBackgroundCodeAnalysis"": true } }");
+            Assert.True(r.Effective.DisableBackgroundCodeAnalysis);
+            Assert.Empty(r.Warnings);
+        }
+
+        [Fact]
         public void EnginePathIsRefusedFromSolutionFiles()
         {
             var r = SettingsMerger.Merge(new HostSettings(), @"{ ""engine"": { ""path"": ""C:/evil.exe"" } }");

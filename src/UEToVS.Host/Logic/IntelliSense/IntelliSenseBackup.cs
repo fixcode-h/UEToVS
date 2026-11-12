@@ -59,15 +59,20 @@ namespace UEToVS.Host.Logic.IntelliSense
     {
         public const string FileName = "intellisense-backup.json";
 
+        /// <summary>Backup of the "Disable Background Code Analysis" option (separate setting, separate file).</summary>
+        public const string CodeAnalysisFileName = "code-analysis-backup.json";
+
         /// <summary>%LocalAppData%\UEToVS\intellisense-backup.json.</summary>
-        public static string DefaultPath
+        public static string DefaultPath => InAppData(FileName);
+
+        /// <summary>%LocalAppData%\UEToVS\code-analysis-backup.json.</summary>
+        public static string DefaultCodeAnalysisPath => InAppData(CodeAnalysisFileName);
+
+        private static string InAppData(string fileName)
         {
-            get
-            {
-                string baseDir = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-                if (string.IsNullOrEmpty(baseDir)) baseDir = Path.GetTempPath();
-                return Path.Combine(baseDir, "UEToVS", FileName);
-            }
+            string baseDir = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            if (string.IsNullOrEmpty(baseDir)) baseDir = Path.GetTempPath();
+            return Path.Combine(baseDir, "UEToVS", fileName);
         }
 
         /// <summary>Null when the file does not exist; throws <see cref="InvalidDataException"/> when it is corrupt.</summary>
