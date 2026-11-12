@@ -114,6 +114,19 @@ namespace UEToVS.Mcp.Data
                                                     "Open the solution in Visual Studio with UEToVS once so it builds the index, or pass --solution-dir.");
         }
 
+        // ---- v0.4.5 heavy features: whole-project inspection (engine only: it runs inside the engine process)
+
+        public async Task<ProjectInspectionResponse> ProjectInspectionAsync(ProjectInspectionRequest req, CancellationToken ct)
+        {
+            if (Mode == DataSourceMode.IndexOnly)
+                throw new ToolException("engine_unavailable", "Project inspection runs inside UEToVS.Engine; the server was started with --source index.");
+            var (ok, resp) = await TryEngineAsync("projectInspection", (e, c) => e.ProjectInspectionAsync(req, c), ct).ConfigureAwait(false);
+            if (!ok || resp == null)
+                throw new ToolException("engine_unavailable", "Project inspection needs a running UEToVS.Engine (open the solution in Visual Studio with UEToVS)" +
+                                                              (_engine.LastError != null ? ": " + _engine.LastError : "."));
+            return resp;
+        }
+
         // ------------------------------------------------------------------ search
 
         public async Task<Answer<SearchResponse>> SearchAsync(SearchRequest req, CancellationToken ct)

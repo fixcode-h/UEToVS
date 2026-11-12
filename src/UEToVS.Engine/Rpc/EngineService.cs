@@ -283,6 +283,17 @@ namespace UEToVS.Engine.Rpc
                     : _host.Scheduler.RunAsync(WorkPriority.Interactive, "rpc.getOverridableMethods", t => _host.Refactoring.GetOverridableMethods(request, t), c),
                 ct, ("type", request?.TypeName), ("file", request?.Caret?.FilePath), ("line", request?.Caret?.Line));
 
+        // ---- v0.4.5 heavy features: the work runs on the services' own BelowNormal threads; these calls only start / poll / page
+
+        public Task<ProjectInspectionResponse> ProjectInspectionAsync(ProjectInspectionRequest request, CancellationToken ct) =>
+            InvokeAsync("rpc.projectInspection", c => request?.Action == HeavyJobAction.Results
+                    ? _host.Scheduler.RunAsync(WorkPriority.Visible, "rpc.projectInspection", t => _host.Inspection.Handle(request, t), c)
+                    : Task.FromResult(_host.Inspection.Handle(request, c)),
+                ct, ("action", request?.Action.ToString()), ("plugins", request?.IncludePlugins), ("rule", request?.Rule), ("offset", request?.Offset));
+
+        public Task<DeprecationScanResponse> DeprecationScanAsync(DeprecationScanRequest request, CancellationToken ct) =>
+            InvokeAsync("rpc.deprecationScan", c => Task.FromResult(_host.Upgrade.Handle(request)), ct, ("action", request?.Action.ToString()), ("plugins", request?.IncludePlugins));
+
         private static LocalRpcException Error(int code, string message) => new LocalRpcException(message) { ErrorCode = code };
 
         private static bool SamePath(string a, string b)

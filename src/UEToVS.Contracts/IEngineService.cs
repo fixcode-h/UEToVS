@@ -92,6 +92,14 @@ namespace UEToVS.Contracts
 
         /// <summary>Virtual functions of a class's bases (engine classes included) that it does not override yet.</summary>
         Task<OverridableMethodsResponse> GetOverridableMethodsAsync(OverridableMethodsRequest request, CancellationToken ct);
+
+        // ---- v0.4.5 heavy features (see HeavyFeatures.cs); each answers HeavyJobState.Disabled when switched off ----
+
+        /// <summary>Whole-project UE rule inspection: start / status / results page / cancel.</summary>
+        Task<ProjectInspectionResponse> ProjectInspectionAsync(ProjectInspectionRequest request, CancellationToken ct);
+
+        /// <summary>Engine upgrade assistant: project references to deprecated APIs (start / status / results / cancel).</summary>
+        Task<DeprecationScanResponse> DeprecationScanAsync(DeprecationScanRequest request, CancellationToken ct);
     }
 
     /// <summary>Notifications engine → host.</summary>

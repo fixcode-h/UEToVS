@@ -58,6 +58,8 @@ namespace UEToVS.Mcp.Tools
             Register(IndexStatusTool());
             RegisterLuaTools();
             RegisterUeTools();
+            // ---- v0.4.5 heavy features
+            RegisterHeavyTools();
         }
 
         public IReadOnlyList<ToolDefinition> All => _tools.Values.ToList();

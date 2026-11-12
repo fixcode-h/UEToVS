@@ -57,6 +57,29 @@ namespace UEToVS.Engine
             Lua = new LuaIndexService(Paths.Lua, options.SolutionDir, watch: !options.NoWatch, _shutdown.Token);
             if (options.LuaScriptPaths != null) Lua.Configure(options.LuaScriptPaths, "commandLine");
             Index.WorkspaceDiscovered += OnWorkspaceDiscovered;
+            // ---- v0.4.5 heavy features (on demand; switches from the settings window)
+            Inspection = new Inspection.ProjectInspectionService(IntelliSense, plugins => UEToVS.Engine.Inspection.ProjectInspectionService.ProjectFiles(Index.Files, plugins),
+                () => Index.Config.CppThreads, () => Index.Phase == IndexPhase.Ready, System.IO.Path.Combine(Paths.Root, "inspections"), options.SolutionDir)
+            {
+                ShouldPause = () => Scheduler.IsUserPaused || (Scheduler.IsBuildInProgress && Scheduler.BuildPolicy == BuildPolicy.Pause),
+            };
+            Upgrade = new Deprecation.DeprecationScanService(Index.Backend, Index.Files, () => Index.Phase == IndexPhase.Ready);
+            ApplyHeavyFeatureSettings(options.InitialIndexingSettings());
+        }
+
+        /// <summary>v0.4.5 whole-project UE rule inspection.</summary>
+        public Inspection.ProjectInspectionService Inspection { get; }
+
+        /// <summary>v0.4.5 engine upgrade assistant (deprecated API references).</summary>
+        public Deprecation.DeprecationScanService Upgrade { get; }
+
+        /// <summary>The three heavy-feature switches; off cancels a running job and frees the template cache.</summary>
+        private void ApplyHeavyFeatureSettings(IndexingSettings settings)
+        {
+            if (settings == null) return;
+            Inspection.Enabled = settings.ProjectInspectionEnabled;
+            Upgrade.Enabled = settings.UpgradeAssistantEnabled;
+            IntelliSense.ConfigureTemplates(settings.TemplateInstantiationEnabled, settings.TemplateCacheCapacity);
         }
 
         public EngineOptions Options { get; }
@@ -119,6 +142,7 @@ namespace UEToVS.Engine
             var config = IndexingConfig.From(settings);
             Scheduler.BuildPolicy = config.DuringBuild;
             Lua.Configure(settings.LuaScriptPaths, "settings");
+            ApplyHeavyFeatureSettings(settings);
             bool restart = Index.ApplyConfig(config);
             if (restart && CurrentWorkspaceOptions != null)
             {
@@ -351,6 +375,8 @@ namespace UEToVS.Engine
         {
             Interlocked.Exchange(ref _stopped, 1);
             try { _shutdown.Cancel(); } catch { }
+            Inspection.Dispose();
+            Upgrade.Dispose();
             lock (_gate) _watchTracker?.Dispose();
             Lua.Dispose();
             Changes.Dispose();

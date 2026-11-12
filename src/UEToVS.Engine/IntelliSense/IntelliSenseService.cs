@@ -87,6 +87,13 @@ namespace UEToVS.Engine.IntelliSense
         internal ISymbolIndexBackend Backend => _backend;
         internal FileTable Files => _files;
 
+        /// <summary>
+        /// A session over an already parsed document with caller-owned caches (whole-project inspection: each run has its own
+        /// document / member caches, so it neither evicts the editor's documents nor keeps memory after it ends).
+        /// </summary>
+        internal IsSession CreateSession(DocumentModel doc, DocumentCache documents, MemberTableCache members, CancellationToken ct) =>
+            new IsSession(new NavContext(_backend, _files, doc, ct), doc, documents, members, Knowledge) { Templates = _templatesEnabled ? _templates : null };
+
         private IsSession Session(CaretRequest caret, CancellationToken ct, out DocumentModel doc)
         {
             doc = null;
