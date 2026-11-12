@@ -29,6 +29,27 @@ namespace UEToVS.Engine.Syntax.Tests
         }
 
         [Fact]
+        public void KnowledgeBaseHasSpecifierTables()
+        {
+            var kb = UeMacroKnowledge.Default;
+            foreach (var m in new[] { "UCLASS", "UPROPERTY", "UFUNCTION", "USTRUCT", "UENUM", "UINTERFACE", "UMETA", "UPARAM" })
+                Assert.NotEmpty(kb.GetSpecifiers(m));
+            Assert.True(kb.GetSpecifiers("UPROPERTY").Count >= 40);
+            Assert.True(kb.GetSpecifiers("UFUNCTION").Count >= 20);
+            Assert.True(kb.GetMetaKeys("UPROPERTY").Count >= 40);
+            Assert.True(kb.GetMetaKeys("UFUNCTION").Count >= 25);
+            var edit = kb.FindSpecifier("UPROPERTY", "editanywhere", false);
+            Assert.Equal("EditAnywhere", edit.Name);
+            Assert.Contains("VisibleAnywhere", edit.Conflicts);
+            Assert.Equal("=\"Category\"", kb.FindSpecifier("UFUNCTION", "Category", false).Value);
+            Assert.True(kb.FindSpecifier("UPROPERTY", "ClampMin", true).IsMeta);
+            Assert.Null(kb.FindSpecifier("UPROPERTY", "ClampMin", false));
+            Assert.True(kb.IsKnownSpecifier("BlueprintCallable"));
+            Assert.False(kb.IsKnownSpecifier("NotASpecifier"));
+            Assert.NotNull(kb.GetMacroDoc("GENERATED_BODY"));
+        }
+
+        [Fact]
         public void KnowledgeBaseCanBeReplaced()
         {
             const string json = "{ \"version\": \"custom\", \"reflection\": [ { \"name\": \"MYCLASS\", \"flag\": \"UClass\" } ] }";

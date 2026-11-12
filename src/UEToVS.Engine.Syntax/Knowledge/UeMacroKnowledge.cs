@@ -81,12 +81,40 @@ namespace UEToVS.Engine.Syntax
         public string Signature { get; internal set; }
     }
 
+    /// <summary>A reflection specifier (<c>UPROPERTY(EditAnywhere)</c>) or meta key (<c>meta=(ClampMin=0)</c>).</summary>
+    public sealed class SpecifierInfo
+    {
+        public string Name { get; internal set; }
+
+        /// <summary>Reflection macro it belongs to (UCLASS, UPROPERTY, ...).</summary>
+        public string Macro { get; internal set; }
+
+        /// <summary>One-line description (English; shown in completion and Quick Info).</summary>
+        public string Doc { get; internal set; }
+
+        /// <summary>Value syntax hint such as <c>="Category"</c> or <c>=(A, B)</c>; null for flag specifiers.</summary>
+        public string Value { get; internal set; }
+
+        /// <summary>Specifiers that cannot be combined with this one.</summary>
+        public IReadOnlyList<string> Conflicts { get; internal set; } = Array.Empty<string>();
+
+        /// <summary>A key inside <c>meta=(...)</c> rather than a top-level specifier.</summary>
+        public bool IsMeta { get; internal set; }
+
+        public override string ToString() => (IsMeta ? "meta:" : string.Empty) + Macro + "." + Name;
+    }
+
     /// <summary>
     /// Data-driven description of UE macros, loaded from the embedded <c>UeMacros.json</c> (or any stream with the same schema).
     /// Thread-safe for reads once constructed.
     /// </summary>
     public sealed class UeMacroKnowledge
     {
+        private readonly Dictionary<string, SpecifierInfo[]> _specifiers = new Dictionary<string, SpecifierInfo[]>(StringComparer.Ordinal);
+        private readonly Dictionary<string, SpecifierInfo[]> _metaKeys = new Dictionary<string, SpecifierInfo[]>(StringComparer.Ordinal);
+        private readonly HashSet<string> _allSpecifierNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, string> _macroDocs = new Dictionary<string, string>(StringComparer.Ordinal);
+
         private static readonly Logger L = Log.For("Syntax");
         private static readonly Lazy<UeMacroKnowledge> LazyDefault = new Lazy<UeMacroKnowledge>(LoadEmbedded);
 
@@ -186,7 +214,65 @@ namespace UEToVS.Engine.Syntax
                     _injected[family] = list.ToArray();
                 }
             }
+
+            ReadSpecifiers(root, "specifiers", false, _specifiers);
+            ReadSpecifiers(root, "metaKeys", true, _metaKeys);
+            if (root.TryGetProperty("macroDocs", out var docs) && docs.ValueKind == JsonValueKind.Object)
+                foreach (var p in docs.EnumerateObject())
+                    if (p.Value.ValueKind == JsonValueKind.String) _macroDocs[p.Name] = p.Value.GetString();
         }
+
+        private void ReadSpecifiers(JsonElement root, string section, bool meta, Dictionary<string, SpecifierInfo[]> target)
+        {
+            if (!root.TryGetProperty(section, out var obj) || obj.ValueKind != JsonValueKind.Object) return;
+            foreach (var macro in obj.EnumerateObject())
+            {
+                var list = new List<SpecifierInfo>();
+                foreach (var e in macro.Value.EnumerateArray())
+                {
+                    string name = Str(e, "name");
+                    if (string.IsNullOrEmpty(name)) throw new InvalidDataException($"Specifier without a name in {section}.{macro.Name}");
+                    var conflicts = new List<string>();
+                    foreach (var c in Arr(e, "conflicts")) conflicts.Add(c.GetString());
+                    list.Add(new SpecifierInfo
+                    {
+                        Name = name,
+                        Macro = macro.Name,
+                        Doc = Str(e, "doc"),
+                        Value = Str(e, "value"),
+                        Conflicts = conflicts.ToArray(),
+                        IsMeta = meta,
+                    });
+                    _allSpecifierNames.Add(name);
+                }
+                target[macro.Name] = list.ToArray();
+            }
+        }
+
+        /// <summary>Top-level specifiers of a reflection macro (UCLASS, UPROPERTY, UFUNCTION, USTRUCT, UENUM, UINTERFACE, UMETA, UPARAM, UDELEGATE).</summary>
+        public IReadOnlyList<SpecifierInfo> GetSpecifiers(string macro) =>
+            macro != null && _specifiers.TryGetValue(macro, out var s) ? s : Array.Empty<SpecifierInfo>();
+
+        /// <summary>Keys valid inside <c>meta=(...)</c> of a reflection macro.</summary>
+        public IReadOnlyList<SpecifierInfo> GetMetaKeys(string macro) =>
+            macro != null && _metaKeys.TryGetValue(macro, out var s) ? s : Array.Empty<SpecifierInfo>();
+
+        /// <summary>Specifier (or meta key when <paramref name="meta"/>) of a macro by name, case-insensitive; null when unknown.</summary>
+        public SpecifierInfo FindSpecifier(string macro, string name, bool meta)
+        {
+            foreach (var s in meta ? GetMetaKeys(macro) : GetSpecifiers(macro))
+                if (string.Equals(s.Name, name, StringComparison.OrdinalIgnoreCase)) return s;
+            return null;
+        }
+
+        /// <summary>Whether <paramref name="name"/> is a specifier or meta key of any reflection macro.</summary>
+        public bool IsKnownSpecifier(string name) => name != null && _allSpecifierNames.Contains(name);
+
+        /// <summary>Short description of a well-known UE macro (UCLASS, GENERATED_BODY, UE_LOG...), or null.</summary>
+        public string GetMacroDoc(string name) => name != null && _macroDocs.TryGetValue(name, out var d) ? d : null;
+
+        /// <summary>Reflection macros that have a specifier table.</summary>
+        public IEnumerable<string> SpecifierMacros => _specifiers.Keys;
 
         private void Add(MacroInfo info)
         {
