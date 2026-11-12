@@ -333,7 +333,10 @@ namespace UEToVS.Engine.Tests
         {
             var macro = Nav.Navigate(new NavigationRequest { Caret = _f.Caret("Game/MyCharacter.h", "GENERATED_BODY*/GENERATED_BODY") }, CancellationToken.None);
             Assert.Equal("ue-macro", macro.Reason);
-            Assert.Empty(macro.Targets);
+            // UE reflection macros go to their #define (ObjectMacros.h); no UHT output in the corpus, so no .generated.h target
+            var def = Assert.Single(macro.Targets);
+            Assert.Equal("ObjectMacros.h", Path.GetFileName(def.Symbol.Location.FilePath));
+            Assert.Equal(SymbolKind.Macro, def.Symbol.Kind);
 
             var decl = Nav.Navigate(new NavigationRequest { Kind = NavigationKind.Declaration, Caret = _f.Caret("Game/Weapon.h", "AWeapon.Data*/Data") }, CancellationToken.None);
             Assert.Equal("declaration", decl.Reason);
