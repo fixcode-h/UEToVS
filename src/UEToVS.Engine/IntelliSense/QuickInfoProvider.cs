@@ -87,12 +87,28 @@ namespace UEToVS.Engine.IntelliSense
                 (d.Ue & UeFlags.UMeta) != 0 ? "UMETA" : (d.Ue & UeFlags.UDelegate) != 0 ? "UDELEGATE" : null;
             if (macro == null) return null;
             if (d.Kind == SymbolKind.Delegate) return "Dynamic delegate (Blueprint-compatible)";
-            var sb = new StringBuilder(macro).Append('(').Append(d.Specifiers ?? string.Empty).Append(')');
-            var tags = Tags(d.Specifiers);
+            string specifiers = CleanSpecifiers(d.Specifiers);
+            var sb = new StringBuilder(macro).Append('(').Append(specifiers).Append(')');
+            var tags = Tags(specifiers);
             if (tags.Count > 0) sb.Append('\n').Append(string.Join(" · ", tags));
-            string meta = Meta(d.Specifiers);
+            string meta = Meta(specifiers);
             if (meta != null) sb.Append("\nmeta: ").Append(meta);
             return sb.ToString();
+        }
+
+        private static readonly System.Text.RegularExpressions.Regex SpecifierComments =
+            new System.Text.RegularExpressions.Regex(@"/\*.*?\*/|//[^\n]*", System.Text.RegularExpressions.RegexOptions.Compiled | System.Text.RegularExpressions.RegexOptions.Singleline);
+
+        private static readonly System.Text.RegularExpressions.Regex Spaces = new System.Text.RegularExpressions.Regex(@"\s+", System.Text.RegularExpressions.RegexOptions.Compiled);
+
+        /// <summary>Specifier text without comments and with whitespace collapsed (multi-line UPROPERTY(...) blocks).</summary>
+        public static string CleanSpecifiers(string specifiers)
+        {
+            if (string.IsNullOrEmpty(specifiers)) return string.Empty;
+            if (specifiers.IndexOf('/') < 0 && specifiers.IndexOf('\n') < 0) return specifiers.Trim();
+            string s = SpecifierComments.Replace(specifiers, " ");
+            s = Spaces.Replace(s, " ").Trim();
+            return s.Replace("( ", "(").Replace(" )", ")").Replace(" ,", ",");
         }
 
         private static readonly (string Spec, string Tag)[] TagMap =
@@ -230,7 +246,7 @@ namespace UEToVS.Engine.IntelliSense
             // macros: knowledge-base doc + expansion
             var expander = new MacroExpander(s);
             var macroSym = cands.FirstOrDefault(c => c.Kind == SymbolKind.Macro);
-            bool ueMacro = r.Reason == "ue-macro" || s.Knowledge.Lookup(word) != null && cands.Count == 0;
+            bool ueMacro = r.Reason == "ue-macro" || cands.Count == 0 && (s.Knowledge.Lookup(word) != null || SemanticClassifier.IsUeMacro(s, word));
             if (macroSym != null || ueMacro || cands.Count == 0 && s.Knowledge.GetMacroDoc(word) != null)
             {
                 var def = expander.Find(word);

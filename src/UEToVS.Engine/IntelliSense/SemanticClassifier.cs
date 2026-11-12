@@ -198,8 +198,25 @@ namespace UEToVS.Engine.IntelliSense
             return upper;
         }
 
-        private static bool IsUeMacro(IsSession s, string name)
+        private static readonly HashSet<string> UeBoilerplate = new HashSet<string>(StringComparer.Ordinal)
         {
+            "check", "checkf", "checkSlow", "checkfSlow", "checkNoEntry", "checkNoReentry", "checkNoRecursion", "checkCode", "verify", "verifyf",
+            "ensure", "ensureMsgf", "ensureAlways", "ensureAlwaysMsgf", "unimplemented", "UE_LOG", "UE_CLOG", "UE_LOGFMT", "TEXT", "LOCTEXT",
+            "NSLOCTEXT", "INVTEXT", "GET_MEMBER_NAME_CHECKED", "GET_FUNCTION_NAME_CHECKED", "SCOPE_CYCLE_COUNTER", "QUICK_SCOPE_CYCLE_COUNTER",
+            "TRACE_CPUPROFILER_EVENT_SCOPE", "TRACE_CPUPROFILER_EVENT_SCOPE_STR", "CSV_SCOPED_TIMING_STAT", "DOREPLIFETIME", "DOREPLIFETIME_CONDITION",
+            "DOREPLIFETIME_CONDITION_NOTIFY", "LOCTABLE", "UE_DEPRECATED", "UPROPERTY", "UFUNCTION", "UCLASS", "USTRUCT", "UENUM", "UINTERFACE",
+            "UMETA", "UPARAM", "UDELEGATE", "GENERATED_BODY", "GENERATED_UCLASS_BODY", "GENERATED_USTRUCT_BODY", "IMPLEMENT_PRIMARY_GAME_MODULE",
+            "IMPLEMENT_MODULE", "IMPLEMENT_GAME_MODULE",
+        };
+
+        /// <summary>UE reflection / boilerplate macros (VA colours them like UCLASS): the knowledge base's roles plus the usual logging / assert / replication macros.</summary>
+        public static bool IsUeMacro(IsSession s, string name)
+        {
+            if (string.IsNullOrEmpty(name)) return false;
+            if (UeBoilerplate.Contains(name) || s.Knowledge.GetMacroDoc(name) != null) return true;
+            if (name.StartsWith("DECLARE_", StringComparison.Ordinal) || name.StartsWith("DEFINE_", StringComparison.Ordinal) ||
+                name.StartsWith("DOREPLIFETIME", StringComparison.Ordinal) || name.StartsWith("UE_DECLARE_", StringComparison.Ordinal) ||
+                name.StartsWith("UE_DEFINE_", StringComparison.Ordinal)) return true;
             var info = s.Knowledge.Lookup(name);
             if (info == null) return false;
             return info.Role == MacroRole.Reflection || info.Role == MacroRole.GeneratedBody || info.Role == MacroRole.SymbolDeclaration ||
@@ -218,7 +235,26 @@ namespace UEToVS.Engine.IntelliSense
             if (di >= 0)
             {
                 var d = doc.Decls[di];
-                if (d.Kind != SymbolKind.Macro) return (KindOf(s, d), ModsOf(d) | SemanticModifiers.Declaration | (facts.External ? SemanticModifiers.External : SemanticModifiers.None));
+                if (d.Kind != SymbolKind.Macro)
+                {
+                    var kind = KindOf(s, d);
+                    var mods = ModsOf(d) | SemanticModifiers.Declaration | (facts.External ? SemanticModifiers.External : SemanticModifiers.None);
+                    // out-of-line definition (A::F): 'static' / 'virtual' only live on the in-class declaration
+                    if (kind == SemanticKind.Method && doc.Is(k - 1, Punct.ColonColon))
+                    {
+                        string defKey = "def|" + (doc.IsIdentifier(k - 2) ? doc.TokenText(k - 2) : string.Empty) + "|" + word;
+                        if (!st.Memo.TryGetValue(defKey, out var inClass))
+                        {
+                            var r = SymbolResolver.ResolveToken(s.Ctx, doc, k, 1);
+                            var decl = r.Candidates.FirstOrDefault(c => TypeText.IsCallableKind(c.Kind) && !c.IsDefinition);
+                            inClass = decl != null ? (KindOf(decl), ModsOf(decl)) : (SemanticKind.Method, SemanticModifiers.None);
+                            st.Memo[defKey] = inClass;
+                        }
+                        if (inClass.Item1 == SemanticKind.StaticMethod || inClass.Item1 == SemanticKind.VirtualMethod)
+                            return (inClass.Item1, mods | (inClass.Item2 & SemanticModifiers.Static));
+                    }
+                    return (kind, mods);
+                }
             }
 
             // 2. reflection specifiers inside UPROPERTY(...) etc.
@@ -232,8 +268,9 @@ namespace UEToVS.Engine.IntelliSense
             }
 
             // 3. UE / known macros
+            if (IsUeMacro(s, word)) return (SemanticKind.UeMacro, SemanticModifiers.None);
             var info = s.Knowledge.Lookup(word);
-            if (info != null && info.Role != MacroRole.None) return (IsUeMacro(s, word) ? SemanticKind.UeMacro : SemanticKind.Macro, SemanticModifiers.None);
+            if (info != null && info.Role != MacroRole.None) return (SemanticKind.Macro, SemanticModifiers.None);
             if ((t.Flags & TokenFlags.MacroLike) != 0 && s.Knowledge.IsExportMacro(word)) return (SemanticKind.Macro, SemanticModifiers.None);
 
             bool qualified = doc.Is(k - 1, Punct.ColonColon) || doc.Is(k - 1, Punct.Dot) || doc.Is(k - 1, Punct.Arrow);
