@@ -71,6 +71,7 @@ namespace UEToVS.Host
         private BuildMonitor _build;
         private SolutionExplorerTracker _solutionExplorer;
         private SettingsWindowService _settingsWindow;
+        private UEToVS.Host.Agent.AgentService _agent;
         private PerformanceWindow _performanceWindow;
         private UnrealSolutionInfo _unreal = UnrealSolutionInfo.NotUnreal;
         private string _solutionFile;
@@ -90,6 +91,8 @@ namespace UEToVS.Host
 
         /// <summary>The UEToVS settings window (Extensions &gt; UEToVS &gt; 设置…, toolbar, Find Action, Options stub).</summary>
         internal SettingsWindowService SettingsWindow => _settingsWindow;
+        /// <summary>Agent / API page: configured APIs, the local model gateway and VS chat registration.</summary>
+        internal UEToVS.Host.Agent.AgentService Agent => _agent;
 
         internal IntelliSenseTakeoverService IntelliSense => _intelliSense;
 
@@ -130,6 +133,9 @@ namespace UEToVS.Host
                 var logging = (LoggingOptionsPage)GetDialogPage(typeof(LoggingOptionsPage)); // migration source only
                 _settings = new SettingsService(general, logging);
                 _settingsWindow = new SettingsWindowService(this);
+                // Custom API models for VS chat (local gateway + VS model file); independent of the solution type.
+                _agent = new UEToVS.Host.Agent.AgentService();
+                _ = Safe.RunInBackgroundAsync(L, "agent.init", () => _agent.InitializeAsync());
                 var s = _settings.Effective;
                 Performance.Interval = TimeSpan.FromSeconds(Math.Max(1, s.PerformanceSampleSeconds));
                 HostLog.Use(StoragePaths.Fallback(), s.LogLevel, s.LogRetentionDays, s.LogMaxTotalMB);
@@ -606,6 +612,8 @@ namespace UEToVS.Host
                     Performance?.Dispose();
                     _reporter?.Dispose();
                     _reporter = null;
+                    _agent?.Dispose();
+                    _agent = null;
                     HostLog.Shutdown();
                 }
                 catch (Exception)

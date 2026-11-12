@@ -818,6 +818,32 @@
     <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdGoToFile" editor="guidVSStd97" key1="O" mod1="Alt Shift" />
     <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdGoToSymbol" editor="guidVSStd97" key1="S" mod1="Alt Shift" />
     <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdFindAction" editor="guidVSStd97" key1="A" mod1="Control Alt Shift" />
+    <!-- v0.3.3: every command has a default (tools use the Ctrl+Shift+Alt+U chord). -->
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdRecentFiles" editor="guidVSStd97" key1="E" mod1="Shift Alt" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdRecentLocations" editor="guidVSStd97" key1="L" mod1="Shift Alt" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdLastEditLocation" editor="guidVSStd97" key1="VK_BACK" mod1="Control Shift" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdNextEditLocation" editor="guidVSStd97" key1="VK_BACK" mod1="Control Shift Alt" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdFileStructure" editor="guidVSStd97" key1="M" mod1="Control Shift Alt" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdNavigateTo" editor="guidVSStd97" key1="N" mod1="Shift Alt" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdSearchEverywhere" editor="guidVSStd97" key1="T" mod1="Control" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdGoToType" editor="guidVSStd97" key1="T" mod1="Shift Alt" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdGoToAsset" editor="guidVSStd97" key1="B" mod1="Shift Alt" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdGoToRelated" editor="guidVSStd97" key1="R" mod1="Shift Alt" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdOpenBuildCs" editor="guidVSStd97" key1="U" mod1="Control Shift Alt" key2="B" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdAddModuleDependency" editor="guidVSStd97" key1="U" mod1="Control Shift Alt" key2="A" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdToggleBookmark" editor="guidVSStd97" key1="VK_F2" mod1="Control" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdShowBookmarks" editor="guidVSStd97" key1="VK_F2" mod1="Control Shift" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdGenerateProjectFiles" editor="guidVSStd97" key1="U" mod1="Control Shift Alt" key2="G" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdInstallEditorPlugin" editor="guidVSStd97" key1="U" mod1="Control Shift Alt" key2="E" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdShowPerformancePanel" editor="guidVSStd97" key1="U" mod1="Control Shift Alt" key2="P" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdSettings" editor="guidVSStd97" key1="U" mod1="Control Shift Alt" key2="S" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdRestartEngine" editor="guidVSStd97" key1="U" mod1="Control Shift Alt" key2="R" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdToggleIntelliSense" editor="guidVSStd97" key1="U" mod1="Control Shift Alt" key2="I" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdOpenLogFolder" editor="guidVSStd97" key1="U" mod1="Control Shift Alt" key2="F" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdOpenCurrentLog" editor="guidVSStd97" key1="U" mod1="Control Shift Alt" key2="L" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdCreateDiagnostics" editor="guidVSStd97" key1="U" mod1="Control Shift Alt" key2="D" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdShowComponentGallery" editor="guidVSStd97" key1="U" mod1="Control Shift Alt" key2="C" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdWriteMcpConfig" editor="guidVSStd97" key1="U" mod1="Control Shift Alt" key2="M" />
   </KeyBindings>
 
   <Symbols>

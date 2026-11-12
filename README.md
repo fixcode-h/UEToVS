@@ -25,19 +25,19 @@ ue/UEToVSLink             UE 编辑器插件（打开资产、Live Coding），�
 
 | 功能 | 默认快捷键 | 说明 |
 | --- | --- | --- |
-| Search Everywhere | 双击 Shift | 页签：全部 / 类型 / 符号 / 文件 / 资产（蓝图） / 操作；`/types` `/files` 等前缀，`AActor::Tick`，`Foo.cpp:120:8`；再双击 Shift 切换“包含非项目项”；Ctrl+Enter 结果放到工具窗口 |
-| 转到类型 / 符号 / 文件 / 资产 | — | 直接打开对应页签 |
+| Search Everywhere | 双击 Shift，Ctrl+T | 页签：全部 / 类型 / 符号 / 文件 / 资产（蓝图） / 操作；`/types` `/files` 等前缀，`AActor::Tick`，`Foo.cpp:120:8`；再双击 Shift 切换“包含非项目项”；Ctrl+Enter 结果放到工具窗口 |
+| 转到类型 / 符号 / 文件 / 资产 | Shift+Alt+T / Shift+Alt+S / Shift+Alt+O / Shift+Alt+B | 直接打开对应页签 |
 | 后退 / 前进 | Alt+← / Alt+→，鼠标侧键 | 记录跳转和较大的光标移动（同文件超过 15 行） |
-| 最近的文件 / 最近的位置 | — | 弹窗中再按一次 Ctrl+E / Ctrl+Shift+E 只看已编辑 |
-| 上一个 / 下一个编辑位置、文件结构、跳转到… | — | |
+| 最近的文件 / 最近的位置 | Shift+Alt+E / Shift+Alt+L | 弹窗中再按一次 Ctrl+E / Ctrl+Shift+E 只看已编辑 |
+| 上一个 / 下一个编辑位置、文件结构、跳转到… | Ctrl+Shift+Backspace / Ctrl+Shift+Alt+Backspace、Ctrl+Shift+Alt+M、Shift+Alt+N | |
 | 切换头文件/源文件 | Alt+O | Public/Private 目录感知；多个候选时弹出列表 |
-| 相关项 | — | `Foo_Implementation` / `Foo_Validate`、对应文件、`.generated.h` |
-| 打开所属模块的 Build.cs / 为 #include 添加模块依赖 | — | 保存 .h/.cpp 时也会自动检查 |
-| 书签 | — | 切换、0–9 数字书签、书签列表（Delete 删除） |
-| Live Coding / 生成工程文件 / 安装 UEToVSLink 插件 | Ctrl+Alt+F11（Live Coding） | Live Coding 与打开资产需要编辑器启用 UEToVSLink 插件 |
+| 相关项 | Shift+Alt+R | `Foo_Implementation` / `Foo_Validate`、对应文件、`.generated.h` |
+| 打开所属模块的 Build.cs / 为 #include 添加模块依赖 | Ctrl+Shift+Alt+U, B / Ctrl+Shift+Alt+U, A | 保存 .h/.cpp 时也会自动检查 |
+| 书签 | Ctrl+F2 切换，Ctrl+Shift+F2 列表 | 切换、0–9 数字书签、书签列表（Delete 删除） |
+| Live Coding / 生成工程文件 / 安装 UEToVSLink 插件 | Ctrl+Alt+F11 / Ctrl+Shift+Alt+U, G / Ctrl+Shift+Alt+U, E | Live Coding 与打开资产需要编辑器启用 UEToVSLink 插件 |
 | 应用 Rider 键位方案 / 恢复 VS 键位 | — | 在 Find Action 中执行；修改前备份到 `%LocalAppData%\UEToVS\keymap-backup.json` |
 
-所有功能都注册为操作，可在“查找操作…”和 Search Everywhere 的“操作”页签中搜索；快捷键可在 工具 > 选项 > 环境 > 键盘 中按 `UEToVS.*` 修改。
+所有功能都注册为操作，可在“查找操作…”和 Search Everywhere 的“操作”页签中搜索。每个命令都有默认快捷键（设置、日志、诊断等工具命令用 `Ctrl+Shift+Alt+U` 再按一个字母），与 VS 自带快捷键冲突时以 UEToVS 为准，修改前自动备份；可在 UEToVS 设置 > 快捷键 中修改、套用预设或还原备份。
 
 ## 数据与日志位置
 
@@ -67,6 +67,10 @@ msbuild src\UEToVS.Host\UEToVS.Host.csproj /restore /p:Configuration=Release
 
 - 接管 VS 自带 C++ IntelliSense（UEToVS 设置 > 常规 > C++ IntelliSense）开启后，打开 UE 解决方案时自动关闭 VS 自带的 C++ IntelliSense（修改前备份到 `%LocalAppData%\UEToVS\intellisense-backup.json`），可在 UEToVS 设置 > 常规 > “立即接管 / 恢复” 一键还原（Find Action 中也有）；卸载扩展前请先执行恢复。自 M3 起该选项**默认开启**（UEToVS 已提供补全、Quick Info、参数信息、语义着色与跳转），首次接管时信息栏会说明并提供“恢复”。
 - 界面语言跟随 VS：英文 VS 显示英文，其他语言显示中文。
+
+## 在 VS 自带聊天里用自定义 API 的模型（Agent / API）
+
+UEToVS 设置 > Agent / API：添加 API（名称、地址、密钥、密钥的发送方式、并发上限），“测试连接”或“从接口获取”模型，勾选要用的模型后应用。勾选的模型会自动写入 VS Copilot 聊天的自定义模型（Ollama 类型，地址是 UEToVS 的本地转发服务 `http://127.0.0.1:47811`），重新打开聊天窗口即可在模型选择器里选择。密钥用 Windows DPAPI 加密保存在本机，不会交给 VS。目前支持 OpenAI Chat Completions 兼容的 API。原理和限制见 [docs/design/Agent-API.md](docs/design/Agent-API.md)。
 
 ## 给 AI Agent 用（MCP）
 

@@ -55,8 +55,8 @@ namespace UEToVS.Host.Logic.Localization
 
         // ---- keymap page
         public static string KeymapIntro => Loc.T(
-            "UEToVS 命令的快捷键。修改会写入 VS 的键盘设置（工具 > 选项 > 键盘也能看到）；每次修改前自动备份，可一键还原。",
-            "Shortcuts of the UEToVS commands. Changes go into VS's keyboard settings (also visible in Tools > Options > Keyboard); every change is backed up first and can be restored.");
+            "UEToVS 命令的快捷键。与 VS 自带快捷键冲突时以 UEToVS 为准（自动移除 VS 命令上的相同按键）。修改会写入 VS 的键盘设置；每次修改前自动备份，可一键还原。",
+            "Shortcuts of the UEToVS commands. When a key is also used by a VS command, UEToVS wins (the key is removed from the VS command). Changes go into VS's keyboard settings; every change is backed up first and can be restored.");
         public static string KeymapPreset => Loc.T("套用预设", "Apply preset");
         public static string KeymapPresetVa => Loc.T("Visual Assist", "Visual Assist");
         public static string KeymapPresetRider => Loc.T("Rider", "Rider");

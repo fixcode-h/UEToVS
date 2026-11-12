@@ -346,7 +346,7 @@ namespace UEToVS.Host.Settings
             RefreshInfo();
         }
 
-        private static bool IsCustomCategory(string id) => id == HostSettingsSchema.Appearance || id == HostSettingsSchema.Keymap;
+        private static bool IsCustomCategory(string id) => id == HostSettingsSchema.Appearance || id == HostSettingsSchema.Keymap || id == HostSettingsSchema.Agent;
 
         private ISettingsCustomPage GetCustomPage(string id)
         {
