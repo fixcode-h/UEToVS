@@ -133,6 +133,31 @@ namespace UEToVS.Host.IntelliSense
 
         public event EventHandler<SnapshotSpanEventArgs> TagsChanged;
 
+        // ---- v0.4.5 编辑体验: the deprecated-API strikethrough and the Alt+Enter fixes read the current answer
+
+        /// <summary>The diagnostics tagger of a view, or null.</summary>
+        public static CodeDiagnosticsTagger For(ITextView view) =>
+            view != null && view.Properties.TryGetProperty(typeof(CodeDiagnosticsTagger), out CodeDiagnosticsTagger t) ? t : null;
+
+        /// <summary>Diagnostics of <paramref name="codes"/> (all when empty) with their spans in <paramref name="target"/> (translated through edits).</summary>
+        public List<(CodeDiagnostic Item, SnapshotSpan Span)> Spans(ITextSnapshot target, params string[] codes)
+        {
+            var list = new List<(CodeDiagnostic, SnapshotSpan)>();
+            var source = _snapshot;
+            if (source == null || target == null || target.TextBuffer != source.TextBuffer || !Enabled) return list;
+            foreach (var (item, _) in _items)
+            {
+                if (codes.Length > 0 && Array.IndexOf(codes, item.Code) < 0) continue;
+                if (item.Line < 0 || item.Line >= source.LineCount) continue;
+                var line = source.GetLineFromLineNumber(item.Line);
+                if (item.Column < 0 || item.Length <= 0 || item.Column + item.Length > line.Length) continue;
+                var span = new SnapshotSpan(source, line.Start.Position + item.Column, item.Length);
+                if (target != source) span = span.TranslateTo(target, SpanTrackingMode.EdgeExclusive);
+                if (!span.IsEmpty) list.Add((item, span));
+            }
+            return list;
+        }
+
         private static bool Enabled => IntelliSenseContext.DiagnosticsActive;
 
         // ---------------------------------------------------------------- tags
@@ -234,13 +259,18 @@ namespace UEToVS.Host.IntelliSense
             var unsaved = OpenCppDocuments.UnsavedExcept(path);
             var package = HostPackage.Instance;
             bool checkIncludes = package?.Unreal?.IsUnreal == true && IncludeDependencyChecker.IsCppFile(path);
+            bool checkDeprecated = IntelliSenseContext.Settings.DeprecationHints, checkNaming = IntelliSenseContext.Settings.NamingConventionCheck;
             var (gen, ct) = _gate.Begin(NavigationContext.Disposal);
             int n = ++_requests;
             Safe.RunAsync(L, "intellisense.diagnostics.request", async () =>
             {
                 var total = Stopwatch.StartNew();
                 var doc = await Task.Run(capture, ct).ConfigureAwait(false);
-                var request = new CodeDiagnosticsRequest { Document = doc, StartLine = range.Start, EndLine = range.End, UnsavedFiles = unsaved };
+                var request = new CodeDiagnosticsRequest
+                {
+                    Document = doc, StartLine = range.Start, EndLine = range.End, UnsavedFiles = unsaved,
+                    CheckDeprecated = checkDeprecated, CheckNaming = checkNaming, // v0.4.5 编辑体验
+                };
                 var engineTask = engine.GetDiagnosticsAsync(request, ct);
                 var includes = checkIncludes ? await Task.Run(() => IncludeDependencyChecker.ParseIncludes(snapshot.GetText()), ct).ConfigureAwait(false) : null;
                 var r = await engineTask.ConfigureAwait(false);
@@ -334,7 +364,9 @@ namespace UEToVS.Host.IntelliSense
 
         private void OnSettingsChanged(object sender, Options.SettingsChangedEventArgs e) => Safe.Execute(L, "intellisense.diagnostics.settings", () =>
         {
-            if (e.Old.DiagnosticsEnabled == e.New.DiagnosticsEnabled) return;
+            if (e.Old.DiagnosticsEnabled == e.New.DiagnosticsEnabled && e.Old.DeprecationHints == e.New.DeprecationHints &&
+                e.Old.NamingConventionCheck == e.New.NamingConventionCheck) return;
+            _coveredVersion = -1; // v0.4.5: a rule switched on / off, check again
             if (!e.New.DiagnosticsEnabled) ClearAll();
             else Schedule(ScrollDelay);
         });

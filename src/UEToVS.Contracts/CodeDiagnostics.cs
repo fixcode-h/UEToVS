@@ -45,6 +45,14 @@ namespace UEToVS.Contracts
 
         /// <summary>UFUNCTION parameter of a type UHT rejects (pointer to struct / builtin, TSharedPtr family; int8/int16/uint16/uint32/uint64 in BlueprintCallable). Args: parameter, type, function, "pointer" | "unsupported" | "blueprint".</summary>
         public const string UnsupportedParameterType = "UE0010";
+
+        // ---- v0.4.5 编辑体验 (opt-in per request: CodeDiagnosticsRequest.CheckDeprecated / CheckNaming)
+
+        /// <summary>Use of a deprecated API (UE_DEPRECATED / [[deprecated]] / DeprecatedFunction meta / _DEPRECATED), warning. Args: symbol, version ("" when none), message ("" when none), replacement ("" when not mechanical).</summary>
+        public const string DeprecatedApi = "UE0011";
+
+        /// <summary>UE naming convention (A / U / F / E / T / I / S prefixes, b for bool members) of a type or bool member declared in this file, info (suggestion). Args: name, expected name, rule letter, "type" | "enum" | "bool".</summary>
+        public const string NamingConvention = "UE0012";
     }
 
     public sealed class CodeDiagnosticsRequest
@@ -61,6 +69,12 @@ namespace UEToVS.Contracts
         /// uncertain (a member just added to an unsaved header must not be reported as unknown in the .cpp).
         /// </summary>
         public List<string> UnsavedFiles { get; set; } = new List<string>();
+
+        /// <summary>v0.4.5: report uses of deprecated APIs (UE0011) in the range.</summary>
+        public bool CheckDeprecated { get; set; }
+
+        /// <summary>v0.4.5: report UE naming convention problems (UE0012) of the file's own declarations in the range.</summary>
+        public bool CheckNaming { get; set; }
     }
 
     public sealed class CodeDiagnostic

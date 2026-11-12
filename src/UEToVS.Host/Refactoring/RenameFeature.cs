@@ -89,7 +89,8 @@ namespace UEToVS.Host.Refactoring
             {
                 Description = RefactorStrings.RenameDialogDescription(projectCount, engineCount) + (r.Value.Truncated ? " " + RefactorStrings.ReferencesTruncated : string.Empty),
             };
-            var nameBox = new TextInput { Text = oldName, Margin = new Thickness(0, 4, 0, 0) };
+            string preset = ctx?.Get<string>(Logic.Editing.EditorFeatureKeys.PresetName); // v0.4.5: Alt+Enter naming fix / inline rename
+            var nameBox = new TextInput { Text = string.IsNullOrEmpty(preset) ? oldName : preset, Margin = new Thickness(0, 4, 0, 0) };
             var nameError = new UiText((string)null, TextVariant.Secondary) { Margin = new Thickness(0, 2, 0, 0) };
             var redirects = new UiCheckBox(RefactorStrings.WriteCoreRedirects, true) { Margin = new Thickness(0, 8, 0, 0), Visibility = redirectKind == RedirectKind.None ? Visibility.Collapsed : Visibility.Visible };
             Tip.Set(redirects, () => RefactorStrings.WriteCoreRedirectsTip);

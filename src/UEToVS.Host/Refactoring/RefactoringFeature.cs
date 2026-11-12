@@ -93,7 +93,35 @@ namespace UEToVS.Host.Refactoring
             {
                 FilePath = loc.FilePath, Line = loc.Line, Column = loc.Column, Version = version, Engine = resp,
                 IsProjectFile = IsProjectPath(loc.FilePath),
+                Diagnostics = CaretDiagnostics(view, loc.Line, loc.Column), // v0.4.5 编辑体验
             };
+        }
+
+        /// <summary>v0.4.5: the squiggles under the caret (current snapshot coordinates) for the Alt+Enter fixes.</summary>
+        private static List<CodeDiagnostic> CaretDiagnostics(IWpfTextView view, int line, int column)
+        {
+            try
+            {
+                var tagger = CodeDiagnosticsTagger.For(view);
+                if (tagger == null) return new List<CodeDiagnostic>();
+                var snapshot = view.TextBuffer.CurrentSnapshot;
+                var moved = new List<CodeDiagnostic>();
+                foreach (var (item, span) in tagger.Spans(snapshot, CodeDiagnosticCodes.DeprecatedApi, CodeDiagnosticCodes.NamingConvention))
+                {
+                    var l = span.Start.GetContainingLine();
+                    moved.Add(new CodeDiagnostic
+                    {
+                        Code = item.Code, Severity = item.Severity, Args = item.Args, Message = item.Message,
+                        Line = l.LineNumber, Column = span.Start.Position - l.Start.Position, Length = span.Length,
+                    });
+                }
+                return Logic.Editing.EditorFixProvider.At(moved, line, column);
+            }
+            catch (Exception ex)
+            {
+                L.Warn("refactor.context.diagnostics.failed", "Reading the squiggles at the caret failed", ex);
+                return new List<CodeDiagnostic>();
+            }
         }
 
         /// <summary>Editable = inside the solution / project folder and not under the engine root.</summary>

@@ -108,6 +108,7 @@ namespace UEToVS.Engine.IntelliSense
             var s = Session(caret, ct, out var doc);
             if (s == null) return new QuickInfoResponse { ElapsedMs = Ms(sw) };
             var resp = QuickInfoProvider.Get(s, Offset(doc, caret));
+            AddDeprecation(s, resp);
             resp.ElapsedMs = Ms(sw);
             var data = new (string, object)[]
             {
@@ -118,6 +119,28 @@ namespace UEToVS.Engine.IntelliSense
             if (resp.ElapsedMs > QuickInfoBudgetMs) L.Warn("is.quickinfo", "Quick Info over budget", data);
             else L.Debug("is.quickinfo", null, data);
             return resp;
+        }
+
+        /// <summary>v0.4.5: Quick Info names the deprecation of the hovered symbol (<see cref="DeprecationInfo"/>).</summary>
+        private static void AddDeprecation(IsSession s, QuickInfoResponse resp)
+        {
+            if (resp?.Symbol == null) return;
+            try
+            {
+                var info = DeprecationInfo.Of(s, resp.Symbol);
+                if (info == null) return;
+                resp.IsDeprecated = true;
+                resp.DeprecatedVersion = info.Version;
+                resp.DeprecationMessage = info.Message;
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                L.Warn("is.quickinfo.deprecation.failed", "Deprecation lookup failed", ex, ("symbol", resp.Symbol.Name));
+            }
         }
 
         // ================================================================== signature help
@@ -177,7 +200,8 @@ namespace UEToVS.Engine.IntelliSense
             int to = Math.Min(lineCount - 1, Math.Max(from, request.EndLine));
             int caret = request.Document.Line > 0 || request.Document.Column > 0 ? Offset(doc, request.Document) : -1;
             var stats = new DiagnosticsStats();
-            var items = _diagnostics.Run(s, from, to, caret, stats, request.UnsavedFiles);
+            var options = new DiagnosticsOptions { CheckDeprecated = request.CheckDeprecated, CheckNaming = request.CheckNaming };
+            var items = _diagnostics.Run(s, from, to, caret, stats, request.UnsavedFiles, options);
             var resp = new CodeDiagnosticsResponse
             {
                 TextVersion = request.Document.TextVersion != 0 ? request.Document.TextVersion : doc.Version,
