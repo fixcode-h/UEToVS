@@ -11,7 +11,7 @@ UEToVS 的全部界面都由本库提供（架构设计 §8）。它是一个 ne
 | `Logic/` | **不依赖 WPF** 的纯逻辑：颜色运算 `Rgba`、令牌推导 `TokenDerivation`、`AppearanceSettings`、高亮区间、`ListNavigator`、`TreeFlattener`、`PopupPlacement`、`SearchHistory`、`QueryGate`、`ShortcutText`、`PerfMath`/`SampleBuffer`。这些代码由 `tests/UEToVS.UI.Logic.Tests`（net8.0）直接编译测试。 |
 | `Theming/` | `Tokens`（资源键）、`ThemeManager`（主题与设置）、调色板来源、`Ui` 辅助方法（绑定、几何图形、动画、`Safe` 异常日志）。 |
 | `Atoms/` | `UiText`、`HighlightedText`、`UiIcon`、`TypeGlyph`、`Badge`、`Kbd`、`Divider`、`Spinner`。 |
-| `Controls/` | `UiButton`、`IconButton`、`IconToggle`、`UiToggle`、`UiCheckBox`、`Chip`、`SegmentedControl`、`TextInput`、`SearchInput`、`Dropdown`、`ColorField`、`NumberStepper`、`LinkText`、`Tip`（工具提示）、`UiScrollViewer`/`ScrollRail`。 |
+| `Controls/` | `UiButton`、`IconButton`、`IconToggle`、`UiToggle`（Fluent 开关，绘制见 `ToggleSwitchTrack`，几何见 `Logic/ToggleSwitchGeometry`）、`UiCheckBox`、`Chip`、`SegmentedControl`、`SettingsCard`（设置项卡片）、`TextInput`、`SearchInput`、`Dropdown`、`ColorField`、`NumberStepper`、`LinkText`、`Tip`（工具提示）、`UiScrollViewer`/`ScrollRail`。 |
 | `Molecules/` | 列表行 `ListRow`、虚拟化列表 `VirtualList<T>`、树 `TreeList<T>`、`TabStrip`、`CodePreview`、`EmptyState`、`KeyHint`、`StatusFooter`、`Banner`、`Toast`、编辑器导航栏 `NavigationBar`。 |
 | `Shells/` | `ChromeWindow`（圆角与阴影弹窗窗口）、`PopupShell`（可记忆尺寸的弹出层）、`DialogShell`、`ToolWindowShell`、`PopupAnchor`。 |
 | `Patterns/` | `CommandPalette<T>`、`ChooserPopup<T>`、`ContextMenuPopup`、`ResultsPanel<T>`、浮动结果弹窗 `ResultsPopup<T>`（查找引用）、带标签树弹窗 `TabbedTreePopup<T>`（类型层次）、弹窗标题栏 `PopupHeader`。 |
@@ -33,12 +33,12 @@ UEToVS 的全部界面都由本库提供（架构设计 §8）。它是一个 ne
 - Surface：`Surface.Base/Popup/Raised/Sunken/Hover/Pressed`
 - Text：`Text.Primary/Secondary/Disabled/Match/OnAccent/Link/LinkHover`
 - Border：`Border.Subtle/Strong/Focus`
-- Accent：`Accent`、`Accent.Hover/Pressed/Subtle`
+- Accent：`Accent`、`Accent.Hover/Pressed/Subtle`（来源由 `Logic/AccentResolver` 决定：自定义 → Windows 强调色 → VS 主题 → #0078D4；悬停/按下 = 90%/80% 强调色叠在表面上）
 - Selection：`Selection.Background/Foreground/Secondary/InactiveBackground`
 - Match：`Match.Background`
 - Input：`Input.Background/Foreground/Border/Placeholder`
 - Button：`Button.Secondary.*`、`Button.Ghost.*`
-- 其他控件：`Toggle.Track.Off`、`Toggle.Thumb`、`ScrollBar.Thumb/ThumbHover`、`Shadow`、`Kbd.*`、`Tooltip.*`、`Code.LineHighlight/LineNumber`
+- 其他控件：`Toggle.Track.Off/OffHover/OffPressed/OnDisabled`、`Toggle.Stroke/StrokeDisabled`、`Toggle.Thumb/ThumbDisabled`、`ScrollBar.Thumb/ThumbHover`、`Shadow`、`Kbd.*`、`Tooltip.*`、`Code.LineHighlight/LineNumber`
 - 按种类生成：`Severity.{Info|Success|Warning|Error}[.Background]`、`Badge.{Kind}.Foreground/Background/Solid`、`Glyph.{SymbolKind}[.Background]`
 
 **尺寸**
@@ -186,7 +186,7 @@ panel.Update(new PerformanceViewData
 
 ## 无障碍
 
-- 所有交互控件都可以用键盘操作，焦点框使用 `Border.Focus` 令牌。
+- 所有交互控件都可以用键盘操作，焦点框使用 `Focus.Stroke` 令牌，只在键盘取得焦点时显示（`FocusVisual.IsVisible`，鼠标点击不显示）。
 - 列表和行提供 UI Automation peer（List/ListItem，名称取 `RowData.AutomationName` 或主文本）。
 - 图标按钮设置了 `AutomationProperties.Name`。
 - 高对比度模式会切换到系统颜色调色板，并加粗边框。
