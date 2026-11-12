@@ -2,10 +2,14 @@ using System;
 
 namespace UEToVS.UI.Logic
 {
-    /// <summary>Overall look. Picking a preset rewrites the density-related settings (row height, radii, spacing).</summary>
+    /// <summary>
+    /// Overall look. Picking a preset rewrites the density-related settings (row height, radii, spacing).
+    /// Value 0 was called "Rider" before v0.3.0; <see cref="AppearanceSettings.Parse"/> still reads that name.
+    /// </summary>
     public enum StylePreset
     {
-        Rider = 0,
+        /// <summary>Visual Studio 2026 (Fluent) default density.</summary>
+        Vs2026 = 0,
         Compact = 1,
         Comfortable = 2,
     }

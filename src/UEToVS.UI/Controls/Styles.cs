@@ -22,6 +22,7 @@ namespace UEToVS.UI.Controls
     public static class Styles
     {
         private static Style _ghostToggle, _secondaryToggle;
+        private static Style _segment;
         private static Style _primary, _secondary, _ghost, _toggle, _check, _chip, _input, _tooltip, _scroll, _thumb;
 
         public static Style Button(ButtonKind kind)
@@ -39,8 +40,13 @@ namespace UEToVS.UI.Controls
             ? _ghostToggle ?? (_ghostToggle = BuildButton(kind, true))
             : _secondaryToggle ?? (_secondaryToggle = BuildButton(ButtonKind.Secondary, true));
 
-        private static ControlTemplate BorderTemplate(Type target, object radiusKey, bool contentPresenter = true)
+        /// <summary>
+        /// VS 2026 (Fluent) control template: a rounded <c>Bd</c> border plus a <c>Focus</c> ring 3px outside it that
+        /// only shows for keyboard focus (Fluent focus visual), so mouse users never see a ring.
+        /// </summary>
+        private static ControlTemplate BorderTemplate(Type target, object radiusKey, bool contentPresenter = true, bool focusRing = true)
         {
+            var root = new FrameworkElementFactory(typeof(Grid));
             var bd = new FrameworkElementFactory(typeof(Border), "Bd");
             bd.SetValue(Border.BackgroundProperty, new TemplateBindingExtension(Control.BackgroundProperty));
             bd.SetValue(Border.BorderBrushProperty, new TemplateBindingExtension(Control.BorderBrushProperty));
@@ -56,7 +62,35 @@ namespace UEToVS.UI.Controls
                 cp.SetValue(ContentPresenter.RecognizesAccessKeyProperty, true);
                 bd.AppendChild(cp);
             }
-            return new ControlTemplate(target) { VisualTree = bd };
+            root.AppendChild(bd);
+            var t = new ControlTemplate(target) { VisualTree = root };
+            if (focusRing)
+            {
+                root.AppendChild(FocusRing(Tokens.CornerRadiusFocus));
+                AddFocusRingTrigger(t);
+            }
+            return t;
+        }
+
+        /// <summary>Keyboard focus ring element (named "Focus"), hidden until <see cref="AddFocusRingTrigger"/> shows it.</summary>
+        internal static FrameworkElementFactory FocusRing(object radiusKey)
+        {
+            var ring = new FrameworkElementFactory(typeof(Border), "Focus");
+            ring.SetValue(FrameworkElement.MarginProperty, new Thickness(-3));
+            ring.SetValue(UIElement.IsHitTestVisibleProperty, false);
+            ring.SetValue(UIElement.VisibilityProperty, Visibility.Collapsed);
+            ring.SetValue(UIElement.SnapsToDevicePixelsProperty, true);
+            ring.SetResourceReference(Border.BorderThicknessProperty, Tokens.ThicknessFocus);
+            ring.SetResourceReference(Border.BorderBrushProperty, Tokens.FocusStroke);
+            ring.SetResourceReference(Border.CornerRadiusProperty, radiusKey);
+            return ring;
+        }
+
+        internal static void AddFocusRingTrigger(ControlTemplate t)
+        {
+            var kf = new Trigger { Property = UIElement.IsKeyboardFocusedProperty, Value = true };
+            kf.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Visible, "Focus"));
+            t.Triggers.Add(kf);
         }
 
         private static Style BuildButton(ButtonKind kind, bool toggle = false)
@@ -70,23 +104,23 @@ namespace UEToVS.UI.Controls
             s.Setters.Add(new Setter(Control.VerticalContentAlignmentProperty, VerticalAlignment.Center));
             s.Setters.Add(new Setter(FrameworkElement.FocusVisualStyleProperty, null));
             s.Setters.Add(new Setter(UIElement.SnapsToDevicePixelsProperty, true));
-            s.Setters.Add(new Setter(FrameworkElement.MinHeightProperty, 24.0));
+            s.Setters.Add(Ui.Dyn(FrameworkElement.MinHeightProperty, Tokens.ControlHeight));
             s.Setters.Add(Ui.Dyn(Control.FontSizeProperty, Tokens.FontSizeBody));
 
-            object bg, fg, border, hover, pressed, focus;
+            object bg, fg, border, hover, pressed;
             switch (kind)
             {
                 case ButtonKind.Primary:
                     bg = Tokens.Accent; fg = Tokens.TextOnAccent; border = Tokens.Accent;
-                    hover = Tokens.AccentHover; pressed = Tokens.AccentPressed; focus = Tokens.TextOnAccent;
+                    hover = Tokens.AccentHover; pressed = Tokens.AccentPressed;
                     break;
                 case ButtonKind.Ghost:
                     bg = null; fg = Tokens.TextPrimary; border = null;
-                    hover = Tokens.ButtonGhostHover; pressed = Tokens.ButtonGhostPressed; focus = Tokens.BorderFocus;
+                    hover = Tokens.ButtonGhostHover; pressed = Tokens.ButtonGhostPressed;
                     break;
                 default:
                     bg = Tokens.ButtonSecondaryBackground; fg = Tokens.TextPrimary; border = Tokens.ButtonSecondaryBorder;
-                    hover = Tokens.ButtonSecondaryHover; pressed = Tokens.ButtonSecondaryPressed; focus = Tokens.BorderFocus;
+                    hover = Tokens.ButtonSecondaryHover; pressed = Tokens.ButtonSecondaryPressed;
                     break;
             }
             s.Setters.Add(bg == null ? new Setter(Control.BackgroundProperty, Brushes.Transparent) : Ui.Dyn(Control.BackgroundProperty, bg));
@@ -99,13 +133,18 @@ namespace UEToVS.UI.Controls
             var down = new Trigger { Property = ButtonBase.IsPressedProperty, Value = true };
             down.Setters.Add(Ui.Dyn(Control.BackgroundProperty, pressed));
             s.Triggers.Add(down);
-            var kf = new Trigger { Property = UIElement.IsKeyboardFocusedProperty, Value = true };
-            kf.Setters.Add(Ui.Dyn(Control.BorderBrushProperty, focus));
-            s.Triggers.Add(kf);
+            if (kind == ButtonKind.Secondary)
+            {
+                // Fluent pressed state: the text dims slightly instead of the fill getting much darker.
+                var downFg = new Trigger { Property = ButtonBase.IsPressedProperty, Value = true };
+                downFg.Setters.Add(Ui.Dyn(Control.ForegroundProperty, Tokens.TextSecondary));
+                s.Triggers.Add(downFg);
+            }
             if (toggle)
             {
                 var checkedT = new Trigger { Property = ToggleButton.IsCheckedProperty, Value = true };
                 checkedT.Setters.Add(Ui.Dyn(Control.BackgroundProperty, Tokens.AccentSubtle));
+                checkedT.Setters.Add(Ui.Dyn(Control.BorderBrushProperty, Tokens.Accent));
                 checkedT.Setters.Add(Ui.Dyn(Control.ForegroundProperty, Tokens.TextPrimary));
                 s.Triggers.Add(checkedT);
             }
@@ -124,24 +163,26 @@ namespace UEToVS.UI.Controls
             root.SetValue(StackPanel.OrientationProperty, Orientation.Horizontal);
             root.SetValue(Panel.BackgroundProperty, Brushes.Transparent);
 
+            // Fluent toggle switch: 36x18 pill track (outline when off, accent fill when on), 10px thumb that grows on hover.
             var trackGrid = new FrameworkElementFactory(typeof(Grid));
             trackGrid.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
             var track = new FrameworkElementFactory(typeof(Border), "Track");
-            track.SetValue(FrameworkElement.WidthProperty, 28.0);
-            track.SetValue(FrameworkElement.HeightProperty, 16.0);
-            track.SetValue(Border.CornerRadiusProperty, new CornerRadius(8));
+            track.SetValue(FrameworkElement.WidthProperty, 36.0);
+            track.SetValue(FrameworkElement.HeightProperty, 18.0);
+            track.SetResourceReference(Border.CornerRadiusProperty, Tokens.CornerRadiusPill);
             track.SetValue(Border.BorderThicknessProperty, new Thickness(1));
-            track.SetResourceReference(Border.BackgroundProperty, Tokens.ToggleTrackOff);
-            track.SetResourceReference(Border.BorderBrushProperty, Tokens.ToggleTrackOff);
+            track.SetValue(Border.BackgroundProperty, Brushes.Transparent);
+            track.SetResourceReference(Border.BorderBrushProperty, Tokens.TextSecondary);
             var thumb = new FrameworkElementFactory(typeof(Ellipse), "Thumb");
-            thumb.SetValue(FrameworkElement.WidthProperty, 12.0);
-            thumb.SetValue(FrameworkElement.HeightProperty, 12.0);
-            thumb.SetValue(FrameworkElement.MarginProperty, new Thickness(2, 0, 2, 0));
+            thumb.SetValue(FrameworkElement.WidthProperty, 10.0);
+            thumb.SetValue(FrameworkElement.HeightProperty, 10.0);
+            thumb.SetValue(FrameworkElement.MarginProperty, new Thickness(4, 0, 4, 0));
             thumb.SetValue(FrameworkElement.HorizontalAlignmentProperty, HorizontalAlignment.Left);
             thumb.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
-            thumb.SetResourceReference(Shape.FillProperty, Tokens.ToggleThumb);
+            thumb.SetResourceReference(Shape.FillProperty, Tokens.TextSecondary);
             trackGrid.AppendChild(track);
             trackGrid.AppendChild(thumb);
+            trackGrid.AppendChild(FocusRing(Tokens.CornerRadiusPill));
             root.AppendChild(trackGrid);
 
             var cp = new FrameworkElementFactory(typeof(ContentPresenter));
@@ -154,13 +195,14 @@ namespace UEToVS.UI.Controls
             var on = new Trigger { Property = ToggleButton.IsCheckedProperty, Value = true };
             on.Setters.Add(Ui.Dyn(Border.BackgroundProperty, Tokens.Accent, "Track"));
             on.Setters.Add(Ui.Dyn(Border.BorderBrushProperty, Tokens.Accent, "Track"));
+            on.Setters.Add(Ui.Dyn(Shape.FillProperty, Tokens.ToggleThumb, "Thumb"));
             on.Setters.Add(new Setter(FrameworkElement.HorizontalAlignmentProperty, HorizontalAlignment.Right, "Thumb"));
             t.Triggers.Add(on);
-            var kf = new Trigger { Property = UIElement.IsKeyboardFocusedProperty, Value = true };
-            kf.Setters.Add(Ui.Dyn(Border.BorderBrushProperty, Tokens.BorderFocus, "Track"));
-            t.Triggers.Add(kf);
+            AddFocusRingTrigger(t);
             var over = new Trigger { Property = UIElement.IsMouseOverProperty, Value = true };
-            over.Setters.Add(new Setter(UIElement.OpacityProperty, 0.9, "Track"));
+            over.Setters.Add(new Setter(FrameworkElement.WidthProperty, 12.0, "Thumb"));
+            over.Setters.Add(new Setter(FrameworkElement.HeightProperty, 12.0, "Thumb"));
+            over.Setters.Add(new Setter(FrameworkElement.MarginProperty, new Thickness(3, 0, 3, 0), "Thumb"));
             t.Triggers.Add(over);
 
             var s = new Style(typeof(ToggleButton));
@@ -182,13 +224,13 @@ namespace UEToVS.UI.Controls
             root.SetValue(StackPanel.OrientationProperty, Orientation.Horizontal);
             root.SetValue(Panel.BackgroundProperty, Brushes.Transparent);
             var box = new FrameworkElementFactory(typeof(Border), "Box");
-            box.SetValue(FrameworkElement.WidthProperty, 14.0);
-            box.SetValue(FrameworkElement.HeightProperty, 14.0);
-            box.SetValue(Border.CornerRadiusProperty, new CornerRadius(3));
+            box.SetValue(FrameworkElement.WidthProperty, 16.0);
+            box.SetValue(FrameworkElement.HeightProperty, 16.0);
+            box.SetResourceReference(Border.CornerRadiusProperty, Tokens.CornerRadiusInner);
             box.SetValue(Border.BorderThicknessProperty, new Thickness(1));
             box.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
             box.SetResourceReference(Border.BackgroundProperty, Tokens.InputBackground);
-            box.SetResourceReference(Border.BorderBrushProperty, Tokens.InputBorder);
+            box.SetResourceReference(Border.BorderBrushProperty, Tokens.TextSecondary);
             var mark = new FrameworkElementFactory(typeof(Path), "Mark");
             mark.SetValue(Path.DataProperty, Ui.CheckMark);
             mark.SetValue(Shape.StrokeThicknessProperty, 1.8);
@@ -214,7 +256,7 @@ namespace UEToVS.UI.Controls
             over.Setters.Add(Ui.Dyn(Border.BorderBrushProperty, Tokens.BorderFocus, "Box"));
             t.Triggers.Add(over);
             var kf = new Trigger { Property = UIElement.IsKeyboardFocusedProperty, Value = true };
-            kf.Setters.Add(Ui.Dyn(Border.BorderBrushProperty, Tokens.BorderFocus, "Box"));
+            kf.Setters.Add(Ui.Dyn(Border.BorderBrushProperty, Tokens.FocusStroke, "Box"));
             t.Triggers.Add(kf);
 
             var s = new Style(typeof(System.Windows.Controls.CheckBox));
@@ -227,15 +269,15 @@ namespace UEToVS.UI.Controls
             return s;
         }
 
-        /// <summary>Pill-shaped toggle (filter chip / segmented item).</summary>
+        /// <summary>Filter chip: rounded-rectangle toggle (VS 2026, no pill shapes). Selected = accent tint + accent outline.</summary>
         public static Style Chip => _chip ?? (_chip = BuildChip());
 
         private static Style BuildChip()
         {
             var s = new Style(typeof(ToggleButton));
-            s.Setters.Add(new Setter(Control.TemplateProperty, BorderTemplate(typeof(ToggleButton), Tokens.CornerRadiusPill)));
+            s.Setters.Add(new Setter(Control.TemplateProperty, BorderTemplate(typeof(ToggleButton), Tokens.CornerRadiusControl)));
             s.Setters.Add(new Setter(Control.BorderThicknessProperty, new Thickness(1)));
-            s.Setters.Add(new Setter(Control.PaddingProperty, new Thickness(9, 1, 9, 1)));
+            s.Setters.Add(new Setter(Control.PaddingProperty, new Thickness(8, 1, 8, 1)));
             s.Setters.Add(new Setter(FrameworkElement.MinHeightProperty, 22.0));
             s.Setters.Add(new Setter(Control.VerticalContentAlignmentProperty, VerticalAlignment.Center));
             s.Setters.Add(new Setter(Control.HorizontalContentAlignmentProperty, HorizontalAlignment.Center));
@@ -252,9 +294,43 @@ namespace UEToVS.UI.Controls
             on.Setters.Add(Ui.Dyn(Control.BorderBrushProperty, Tokens.Accent));
             on.Setters.Add(Ui.Dyn(Control.ForegroundProperty, Tokens.TextPrimary));
             s.Triggers.Add(on);
-            var kf = new Trigger { Property = UIElement.IsKeyboardFocusedProperty, Value = true };
-            kf.Setters.Add(Ui.Dyn(Control.BorderBrushProperty, Tokens.BorderFocus));
-            s.Triggers.Add(kf);
+            var dis = new Trigger { Property = UIElement.IsEnabledProperty, Value = false };
+            dis.Setters.Add(new Setter(UIElement.OpacityProperty, 0.45));
+            s.Triggers.Add(dis);
+            return s;
+        }
+
+        /// <summary>
+        /// One segment of a <see cref="SegmentedControl"/>: borderless rounded rectangle inside the track; the selected
+        /// segment is filled with the accent color (VS 2026 / Fluent selector).
+        /// </summary>
+        public static Style Segment => _segment ?? (_segment = BuildSegment());
+
+        private static Style BuildSegment()
+        {
+            var s = new Style(typeof(ToggleButton));
+            s.Setters.Add(new Setter(Control.TemplateProperty, BorderTemplate(typeof(ToggleButton), Tokens.CornerRadiusInner)));
+            s.Setters.Add(new Setter(Control.BorderThicknessProperty, new Thickness(0)));
+            s.Setters.Add(new Setter(Control.PaddingProperty, new Thickness(12, 2, 12, 2)));
+            s.Setters.Add(new Setter(Control.VerticalContentAlignmentProperty, VerticalAlignment.Center));
+            s.Setters.Add(new Setter(Control.HorizontalContentAlignmentProperty, HorizontalAlignment.Center));
+            s.Setters.Add(new Setter(FrameworkElement.FocusVisualStyleProperty, null));
+            s.Setters.Add(new Setter(Control.BackgroundProperty, Brushes.Transparent));
+            s.Setters.Add(new Setter(Control.BorderBrushProperty, Brushes.Transparent));
+            s.Setters.Add(Ui.Dyn(Control.ForegroundProperty, Tokens.TextPrimary));
+            s.Setters.Add(Ui.Dyn(Control.FontSizeProperty, Tokens.FontSizeBody));
+            var over = new Trigger { Property = UIElement.IsMouseOverProperty, Value = true };
+            over.Setters.Add(Ui.Dyn(Control.BackgroundProperty, Tokens.SurfaceHover));
+            s.Triggers.Add(over);
+            var on = new Trigger { Property = ToggleButton.IsCheckedProperty, Value = true };
+            on.Setters.Add(Ui.Dyn(Control.BackgroundProperty, Tokens.Accent));
+            on.Setters.Add(Ui.Dyn(Control.ForegroundProperty, Tokens.TextOnAccent));
+            s.Triggers.Add(on);
+            var onOver = new MultiTrigger();
+            onOver.Conditions.Add(new Condition(ToggleButton.IsCheckedProperty, true));
+            onOver.Conditions.Add(new Condition(UIElement.IsMouseOverProperty, true));
+            onOver.Setters.Add(Ui.Dyn(Control.BackgroundProperty, Tokens.AccentHover));
+            s.Triggers.Add(onOver);
             var dis = new Trigger { Property = UIElement.IsEnabledProperty, Value = false };
             dis.Setters.Add(new Setter(UIElement.OpacityProperty, 0.45));
             s.Triggers.Add(dis);
@@ -266,12 +342,22 @@ namespace UEToVS.UI.Controls
 
         private static Style BuildInput()
         {
+            // VS 2026 / Fluent text box: rounded subtle border; when focused, a 2px accent bar along the bottom edge.
+            var root = new FrameworkElementFactory(typeof(Grid));
             var bd = new FrameworkElementFactory(typeof(Border), "Bd");
             bd.SetValue(Border.BackgroundProperty, new TemplateBindingExtension(Control.BackgroundProperty));
             bd.SetValue(Border.BorderBrushProperty, new TemplateBindingExtension(Control.BorderBrushProperty));
             bd.SetValue(Border.BorderThicknessProperty, new TemplateBindingExtension(Control.BorderThicknessProperty));
             bd.SetValue(UIElement.SnapsToDevicePixelsProperty, true);
             bd.SetResourceReference(Border.CornerRadiusProperty, Tokens.CornerRadiusControl);
+            var underline = new FrameworkElementFactory(typeof(Border), "Underline");
+            underline.SetValue(FrameworkElement.HeightProperty, 2.0);
+            underline.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Bottom);
+            underline.SetValue(FrameworkElement.MarginProperty, new Thickness(1, 0, 1, 0));
+            underline.SetValue(Border.CornerRadiusProperty, new CornerRadius(0, 0, 2, 2));
+            underline.SetValue(UIElement.IsHitTestVisibleProperty, false);
+            underline.SetValue(UIElement.VisibilityProperty, Visibility.Hidden);
+            underline.SetResourceReference(Border.BackgroundProperty, Tokens.InputFocusUnderline);
             var grid = new FrameworkElementFactory(typeof(Grid));
             grid.SetValue(FrameworkElement.MarginProperty, new TemplateBindingExtension(Control.PaddingProperty));
             var ph = new FrameworkElementFactory(typeof(TextBlock), "Placeholder");
@@ -290,19 +376,25 @@ namespace UEToVS.UI.Controls
             grid.AppendChild(ph);
             grid.AppendChild(host);
             bd.AppendChild(grid);
+            root.AppendChild(bd);
+            root.AppendChild(underline);
 
-            var t = new ControlTemplate(typeof(Controls.TextInput)) { VisualTree = bd };
+            var t = new ControlTemplate(typeof(Controls.TextInput)) { VisualTree = root };
             var empty = new Trigger { Property = TextBox.TextProperty, Value = string.Empty };
             empty.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Visible, "Placeholder"));
             t.Triggers.Add(empty);
             var focus = new Trigger { Property = UIElement.IsKeyboardFocusWithinProperty, Value = true };
-            focus.Setters.Add(Ui.Dyn(Border.BorderBrushProperty, Tokens.BorderFocus, "Bd"));
+            focus.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Visible, "Underline"));
+            focus.Setters.Add(Ui.Dyn(Border.BackgroundProperty, Tokens.SurfacePopup, "Bd"));
             t.Triggers.Add(focus);
+            var hover = new Trigger { Property = UIElement.IsMouseOverProperty, Value = true };
+            hover.Setters.Add(Ui.Dyn(Border.BorderBrushProperty, Tokens.BorderStrong, "Bd"));
+            t.Triggers.Add(hover);
 
             var s = new Style(typeof(Controls.TextInput));
             s.Setters.Add(new Setter(Control.TemplateProperty, t));
             s.Setters.Add(new Setter(Control.BorderThicknessProperty, new Thickness(1)));
-            s.Setters.Add(new Setter(Control.PaddingProperty, new Thickness(6, 3, 6, 3)));
+            s.Setters.Add(new Setter(Control.PaddingProperty, new Thickness(8, 3, 8, 3)));
             s.Setters.Add(new Setter(FrameworkElement.FocusVisualStyleProperty, null));
             s.Setters.Add(new Setter(Control.VerticalContentAlignmentProperty, VerticalAlignment.Center));
             s.Setters.Add(Ui.Dyn(Control.BackgroundProperty, Tokens.InputBackground));
@@ -323,7 +415,7 @@ namespace UEToVS.UI.Controls
         private static Style BuildToolTip()
         {
             var s = new Style(typeof(System.Windows.Controls.ToolTip));
-            s.Setters.Add(new Setter(Control.TemplateProperty, BorderTemplate(typeof(System.Windows.Controls.ToolTip), Tokens.CornerRadiusControl)));
+            s.Setters.Add(new Setter(Control.TemplateProperty, BorderTemplate(typeof(System.Windows.Controls.ToolTip), Tokens.CornerRadiusControl, true, false)));
             s.Setters.Add(new Setter(Control.BorderThicknessProperty, new Thickness(1)));
             s.Setters.Add(new Setter(Control.PaddingProperty, new Thickness(8, 4, 8, 5)));
             s.Setters.Add(new Setter(System.Windows.Controls.ToolTip.HasDropShadowProperty, false));

@@ -132,7 +132,7 @@ namespace UEToVS.UI.Molecules
             private readonly TabDefinition _def;
             private readonly TextBlock _title = new TextBlock { VerticalAlignment = VerticalAlignment.Center };
             private readonly TextBlock _count = new TextBlock { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(5, 0, 0, 0), Visibility = Visibility.Collapsed };
-            private readonly Border _underline = new Border { Height = 2, CornerRadius = new CornerRadius(1), VerticalAlignment = VerticalAlignment.Bottom };
+            private readonly Border _underline = new Border { Height = 3, CornerRadius = new CornerRadius(1.5), VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(6, 0, 6, 0) };
             private bool _selected;
             private int? _countValue;
 
@@ -153,9 +153,15 @@ namespace UEToVS.UI.Molecules
                 _count.Bind(TextBlock.ForegroundProperty, Tokens.TextSecondary);
                 _count.Bind(TextBlock.FontSizeProperty, Tokens.FontSizeSmall);
                 _underline.Bind(BackgroundProperty, Tokens.Accent);
+                this.Bind(CornerRadiusProperty, Tokens.CornerRadiusControl);
                 Relabel();
                 Apply();
-                MouseEnter += (s, e) => Ui.Safe("ui.tab.enter", () => { if (!_selected) _title.Bind(TextBlock.ForegroundProperty, Tokens.TextPrimary); });
+                // VS 2026: hover shows a subtle rounded fill; the selected tab gets semibold text + accent bar.
+                MouseEnter += (s, e) => Ui.Safe("ui.tab.enter", () =>
+                {
+                    this.Bind(BackgroundProperty, Tokens.SurfaceHover);
+                    if (!_selected) _title.Bind(TextBlock.ForegroundProperty, Tokens.TextPrimary);
+                });
                 MouseLeave += (s, e) => Ui.Safe("ui.tab.leave", Apply);
             }
 
@@ -193,6 +199,8 @@ namespace UEToVS.UI.Molecules
             private void Apply()
             {
                 _title.Bind(TextBlock.ForegroundProperty, _selected ? Tokens.TextPrimary : Tokens.TextSecondary);
+                _title.FontWeight = _selected ? FontWeights.SemiBold : FontWeights.Normal;
+                Background = Brushes.Transparent;
                 _underline.Visibility = _selected ? Visibility.Visible : Visibility.Hidden;
             }
 

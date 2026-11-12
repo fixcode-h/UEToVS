@@ -95,7 +95,8 @@ namespace UEToVS.UI.Controls
             if (!IsScrollable || TrackLength <= 0) return;
             ThumbGeometry(out double start, out double length);
             bool hot = IsMouseOver || _dragging;
-            double w = hot ? 8 : 5;
+            // VS 2026 / Fluent: a thin 3px indicator that expands to 6px when the pointer is over the rail.
+            double w = hot ? 6 : 3;
             var brush = hot ? (ThumbHoverBrush ?? ThumbBrush) : ThumbBrush;
             if (brush == null) return;
             Rect r = Orientation == Orientation.Vertical

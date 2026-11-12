@@ -95,7 +95,7 @@ namespace UEToVS.UI.Gallery
             _nav.SetItems(titles, keepPosition: true);
             if (sel >= 0) _nav.SelectedIndex = sel;
             _theme.Relabel(new[] { Loc.T("跟随 VS", "Follow VS"), Loc.T("深色", "Dark"), Loc.T("浅色", "Light"), Loc.T("蓝色", "Blue"), Loc.T("高对比度", "High contrast") });
-            _preset.Relabel(new[] { Strings.Preset(StylePreset.Rider), Strings.Preset(StylePreset.Compact), Strings.Preset(StylePreset.Comfortable) });
+            _preset.Relabel(new[] { Strings.Preset(StylePreset.Vs2026), Strings.Preset(StylePreset.Compact), Strings.Preset(StylePreset.Comfortable) });
             _dataSize.Relabel(new[] { Loc.T("空", "Empty"), "10", "100,000" });
         }
 
@@ -114,7 +114,7 @@ namespace UEToVS.UI.Gallery
                     default: ThemeManager.Instance.PaletteSource = new VsThemePaletteSource(); break;
                 }
             });
-            _preset.Items = new[] { "Rider", "Compact", "Comfortable" };
+            _preset.Items = new[] { "VS 2026", "Compact", "Comfortable" };
             _preset.SelectedIndex = (int)ThemeManager.Instance.Settings.Preset;
             _preset.SelectionChanged += (s, e) => Ui.Safe("ui.gallery.preset", () =>
             {
@@ -257,7 +257,7 @@ namespace UEToVS.UI.Gallery
             var chip = new Chip(() => "Blueprint", true);
             chip.Count = 12;
             sp.Children.Add(Row(new UiToggle(() => Loc.T("实时预览", "Live preview"), true), new UiCheckBox(() => Loc.T("包含非项目项", "Include non-project items")),
-                chip, new Chip(() => "C++"), new SegmentedControl("Rider", "Compact", "Comfortable")));
+                chip, new Chip(() => "C++"), new SegmentedControl("VS 2026", "Compact", "Comfortable")));
             sp.Children.Add(Heading(() => Loc.T("输入", "Inputs")));
             var input = new TextInput { Width = 260 };
             Strings.Track(input, () => input.Placeholder = Loc.T("类名", "Class name"));

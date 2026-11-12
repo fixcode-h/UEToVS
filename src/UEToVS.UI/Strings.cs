@@ -48,7 +48,7 @@ namespace UEToVS.UI
         public static string SettingsTitle => Loc.T("外观", "Appearance");
         public static string SettingsSectionStyle => Loc.T("风格与密度", "Style and density");
         public static string SettingsPreset => Loc.T("界面风格", "Style");
-        public static string SettingsPresetRider => Loc.T("Rider 风格", "Rider");
+        public static string SettingsPresetVs2026 => Loc.T("VS 2026", "VS 2026");
         public static string SettingsPresetCompact => Loc.T("紧凑", "Compact");
         public static string SettingsPresetComfortable => Loc.T("宽松", "Comfortable");
         public static string SettingsFontScale => Loc.T("字号缩放 (%)", "Font scale (%)");
@@ -126,7 +126,7 @@ namespace UEToVS.UI
             {
                 case StylePreset.Compact: return SettingsPresetCompact;
                 case StylePreset.Comfortable: return SettingsPresetComfortable;
-                default: return SettingsPresetRider;
+                default: return SettingsPresetVs2026;
             }
         }
 
