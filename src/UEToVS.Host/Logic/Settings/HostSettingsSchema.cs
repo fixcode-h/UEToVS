@@ -354,6 +354,9 @@ namespace UEToVS.Host.Logic.Settings
             list.Add(sample);
             list.Add(A(Performance, "perf.open", "uetovs.diagnostics.performancePanel", "打开性能面板", "Open performance panel", null, null, gPerf, gPerfEn));
 
+            // ================= 外观 > 字体（the rest of the page is the custom appearance panel）
+            UEToVS.Host.Logic.Fonts.FontSettingsSchema.AddDescriptors(list, Appearance);
+
             // Short button verbs (the card already shows the full title on the left).
             foreach (var d in list)
             {
@@ -451,6 +454,7 @@ namespace UEToVS.Host.Logic.Settings
                 };
                 foreach (var b in ToolbarButtons.All)
                     if (b.Key != "settings") d["toolbar.button." + b.Key] = B(!hidden.Contains(b.Key));
+                UEToVS.Host.Logic.Fonts.FontSettingsSchema.ToValues(s, d);
                 return d;
             }
 
@@ -548,6 +552,7 @@ namespace UEToVS.Host.Logic.Settings
                         case "inlay.parameterNames": s.InlayParameterNames = PB(v); break;
                         case "inlay.autoTypes": s.InlayAutoTypes = PB(v); break;
                         default:
+                            if (UEToVS.Host.Logic.Fonts.FontSettingsSchema.TrySet(s, d.Key, v)) break;
                             if (d.Key.StartsWith("toolbar.button.", StringComparison.Ordinal))
                             {
                                 string key = d.Key.Substring("toolbar.button.".Length);

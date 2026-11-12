@@ -327,6 +327,16 @@ namespace UEToVS.Host.Settings
             {
                 if (custom.Element == null) throw new InvalidOperationException("custom page has no content: " + _category);
                 DetachFromParent(custom.Element);
+                var pageRows = _schema.Where(d => d.Category == _category).ToList();
+                if (pageRows.Count > MaxRowsAboveCustomPage)
+                {
+                    // Many generated rows (外观 > 字体) + the custom editor: one scrolling page, rows first.
+                    AddRows(body, pageRows, false);
+                    body.Children.Add(custom.Element);
+                    _page.Content = new UiScrollViewer { Content = body, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
+                    RefreshInfo();
+                    return;
+                }
                 // Custom pages fill the remaining height (they scroll themselves); the page padding is shared.
                 var m = PageMargin;
                 var dock = new DockPanel { Margin = new Thickness(m.Left, m.Top, m.Right, 0), LastChildFill = true };
@@ -345,6 +355,9 @@ namespace UEToVS.Host.Settings
             _page.Content = new UiScrollViewer { Content = body, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
             RefreshInfo();
         }
+
+        /// <summary>Above this many generated rows a custom page scrolls together with them instead of filling the rest.</summary>
+        private const int MaxRowsAboveCustomPage = 4;
 
         private static bool IsCustomCategory(string id) => id == HostSettingsSchema.Appearance || id == HostSettingsSchema.Keymap || id == HostSettingsSchema.Agent;
 
@@ -442,9 +455,9 @@ namespace UEToVS.Host.Settings
                     return AutoNumberModel.SupportsAuto(d) ? BuildAutoNumber(d) : BuildNumber(d);
                 case SettingKind.Choice:
                 {
-                    var options = d.Options ?? Array.Empty<SettingOption>();
+                    var options = d.ResolveOptions(Value(d));
                     int index = Math.Max(0, options.ToList().FindIndex(o => string.Equals(o.Value, Value(d), StringComparison.OrdinalIgnoreCase)));
-                    if (options.Count <= 4)
+                    if (options.Count <= 4 && d.OptionsSource == null)
                     {
                         var seg = new SegmentedControl(options.Select(o => English ? o.TitleEn : o.TitleZh).ToArray());
                         seg.SelectedIndex = index;

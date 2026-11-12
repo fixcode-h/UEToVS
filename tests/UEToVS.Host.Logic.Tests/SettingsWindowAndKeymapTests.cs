@@ -80,6 +80,7 @@ namespace UEToVS.Host.Logic.Tests
             var notInWindow = new HashSet<string>
             {
                 nameof(HostSettings.HiddenToolbarButtons), // edited through the toolbar.button.* rows
+                nameof(HostSettings.VsFonts), // edited through the fonts.vs.<category>.family/size rows (FontSettingsTests)
             };
             var defaults = new HostSettings();
             var changed = HostSettingsSchema.Codec.ToValues(defaults);

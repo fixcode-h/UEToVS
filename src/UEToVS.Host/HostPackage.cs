@@ -65,6 +65,7 @@ namespace UEToVS.Host
 
         private SettingsService _settings;
         private IntelliSenseTakeoverService _intelliSense;
+        private UEToVS.Host.Fonts.FontService _fonts;
         private EngineClient _engine;
         private DiagnosticsReporter _reporter;
         private CommandRouter _commands;
@@ -148,6 +149,13 @@ namespace UEToVS.Host
 
                 // 4. Services, actions, commands.
                 _intelliSense = new IntelliSenseTakeoverService(this, _settings);
+                // 外观 > 字体: UEToVS UI / code fonts now, VS font categories in the background (backed up first).
+                _fonts = new UEToVS.Host.Fonts.FontService(this);
+                Safe.Execute(L, "font.initialize", () =>
+                {
+                    UEToVS.Host.Logic.Fonts.FontSettingsSchema.AttachInstalledFonts(_settings.Schema, _fonts.InstalledFamilies);
+                    _fonts.Initialize(_settings.Effective);
+                });
                 _settings.Changed += (sender, e) => Safe.RunAsync(L, "settings.changed", () => OnSettingsChangedAsync(e.Old, e.New));
                 HostActions.Register(this, Actions);
                 _commands = new CommandRouter(this, Actions);
@@ -537,6 +545,7 @@ namespace UEToVS.Host
                 Safe.Execute(L, "toolbar.refresh", RefreshCommandUi);
             }
             await _intelliSense.OnSettingsChangedAsync(old, now, _unreal.IsUnreal);
+            if (_fonts != null) await _fonts.OnSettingsChangedAsync(old, now);
             if (old.EnableMcpServer != now.EnableMcpServer && _unreal.IsUnreal)
                 await Mcp.McpRegistration.SyncAsync(_solutionDir, now);
         }
