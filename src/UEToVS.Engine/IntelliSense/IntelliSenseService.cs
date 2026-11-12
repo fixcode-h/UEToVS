@@ -25,14 +25,19 @@ namespace UEToVS.Engine.IntelliSense
         private readonly CompletionEngine _completion = new CompletionEngine();
         private readonly SemanticClassifier _classifier = new SemanticClassifier();
 
-        public IntelliSenseService(ISymbolIndexBackend backend, FileTable files, Func<bool> indexReady = null, DocumentCache documents = null, UeMacroKnowledge knowledge = null)
+        public IntelliSenseService(ISymbolIndexBackend backend, FileTable files, Func<bool> indexReady = null, DocumentCache documents = null, UeMacroKnowledge knowledge = null,
+                                   AssetTable assets = null)
         {
             _backend = backend ?? throw new ArgumentNullException(nameof(backend));
             _files = files;
             _indexReady = indexReady ?? (() => true);
             Documents = documents ?? new DocumentCache();
             Knowledge = knowledge ?? UeMacroKnowledge.Default;
+            _completion.Strings = new StringCompletionSources(backend, files, assets);
         }
+
+        /// <summary>Gameplay tags, ini files and assets behind string context completion.</summary>
+        public StringCompletionSources StringSources => _completion.Strings;
 
         public DocumentCache Documents { get; }
         public UeMacroKnowledge Knowledge { get; }
@@ -79,7 +84,8 @@ namespace UEToVS.Engine.IntelliSense
             resp.ElapsedMs = Ms(sw);
             var data = new (string, object)[]
             {
-                ("context", site.Kind.ToString()), ("prefix", site.Prefix), ("resolvedType", resolvedType), ("items", resp.Items.Count),
+                ("context", CompletionEngine.StringContextName(site.Kind) ?? site.Kind.ToString()), ("prefix", site.Prefix),
+                ("candidates", site.StringSite != null ? site.Candidates : (int?)null), ("resolvedType", resolvedType), ("items", resp.Items.Count),
                 ("incomplete", resp.IsIncomplete), ("fix", resp.AccessorFix?.Replacement), ("suppressed", site.Suppressed ? site.SuppressReason : null),
                 ("trigger", request.TriggerChar == '\0' ? null : request.TriggerChar.ToString()), ("explicit", request.Explicit),
                 ("top", resp.Items.Count > 0 ? resp.Items[0].Label : null), ("ms", resp.ElapsedMs), ("analyzeMs", analyzeMs),
