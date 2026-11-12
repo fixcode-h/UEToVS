@@ -53,6 +53,7 @@ namespace UEToVS.Engine.Scheduling
         private readonly Thread[] _workers;
         private int _runningBackground;
         private bool _buildInProgress;
+        private bool _userPaused;
         private bool _disposed;
         private long _completed;
 
@@ -81,7 +82,7 @@ namespace UEToVS.Engine.Scheduling
         {
             get
             {
-                lock (_gate) return _queues[0].Count > 0 || _queues[1].Count > 0 || _buildInProgress || _disposed;
+                lock (_gate) return _queues[0].Count > 0 || _queues[1].Count > 0 || _buildInProgress || _userPaused || _disposed;
             }
         }
 
@@ -95,6 +96,25 @@ namespace UEToVS.Engine.Scheduling
                 Monitor.PulseAll(_gate);
             }
             L.Info(building ? "scheduler.paused" : "scheduler.resumed", building ? "Build in progress: background work paused" : "Build finished: background work resumed",
+                ("queuedBackground", QueueLength(WorkPriority.Background)));
+        }
+
+        /// <summary>True when background work is held, by a build or by the user (performance panel).</summary>
+        public bool IsBackgroundPaused
+        {
+            get { lock (_gate) return _buildInProgress || _userPaused; }
+        }
+
+        /// <summary>User pause from the performance panel ("暂停后台索引"); independent of builds.</summary>
+        public void SetUserPaused(bool paused)
+        {
+            lock (_gate)
+            {
+                if (_userPaused == paused) return;
+                _userPaused = paused;
+                Monitor.PulseAll(_gate);
+            }
+            L.Info(paused ? "scheduler.user_paused" : "scheduler.user_resumed", null,
                 ("queuedBackground", QueueLength(WorkPriority.Background)));
         }
 
@@ -165,7 +185,7 @@ namespace UEToVS.Engine.Scheduling
             for (int p = 0; p < 3; p++)
             {
                 var q = _queues[p];
-                if (p == 2 && (_buildInProgress || _runningBackground >= BackgroundLimit)) break;
+                if (p == 2 && (_buildInProgress || _userPaused || _runningBackground >= BackgroundLimit)) break;
                 while (q.Count > 0)
                 {
                     var item = q.Dequeue();

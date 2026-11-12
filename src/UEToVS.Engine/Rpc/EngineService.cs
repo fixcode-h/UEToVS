@@ -149,6 +149,20 @@ namespace UEToVS.Engine.Rpc
         public Task<PerformanceSnapshot> GetPerformanceSnapshotAsync(CancellationToken ct) =>
             InvokeAsync("rpc.getPerformanceSnapshot", _ => Task.FromResult(_host.GetPerformanceSnapshot()), ct);
 
+        public Task SetBuildInProgressAsync(bool building, CancellationToken ct) =>
+            InvokeAsync("rpc.setBuildInProgress", _ =>
+            {
+                _host.Scheduler.SetBuildInProgress(building);
+                return Task.CompletedTask;
+            }, ct, ("building", building));
+
+        public Task SetBackgroundPausedAsync(bool paused, CancellationToken ct) =>
+            InvokeAsync("rpc.setBackgroundPaused", _ =>
+            {
+                _host.Scheduler.SetUserPaused(paused);
+                return Task.CompletedTask;
+            }, ct, ("paused", paused));
+
         public Task ShutdownAsync(CancellationToken ct) =>
             InvokeAsync("rpc.shutdown", _ =>
             {

@@ -49,19 +49,6 @@ namespace UEToVS.Engine.Rpc
         }
     }
 
-    /// <summary>JSON-RPC error codes the engine returns (host can switch on RemoteInvocationException.ErrorCode).</summary>
-    public static class RpcErrorCodes
-    {
-        /// <summary>HandshakeRequest.ProtocolVersion != ProtocolInfo.Version: the extension and engine are from different builds.</summary>
-        public const int ProtocolMismatch = -32050;
-
-        /// <summary>Engine is shutting down.</summary>
-        public const int ShuttingDown = -32051;
-
-        /// <summary>An argument value is invalid (e.g. unknown log level). Not -32602: StreamJsonRpc maps that to RemoteMethodNotFoundException.</summary>
-        public const int InvalidArgument = -32052;
-    }
-
     /// <summary>Per-RPC latency budgets (§9.1 hard limits); over budget → "<c>rpc.x.slow</c>" Warn with parameters.</summary>
     public static class RpcBudgets
     {

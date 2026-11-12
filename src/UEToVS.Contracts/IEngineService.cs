@@ -33,6 +33,12 @@ namespace UEToVS.Contracts
         /// </summary>
         Task<PerformanceSnapshot> GetPerformanceSnapshotAsync(CancellationToken ct);
 
+        /// <summary>Host reports VS/UBT build start and end; background indexing pauses meanwhile.</summary>
+        Task SetBuildInProgressAsync(bool building, CancellationToken ct);
+
+        /// <summary>User pause/resume of background indexing (performance panel button).</summary>
+        Task SetBackgroundPausedAsync(bool paused, CancellationToken ct);
+
         Task ShutdownAsync(CancellationToken ct);
     }
 

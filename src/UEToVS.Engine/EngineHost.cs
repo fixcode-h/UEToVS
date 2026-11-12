@@ -178,7 +178,7 @@ namespace UEToVS.Engine
                 Phases = Index.Phases.Snapshot(),
                 ScheduledInteractive = Scheduler.QueueLength(WorkPriority.Interactive) + Scheduler.QueueLength(WorkPriority.Visible),
                 ScheduledBackground = Scheduler.QueueLength(WorkPriority.Background),
-                BackgroundPaused = Scheduler.IsBuildInProgress,
+                BackgroundPaused = Scheduler.IsBackgroundPaused,
             };
             snap.Resources = snap.Status.Resources;
 
