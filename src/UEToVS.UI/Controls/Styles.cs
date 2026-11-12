@@ -252,9 +252,16 @@ namespace UEToVS.UI.Controls
             on.Setters.Add(Ui.Dyn(Border.BorderBrushProperty, Tokens.Accent, "Box"));
             on.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Visible, "Mark"));
             t.Triggers.Add(on);
+            // Fluent check box hover: the fill lightens/darkens, the border stays neutral (no accent outline).
             var over = new Trigger { Property = UIElement.IsMouseOverProperty, Value = true };
-            over.Setters.Add(Ui.Dyn(Border.BorderBrushProperty, Tokens.BorderFocus, "Box"));
+            over.Setters.Add(Ui.Dyn(Border.BackgroundProperty, Tokens.SurfaceHover, "Box"));
             t.Triggers.Add(over);
+            var onOver = new MultiTrigger();
+            onOver.Conditions.Add(new Condition(ToggleButton.IsCheckedProperty, true));
+            onOver.Conditions.Add(new Condition(UIElement.IsMouseOverProperty, true));
+            onOver.Setters.Add(Ui.Dyn(Border.BackgroundProperty, Tokens.AccentHover, "Box"));
+            onOver.Setters.Add(Ui.Dyn(Border.BorderBrushProperty, Tokens.AccentHover, "Box"));
+            t.Triggers.Add(onOver);
             FocusVisual.EnsureRegistered();
             var kf = new Trigger { Property = FocusVisual.IsVisibleProperty, Value = true };
             kf.Setters.Add(Ui.Dyn(Border.BorderBrushProperty, Tokens.FocusStroke, "Box"));
@@ -395,9 +402,11 @@ namespace UEToVS.UI.Controls
             var s = new Style(typeof(Controls.TextInput));
             s.Setters.Add(new Setter(Control.TemplateProperty, t));
             s.Setters.Add(new Setter(Control.BorderThicknessProperty, new Thickness(1)));
-            s.Setters.Add(new Setter(Control.PaddingProperty, new Thickness(8, 3, 8, 3)));
+            s.Setters.Add(new Setter(Control.PaddingProperty, new Thickness(10, 3, 8, 3)));
             s.Setters.Add(new Setter(FrameworkElement.FocusVisualStyleProperty, null));
             s.Setters.Add(new Setter(Control.VerticalContentAlignmentProperty, VerticalAlignment.Center));
+            // Same height as buttons / combo boxes next to it (Fluent: every standard control shares one height).
+            s.Setters.Add(Ui.Dyn(FrameworkElement.MinHeightProperty, Tokens.ControlHeight));
             s.Setters.Add(Ui.Dyn(Control.BackgroundProperty, Tokens.InputBackground));
             s.Setters.Add(Ui.Dyn(Control.ForegroundProperty, Tokens.InputForeground));
             s.Setters.Add(Ui.Dyn(Control.BorderBrushProperty, Tokens.InputBorder));
