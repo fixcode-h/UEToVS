@@ -175,6 +175,18 @@ namespace UEToVS.Host.Logic.Settings
         /// <summary>High-confidence squiggles (unknown members, UHT rules, missing Build.cs dependencies) once VS IntelliSense is taken over.</summary>
         public bool DiagnosticsEnabled { get; set; } = true;
 
+        /// <summary>UE live templates (uclass, uprop, ufunc, uelog …): in the completion list at line start, and abbreviation + Tab.</summary>
+        public bool SnippetsEnabled { get; set; } = true;
+
+        /// <summary>Postfix templates after '.' (expr.if, expr.notnull, expr.cast, expr.isvalid, expr.for …).</summary>
+        public bool PostfixTemplatesEnabled { get; set; } = true;
+
+        /// <summary>Inlay hints: parameter names before literal / nullptr arguments.</summary>
+        public bool InlayParameterNames { get; set; } = true;
+
+        /// <summary>Inlay hints: deduced type after <c>auto</c> variables.</summary>
+        public bool InlayAutoTypes { get; set; }
+
         public HostSettings Clone() => (HostSettings)MemberwiseClone();
     }
 }
