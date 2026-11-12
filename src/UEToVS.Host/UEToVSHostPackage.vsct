@@ -40,6 +40,10 @@
       <Group guid="guidUEToVSHostCmdSet" id="grpSettings" priority="0x0400">
         <Parent guid="guidUEToVSHostCmdSet" id="menuUEToVS" />
       </Group>
+      <!-- MCP for AI agents (command ids 0x0500–0x05FF) -->
+      <Group guid="guidUEToVSHostCmdSet" id="grpMcp" priority="0x0350">
+        <Parent guid="guidUEToVSHostCmdSet" id="menuUEToVS" />
+      </Group>
     </Groups>
 
     <Buttons>
@@ -130,6 +134,17 @@
           <LocCanonicalName>UEToVS.Settings</LocCanonicalName>
         </Strings>
       </Button>
+
+      <Button guid="guidUEToVSHostCmdSet" id="cmdWriteMcpConfig" priority="0x0100" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpMcp" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <CommandFlag>DefaultDisabled</CommandFlag>
+        <Strings>
+          <ButtonText>Write .mcp.json to Solution Folder</ButtonText>
+          <CanonicalName>UEToVS.WriteMcpConfig</CanonicalName>
+          <LocCanonicalName>UEToVS.WriteMcpConfig</LocCanonicalName>
+        </Strings>
+      </Button>
     </Buttons>
   </Commands>
 
@@ -156,6 +171,8 @@
       <IDSymbol name="cmdShowComponentGallery" value="0x0130" />
       <IDSymbol name="cmdSettings" value="0x0140" />
       <IDSymbol name="cmdFindAction" value="0x0150" />
+      <IDSymbol name="grpMcp" value="0x1050" />
+      <IDSymbol name="cmdWriteMcpConfig" value="0x0500" />
     </GuidSymbol>
   </Symbols>
 </CommandTable>

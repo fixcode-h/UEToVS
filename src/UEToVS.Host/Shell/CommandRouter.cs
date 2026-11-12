@@ -37,6 +37,7 @@ namespace UEToVS.Host.Shell
             (CommandIds.ShowComponentGallery, ActionIds.ShowComponentGallery, () => Strings.CmdComponentGallery),
             (CommandIds.Settings, ActionIds.Settings, () => Strings.CmdSettings),
             (CommandIds.FindAction, ActionIds.FindAction, () => Strings.CmdFindAction),
+            (CommandIds.WriteMcpConfig, ActionIds.WriteMcpConfig, () => McpStrings.CmdWriteMcpConfig),
         };
 
         public void Register(OleMenuCommandService mcs)

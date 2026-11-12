@@ -43,6 +43,14 @@ namespace UEToVS.Host.Logic.Settings
 
         public int LogMaxTotalMB { get; set; } = 200;
 
+        // ---- MCP（给 AI Agent 用） ----
+
+        /// <summary>
+        /// 启用 MCP 服务：打开 UE 解决方案时把 uetovs MCP 服务器登记到 &lt;解决方案&gt;\.vs\mcp.json（VS Copilot Agent 自动发现），
+        /// 关闭时移除。文案见 McpStrings.SettingEnableMcp / SettingEnableMcpDescription；docs/design/MCP.md。
+        /// </summary>
+        public bool EnableMcpServer { get; set; } = true;
+
         public HostSettings Clone() => (HostSettings)MemberwiseClone();
     }
 }

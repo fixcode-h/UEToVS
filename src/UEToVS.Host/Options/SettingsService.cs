@@ -94,6 +94,7 @@ namespace UEToVS.Host.Options
                 ["disableBackgroundCodeAnalysis"] = s.DisableBackgroundCodeAnalysis,
                 ["logRetentionDays"] = s.LogRetentionDays,
                 ["logMaxTotalMB"] = s.LogMaxTotalMB,
+                ["enableMcpServer"] = s.EnableMcpServer,
             };
             return Sanitizer.MaskSecrets(d);
         }
