@@ -45,16 +45,35 @@ namespace UEToVS.Host.Mcp
             var r = McpConfig.ApplyToFile(vsTarget, entry);
             LogResult(r, vsTarget.Path, "vs");
 
-            // the shared .mcp.json written earlier by the command: keep its command path valid across extension updates
-            // (the VSIX folder changes with each version). Only touched when it already has a uetovs entry.
-            var shared = McpConfigTarget.SharedProject(ResolveSharedConfigDir(solutionDir));
-            if (File.Exists(shared.Path))
-            {
-                string current = McpConfig.ExistingCommand(File.ReadAllText(shared.Path), shared.AllKeys);
-                if (current != null && !string.Equals(current, exe, StringComparison.OrdinalIgnoreCase))
-                    LogResult(McpConfig.ApplyToFile(shared, entry), shared.Path, "shared-refresh");
-            }
+            // the per-user launcher the shared .mcp.json points to: follows the VSIX folder, which changes with every update
+            WriteLauncher(exe);
+
+            // the shared .mcp.json written earlier by the command: older versions wrote this machine's absolute exe path;
+            // switch it to the portable launcher form. Only touched when it already has a uetovs entry; unchanged = no write.
+            string sharedDir = ResolveSharedConfigDir(solutionDir);
+            var shared = McpConfigTarget.SharedProject(sharedDir);
+            if (File.Exists(shared.Path) && McpConfig.ExistingCommand(File.ReadAllText(shared.Path), shared.AllKeys) != null)
+                LogResult(McpConfig.ApplyToFile(shared, PortableEntry(sharedDir, solutionDir)), shared.Path, "shared-refresh");
         });
+
+        /// <summary>The portable uetovs entry of the shared .mcp.json in <paramref name="configDir"/>.</summary>
+        private static Newtonsoft.Json.Linq.JObject PortableEntry(string configDir, string solutionDir) =>
+            McpConfig.BuildPortableEntry(McpConfig.RelativeSolutionDir(configDir, solutionDir));
+
+        /// <summary>Writes %LOCALAPPDATA%\UEToVS\Mcp\uetovs-mcp.cmd when it changed. Never throws.</summary>
+        private static void WriteLauncher(string exe)
+        {
+            string path = McpConfig.ResolveLauncherPath(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
+            try
+            {
+                bool written = McpConfig.WriteLauncher(path, exe);
+                L.Info("mcp.launcher", null, ("file", path), ("exe", exe), ("written", written));
+            }
+            catch (Exception ex)
+            {
+                L.Warn("mcp.launcher.failed", "Could not write the MCP launcher; a shared .mcp.json cannot start the server on this machine", ex, ("file", path));
+            }
+        }
 
         /// <summary>Command: write/merge the shared .mcp.json (version-control root, else solution folder) and tell the user what happened.</summary>
         public static async Task WriteSolutionConfigAsync(string solutionDir)
@@ -75,7 +94,8 @@ namespace UEToVS.Host.Mcp
             {
                 string dir = ResolveSharedConfigDir(solutionDir);
                 var t = McpConfigTarget.SharedProject(dir);
-                var result = McpConfig.ApplyToFile(t, McpConfig.BuildEntry(exe, solutionDir));
+                WriteLauncher(exe);
+                var result = McpConfig.ApplyToFile(t, PortableEntry(dir, solutionDir));
                 LogResult(result, t.Path, "shared");
                 if (result.Outcome != McpMergeOutcome.Invalid) CleanUpLegacy(solutionDir, t.Path);
                 return (t, result);

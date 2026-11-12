@@ -1,6 +1,6 @@
 # UEToVS MCP 服务设计
 
-> 状态：已实现（v0.3.0）。代码：`src/UEToVS.Mcp`（服务）、`src/UEToVS.Host/Mcp` + `src/UEToVS.Host/Logic/Mcp`（注册）、`tests/UEToVS.Mcp.Tests`。
+> 状态：已实现（v0.3.0 起；v0.4.2 加了 UE 专用工具、跨机器可用的 `.mcp.json`、关闭时索引增量落盘）。代码：`src/UEToVS.Mcp`（服务）、`src/UEToVS.Host/Mcp` + `src/UEToVS.Host/Logic/Mcp`（注册）、`tests/UEToVS.Mcp.Tests`。
 > 目的：让 AI Agent（VS Copilot Agent 模式、Claude Code、Cursor、VS Code）直接查询 UEToVS 已有的符号索引、文件列表和蓝图资产，不再靠 grep 全文扫描。
 
 ## 1. 调研结论：Visual Studio 的 MCP 是怎么做的
@@ -31,8 +31,8 @@
 既然没有注册 API，“按 VS 的标准”就是**写 VS 会读的配置文件**：
 
 1. **自动注册（默认开）**：打开 UE 解决方案时，扩展在 `<解决方案目录>\.vs\mcp.json` 的 `servers` 里维护一个 `uetovs` 条目，指向 VSIX 里自带的 `Engine\Mcp\UEToVS.Mcp.exe`。这个文件只属于当前用户、不进版本库，正好对应“这台机器装了扩展才有”。扩展升级后安装目录会变，所以每次打开解决方案都会刷新路径。设置 **UEToVS 设置 > 常规 > MCP > 启用 MCP 服务（给 AI Agent 用）**（`HostSettings.EnableMcpServer`，默认开）关掉时删掉这个条目。
-2. **命令写共享配置**：**扩展 > UEToVS > 写入 .mcp.json 到项目根目录**（命令 ID `0x0500`，动作 `uetovs.mcp.writeConfig`）写 Claude Code 的项目级 `.mcp.json`，只写 `mcpServers`。位置：从解决方案目录往上找版本库根目录（`.git` 目录或文件、`.svn`（取最外层）、`.hg`、`.plastic`、P4CONFIG 文件——环境变量 `P4CONFIG` 指定的名字或 `.p4config` / `p4config.txt`；都没有时运行 `p4 -ztag -F %clientRoot% info`，客户端根目录包含解决方案时采用），找到就写在版本库根目录，否则写在解决方案目录（UE 项目根目录）。Claude Code 通常在版本库根目录启动。不写 `servers`：VS 也会读 `<解决方案目录>\.mcp.json` 的 `servers`，而 `.vs\mcp.json` 已经注册了 uetovs，两处都写会让 VS 看到两份同名服务器；Cursor 读 `.cursor\mcp.json`、VS Code 读 `.vscode\mcp.json`，都不读根目录的 `.mcp.json`，写 `servers` 对它们没用。旧版本写进 `.mcp.json` 的 `servers.uetovs` 会被删掉；写到版本库根目录后，旧版本留在 `<解决方案目录>\.mcp.json` 的 uetovs 条目也会删掉（文件删空则删除文件）。
-3. **合并而不是覆盖**：两种写入都只动 `uetovs` 这一项里的 `type`、`command` 和 `--solution-dir` 的值。别的服务器、未知字段、用户自己加的 `args` / `env` 原样保留。文件不是合法 JSON 时不写，提示用户。写入用临时文件 + `File.Replace`，是原子的。
+2. **命令写共享配置**：**扩展 > UEToVS > 写入 .mcp.json 到项目根目录**（命令 ID `0x0500`，动作 `uetovs.mcp.writeConfig`）写 Claude Code 的项目级 `.mcp.json`，只写 `mcpServers`。位置：从解决方案目录往上找版本库根目录（`.git` 目录或文件、`.svn`（取最外层）、`.hg`、`.plastic`、P4CONFIG 文件——环境变量 `P4CONFIG` 指定的名字或 `.p4config` / `p4config.txt`；都没有时运行 `p4 -ztag -F %clientRoot% info`，客户端根目录包含解决方案时采用），找到就写在版本库根目录，否则写在解决方案目录（UE 项目根目录）。Claude Code 通常在版本库根目录启动。这个文件会进版本库，所以条目里**不写本机绝对路径**：`command` 是 `cmd`，`args` 是 `/c %LOCALAPPDATA%\UEToVS\Mcp\uetovs-mcp.cmd --solution-dir <相对路径>`（环境变量由 cmd 展开；`--solution-dir` 相对配置文件所在目录，Agent 一般就在那里启动；解决方案不在该目录之下时才写绝对路径）。启动器 `uetovs-mcp.cmd` 每次打开解决方案时由扩展写到本机（内容没变不重写），记录当前 VSIX 里 `UEToVS.Mcp.exe` 的路径；这个路径失效（扩展升级后还没打开过 VS）时在 `%LOCALAPPDATA%\Microsoft\VisualStudio\*\Extensions` 下找。打开解决方案时，已有共享 `.mcp.json` 里旧格式（绝对路径）的 uetovs 条目会自动改成这种形式。MCP 侧：相对的 `--solution-dir` 按工作目录解析，解析出的目录不像解决方案（没有 `.vs\UEToVS`、`.uproject`、`.sln`）时，改为从工作目录往上找（`solutionDirMethod: argument-relative-discovered`）。不写 `servers`：VS 也会读 `<解决方案目录>\.mcp.json` 的 `servers`，而 `.vs\mcp.json` 已经注册了 uetovs，两处都写会让 VS 看到两份同名服务器；Cursor 读 `.cursor\mcp.json`、VS Code 读 `.vscode\mcp.json`，都不读根目录的 `.mcp.json`，写 `servers` 对它们没用。旧版本写进 `.mcp.json` 的 `servers.uetovs` 会被删掉；写到版本库根目录后，旧版本留在 `<解决方案目录>\.mcp.json` 的 uetovs 条目也会删掉（文件删空则删除文件）。
+3. **合并而不是覆盖**：两种写入都只动 `uetovs` 这一项里的 `type`、`command`、开头的启动器参数（`/c <启动器>`）和 `--solution-dir` 的值。别的服务器、未知字段、用户自己加的 `args` / `env` 原样保留。文件不是合法 JSON 时不写，提示用户。写入用临时文件 + `File.Replace`，是原子的。
 4. **选 stdio 而不是 HTTP**：VS、Claude Code、Cursor、VS Code 都支持 stdio。stdio 不占端口，没有鉴权和跨用户访问问题，生命周期由 Agent 管理，VS 不开着也能用（直接读磁盘索引）。
 
 未验证的风险：没有版本库时 `.mcp.json` 写在解决方案目录，VS 也会读到它；如果某个 VS 版本把 `mcpServers` 也当作服务器列表，会和 `.vs\mcp.json` 重复出现一次 uetovs。按 VS 文档它只读 `servers`。
@@ -84,11 +84,18 @@ UEToVS.Mcp.exe（每个 Agent 会话一个进程，.NET 8，ModelContextProtocol
 | `search_lua` | 找 Lua 函数 / 方法 / 类 / 模块表 / 字段 / 文件级变量 | `query`（`M:Fire`、`UI.MainPanel.Show` 限定所属表）、`match`、`kinds`（function/method/class/table/field/variable）、`container`、`include_locals` |
 | `search_lua_files` | 按文件名或 require 路径找 Lua 脚本 | `query`（`MainPanel`、`UI.MainPanel`、`UI/MainPanel`） |
 | `get_lua_outline` | Lua 文件大纲 | `path`（绝对路径、相对 Lua 目录/项目的路径，或模块名） |
+| `get_reflection_info` | 一个 UCLASS/USTRUCT 的所有 UPROPERTY/UFUNCTION：说明符拆成 flags / key=value / meta，复制（Replicated、ReplicatedUsing）、RPC（Server/Client/NetMulticast、Reliable、WithValidation）、Config；UFUNCTION 附同名 Lua 函数（UnLua 覆写） | `type_name`、`kind`（all/property/function）、`specifiers`、`replicated_only`、`include_inherited`、`limit`、`offset` |
+| `get_module_info` | 文件属于哪个模块、模块类型（Runtime/Editor/Developer…）、所在插件、Build.cs 的 Public/Private 依赖；带 `header` 时回答“这个头文件在哪个模块、我的模块依赖了没有” | `path` 或 `module`，可选 `header` |
+| `suggest_include` | 类型的 `#include` 写法（UE 风格，相对模块 Public/Classes）和要加进 Build.cs 的模块；带 `from` 时检查是否已依赖、该放 Public 还是 Private | `type`、`from` |
+| `search_config` | 搜配置：ini 键值（项目和项目插件的 Config；`scope: all` 加引擎 Config）、UPROPERTY(config) 对应的 ini 文件/节/键、项目代码里的 CVar、GameplayTag | `query`、`kinds`（ini/config_property/cvar/tag）、`scope` |
+| `find_delegate_bindings` | 一个函数被绑到哪些委托 / 输入 / 定时器（`AddDynamic`、`BindUObject`、`CreateUObject`、`BindUFunction`、`BindAction`、`SetTimer`…） | `function`（`UMyClass::OnClicked` 只保留指明该类的绑定）、`scope` |
+
+`find_references` 的结果带 `lua`、`get_reflection_info` 的 UFUNCTION 带同名 Lua 函数：Lua 里同名的函数 / 方法定义（按名字关联，不看调用点）。
 
 错误返回 `isError: true` 和 `{"error": "<code>", "message": "..."}`，`code` 有 `invalid_argument`、`unknown_tool`、`file_not_found`、`no_index`、`engine_unavailable`。
 
-资源：`uetovs://index/status`（同 `index_status`）、`uetovs://guide`（给 Agent 的使用说明：什么时候用哪个工具）。
-提示：`explain_ue_class`（讲解一个 UE 类：层次、成员、反射标记）、`find_blueprint_usage`（找一个 C++ 类被哪些蓝图使用）。
+资源：`uetovs://index/status`（同 `index_status`）、`uetovs://guide`（给 Agent 的使用说明：什么时候用哪个工具，索引没就绪时怎么退回 grep / 文件搜索）。
+提示：`explain_ue_class`（讲解一个 UE 类：层次、成员、反射标记）。原来的 `find_blueprint_usage` 已删除：没有蓝图引用数据，只能按名字猜。
 
 ### 3.1 Lua 脚本索引
 
@@ -120,21 +127,23 @@ UnLua / sluaunreal 等项目的 Lua 不在 C++ 索引里，单独建一份：
 
 然后在 Copilot Chat 切到 Agent 模式，工具列表里勾选 `uetovs` 的工具。
 
-**Claude Code**（版本库根目录或 `D:\MyGame` 下的 `.mcp.json`，命令生成，只含 `mcpServers`）：
+**Claude Code**（版本库根目录或 `D:\MyGame` 下的 `.mcp.json`，命令生成，只含 `mcpServers`，可以提交进版本库）：
 
 ```json
 {
   "mcpServers": {
     "uetovs": {
       "type": "stdio",
-      "command": "C:\\Users\\me\\...\\Engine\\Mcp\\UEToVS.Mcp.exe",
-      "args": ["--solution-dir", "D:\\MyGame"]
+      "command": "cmd",
+      "args": ["/c", "%LOCALAPPDATA%\\UEToVS\\Mcp\\uetovs-mcp.cmd", "--solution-dir", "."]
     }
   }
 }
 ```
 
-或者命令行：`claude mcp add uetovs --scope project -- "C:\Users\me\...\Engine\Mcp\UEToVS.Mcp.exe" --solution-dir D:\MyGame`
+版本库根目录是 `D:\MyGame` 的上一级时 `--solution-dir` 写 `MyGame`。旧版本写的绝对路径形式（`command` 直接是 exe）仍然能用，打开解决方案时会自动改写。
+
+只给自己用时也可以命令行：`claude mcp add uetovs --scope project -- "C:\Users\me\...\Engine\Mcp\UEToVS.Mcp.exe" --solution-dir D:\MyGame`
 
 **Cursor**（`D:\MyGame\.cursor\mcp.json`，键名 `mcpServers`，内容同上）。
 
@@ -181,8 +190,11 @@ MCP 进程首次启动 + initialize + 打开索引共约 0.5 s，每个 Agent �
 
 ## 6. 已知限制
 
-- Engine 的 M2 导航 RPC（定义、引用、类型层次、成员）目前是空实现，MCP 在这些工具上会回退到索引里的按名字查找（`source: "index-heuristic"`）：同名重载/不同命名空间的同名类型可能多出结果；引用来自函数体内的标识符出现位置，不含基类子句。
+- VS 没开（Engine 不在运行）时，定义、引用、类型层次、成员回退到磁盘索引里的按名字查找（`source: "index-heuristic"`）：同名重载/不同命名空间的同名类型可能多出结果；引用来自函数体内的标识符出现位置，不含基类子句。Engine 在运行时这些工具走 Engine 的导航 RPC（`source: "engine"`）。
 - 资产类型是按命名前缀猜的（`BP_`、`WBP_`、`M_`、`T_`…），没有读 `.uasset` 头；不符合命名规范的资产只能按名字搜。
-- 离线索引是磁盘上的最近一次持久化结果，不含 Engine 内存里尚未落盘的增量（编辑中的文件）。
+- 离线索引是磁盘上的最近一次持久化结果。Engine 正常关闭时会把内存里的增量（编辑过的文件）写成一个额外的段，最多花 5 秒（日志 `index.shutdown.flush` / `index.delta.persisted`）；超时、进程被杀或崩溃时，这部分增量要等下次打开后重新索引。
+- `search_config` 的 CVar 只搜项目代码（最多读 600 个候选文件），不搜引擎源码（`scope: all` 也不含引擎 CVar）；ini 最多读 400 个文件。UPROPERTY(config) 的 ini 节按类自己的 `config=` 说明符推断，不沿基类继承。
+- `find_delegate_bindings` 先用索引里函数名的出现位置找候选文件，再逐行匹配绑定写法；宏包装的绑定、经变量间接传入的函数指针、蓝图里的绑定都找不到。
+- Lua ↔ C++ 只按名字关联定义，不扫描 Lua 调用点。
 - 只提供 stdio 传输，没有 HTTP；每个 Agent 会话一个进程。
 - Linux 上无法验证：VS 是否实际读取并显示 `.vs\mcp.json` 里的条目、18.7 信任弹窗行为、VSIX 打包路径、Windows 命名管道连接（测试在 Linux 上用 Unix 域套接字跑通同一套代码）。

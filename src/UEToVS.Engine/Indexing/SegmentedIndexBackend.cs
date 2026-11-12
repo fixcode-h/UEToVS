@@ -76,6 +76,8 @@ namespace UEToVS.Engine.Indexing
             idx.Flush();
         }
 
+        public int PersistDelta(CancellationToken ct) => Current?.PersistDelta(ct) ?? 0;
+
         public SymbolSearchResult Search(SymbolQuery query, CancellationToken ct)
         {
             var result = new SymbolSearchResult();

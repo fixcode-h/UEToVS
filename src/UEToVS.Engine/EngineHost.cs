@@ -340,6 +340,9 @@ namespace UEToVS.Engine
             {
                 L.Warn("process.shutdown.wait_failed", "Waiting for the index run failed", ex);
             }
+            // delta first (bounded, cheap); SaveState then has nothing left to compact and only writes the manifest and file states
+            // (when the flush did not finish, SaveState compacts as before; being killed meanwhile loses nothing on disk)
+            Index.FlushForShutdown(IndexOrchestrator.ShutdownFlushBudget);
             Index.SaveState();
             Dispose();
         }

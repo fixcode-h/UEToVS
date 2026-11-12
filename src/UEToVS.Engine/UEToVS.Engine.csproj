@@ -11,6 +11,8 @@
     <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
     <TieredPGO>true</TieredPGO>
     <PublishReadyToRun>true</PublishReadyToRun>
+    <!-- no de/fr/ja... resource folders from StreamJsonRpc & co. (also keeps them out of Engine\Mcp, which references this project) -->
+    <SatelliteResourceLanguages>en;zh-Hans</SatelliteResourceLanguages>
     <NoWarn>$(NoWarn);VSTHRD002;VSTHRD003;VSTHRD103;VSTHRD105;VSTHRD110;VSTHRD200;CA1416</NoWarn>
   </PropertyGroup>
   <ItemGroup>
