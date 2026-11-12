@@ -142,6 +142,19 @@ namespace UEToVS.Host.IntelliSense
                 string final = m.MacroSteps.Count > 0 ? m.MacroSteps[m.MacroSteps.Count - 1].Text : m.MacroExpansion;
                 parts.Add(new MacroExpansionElement(IntelliSenseStrings.MacroExpansionTitle, steps, final, expanded: m.MacroExpansionLines <= 6));
             }
+            // ---- v0.4.5 navigation gaps: GENERATED_BODY() → UHT output
+            if (m.GeneratedCode != null)
+            {
+                if (parts.Count > 0) parts.Add(new ThematicBreakElement());
+                var runs = DeclarationTokenizer.Tokenize(m.GeneratedCode).Select(t => new ClassifiedTextRun(IntelliSenseEditor.ClassificationFor(t), t.Text)).ToList();
+                var steps = new List<MacroStepView> { new MacroStepView(NavGapStrings.GeneratedCodeFrom(m.GeneratedCodeFile), new ClassifiedTextElement(runs)) };
+                parts.Add(new MacroExpansionElement(NavGapStrings.GeneratedCodeTitle, steps, m.GeneratedCode, expanded: m.GeneratedCodeLines <= 12));
+            }
+            else if (m.GeneratedNote != null)
+            {
+                if (parts.Count > 0) parts.Add(new ThematicBreakElement());
+                parts.Add(new ClassifiedTextElement(new ClassifiedTextRun(PredefinedClassificationTypeNames.Comment, m.GeneratedNote)));
+            }
             if (!ueOnly && m.ConfidenceNote != null)
                 parts.Add(new ClassifiedTextElement(new ClassifiedTextRun(PredefinedClassificationTypeNames.Comment, m.ConfidenceNote)));
             return parts.Count == 0 ? null : new ContainerElement(ContainerElementStyle.Stacked, parts);

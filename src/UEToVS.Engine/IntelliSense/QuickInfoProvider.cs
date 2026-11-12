@@ -195,6 +195,16 @@ namespace UEToVS.Engine.IntelliSense
             resp.Length = LineMap.Utf16Length(new ReadOnlySpan<byte>(doc.Text, tok.Start, tok.Length));
             string word = doc.TokenText(ti);
 
+            // v0.4.5 GENERATED_BODY() / GENERATED_UCLASS_BODY(): what UHT generated for this line
+            if (GeneratedBodyLocator.IsBodyMacro(word) && doc.Is(ti + 1, Punct.LParen))
+            {
+                GeneratedCodePreview.Fill(resp, doc.Path, () => Encoding.UTF8.GetString(doc.Text), word, line);
+                resp.Declaration = word + "()";
+                resp.Documentation = s.Knowledge.GetMacroDoc(word);
+                resp.Confidence = ResolutionConfidence.Exact;
+                return resp;
+            }
+
             // a reflection specifier inside UPROPERTY(...) / meta=(...)
             if (CompletionSiteAnalyzer.SpecifierContextAt(doc, ti, out string macro, out bool meta, out bool valuePos) && !valuePos)
             {

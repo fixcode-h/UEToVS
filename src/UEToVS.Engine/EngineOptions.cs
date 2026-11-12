@@ -20,6 +20,11 @@ CLI mode (debugging / CI): index, answer, exit
   UEToVS.Engine --solution-dir <dir> --query <text> [--all] [--max <n>]
   UEToVS.Engine --solution-dir <dir> --status
 
+Benchmark (see docs/基准测试.md): index (or reuse the index), time completion / go to definition / find references at
+N random code positions, append the result to <solution>/.vs/UEToVS/bench/bench.jsonl and compare with the previous run
+  UEToVS.Engine bench --project <x.uproject> [--samples 1000] [--seed 1] [--ops completion,definition,references]
+                [--reindex] [--all] [--details] [--out <dir>] [--no-compare]
+
 Options:
   --pipe <name>          serve IEngineService (MessagePack JSON-RPC) on this named pipe
   --solution-dir <dir>   folder holding the .sln; logs/index go to <dir>/.vs/UEToVS (default: project dir or cwd)
@@ -42,6 +47,14 @@ Options:
   --all                  CLI: include engine / non-project results
   --max <n>              CLI: results per category (default 20)
   --status               CLI: print EngineStatus + performance snapshot as JSON
+  bench                  benchmark mode (first argument); options below
+  --samples <n>          bench: code positions to sample (default 1000)
+  --seed <n>             bench: random seed (default 1; same seed + same index = same positions)
+  --ops <list>           bench: comma-separated subset of completion,definition,references
+  --reindex              bench: drop the C++ index and rebuild it (default: reuse the index on disk)
+  --details              bench: also write every sample's timing to bench-<time>-samples.jsonl
+  --out <dir>            bench: output folder (default <solution>/.vs/UEToVS/bench)
+  --no-compare           bench: do not compare with the previous run
   --help                 this text";
 
         public string PipeName { get; set; }
@@ -80,7 +93,17 @@ Options:
         public bool Status { get; set; }
         public bool Help { get; set; }
 
-        public bool IsCli => Query != null || Status;
+        // ---- v0.4.5 bench (Cli/BenchRunner.cs)
+        public bool Bench { get; set; }
+        public int BenchSamples { get; set; } = 1000;
+        public int BenchSeed { get; set; } = 1;
+        public List<string> BenchOps { get; set; }
+        public bool BenchReindex { get; set; }
+        public bool BenchDetails { get; set; }
+        public string BenchOut { get; set; }
+        public bool BenchCompare { get; set; } = true;
+
+        public bool IsCli => Query != null || Status || Bench;
 
         /// <summary>Parses arguments; returns null and an error message on invalid input.</summary>
         public static EngineOptions Parse(IReadOnlyList<string> args, out string error)
@@ -140,6 +163,24 @@ Options:
                             o.QueryMax = int.TryParse(Next(), out int mx) && mx > 0 ? mx : throw new ArgumentException("--max expects a positive number");
                             break;
                         case "--status": o.Status = true; break;
+                        case "bench" when i == 0: o.Bench = true; break;
+                        case "--samples":
+                            o.BenchSamples = int.TryParse(Next(), out int bs) && bs > 0 ? bs : throw new ArgumentException("--samples expects a positive number");
+                            break;
+                        case "--seed":
+                            o.BenchSeed = int.TryParse(Next(), out int seed) ? seed : throw new ArgumentException("--seed expects a number");
+                            break;
+                        case "--ops":
+                            o.BenchOps = new List<string>();
+                            foreach (var op in Next().Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                                o.BenchOps.Add(Array.IndexOf(Cli.BenchRunner.AllOps, op.ToLowerInvariant()) >= 0
+                                    ? op.ToLowerInvariant()
+                                    : throw new ArgumentException("--ops: unknown operation " + op + " (completion, definition, references)"));
+                            break;
+                        case "--reindex": o.BenchReindex = true; break;
+                        case "--details": o.BenchDetails = true; break;
+                        case "--out": o.BenchOut = Next(); break;
+                        case "--no-compare": o.BenchCompare = false; break;
                         case "--help":
                         case "-h":
                         case "/?": o.Help = true; break;
@@ -155,7 +196,7 @@ Options:
             if (o.Help) return o;
             if (o.PipeName == null && !o.IsCli)
             {
-                error = "Either --pipe <name> or --query/--status is required";
+                error = "Either --pipe <name>, --query/--status or bench is required";
                 return null;
             }
             if (string.IsNullOrEmpty(o.SolutionDir))

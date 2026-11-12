@@ -652,6 +652,19 @@
           <LocCanonicalName>UEToVS.ListTypeMembers</LocCanonicalName>
         </Strings>
       </Button>
+      <!-- ==== v0.4.5 navigation gaps (0x0210–0x022F) ==== -->
+      <Button guid="guidUEToVSHostCmdSet" id="cmdCallHierarchy" priority="0x0106" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpNavigation" />
+        <Icon guid="ImageCatalogGuid" id="CallHierarchy" />
+        <CommandFlag>IconIsMoniker</CommandFlag>
+        <CommandFlag>TextChanges</CommandFlag>
+        <CommandFlag>DefaultDisabled</CommandFlag>
+        <Strings>
+          <ButtonText>Call Hierarchy</ButtonText>
+          <CanonicalName>UEToVS.CallHierarchy</CanonicalName>
+          <LocCanonicalName>UEToVS.CallHierarchy</LocCanonicalName>
+        </Strings>
+      </Button>
 
       <Button guid="guidUEToVSHostCmdSet" id="cmdWriteMcpConfig" priority="0x0100" type="Button">
         <!-- no menu parent (v0.3.0): settings window (General > MCP), Find Action, key bindings -->
@@ -868,6 +881,10 @@
     <CommandPlacement guid="guidUEToVSHostCmdSet" id="cmdListTypeMembers" priority="0x0105">
       <Parent guid="guidUEToVSHostCmdSet" id="grpContextNavigation" />
     </CommandPlacement>
+    <!-- v0.4.5 navigation gaps -->
+    <CommandPlacement guid="guidUEToVSHostCmdSet" id="cmdCallHierarchy" priority="0x0106">
+      <Parent guid="guidUEToVSHostCmdSet" id="grpContextNavigation" />
+    </CommandPlacement>
     <CommandPlacement guid="guidUEToVSHostCmdSet" id="cmdQuickActions" priority="0x0110">
       <Parent guid="guidUEToVSHostCmdSet" id="grpContextNavigation" />
     </CommandPlacement>
@@ -932,6 +949,8 @@
     <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdGenerateRpc" editor="guidVSStd97" key1="U" mod1="Control Shift Alt" key2="W" />
     <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdExpandSelection" editor="guidTextEditorFactory" key1="W" mod1="Alt Shift" />
     <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdShrinkSelection" editor="guidTextEditorFactory" key1="W" mod1="Control Shift Alt" />
+    <!-- v0.4.5 navigation gaps: call hierarchy (Rider preset Ctrl+Alt+H, VS preset Ctrl+K, Ctrl+T) -->
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdCallHierarchy" editor="guidTextEditorFactory" key1="U" mod1="Control Shift Alt" key2="H" />
   </KeyBindings>
 
   <Symbols>
@@ -1022,6 +1041,8 @@
       <IDSymbol name="cmdTypeHierarchy" value="0x0203" />
       <IDSymbol name="cmdListMembersInFile" value="0x0204" />
       <IDSymbol name="cmdListTypeMembers" value="0x0205" />
+      <!-- v0.4.5 navigation gaps (0x0210–0x022F) -->
+      <IDSymbol name="cmdCallHierarchy" value="0x0210" />
       <!-- v0.3.0 settings / windows / toolbar (0x0400-0x04FF) -->
       <IDSymbol name="tbUEToVS" value="0x0400" />
       <IDSymbol name="grpToolbarMain" value="0x0401" />
