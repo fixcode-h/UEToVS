@@ -40,6 +40,10 @@ msbuild src\UEToVS.Host\UEToVS.Host.csproj /restore /p:Configuration=Release
 
 产物：`src\UEToVS.Host\bin\Release\net48\UEToVS.Host.vsix`。Engine 进程会被发布并打包进 VSIX 的 `Engine\` 目录。运行机器需要 .NET 8 运行时。
 
+## 发布
+
+版本号和更新日志都在 [CHANGELOG.md](CHANGELOG.md)。改了 `src/` 的 PR 要在最上面加一节 `## vX.Y.Z`（PR 检查会验证）；合并到 main 后 CI 自动打包 `UEToVS-X.Y.Z.vsix` + `SHA256SUMS`，并用这一节生成发布说明发布 Release。
+
 ## 注意
 
 - 接管 VS 自带 C++ IntelliSense（工具 > 选项 > UEToVS > 常规）开启后，打开 UE 解决方案时自动关闭 VS 自带的 C++ IntelliSense（修改前备份到 `%LocalAppData%\UEToVS\intellisense-backup.json`），可在 扩展 > UEToVS > 恢复 VS C++ IntelliSense 一键还原；卸载扩展前请先执行恢复。**在 UEToVS 自己的补全/跳转（M3）完成前该选项默认关闭**，否则会暂时失去 C++ 感知。

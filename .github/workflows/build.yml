@@ -1,5 +1,8 @@
 name: Build
 
+# PR：跑测试、打包 VSIX，并检查改了代码的 PR 是否在 CHANGELOG.md 顶部加了新版本。
+# 合并到 main：如果 CHANGELOG.md 最上面的版本还没有发布，自动打包并发布 Release（说明由该版本那一节生成）。
+
 on:
   push:
     branches: [ main ]
@@ -14,12 +17,29 @@ jobs:
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # 需要 tag 和历史：生成“完整改动”链接、检查版本是否已发布
 
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
 
       - uses: microsoft/setup-msbuild@v2
+
+      - name: Check changelog
+        if: github.event_name == 'pull_request'
+        run: python scripts/release.py check-pr --base origin/${{ github.base_ref }}
+
+      - name: Version
+        id: ver
+        shell: pwsh
+        run: |
+          $v = python scripts/release.py stamp
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          "version=$v" >> $env:GITHUB_OUTPUT
+          $released = git tag --list "v$v"
+          "released=$([bool]$released)".ToLower() >> $env:GITHUB_OUTPUT
+          Write-Host "Version $v (already released: $([bool]$released))"
 
       - name: Test
         shell: pwsh
@@ -32,25 +52,34 @@ jobs:
       - name: Build VSIX
         run: msbuild src\UEToVS.Host\UEToVS.Host.csproj /restore /p:Configuration=Release /p:DeployExtension=false /v:minimal
 
-      - name: Locate VSIX
-        id: vsix
+      - name: Package
+        id: pkg
         shell: pwsh
         run: |
           $vsix = Get-ChildItem -Path src\UEToVS.Host\bin -Recurse -Filter *.vsix | Select-Object -First 1
           if (-not $vsix) { throw "No .vsix produced" }
-          "path=$($vsix.FullName)" >> $env:GITHUB_OUTPUT
-          Write-Host "VSIX: $($vsix.FullName) ($([math]::Round($vsix.Length / 1MB, 1)) MB)"
+          New-Item -ItemType Directory -Force dist | Out-Null
+          $name = "UEToVS-${{ steps.ver.outputs.version }}.vsix"
+          Copy-Item $vsix.FullName "dist\$name"
+          $hash = (Get-FileHash "dist\$name" -Algorithm SHA256).Hash.ToLower()
+          "$hash  $name" | Out-File -Encoding ascii -NoNewline dist\SHA256SUMS
+          python scripts/release.py notes --out dist\RELEASE_NOTES.md --repo "${{ github.repository }}" --vsix $name
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          "name=$name" >> $env:GITHUB_OUTPUT
+          Write-Host "VSIX: $name ($([math]::Round($vsix.Length / 1MB, 1)) MB) sha256=$hash"
+          Get-Content dist\RELEASE_NOTES.md -Encoding utf8 | Write-Host
 
       - uses: actions/upload-artifact@v4
         with:
-          name: UEToVS-vsix
-          path: ${{ steps.vsix.outputs.path }}
+          name: UEToVS-${{ steps.ver.outputs.version }}
+          path: dist/
 
       - name: Publish release
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.ver.outputs.released == 'false'
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = "v0.1.${{ github.run_number }}"
-          gh release create $tag "${{ steps.vsix.outputs.path }}" --target $env:GITHUB_SHA --title "UEToVS $tag" --notes "自动构建：双击 .vsix 安装（VS 2022 / 2026）。运行需要 .NET 8 运行时。UE 编辑器插件源码在仓库 ue/UEToVSLink，也随 VSIX 打包。"
+          $v = "${{ steps.ver.outputs.version }}"
+          gh release create "v$v" "dist\${{ steps.pkg.outputs.name }}" dist\SHA256SUMS `
+            --target $env:GITHUB_SHA --title "UEToVS v$v" --notes-file dist\RELEASE_NOTES.md
