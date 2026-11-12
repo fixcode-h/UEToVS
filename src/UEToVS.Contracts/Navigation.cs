@@ -249,3 +249,29 @@ namespace UEToVS.Contracts
         public double ElapsedMs { get; set; }
     }
 }
+
+namespace UEToVS.Contracts
+{
+    /// <summary>Indexing settings pushed by the host (settings window). 0 means "default".</summary>
+    public sealed class IndexingSettings
+    {
+        /// <summary>Threads for C++ parsing. Default: max(1, logical cores / 4).</summary>
+        public int CppThreads { get; set; }
+
+        /// <summary>Threads for Blueprint / asset scanning. Default: max(1, logical cores / 4).</summary>
+        public int AssetThreads { get; set; }
+
+        /// <summary>Behaviour while VS/UBT builds: 0 = pause, 1 = keep going with one thread, 2 = keep going at full speed.</summary>
+        public int DuringBuild { get; set; } = 1;
+
+        /// <summary>Index engine sources (headers first, then .cpp).</summary>
+        public bool IncludeEngine { get; set; } = true;
+    }
+
+    public enum RebuildScope : byte
+    {
+        Cpp = 0,
+        Assets = 1,
+        All = 2,
+    }
+}

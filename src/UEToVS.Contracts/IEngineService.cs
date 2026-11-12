@@ -58,6 +58,14 @@ namespace UEToVS.Contracts
         /// <summary>Members of a type, optionally including inherited ones (member list).</summary>
         Task<MembersResponse> GetMembersAsync(MembersRequest request, CancellationToken ct);
 
+        // ---- indexing settings (settings window) ----
+
+        /// <summary>Apply indexing settings at runtime (thread counts, build behaviour). Takes effect without restarting the engine.</summary>
+        Task SetIndexingSettingsAsync(IndexingSettings settings, CancellationToken ct);
+
+        /// <summary>Drop and rebuild the C++ index, the asset (Blueprint) index, or both. Returns immediately; progress via status.</summary>
+        Task RebuildIndexAsync(RebuildScope scope, CancellationToken ct);
+
         Task ShutdownAsync(CancellationToken ct);
     }
 

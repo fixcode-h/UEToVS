@@ -183,6 +183,14 @@ namespace UEToVS.Engine.Rpc
         public Task<MembersResponse> GetMembersAsync(MembersRequest request, CancellationToken ct) =>
             InvokeAsync("rpc.getMembers", _ => Task.FromResult(new MembersResponse()), ct);
 
+        // ---- indexing settings: stubs, implemented by the indexing work ----
+
+        public Task SetIndexingSettingsAsync(IndexingSettings settings, CancellationToken ct) =>
+            InvokeAsync("rpc.setIndexingSettings", _ => Task.CompletedTask, ct);
+
+        public Task RebuildIndexAsync(RebuildScope scope, CancellationToken ct) =>
+            InvokeAsync("rpc.rebuildIndex", _ => Task.CompletedTask, ct, ("scope", scope.ToString()));
+
         public Task ShutdownAsync(CancellationToken ct) =>
             InvokeAsync("rpc.shutdown", _ =>
             {
