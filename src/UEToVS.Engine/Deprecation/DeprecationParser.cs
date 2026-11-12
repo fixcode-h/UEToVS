@@ -313,7 +313,7 @@ namespace UEToVS.Engine.Deprecation
         /// <summary>
         /// The replacement a deprecation message names (<c>"Use GetActorLabel instead."</c> → <c>GetActorLabel</c>,
         /// <c>"Please use UGameplayStatics::Foo()"</c> → <c>UGameplayStatics::Foo</c>), or null. Only identifier-looking words
-        /// (an upper-case letter, '_', '::' or a following '(') count, so "use the new system" yields nothing.
+        /// (mixed case, '_', '::' or a following '(') count, so "use the new system" / "use the new API" yield nothing.
         /// </summary>
         public static string SuggestReplacement(string message, string deprecatedName = null)
         {
@@ -322,7 +322,7 @@ namespace UEToVS.Engine.Deprecation
             {
                 string name = m.Groups["name"].Value;
                 if (name.Length == 0 || NotIdentifiers.Contains(name)) continue;
-                bool looksLikeCode = m.Groups["call"].Success || name.Contains("::") || name.IndexOf('_') >= 0 || HasUpper(name);
+                bool looksLikeCode = m.Groups["call"].Success || name.Contains("::") || name.IndexOf('_') >= 0 || HasUpper(name) && HasLower(name);
                 if (!looksLikeCode) continue;
                 if (deprecatedName != null && string.Equals(LastSegment(name), deprecatedName, StringComparison.Ordinal)) continue;
                 return name;
@@ -333,6 +333,12 @@ namespace UEToVS.Engine.Deprecation
         private static bool HasUpper(string s)
         {
             foreach (char c in s) if (char.IsUpper(c)) return true;
+            return false;
+        }
+
+        private static bool HasLower(string s)
+        {
+            foreach (char c in s) if (char.IsLower(c)) return true;
             return false;
         }
 
