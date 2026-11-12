@@ -57,6 +57,7 @@ namespace UEToVS.Mcp.Tools
             Register(MembersTool());
             Register(IndexStatusTool());
             RegisterLuaTools();
+            RegisterUeTools();
         }
 
         public IReadOnlyList<ToolDefinition> All => _tools.Values.ToList();
@@ -570,6 +571,8 @@ namespace UEToVS.Mcp.Tools
             if (more) payload["nextOffset"] = offset + page.Count;
             if (!string.IsNullOrEmpty(refs.Note)) payload["note"] = refs.Note;
             payload["files"] = files;
+            var lua = LuaLink(fallbackName, refs.Value.Symbol ?? req.Symbol);
+            if (lua != null) payload["lua"] = lua;
             return new ToolOutput { Payload = payload, ResultCount = page.Count, Source = refs.Source };
         }
 

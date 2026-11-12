@@ -69,6 +69,7 @@ namespace UEToVS.Host
         private DiagnosticsReporter _reporter;
         private CommandRouter _commands;
         private BuildMonitor _build;
+        private Integration.ModelessEditCommandRouter _editRouter;
         private SolutionExplorerTracker _solutionExplorer;
         private SettingsWindowService _settingsWindow;
         private UEToVS.Host.Agent.AgentService _agent;
@@ -158,10 +159,15 @@ namespace UEToVS.Host
                 // M3 IntelliSense commands (import VA colours, toggle / reset semantic colouring; 0x0600–0x06FF).
                 Safe.Execute(L, "is.initialize", () => UEToVS.Host.IntelliSense.IntelliSenseFeature.Initialize(this, Actions, _commands,
                     GetService(typeof(System.ComponentModel.Design.IMenuCommandService)) as OleMenuCommandService));
+                // M4 refactoring (Alt+Enter context actions, light bulb, code generation, Add Include, Rename; 0x0700–0x07FF).
+                Safe.Execute(L, "refactor.initialize", () => UEToVS.Host.Refactoring.RefactoringFeature.Initialize(this, Actions, _commands,
+                    GetService(typeof(System.ComponentModel.Design.IMenuCommandService)) as OleMenuCommandService));
 
                 // 4b. Toolbar: shown on the first run (double Shift → Search Everywhere is M1's InputMonitor).
                 var dte = await GetServiceAsync(typeof(DTE)) as DTE;
                 Safe.Execute(L, "toolbar.firstRun", () => ToolbarController.ApplyOnFirstRun(dte, s.ShowToolbar));
+                // 4b'. Ctrl+C/V/X/Z/A in our modeless windows: keep them out of the code editor.
+                Safe.Execute(L, "shell.editRouter", () => _editRouter = Integration.ModelessEditCommandRouter.Register(this));
                 // 4c. Default shortcuts: VSCT KeyBindings don't always reach VS after an install/upgrade; bind the ones still missing.
                 _ = Safe.RunAsync(L, "keymap.defaults", () => Keymap.DefaultKeyBindings.EnsureAsync(dte, DisposalToken));
 
@@ -398,6 +404,9 @@ namespace UEToVS.Host
                     ["backupPath"] = _intelliSense.BackupPath,
                     ["disableBackgroundCodeAnalysis"] = s.DisableBackgroundCodeAnalysis,
                     ["codeAnalysisBackupExists"] = _intelliSense.CodeAnalysisBackupExists,
+                    ["vsBlueprintSupport"] = s.VsBlueprintSupport,
+                    ["vsBlueprintBackupExists"] = _intelliSense.VsBlueprintBackupExists,
+                    ["vsBlueprintOptions"] = _intelliSense.VsBlueprintOptions,
                 }),
                 ("devenvPrivateMBAtLoad", Math.Round(Performance.PrivateBytesAtLoad / 1048576.0, 1)),
                 ("logFile", HostLog.CurrentFile),
@@ -606,6 +615,8 @@ namespace UEToVS.Host
                     L.Info("package.disposing", null);
                     _engine?.Dispose();
                     _engine = null;
+                    Safe.Execute(L, "shell.editRouter.dispose", () => _editRouter?.Dispose());
+                    _editRouter = null;
                     _build?.Dispose();
                     _solutionExplorer?.Dispose();
                     M1Feature.Dispose();

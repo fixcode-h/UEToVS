@@ -20,8 +20,9 @@ namespace UEToVS.Mcp.Tests
     {
         private static readonly string[] ExpectedTools =
         {
-            "find_references", "get_file_outline", "get_lua_outline", "get_members", "get_type_hierarchy", "go_to_definition", "index_status",
-            "search_assets", "search_files", "search_lua", "search_lua_files", "search_symbols",
+            "find_delegate_bindings", "find_references", "get_file_outline", "get_lua_outline", "get_members", "get_module_info", "get_reflection_info",
+            "get_type_hierarchy", "go_to_definition", "index_status", "search_assets", "search_config", "search_files", "search_lua", "search_lua_files",
+            "search_symbols", "suggest_include",
         };
 
         private readonly OfflineFixture _f;
@@ -66,7 +67,8 @@ namespace UEToVS.Mcp.Tests
             Assert.Contains("search_symbols", c.ServerInstructions);
             // The instructions are what makes agents pick these tools over grep: every search tool must be named, and they must fit
             // in the 2 KB some clients (Claude Code) keep.
-            foreach (var name in new[] { "search_files", "search_assets", "find_references", "search_lua", "search_lua_files", "get_lua_outline" })
+            foreach (var name in new[] { "search_files", "search_assets", "find_references", "search_lua", "search_lua_files", "get_lua_outline",
+                                         "get_reflection_info", "get_module_info", "suggest_include", "search_config", "find_delegate_bindings" })
                 Assert.Contains(name, c.ServerInstructions);
             Assert.Contains("Grep", c.ServerInstructions);
             Assert.True(c.ServerInstructions.Length < 2000, "instructions are long: " + c.ServerInstructions.Length);
@@ -110,6 +112,8 @@ namespace UEToVS.Mcp.Tests
 
             var prompts = await m.Client.ListPromptsAsync();
             Assert.Contains(prompts, p => p.Name == "explain_ue_class");
+            Assert.DoesNotContain(prompts, p => p.Name == "find_blueprint_usage"); // no Blueprint reference data behind it
+            Assert.Contains("index is not ready", Assert.IsType<TextResourceContents>(guide.Contents.Single()).Text);
             var p1 = await m.Client.GetPromptAsync("explain_ue_class", new Dictionary<string, object> { ["class_name"] = "AMyHero" });
             var msg = Assert.IsType<TextContentBlock>(p1.Messages.Single().Content).Text;
             Assert.Contains("get_type_hierarchy type_name=AMyHero", msg);
@@ -160,6 +164,17 @@ namespace UEToVS.Mcp.Tests
             var a = McpOptions.Parse(new[] { "--solution-dir", _f.T.Root, "--source", "index", "--log-level", "debug" }, out err);
             Assert.Equal(DataSourceMode.IndexOnly, a.Source);
             Assert.Equal("argument", a.SolutionDirMethod);
+
+            // shared .mcp.json: "--solution-dir" relative to the folder the agent starts in
+            string parent = Path.GetDirectoryName(_f.T.ProjectRoot);
+            string rel = Path.GetFileName(_f.T.ProjectRoot);
+            var r = McpOptions.Parse(new[] { "--solution-dir", rel }, out err, cwd: parent, env: _ => null);
+            Assert.Equal(_f.T.ProjectRoot, r.SolutionDir);
+            Assert.Equal("argument", r.SolutionDirMethod);
+            // started somewhere else inside the project: the relative path misses, discovery from the working directory wins
+            var d = McpOptions.Parse(new[] { "--solution-dir", "." }, out err, cwd: Path.Combine(_f.T.ProjectRoot, "Source", "MyGame"), env: _ => null);
+            Assert.Equal(_f.T.ProjectRoot, d.SolutionDir);
+            Assert.Equal("argument-relative-discovered", d.SolutionDirMethod);
 
             Assert.Null(McpOptions.Parse(new[] { "--source", "cloud" }, out err));
             Assert.Contains("--source", err);

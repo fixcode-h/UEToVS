@@ -17,7 +17,7 @@ namespace UEToVS.Mcp.Data
         /// <summary>The running UEToVS.Engine (live: includes unsaved-to-segment changes of the current session).</summary>
         public const string Engine = "engine";
 
-        /// <summary>Index segments on disk (state of the last engine compaction / shutdown).</summary>
+        /// <summary>Index segments on disk: the last compaction plus the in-memory delta the engine flushes at shutdown (≤5 s).</summary>
         public const string Index = "index";
 
         /// <summary>Name-based answer computed from the index when the engine's semantic answer was empty.</summary>
@@ -45,7 +45,7 @@ namespace UEToVS.Mcp.Data
     /// <summary>
     /// Data access for the MCP tools: the running engine first (<see cref="EngineConnection"/>), the on-disk index
     /// otherwise (<see cref="OfflineIndex"/>), and name-based fallbacks from the index where the engine's navigation
-    /// RPCs answer empty (M2 not implemented yet / unresolved). All methods are thread-safe and cancellable.
+    /// RPCs cannot resolve the symbol (or the engine is not running). All methods are thread-safe and cancellable.
     /// </summary>
     public sealed class CodeIndex : IDisposable
     {
@@ -193,7 +193,7 @@ namespace UEToVS.Mcp.Data
         // ------------------------------------------------------------------ navigation
 
         /// <summary>
-        /// Go to definition at a caret. Uses the engine's semantic navigation (M2) when it resolves; otherwise reads
+        /// Go to definition at a caret. Uses the engine's semantic navigation when it resolves; otherwise reads
         /// the identifier at the caret and looks it up by name (qualifier as container), definitions first.
         /// </summary>
         public async Task<Answer<NavigationResponse>> NavigateAsync(CaretRequest caret, NavigationKind kind, CancellationToken ct)
@@ -238,7 +238,7 @@ namespace UEToVS.Mcp.Data
                 .ThenBy(s => s.Location?.Line ?? 0);
         }
 
-        /// <summary>Find references: engine (M2) first; otherwise all indexed occurrences of the name (text-level, name-based).</summary>
+        /// <summary>Find references: engine first; otherwise all indexed occurrences of the name (text-level, name-based).</summary>
         public async Task<Answer<ReferencesResponse>> FindReferencesAsync(ReferencesRequest req, string fallbackName, CancellationToken ct)
         {
             var (ok, refs) = await TryEngineAsync("findReferences", (e, c) => e.FindReferencesAsync(req, c), ct).ConfigureAwait(false);

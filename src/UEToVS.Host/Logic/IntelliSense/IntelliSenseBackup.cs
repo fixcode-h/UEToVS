@@ -68,6 +68,9 @@ namespace UEToVS.Host.Logic.IntelliSense
         /// <summary>%LocalAppData%\UEToVS\code-analysis-backup.json.</summary>
         public static string DefaultCodeAnalysisPath => InAppData(CodeAnalysisFileName);
 
+        /// <summary>%LocalAppData%\UEToVS\vs-blueprint-backup.json (VS's own Blueprint support options).</summary>
+        public static string DefaultVsBlueprintPath => InAppData(VsBlueprintSupport.BackupFileName);
+
         private static string InAppData(string fileName)
         {
             string baseDir = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);

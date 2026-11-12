@@ -384,7 +384,11 @@ namespace UEToVS.Engine.Index
                                     {
                                         if (old.Segment.Kind != SegmentKind.Project) continue;
                                         int ofi = old.Segment.FindFile(key);
-                                        if (ofi >= 0 && old.IsDead((uint)ofi)) live = false;
+                                        if (ofi < 0 || !old.IsDead((uint)ofi)) continue;
+                                        // removed while compacting = dead now but live in s0; a copy that was already dead in s0
+                                        // (superseded by a newer project segment, see PersistDelta) says nothing
+                                        var before = oldProject.FirstOrDefault(v => ReferenceEquals(v.Segment, old.Segment));
+                                        if (before == null || !before.IsDead((uint)ofi)) live = false;
                                     }
                                 }
                                 if (!live) view = view.WithTombstone(fi);

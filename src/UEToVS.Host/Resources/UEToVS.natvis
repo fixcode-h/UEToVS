@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  UEToVS debugger visualizers (v0.4.2). Only types the engine's own Engine/Extras/VisualStudioDebugging/Unreal.natvis does
+  not cover (TArray, FString, FName, TMap, UObject, TObjectPtr, TWeakObjectPtr, TSharedPtr ... come from there). The engine
+  natvis must be loaded too (UE installs it into the VS visualizer folder): FName / FString display below relies on it.
+-->
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+
+  <!-- GameplayTags -->
+  <Type Name="FGameplayTag">
+    <DisplayString Condition="TagName.ComparisonIndex.Value == 0">None</DisplayString>
+    <DisplayString>{TagName}</DisplayString>
+    <Expand>
+      <Item Name="TagName">TagName</Item>
+    </Expand>
+  </Type>
+
+  <Type Name="FGameplayTagContainer">
+    <DisplayString Condition="GameplayTags.ArrayNum == 0">Empty</DisplayString>
+    <DisplayString Condition="GameplayTags.ArrayNum == 1">{((FGameplayTag*)GameplayTags.AllocatorInstance.Data)[0]}</DisplayString>
+    <DisplayString>Num={GameplayTags.ArrayNum} {((FGameplayTag*)GameplayTags.AllocatorInstance.Data)[0]}, …</DisplayString>
+    <Expand>
+      <ArrayItems>
+        <Size>GameplayTags.ArrayNum</Size>
+        <ValuePointer>(FGameplayTag*)GameplayTags.AllocatorInstance.Data</ValuePointer>
+      </ArrayItems>
+      <Item Name="[ParentTags]">ParentTags</Item>
+    </Expand>
+  </Type>
+
+  <!-- Soft references (UE 5.1+ layout: FTopLevelAssetPath + sub path) -->
+  <Type Name="FTopLevelAssetPath">
+    <DisplayString Condition="PackageName.ComparisonIndex.Value == 0">None</DisplayString>
+    <DisplayString>{PackageName}.{AssetName}</DisplayString>
+  </Type>
+
+  <Type Name="FSoftObjectPath">
+    <DisplayString Condition="SubPathString.Data.ArrayNum &gt; 1">{AssetPath}:{SubPathString}</DisplayString>
+    <DisplayString>{AssetPath}</DisplayString>
+  </Type>
+
+  <Type Name="TSoftObjectPtr&lt;*&gt;">
+    <DisplayString>{SoftObjectPtr.ObjectId}</DisplayString>
+    <Expand>
+      <Item Name="[Path]">SoftObjectPtr.ObjectId</Item>
+      <Item Name="[Loaded]">SoftObjectPtr.WeakPtr</Item>
+    </Expand>
+  </Type>
+
+  <Type Name="TSoftClassPtr&lt;*&gt;">
+    <DisplayString>{SoftObjectPtr.ObjectId}</DisplayString>
+    <Expand>
+      <Item Name="[Path]">SoftObjectPtr.ObjectId</Item>
+      <Item Name="[Loaded]">SoftObjectPtr.WeakPtr</Item>
+    </Expand>
+  </Type>
+
+  <!-- Asset manager ids -->
+  <Type Name="FPrimaryAssetType">
+    <DisplayString>{Name}</DisplayString>
+  </Type>
+
+  <Type Name="FPrimaryAssetId">
+    <DisplayString>{PrimaryAssetType}:{PrimaryAssetName}</DisplayString>
+  </Type>
+
+  <!-- Gameplay framework -->
+  <Type Name="FTimerHandle">
+    <DisplayString Condition="Handle == 0">Invalid</DisplayString>
+    <DisplayString>Index={Handle &amp; 0xFFFFFF} Serial={Handle &gt;&gt; 24}</DisplayString>
+  </Type>
+
+  <Type Name="FDataTableRowHandle">
+    <DisplayString>{RowName}</DisplayString>
+    <Expand>
+      <Item Name="RowName">RowName</Item>
+      <Item Name="DataTable">DataTable</Item>
+    </Expand>
+  </Type>
+
+  <Type Name="FGameplayAttributeData">
+    <DisplayString>{CurrentValue} (base {BaseValue})</DisplayString>
+  </Type>
+
+  <Type Name="FActiveGameplayEffectHandle">
+    <DisplayString Condition="Handle == -1">Invalid</DisplayString>
+    <DisplayString>Handle={Handle}</DisplayString>
+  </Type>
+
+  <Type Name="FGameplayAbilitySpecHandle">
+    <DisplayString Condition="Handle == -1">Invalid</DisplayString>
+    <DisplayString>Handle={Handle}</DisplayString>
+  </Type>
+
+</AutoVisualizer>

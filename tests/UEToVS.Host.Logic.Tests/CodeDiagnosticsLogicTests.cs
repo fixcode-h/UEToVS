@@ -38,6 +38,24 @@ namespace UEToVS.Host.Logic.Tests
         }
 
         [Fact]
+        public void UeRuleMessages_Localized()
+        {
+            Loc.Language = UiLanguage.English;
+            Assert.Contains("ServerFire_Implementation", CodeDiagnosticText.Message(D(CodeDiagnosticCodes.GeneratedFunctionBody, "ServerFire", "Server", "AW")));
+            Assert.Contains("must be a UFUNCTION", CodeDiagnosticText.Message(D(CodeDiagnosticCodes.MissingRepNotify, "Ammo", "OnRep_Ammo", "AW", "not-ufunction")));
+            Assert.Contains("does not exist in AW", CodeDiagnosticText.Message(D(CodeDiagnosticCodes.MissingRepNotify, "Ammo", "OnRep_Ammo", "AW", "missing")));
+            Assert.Contains("AW::GetLifetimeReplicatedProps", CodeDiagnosticText.Message(D(CodeDiagnosticCodes.UnregisteredReplicatedProperty, "Heat", "AW")));
+            Assert.Contains("'A.B'", CodeDiagnosticText.Message(D(CodeDiagnosticCodes.UnknownGameplayTag, "A.B")));
+            Assert.Equal("Asset '/Game/X' does not exist", CodeDiagnosticText.Message(D(CodeDiagnosticCodes.UnknownAssetPath, "/Game/X")));
+            Assert.Contains("TSharedPtr<F>", CodeDiagnosticText.Message(D(CodeDiagnosticCodes.UnsupportedPropertyType, "P", "TSharedPtr<F>")));
+            Assert.Contains("Blueprint", CodeDiagnosticText.Message(D(CodeDiagnosticCodes.UnsupportedParameterType, "B", "uint32", "Call", "blueprint")));
+            Assert.Contains("?", CodeDiagnosticText.Message(D(CodeDiagnosticCodes.UnsupportedParameterType)));
+            Loc.Language = UiLanguage.Chinese;
+            Assert.Contains("_Implementation", CodeDiagnosticText.Message(D(CodeDiagnosticCodes.GeneratedFunctionBody, "ServerFire", "Server", "AW")));
+            Assert.Contains("DOREPLIFETIME", CodeDiagnosticText.Message(D(CodeDiagnosticCodes.UnregisteredReplicatedProperty, "Heat", "AW")));
+        }
+
+        [Fact]
         public void Plan_ViewportPlusMargin_AndCoverage()
         {
             var r = CodeDiagnosticsPlan.Range(100, 140, 1000);

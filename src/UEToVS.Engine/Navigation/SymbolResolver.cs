@@ -123,6 +123,20 @@ namespace UEToVS.Engine.Navigation
             if (DeclarationContextOccurrences.IsUeBoilerplateMacro(word))
             {
                 r.Reason = "ue-macro";
+                // The macro's #define (e.g. GENERATED_BODY in ObjectMacros.h), then — for GENERATED_BODY and friends — the
+                // per-class expansion UHT wrote into X.generated.h, when the project has been built.
+                foreach (var m in ctx.ByName(word))
+                    if (m.Kind == SymbolKind.Macro) r.Candidates.Add(m);
+                if (GeneratedBodyLocator.IsBodyMacro(word))
+                {
+                    try
+                    {
+                        var gen = GeneratedBodyLocator.Find(doc.Path, System.Text.Encoding.UTF8.GetString(doc.Text), word, doc.PositionOf(offset).Line);
+                        if (gen != null) r.Candidates.Add(gen);
+                    }
+                    catch (Exception ex) when (ex is System.IO.IOException || ex is UnauthorizedAccessException) { }
+                }
+                if (r.Candidates.Count > 0) r.Confidence = ResolutionConfidence.Exact;
                 return r;
             }
 

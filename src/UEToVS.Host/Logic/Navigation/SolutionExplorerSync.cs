@@ -37,5 +37,23 @@ namespace UEToVS.Host.Logic.Navigation
 
         /// <summary>Whether switching the active document to <paramref name="path"/> should reveal it: the setting is on, a UE solution is open and the file is C++.</summary>
         public static bool ShouldReveal(bool enabled, bool unrealSolution, string path) => enabled && unrealSolution && IsCppFile(path);
+
+        /// <summary>
+        /// New vertical offset that puts an item in the middle of the tree's viewport. <paramref name="itemTop"/> is the item's
+        /// top relative to the viewport (pixels). Physical scrolling: offsets in pixels. Logical scrolling (virtualized tree,
+        /// CanContentScroll): offsets in items, so the pixel distance is converted with the item height. Returns null when the
+        /// item is already within the middle third (no jump for a small move) or the input is unusable.
+        /// </summary>
+        public static double? CenteredOffset(double currentOffset, double itemTop, double itemHeight, double viewportPixels, bool logicalScrolling,
+                                             double maxOffset)
+        {
+            if (itemHeight <= 0 || viewportPixels <= 0 || double.IsNaN(itemTop) || double.IsInfinity(itemTop)) return null;
+            double center = itemTop + itemHeight / 2;
+            if (center >= viewportPixels / 3 && center <= viewportPixels * 2 / 3) return null;
+            double deltaPixels = center - viewportPixels / 2;
+            double delta = logicalScrolling ? Math.Round(deltaPixels / itemHeight) : deltaPixels;
+            double target = Math.Max(0, Math.Min(maxOffset < 0 ? 0 : maxOffset, currentOffset + delta));
+            return Math.Abs(target - currentOffset) < (logicalScrolling ? 1 : 1.0) ? (double?)null : target;
+        }
     }
 }

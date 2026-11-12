@@ -151,6 +151,12 @@ namespace UEToVS.Engine.Indexing
 
         void Save(string indexDir, string key);
 
+        /// <summary>
+        /// Shutdown: writes the in-memory delta to disk cheaply (no full compaction) so readers of the on-disk index see it.
+        /// Returns the number of files written. Default: nothing to persist.
+        /// </summary>
+        int PersistDelta(CancellationToken ct) => 0;
+
         // ---- M2 navigation (defaults keep simple backends working without inheritance / occurrence data) ----
 
         /// <summary>Classes/structs/unions named <paramref name="name"/> with their base texts (container rule as <see cref="FindSymbols"/>).</summary>

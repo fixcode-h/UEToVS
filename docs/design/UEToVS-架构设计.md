@@ -205,29 +205,29 @@ Rider 在 UE 上的优势主要不在“能做什么”，而在“怎么做”�
 | 功能 | 对标 | 依赖 | 状态 |
 | --- | --- | --- | --- |
 | 打开文件 / 查找符号 / 查找类型（Search Everywhere） | VA Open File / Find Symbol；Rider Search Everywhere | L0 | ✅ |
-| 转到定义 / 声明 / 实现（含 UE `_Implementation`） | VA Alt+G | L1 | ⬜（当前靠 VS） |
-| 查找引用（读/写区分、分组、预览、文件内模式） | VA Find References | L1 | ⬜ |
+| 转到定义 / 声明 / 实现（含 UE `_Implementation`） | VA Alt+G | L1 | ✅ |
+| 查找引用（读/写区分、分组、预览、文件内模式） | VA Find References | L1 | ✅ |
 | 头文件 ↔ 源文件、相关项（`Foo`/`_Implementation`/`_Validate`/`.generated.h`） | VA Open Corresponding；Rider Related | L0 | ✅ |
 | 文件结构 / 成员列表（Alt+M） | VA List Methods；Rider File Structure | L0 | ✅ |
 | 导航历史、最近文件、最近位置、编辑位置 | VA Navigate Back；Rider | — | ✅ |
-| 类型层次（基类/派生类，含 UInterface） | VA Goto Related / Hovering Class Browser | L1 | ⬜ |
-| 导航栏（当前作用域 + 跳转） | VA Navigation Bar | L1 | ⬜ |
-| 引用高亮（光标所在符号） | VA | L1 | ⬜ |
+| 类型层次（基类/派生类，含 UInterface） | VA Goto Related / Hovering Class Browser | L1 | ✅ |
+| 导航栏（当前作用域 + 跳转） | VA Navigation Bar | L1 | ✅ |
+| 引用高亮（光标所在符号） | VA | L1 | ✅ |
 | 书签 | Rider / VA Hashtags | — | ✅ |
 
 #### 编码辅助
 
 | 功能 | 对标 | 依赖 | 状态 |
 | --- | --- | --- | --- |
-| UE 感知 IntelliSense：成员补全（`.` `->` `::` 后，UE 宏下准确，见 §7.6） | VA 增强补全 | L1 | ⬜ |
-| 首字母 / 驼峰 / 省略 UE 前缀的补全匹配 | VA Suggestions | L0 | 🔶（匹配器已有） |
-| 增强语法着色（VA 风格配色，类型/函数/变量/宏/枚举值分色，引擎符号斜体，UE 反射符号单独着色） | VA | L1 | ⬜ |
-| Quick Info（签名、注释、反射说明符） | VA | L1 | ⬜ |
-| 悬停宏展开（含 UE 宏） | VA 2025.3+ | L1，精确模式 L2 | ⬜ |
-| 参数信息（Signature Help） | VA | L1 | ⬜ |
+| UE 感知 IntelliSense：成员补全（`.` `->` `::` 后，UE 宏下准确，见 §7.6） | VA 增强补全 | L1 | ✅ |
+| 首字母 / 驼峰 / 省略 UE 前缀的补全匹配 | VA Suggestions | L0 | ✅ |
+| 增强语法着色（VA 风格配色，类型/函数/变量/宏/枚举值分色，引擎符号斜体，UE 反射符号单独着色） | VA | L1 | ✅ |
+| Quick Info（签名、注释、反射说明符） | VA | L1 | ✅ |
+| 悬停宏展开（含 UE 宏） | VA 2025.3+ | L1，精确模式 L2 | ✅ |
+| 参数信息（Signature Help） | VA | L1 | ✅ |
 | `.` ↔ `->` 自动纠正 | VA | L1 | ⬜ |
 | Add Include（UE 引号风格、Public/Private 路径） + 自动补 Build.cs 依赖 | VA Add Include；Rider | L0/L1 | 🔶（依赖修复已有） |
-| 未知符号快速红线（高置信度才报） | VA | L1 | ⬜ |
+| 未知符号快速红线（高置信度才报） | VA | L1 | ✅ |
 
 #### 重构与代码生成
 
@@ -251,7 +251,7 @@ Rider 在 UE 上的优势主要不在“能做什么”，而在“怎么做”�
 | 不依赖 `.generated.h`（内置 GENERATED_BODY 语义模型） | VA 2021.2 | L1 | 🔶 |
 | 只解析启用的插件与引用模块 | VA 2021.2 | L0 | 🔶 |
 | `CreateDefaultSubobject<T>` 等模板工厂的类型推导 | VA 2024.1 | L1 | ⬜ |
-| 反射说明符补全与文档（UPROPERTY/UFUNCTION/UCLASS/USTRUCT/meta） | Rider | L0 + 知识库 | ⬜ |
+| 反射说明符补全与文档（UPROPERTY/UFUNCTION/UCLASS/USTRUCT/meta） | Rider | L0 + 知识库 | ✅ |
 | Build.cs 模块依赖检查与修复 | Rider | L0 | ✅ |
 | HLSL / USF / USH 着色、导航、补全 | VA | 独立轻量解析 | ⬜ |
 | 生成工程文件、Live Coding | — | Link | ✅ |

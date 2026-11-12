@@ -91,8 +91,34 @@ Stdout carries MCP JSON-RPC only; nothing else is ever written to it.";
                     o.SolutionDirMethod = found ? "discovered" : "cwd";
                 }
             }
-            o.SolutionDir = Path.GetFullPath(o.SolutionDir.Trim().Trim('"'));
+            string given = o.SolutionDir.Trim().Trim('"');
+            string workDir = cwd ?? Directory.GetCurrentDirectory();
+            o.SolutionDir = Path.GetFullPath(Path.IsPathRooted(given) ? given : Path.Combine(workDir, given));
+            if (!Path.IsPathRooted(given) && !LooksLikeSolutionDir(o.SolutionDir))
+            {
+                // a shared .mcp.json passes the solution folder relative to itself; the agent may run elsewhere
+                string discovered = DiscoverSolutionDir(workDir, out bool ok);
+                if (ok)
+                {
+                    o.SolutionDir = discovered;
+                    o.SolutionDirMethod = "argument-relative-discovered";
+                }
+            }
             return o;
+        }
+
+        /// <summary>Has .vs/UEToVS, a .sln or a .uproject.</summary>
+        public static bool LooksLikeSolutionDir(string dir)
+        {
+            try
+            {
+                return Directory.Exists(Path.Combine(dir, ".vs", StoragePaths.FolderName)) ||
+                       (Directory.Exists(dir) && (Directory.EnumerateFiles(dir, "*.sln").Any() || Directory.EnumerateFiles(dir, "*.uproject").Any()));
+            }
+            catch (Exception)
+            {
+                return false;
+            }
         }
 
         /// <summary>

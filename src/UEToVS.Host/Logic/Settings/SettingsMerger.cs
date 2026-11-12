@@ -177,6 +177,10 @@ namespace UEToVS.Host.Logic.Settings
                     s.DisableBackgroundCodeAnalysis = v.Value<bool>();
                     applied = s.DisableBackgroundCodeAnalysis;
                     return true;
+                case "vs.blueprintsupport":
+                    s.VsBlueprintSupport = v.Value<bool>();
+                    applied = s.VsBlueprintSupport;
+                    return true;
                 default:
                     applied = null;
                     return false;
