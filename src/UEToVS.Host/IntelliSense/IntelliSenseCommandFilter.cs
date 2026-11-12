@@ -15,6 +15,7 @@ using Microsoft.VisualStudio.Utilities;
 using UEToVS.Core.Diagnostics;
 using UEToVS.Host.Diagnostics;
 using UEToVS.Host.Editor;
+using UEToVS.Host.Navigation;
 
 namespace UEToVS.Host.IntelliSense
 {
@@ -106,6 +107,19 @@ namespace UEToVS.Host.IntelliSense
 
         public int Exec(ref Guid pguidCmdGroup, uint nCmdID, uint nCmdexecopt, IntPtr pvaIn, IntPtr pvaOut)
         {
+            if (pguidCmdGroup == Std2K && nCmdID == (uint)VSConstants.VSStd2KCmdID.COMPLETEWORD && IsAltArrowDown(out bool back))
+            {
+                // VS keeps "Text Editor::Alt+Right Arrow" on Edit.CompleteWord even after UEToVS removes it (DTE reads the
+                // binding back unchanged), and a Text Editor binding beats our Global Alt+→. When the gesture really is
+                // Alt+←/→, it means navigation history.
+                L.Info("nav.altArrow.redirect", null, ("back", back), ("from", "Edit.CompleteWord"));
+                Safe.Execute(L, "nav.altArrow", () =>
+                {
+                    if (back) NavigationService.Instance.Back();
+                    else NavigationService.Instance.Forward();
+                });
+                return VSConstants.S_OK;
+            }
             if (IsOurs(ref pguidCmdGroup, nCmdID, out var cmd) && Owned)
             {
                 Safe.Execute(L, "is.command", () => Run(cmd), ("command", cmd.ToString()));
@@ -127,6 +141,15 @@ namespace UEToVS.Host.IntelliSense
             if ((typed == '(' || typed == ',') && ErrorHandler.Succeeded(hr) && _signatures != null)
                 Safe.Execute(L, "is.signatureHelp.typed", () => _signatures.Trigger(typed, false));
             return hr;
+        }
+
+        /// <summary>Alt (only) + ← or → is held right now.</summary>
+        private static bool IsAltArrowDown(out bool back)
+        {
+            back = false;
+            if (System.Windows.Input.Keyboard.Modifiers != System.Windows.Input.ModifierKeys.Alt) return false;
+            if (System.Windows.Input.Keyboard.IsKeyDown(System.Windows.Input.Key.Left)) { back = true; return true; }
+            return System.Windows.Input.Keyboard.IsKeyDown(System.Windows.Input.Key.Right);
         }
 
         private void Run(VSConstants.VSStd2KCmdID cmd)

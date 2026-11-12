@@ -19,6 +19,8 @@ namespace UEToVS.Host.Logic.Commands
             ["up"] = "Up Arrow", ["uparrow"] = "Up Arrow", ["up arrow"] = "Up Arrow", ["↑"] = "Up Arrow",
             ["down"] = "Down Arrow", ["downarrow"] = "Down Arrow", ["down arrow"] = "Down Arrow", ["↓"] = "Down Arrow",
             ["backspace"] = "Bkspce", ["bkspce"] = "Bkspce", ["back"] = "Bkspce",
+            // VS 18 returns this misspelling from Command.Bindings (seen in diagnostics: "Ctrl+Shift+Backsapce")
+            ["backsapce"] = "Bkspce",
             ["delete"] = "Del", ["del"] = "Del", ["insert"] = "Ins", ["ins"] = "Ins",
             ["pageup"] = "PgUp", ["pgup"] = "PgUp", ["pagedown"] = "PgDn", ["pgdn"] = "PgDn",
             ["escape"] = "Esc", ["esc"] = "Esc", ["enter"] = "Enter", ["return"] = "Enter", ["space"] = "Space", ["tab"] = "Tab",
@@ -142,8 +144,31 @@ namespace UEToVS.Host.Logic.Commands
         }
 
         /// <summary>Global applies everywhere, so it overlaps every scope; other scopes only overlap themselves.</summary>
-        public static bool ScopesOverlap(string a, string b) =>
-            string.Equals(a, b, StringComparison.OrdinalIgnoreCase) || string.Equals(a, "Global", StringComparison.OrdinalIgnoreCase) || string.Equals(b, "Global", StringComparison.OrdinalIgnoreCase);
+        public static bool ScopesOverlap(string a, string b)
+        {
+            if (string.Equals(a, b, StringComparison.OrdinalIgnoreCase)) return true;
+            bool aGlobal = string.Equals(a, "Global", StringComparison.OrdinalIgnoreCase), bGlobal = string.Equals(b, "Global", StringComparison.OrdinalIgnoreCase);
+            if (!aGlobal && !bGlobal) return false;
+            // A Global key shadowed only inside a resource/graphics designer never reaches code editing (e.g. VC Dialog
+            // Editor's Alt+← for Format.SpaceAcross): not a conflict worth reporting or rewriting.
+            return !IsDesignerScope(aGlobal ? b : a);
+        }
+
+        private static readonly string[] DesignerScopeHints =
+        {
+            "Dialog Editor", "Image Editor", "Designer", "Ribbon", "Graph Document", "DSL", "Model Editor", "Accelerator",
+            "String Editor", "Version Editor", "Binary Editor",
+            "对话框编辑器", "图像编辑器", "设计器", "功能区", "加速键", "字符串编辑器", "版本编辑器", "二进制编辑器",
+        };
+
+        /// <summary>Scopes of resource/graphics designers (English and Chinese VS), where code-navigation keys do not matter.</summary>
+        public static bool IsDesignerScope(string scope)
+        {
+            if (string.IsNullOrEmpty(scope)) return false;
+            foreach (var h in DesignerScopeHints)
+                if (scope.IndexOf(h, StringComparison.OrdinalIgnoreCase) >= 0) return true;
+            return false;
+        }
 
         /// <summary>WPF-like display text ("Alt+←").</summary>
         public static string Display(string keys)

@@ -205,43 +205,68 @@ namespace UEToVS.Engine.Indexing
     }
 
     /// <summary>
-    /// Collects parse results into batches per kind (project / engine) and hands full batches to one writer thread
-    /// that turns each into a base segment (<see cref="ISymbolIndexBackend.AppendBatch"/>), so writing never blocks
-    /// parsing. Back-pressure: at most <see cref="QueueCapacity"/> batches wait for the writer; parsers block (and
-    /// the wait is recorded as throttled time) beyond that, which bounds memory.
+    /// Collects parse results into batches per kind (project / engine) and hands full batches to segment writer threads
+    /// that turn each into a base segment, so writing never blocks parsing. With an <see cref="IParallelBulkBackend"/>
+    /// up to <see cref="Writers"/> batches are encoded and written to disk at the same time (the expensive part: a
+    /// diagnostics package showed one writer at ~220 ms per segment being the whole 16 s of an 81k-file engine parse,
+    /// with the parsers throttled behind it) and then published strictly in the order they were taken from the queue,
+    /// one at a time, so the index ends up exactly as with a single writer. Other backends get one writer calling
+    /// <see cref="ISymbolIndexBackend.AppendBatch"/>.
+    /// Memory bound: at most <see cref="QueueCapacity"/> batches wait in the queue, <see cref="Writers"/> are being
+    /// written, plus one partial batch per kind being filled — i.e. Writers + 3 batches of ≤ <see cref="BatchFiles"/>
+    /// files / <see cref="BatchSourceBytes"/> source bytes each. Parsers block beyond that (recorded as throttled time).
     /// </summary>
     public sealed class BulkSink : IDisposable
     {
         private static readonly Logger L = Log.For("Index");
         public const int QueueCapacity = 1;
+        public const int MaxWriters = 4;
 
         private readonly ISymbolIndexBackend _backend;
+        private readonly IParallelBulkBackend _parallel;
         private readonly CancellationToken _ct;
         private readonly BlockingCollection<(bool Engine, List<(string, ParseResult)> Batch)> _queue =
             new BlockingCollection<(bool, List<(string, ParseResult)>)>(QueueCapacity);
         private readonly object _gate = new object();
-        private readonly Task _writer;
+        private readonly object _takeGate = new object();
+        private readonly object _turnGate = new object();
+        private readonly Task[] _writers;
         private readonly List<(string, ParseResult)>[] _pending = { new List<(string, ParseResult)>(), new List<(string, ParseResult)>() };
         private readonly long[] _pendingBytes = new long[2];
+        private long _nextTake;
+        private long _nextPublish;
         private int _inFlight;
+        private int _segmentsWritten;
         private Exception _error;
 
-        public BulkSink(ISymbolIndexBackend backend, CancellationToken ct, int batchFiles = 3000, long batchSourceBytes = 16L * 1024 * 1024)
+        /// <param name="writers">Segment writer threads (1..<see cref="MaxWriters"/>; only used with an
+        /// <see cref="IParallelBulkBackend"/>). Default: <see cref="DefaultWriters"/> of the processor count.</param>
+        public BulkSink(ISymbolIndexBackend backend, CancellationToken ct, int batchFiles = 3000, long batchSourceBytes = 16L * 1024 * 1024, int writers = 0)
         {
             _backend = backend;
+            _parallel = backend as IParallelBulkBackend;
             _ct = ct;
             BatchFiles = batchFiles;
             BatchSourceBytes = batchSourceBytes;
-            _writer = Task.Factory.StartNew(WriterLoop, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+            Writers = _parallel == null ? 1 : Math.Max(1, Math.Min(MaxWriters, writers > 0 ? writers : DefaultWriters(Environment.ProcessorCount)));
+            _writers = new Task[Writers];
+            for (int i = 0; i < Writers; i++)
+                _writers[i] = Task.Factory.StartNew(WriterLoop, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
         }
+
+        /// <summary>Writers for <paramref name="parseThreads"/> parser threads: half of them, 1..<see cref="MaxWriters"/>.</summary>
+        public static int DefaultWriters(int parseThreads) => Math.Max(1, Math.Min(MaxWriters, parseThreads / 2));
 
         public int BatchFiles { get; }
         public long BatchSourceBytes { get; }
 
+        /// <summary>Segment writer threads.</summary>
+        public int Writers { get; }
+
         /// <summary>Receives segment write times (set per stage).</summary>
         public ThroughputRecorder Recorder { get; set; }
 
-        public int SegmentsWritten { get; private set; }
+        public int SegmentsWritten => Volatile.Read(ref _segmentsWritten);
 
         public void Add(bool engine, string path, ParseResult result, long sourceBytes)
         {
@@ -311,17 +336,19 @@ namespace UEToVS.Engine.Indexing
             if (_error != null) throw new SegmentWriteFailedException("Writing index segments failed: " + _error.Message, _error);
         }
 
+        private bool Stopped => Volatile.Read(ref _error) != null || _ct.IsCancellationRequested;
+
         /// <summary>
         /// Writes one batch; when memory runs out it collects, splits the batch in halves and retries, so a heavy batch
         /// (or a tight heap) costs a few smaller segments instead of failing the whole index run. A single file that still
         /// cannot be written is dropped from the segment (it stays searchable by file name) and logged.
+        /// <paramref name="write"/> is AppendBatch (single writer) or PrepareBatch (parallel; results collected in order).
         /// </summary>
-        private void AppendResilient(bool engine, List<(string, ParseResult)> batch, int depth)
+        private void WriteResilient(bool engine, List<(string, ParseResult)> batch, int depth, Action<List<(string, ParseResult)>> write)
         {
             try
             {
-                _backend.AppendBatch(engine, batch, _ct);
-                SegmentsWritten++;
+                write(batch);
             }
             catch (OutOfMemoryException ex)
             {
@@ -338,8 +365,8 @@ namespace UEToVS.Engine.Indexing
                 int half = batch.Count / 2;
                 L.Warn("index.segment.split_retry", "Out of memory writing a segment; retrying in two halves", null,
                     ("files", batch.Count), ("depth", depth), ("engine", engine), ("managedMBBefore", before / 1048576), ("managedMBAfter", after / 1048576));
-                AppendResilient(engine, batch.GetRange(0, half), depth + 1);
-                AppendResilient(engine, batch.GetRange(half, batch.Count - half), depth + 1);
+                WriteResilient(engine, batch.GetRange(0, half), depth + 1, write);
+                WriteResilient(engine, batch.GetRange(half, batch.Count - half), depth + 1, write);
             }
         }
 
@@ -347,33 +374,17 @@ namespace UEToVS.Engine.Indexing
         {
             try
             {
-                foreach (var (engine, batch) in _queue.GetConsumingEnumerable())
+                while (true)
                 {
-                    try
+                    (bool Engine, List<(string, ParseResult)> Batch) item;
+                    long seq;
+                    // Taking and numbering together: the publish order is the queue order.
+                    lock (_takeGate)
                     {
-                        if (_error == null && !_ct.IsCancellationRequested)
-                        {
-                            long t0 = Stopwatch.GetTimestamp();
-                            AppendResilient(engine, batch, 0);
-                            Recorder?.RecordSegment(Stopwatch.GetTimestamp() - t0);
-                        }
+                        if (!_queue.TryTake(out item, Timeout.Infinite)) break; // completed and empty
+                        seq = _nextTake++;
                     }
-                    catch (OperationCanceledException)
-                    {
-                    }
-                    catch (Exception ex)
-                    {
-                        L.Error("index.segment.write_failed", "Writing a segment batch failed", ex, ("files", batch.Count), ("engine", engine));
-                        lock (_gate) _error ??= ex;
-                    }
-                    finally
-                    {
-                        lock (_gate)
-                        {
-                            Interlocked.Decrement(ref _inFlight);
-                            Monitor.PulseAll(_gate);
-                        }
-                    }
+                    ProcessBatch(item.Engine, item.Batch, seq);
                 }
             }
             catch (Exception ex)
@@ -382,10 +393,87 @@ namespace UEToVS.Engine.Indexing
             }
         }
 
+        private void ProcessBatch(bool engine, List<(string, ParseResult)> batch, long seq)
+        {
+            var prepared = new List<IDisposable>();
+            long t0 = Stopwatch.GetTimestamp();
+            bool myTurn = false;
+            try
+            {
+                // 1) parallel part: encode + write the segment file(s)
+                if (_parallel != null && !Stopped)
+                    WriteResilient(engine, batch, 0, b =>
+                    {
+                        var p = _parallel.PrepareBatch(engine, b, _ct);
+                        if (p != null) prepared.Add(p);
+                    });
+                // 2) serial part, in queue order
+                WaitForTurn(seq);
+                myTurn = true;
+                if (!Stopped)
+                {
+                    if (_parallel != null)
+                    {
+                        foreach (var p in prepared)
+                        {
+                            _parallel.PublishBatch(p);
+                            Interlocked.Increment(ref _segmentsWritten);
+                        }
+                        prepared.Clear();
+                    }
+                    else
+                    {
+                        WriteResilient(engine, batch, 0, b =>
+                        {
+                            _backend.AppendBatch(engine, b, _ct);
+                            Interlocked.Increment(ref _segmentsWritten);
+                        });
+                    }
+                    Recorder?.RecordSegment(Stopwatch.GetTimestamp() - t0);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch (Exception ex)
+            {
+                L.Error("index.segment.write_failed", "Writing a segment batch failed", ex, ("files", batch.Count), ("engine", engine), ("seq", seq));
+                lock (_gate) _error ??= ex;
+            }
+            finally
+            {
+                foreach (var p in prepared)
+                {
+                    try { p.Dispose(); } catch (Exception ex) { L.Warn("index.segment.discard_failed", "Discarding an unpublished segment failed", ex); }
+                }
+                // Hand the turn on even when this batch failed or was skipped, so later batches never wait forever.
+                if (!myTurn) WaitForTurn(seq);
+                lock (_turnGate)
+                {
+                    _nextPublish = seq + 1;
+                    Monitor.PulseAll(_turnGate);
+                }
+                lock (_gate)
+                {
+                    Interlocked.Decrement(ref _inFlight);
+                    Monitor.PulseAll(_gate);
+                }
+            }
+        }
+
+        /// <summary>Blocks until every batch taken before <paramref name="seq"/> was published (or skipped).</summary>
+        private void WaitForTurn(long seq)
+        {
+            lock (_turnGate)
+            {
+                while (_nextPublish != seq) Monitor.Wait(_turnGate);
+            }
+        }
+
         public void Dispose()
         {
             _queue.CompleteAdding();
-            try { _writer.Wait(TimeSpan.FromSeconds(30)); } catch (Exception) { }
+            try { Task.WaitAll(_writers, TimeSpan.FromSeconds(30)); } catch (Exception) { }
             _queue.Dispose();
         }
     }

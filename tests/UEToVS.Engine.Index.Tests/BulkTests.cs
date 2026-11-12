@@ -56,6 +56,39 @@ namespace UEToVS.Engine.Index.Tests
         }
 
         [Fact]
+        public void PrepareSegment_InParallel_PublishInOrder_LaterWins_AndDiscardDeletesTheFile()
+        {
+            using var dir = new TempDir();
+            using (var idx = SymbolIndex.Open(Split(dir.Path), out _))
+            {
+                var prepared = new PreparedSegment[4];
+                System.Threading.Tasks.Parallel.For(0, 4, i =>
+                    prepared[i] = idx.PrepareSegment(SegmentKind.Engine, new[]
+                    {
+                        T.F($"/ue/P{i}.h", ItemOrigin.Engine, T.D("P" + i)),
+                        T.F("/ue/Shared.h", ItemOrigin.Engine, T.D("Shared" + i)),
+                    }));
+                Assert.Equal(0, idx.BaseSegmentCount(SegmentKind.Engine)); // nothing visible before publishing
+                for (int i = 0; i < 3; i++) idx.PublishSegment(prepared[i]);
+                string discarded = Path.Combine(dir.Path, "engine", prepared[3].FileName);
+                Assert.True(File.Exists(discarded));
+                prepared[3].Dispose();
+                Assert.False(File.Exists(discarded));
+                Assert.Throws<System.InvalidOperationException>(() => idx.PublishSegment(prepared[0])); // published once only
+                Assert.Single(idx.FindByName("P2"));
+                Assert.Empty(idx.FindByName("P3"));
+                Assert.Single(idx.FindByName("Shared2")); // the last published copy wins
+                Assert.Empty(idx.FindByName("Shared0"));
+                Assert.Empty(idx.FindByName("Shared1"));
+            }
+            using var again = SymbolIndex.Open(Split(dir.Path), out var r);
+            Assert.False(r.NeedsEngineRebuild);
+            Assert.Single(again.FindByName("P0"));
+            Assert.Single(again.FindByName("Shared2"));
+            Assert.Empty(again.FindByName("Shared0"));
+        }
+
+        [Fact]
         public void MergeBases_KeepsLiveFilesOnly()
         {
             using var dir = new TempDir();

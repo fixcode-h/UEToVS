@@ -185,11 +185,18 @@ namespace UEToVS.UI
         /// Calls <paramref name="apply"/> now and whenever the UI language changes while <paramref name="owner"/> is
         /// loaded (subscribed on Loaded, unsubscribed on Unloaded, so no leak through the static event).
         /// Language changes while unloaded are picked up on the next Loaded.
+        /// With <paramref name="onlyWhenChanged"/> the Loaded pass is skipped when the language is still the one last
+        /// applied (for expensive relabels such as the settings window, which otherwise built its page twice per open).
         /// </summary>
-        public static void Track(FrameworkElement owner, Action apply)
+        public static void Track(FrameworkElement owner, Action apply, bool onlyWhenChanged = false)
         {
             if (owner == null || apply == null) return;
-            void Run() => Theming.Ui.Safe("ui.loc.apply", apply);
+            UiLanguage applied = Loc.Language;
+            void Run()
+            {
+                applied = Loc.Language;
+                Theming.Ui.Safe("ui.loc.apply", apply);
+            }
             void OnChanged()
             {
                 var d = owner.Dispatcher;
@@ -200,7 +207,7 @@ namespace UEToVS.UI
             bool subscribed = false;
             owner.Loaded += (s, e) =>
             {
-                Run();
+                if (!onlyWhenChanged || applied != Loc.Language) Run();
                 if (!subscribed) { Loc.LanguageChanged += OnChanged; subscribed = true; }
             };
             owner.Unloaded += (s, e) =>
