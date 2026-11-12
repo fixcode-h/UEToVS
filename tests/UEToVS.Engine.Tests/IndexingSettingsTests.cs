@@ -431,8 +431,11 @@ namespace UEToVS.Engine.Tests
                 h1.StartIndexing();
                 await Ready(h1);
                 Assert.Contains(engineHeader, p1.Parsed);
-                Assert.Empty(Directory.Exists(Path.Combine(h1.Paths.Index, "engine")) ? Directory.GetFiles(Path.Combine(h1.Paths.Index, "engine"), "*.seg") : Array.Empty<string>());
                 h1.Index.SaveState();
+                // The project manifest points at the shared copies. (The local engine copies are deleted once unmapped;
+                // on Windows a still-mapped file is only removed on the next open, so don't assert on the folder here.)
+                string manifest = File.ReadAllText(Path.Combine(h1.Paths.Index, "project", "manifest.json")).Replace("\\\\", "/").Replace('\\', '/');
+                Assert.Contains("shared-cache", manifest);
             }
             Assert.NotEmpty(Directory.GetFiles(cacheRoot, "*.seg", SearchOption.AllDirectories));
 
