@@ -36,6 +36,8 @@ namespace UEToVS.UI.Molecules
     /// <summary>
     /// Host hook for a real editor view: the host plugs one shared read-only <c>IWpfTextView</c> (syntax colors,
     /// editor font) and swaps buffer/visible span per request (§8.5). The UI library never touches VS editor APIs.
+    /// <see cref="Show"/> may load asynchronously; when that fails the host calls <see cref="CodePreview.ShowFallback"/>.
+    /// A host that throws from <see cref="View"/> or <see cref="Show"/> is dropped and the built-in preview is used.
     /// </summary>
     public interface ICodePreviewHost
     {
@@ -124,9 +126,32 @@ namespace UEToVS.UI.Molecules
                 }
                 catch (Exception ex)
                 {
-                    Ui.Logger.Error("ui.preview.host_failed", "Preview host threw; using fallback", ex);
+                    Ui.Logger.Error("ui.preview.host_failed", "Preview host threw; using the built-in preview from now on", ex);
+                    _host = null;
                 }
             }
+            ShowBuiltIn(request, gen);
+        }
+
+        /// <summary>
+        /// The host could not show <paramref name="request"/> (read error, too large, editor failure): show it with the
+        /// built-in plain-text preview instead. Ignored when a newer request has been shown since.
+        /// </summary>
+        public void ShowFallback(CodePreviewRequest request)
+        {
+            if (request == null || !ReferenceEquals(request, _last)) return;
+            ShowBuiltIn(request, _generation);
+        }
+
+        /// <summary>Shows a message in the body for the current request (e.g. "file too large"), keeping the header.</summary>
+        public void ShowMessageFor(CodePreviewRequest request, string text)
+        {
+            if (request == null || !ReferenceEquals(request, _last)) return;
+            ShowMessage(text);
+        }
+
+        private void ShowBuiltIn(CodePreviewRequest request, int gen)
+        {
             if (request.Text != null)
             {
                 ShowLines(SplitLines(request.Text), request);

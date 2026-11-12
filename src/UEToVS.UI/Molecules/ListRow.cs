@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Automation.Peers;
@@ -24,9 +25,11 @@ namespace UEToVS.UI.Molecules
     }
 
     /// <summary>
-    /// List row molecule (Rider layout): [indent/chevron] [icon] primary · secondary ……… [badges] [right text] [kbd] [›].
-    /// A single custom panel (no Grid): the secondary text is trimmed first, then the primary; the right group is
-    /// never pushed out. Selection/hover is a rounded rect drawn in OnRender (no extra elements, no effects).
+    /// List row molecule: [indent/chevron] [icon] primary · secondary ……… [badges] [right text] [kbd] [›].
+    /// A single custom panel (no Grid). Column widths come from <see cref="RowTextFit.Allocate"/>: the primary gets its
+    /// full width first, the secondary (location) takes what is left and is trimmed in the middle, path aware
+    /// ("Plugins/Foo/…/Private/Bar"); the right group keeps its natural width and stays right-aligned. Re-fitted on every
+    /// width change. Selection/hover is a rounded rect drawn in OnRender (no extra elements, no effects).
     /// </summary>
     public class ListRow : Panel, IVirtualRow
     {
@@ -61,7 +64,12 @@ namespace UEToVS.UI.Molecules
         private int _indent;
         private bool? _expanded;
         private string _tooltip;
-        private double _wantP, _wantS;
+        private double _wantP, _wantS, _wantR;
+        private double _leftW, _rightFixedW, _fitWidth = double.NaN, _rowHeight = 24, _pixelsPerDip;
+        private RowColumns _cols;
+        private bool _arranging;
+        private string _secSource, _secShown;
+        private IReadOnlyList<TextRange> _secRanges;
 
         public ListRow()
         {
@@ -145,7 +153,11 @@ namespace UEToVS.UI.Molecules
                 _primary.ClearValue(TextBlock.FontSizeProperty);
             }
 
+            _secSource = d.Secondary ?? string.Empty;
+            _secRanges = d.SecondaryRanges;
+            _secShown = _secSource;
             _secondary.Set(d.Secondary, d.SecondaryRanges);
+            _fitWidth = double.NaN;
             _secondary.Visibility = string.IsNullOrEmpty(d.Secondary) ? Visibility.Collapsed : Visibility.Visible;
 
             int n = d.Badges.Count;
@@ -243,51 +255,129 @@ namespace UEToVS.UI.Molecules
         {
             var inf = new Size(double.PositiveInfinity, available.Height);
             double h = double.IsInfinity(available.Height) ? 24 : available.Height;
+            _rowHeight = h;
             foreach (UIElement c in Children)
-                if (c.Visibility != Visibility.Collapsed && c != _primary && c != _secondary) c.Measure(inf);
-            _wantP = 0;
-            _wantS = 0;
-            if (_primary.Visibility != Visibility.Collapsed) { _primary.Measure(new Size(double.PositiveInfinity, h)); _wantP = _primary.DesiredSize.Width; }
-            if (_secondary.Visibility != Visibility.Collapsed) { _secondary.Measure(new Size(double.PositiveInfinity, h)); _wantS = _secondary.DesiredSize.Width; }
-            Layout(available.Width, out double left, out double right, out double wPrimary, out double wSecondary);
-            if (_primary.Visibility != Visibility.Collapsed) _primary.Measure(new Size(wPrimary, h));
-            if (_secondary.Visibility != Visibility.Collapsed) _secondary.Measure(new Size(wSecondary, h));
-            return new Size(double.IsInfinity(available.Width) ? left + wPrimary + wSecondary + right : available.Width, h);
+                if (c.Visibility != Visibility.Collapsed && c != _primary && c != _secondary && c != _right) c.Measure(inf);
+            MeasureNatural();
+            Fit(available.Width);
+            if (!double.IsInfinity(available.Width)) return new Size(available.Width, h);
+            double gaps = (_cols.Secondary > 0 ? Gap : 0) + (_cols.RightText > 0 ? Gap : 0);
+            return new Size(_leftW + _cols.Primary + _cols.Secondary + _rightFixedW + _cols.RightText + gaps, h);
         }
 
-        /// <summary>Computes column widths: right group gets its desired size, then primary, then secondary.</summary>
-        private void Layout(double width, out double leftW, out double rightW, out double wPrimary, out double wSecondary)
+        /// <summary>
+        /// Natural (untrimmed) widths of the three text columns, measured with the real typeface. The primary and right
+        /// texts are measured as TextBlocks (exact, highlight runs included); the secondary is measured from its source
+        /// text with FormattedText because the TextBlock may currently hold a middle-trimmed copy.
+        /// </summary>
+        private void MeasureNatural()
+        {
+            var inf = new Size(double.PositiveInfinity, _rowHeight);
+            _wantP = 0;
+            _wantS = 0;
+            _wantR = 0;
+            if (_primary.Visibility != Visibility.Collapsed)
+            {
+                _primary.Measure(inf);
+                _wantP = Math.Ceiling(_primary.DesiredSize.Width) + RowTextFit.Slack;
+            }
+            if (_right.Visibility != Visibility.Collapsed)
+            {
+                _right.Measure(inf);
+                _wantR = Math.Ceiling(_right.DesiredSize.Width) + RowTextFit.Slack;
+            }
+            if (_secondary.Visibility != Visibility.Collapsed)
+            {
+                double w = MeasureSecondary(_secSource, _secRanges);
+                _wantS = w > 0 ? Math.Ceiling(w) + RowTextFit.Slack : 0;
+            }
+        }
+
+        /// <summary>Width of <paramref name="text"/> in the secondary column's font (matches in the match font weight).</summary>
+        private double MeasureSecondary(string text, IReadOnlyList<TextRange> ranges)
+        {
+            if (string.IsNullOrEmpty(text)) return 0;
+            try
+            {
+                if (_pixelsPerDip <= 0) _pixelsPerDip = VisualTreeHelper.GetDpi(this).PixelsPerDip;
+                var tf = new Typeface(_secondary.FontFamily, _secondary.FontStyle, _secondary.FontWeight, _secondary.FontStretch);
+                var ft = new FormattedText(text, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, tf, _secondary.FontSize, Brushes.Black, _pixelsPerDip);
+                if (ranges != null && ranges.Count > 0 && TryFindResource(Tokens.MatchFontWeight) is FontWeight mw && mw != _secondary.FontWeight)
+                {
+                    foreach (var r in ranges)
+                    {
+                        int st = Math.Max(0, r.Start), en = Math.Min(text.Length, r.End);
+                        if (en > st) ft.SetFontWeight(mw, st, en - st);
+                    }
+                }
+                return ft.WidthIncludingTrailingWhitespace;
+            }
+            catch (Exception ex)
+            {
+                Ui.Logger.Warn("ui.row.measure_failed", "Measuring the secondary text failed", ex);
+                return 0;
+            }
+        }
+
+        /// <summary>
+        /// Allocates the columns for <paramref name="width"/> (<see cref="RowTextFit.Allocate"/>: the name first, then the
+        /// location, trimmed in the middle) and measures the text children at their final widths. Re-run on every width
+        /// change (resize) so trimming always matches the space actually available.
+        /// </summary>
+        private void Fit(double width)
         {
             double pad = PadX + Inset, gap = Gap;
-            leftW = pad + _indent * IndentStep;
-            if (_chevron.Visibility != Visibility.Collapsed) leftW += 10;
-            if (_icon.Visibility != Visibility.Collapsed) leftW += _icon.DesiredSize.Width + gap;
-            if (_glyph.Visibility != Visibility.Collapsed) leftW += _glyph.DesiredSize.Width + gap;
-            rightW = pad;
-            foreach (var e in new FrameworkElement[] { _badges, _right, _kbd, _submenu })
-                if (e.Visibility != Visibility.Collapsed) rightW += e.DesiredSize.Width + gap;
+            _leftW = pad + _indent * IndentStep;
+            if (_chevron.Visibility != Visibility.Collapsed) _leftW += 10;
+            if (_icon.Visibility != Visibility.Collapsed) _leftW += _icon.DesiredSize.Width + gap;
+            if (_glyph.Visibility != Visibility.Collapsed) _leftW += _glyph.DesiredSize.Width + gap;
+            _rightFixedW = pad;
+            foreach (var e in new FrameworkElement[] { _badges, _kbd, _submenu })
+                if (e.Visibility != Visibility.Collapsed) _rightFixedW += e.DesiredSize.Width + gap;
 
-            double wantP = _wantP, wantS = _wantS;
-            if (double.IsInfinity(width))
+            double avail = double.IsInfinity(width) ? double.PositiveInfinity : width - _leftW - _rightFixedW;
+            _cols = RowTextFit.Allocate(avail, _wantP, _wantS, _wantR, gap);
+            _fitWidth = width;
+
+            double h = _rowHeight;
+            if (_primary.Visibility != Visibility.Collapsed) _primary.Measure(new Size(_cols.Primary, h));
+            if (_right.Visibility != Visibility.Collapsed) _right.Measure(new Size(_cols.RightText, h));
+            if (_secondary.Visibility != Visibility.Collapsed)
             {
-                wPrimary = wantP;
-                wSecondary = wantS;
-                return;
+                double cap = _cols.Secondary;
+                // Matches drawn bolder can make the shown text a little wider than measured here: the TextBlock's own
+                // end ellipsis remains the last guard.
+                var trim = cap >= _wantS
+                    ? MiddleTrimResult.Whole(_secSource)
+                    : RowTextFit.TrimMiddle(_secSource, Math.Max(0, cap - RowTextFit.Slack), t => MeasureSecondary(t, null));
+                if (!string.Equals(trim.Text, _secShown, StringComparison.Ordinal))
+                {
+                    _secShown = trim.Text;
+                    _secondary.Set(trim.Text, trim.IsTrimmed ? trim.MapRanges(_secRanges) : _secRanges);
+                }
+                _secondary.Measure(new Size(cap, h));
             }
-            double avail = Math.Max(0, width - leftW - rightW - (wantS > 0 ? gap : 0));
-            wPrimary = Math.Min(wantP, avail);
-            wSecondary = Math.Max(0, Math.Min(wantS, avail - wPrimary));
-            // Keep a little of the secondary visible when the primary is very long.
-            if (wantS > 0 && wSecondary < 40 && avail > 160)
-            {
-                wSecondary = Math.Min(wantS, 40);
-                wPrimary = Math.Max(0, avail - wSecondary);
-            }
+        }
+
+        protected override void OnChildDesiredSizeChanged(UIElement child)
+        {
+            // Our size never depends on the children's widths; while arranging we re-measure them ourselves.
+            if (_arranging) return;
+            base.OnChildDesiredSizeChanged(child);
         }
 
         protected override Size ArrangeOverride(Size final)
         {
-            Layout(final.Width, out _, out _, out double wPrimary, out double wSecondary);
+            _arranging = true;
+            try
+            {
+                // The list may arrange us at a different width than it measured (resize): re-fit for the real width.
+                if (double.IsNaN(_fitWidth) || Math.Abs(final.Width - _fitWidth) > 0.5) Fit(final.Width);
+            }
+            finally
+            {
+                _arranging = false;
+            }
             double h = final.Height, gap = Gap;
             double x = PadX + Inset + _indent * IndentStep;
             void Place(UIElement e, double w)
@@ -298,20 +388,27 @@ namespace UEToVS.UI.Molecules
             if (_chevron.Visibility != Visibility.Collapsed) { Place(_chevron, 5); x += 10; }
             if (_icon.Visibility != Visibility.Collapsed) { Place(_icon, _icon.DesiredSize.Width); x += _icon.DesiredSize.Width + gap; }
             if (_glyph.Visibility != Visibility.Collapsed) { Place(_glyph, _glyph.DesiredSize.Width); x += _glyph.DesiredSize.Width + gap; }
-            if (_primary.Visibility != Visibility.Collapsed) { Place(_primary, wPrimary); x += wPrimary + gap; }
-            if (_secondary.Visibility != Visibility.Collapsed) Place(_secondary, wSecondary);
+            if (_primary.Visibility != Visibility.Collapsed) { Place(_primary, _cols.Primary); x += _cols.Primary + gap; }
+            if (_secondary.Visibility != Visibility.Collapsed) Place(_secondary, _cols.Secondary);
 
             double rx = final.Width - PadX - Inset;
             foreach (var e in new FrameworkElement[] { _submenu, _kbd, _right, _badges })
             {
                 if (e.Visibility == Visibility.Collapsed) continue;
-                double w = e.DesiredSize.Width;
+                double w = e == _right ? _cols.RightText : e.DesiredSize.Width;
                 rx -= w;
                 double eh = Math.Min(h, e.DesiredSize.Height);
                 e.Arrange(new Rect(rx, (h - eh) / 2, w, eh));
                 rx -= gap;
             }
             return final;
+        }
+
+        protected override void OnDpiChanged(DpiScale oldDpi, DpiScale newDpi)
+        {
+            _pixelsPerDip = newDpi.PixelsPerDip;
+            base.OnDpiChanged(oldDpi, newDpi);
+            InvalidateMeasure();
         }
 
         protected override AutomationPeer OnCreateAutomationPeer() => new ListRowAutomationPeer(this);
