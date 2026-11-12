@@ -8,7 +8,7 @@
 ## 目录
 
 1. [背景与目标](#1-背景与目标)
-2. [现状盘点：仓库已有什么](#2-现状盘点仓库已有什么)
+2. [现有代码：功能参考与重构依据](#2-现有代码功能参考与重构依据)
 3. [竞品调研](#3-竞品调研)
 4. [功能规划：三档清单](#4-功能规划三档清单)
 5. [总体架构](#5-总体架构)
@@ -53,23 +53,23 @@ VS 自带的 C++ IntelliSense（EDG 前端 + 浏览数据库）在 UE 工程上�
 
 ---
 
-## 2. 现状盘点：仓库已有什么
+## 2. 现有代码：功能参考与重构依据
 
-当前仓库（`main`，约 1.1 万行）已经实现了一批 Rider 风格的导航功能，并且有一个清晰的雏形架构。新设计**在此基础上演进，不推倒重来**。
+当前仓库（`main`，约 1.1 万行）是一个 Rider 风格导航功能的原型。**本设计以第 5 章的目标架构为准，现有代码只作为功能清单和行为参考，不作为架构约束**：结构不符合目标架构的部分直接重写，只有在算法和接口都已经符合目标设计时才保留（例如模糊匹配打分、Build.cs 解析这类纯逻辑），并且保留的代码也要搬进新的模块边界。
 
-### 2.1 现有模块
+### 2.1 现有功能清单与处置
 
-| 位置 | 内容 | 评价 |
+| 位置 | 已有功能（作为需求参考） | 处置 |
 | --- | --- | --- |
-| `src/UEToVS.Core` (netstandard) | 模糊匹配 `FuzzyMatcher`、UE 命名 `UnrealNaming`、查询解析 `SearchQuery`、导航历史、双击 Shift 检测、键位预设、Build.cs 解析、RPC 契约 `IndexProtocol` | 与 VS 无关、可测试，方向正确，保留并扩展 |
-| `src/UEToVS.Indexer` (.NET 8 进程) | 文件/资产扫描、启发式声明扫描器 `CppSymbolScanner`、`IndexStore` 快照、二进制缓存 `IndexCache`、ripgrep 文本搜索、命名管道 JSON-RPC | 进程外模型正确；数据结构需要为“引用索引 + 语义层”重构 |
-| `src/UEToVS` (VSIX, net48) | Search Everywhere、最近文件/位置、导航历史、文件结构、Navigate To、相关项、书签、键位、模块依赖修复、Live Coding、资产搜索 | 功能多但 UI 用代码直接拼 WPF，样式散落；需要迁移到组件系统 |
-| `ue/UEToVSLink` (UE 编辑器插件) | localhost TCP：打开资产、Live Coding | 保留，扩展为“编辑器桥”（蓝图用法、日志等） |
-| `tests/*` | Core 与 Indexer 单元测试 | 保留，补充语料回归与性能基准 |
+| `src/UEToVS.Core` | 模糊匹配 `FuzzyMatcher`、UE 命名 `UnrealNaming`、查询解析 `SearchQuery`、导航历史、双击 Shift 检测、键位预设、Build.cs 解析、RPC 契约 `IndexProtocol` | 纯逻辑部分审查后迁入新的 `Core`；`IndexProtocol` 废弃，按新的 `Contracts` 重新定义 |
+| `src/UEToVS.Indexer` | 文件/资产扫描、启发式声明扫描器、快照式索引、二进制缓存、ripgrep 文本搜索、命名管道 JSON-RPC | **重写**为 `UEToVS.Engine.*`。进程外这一点保留；词法、解析、索引存储、缓存格式、RPC 序列化全部按 §6、§9 重新实现。现有扫描器里的 UE 关键字表和测试样例可作为参考数据 |
+| `src/UEToVS`（VSIX） | Search Everywhere、最近文件/位置、导航历史、文件结构、Navigate To、相关项、书签、键位方案、模块依赖修复、Live Coding、资产搜索 | **重写**为 `UEToVS.Host` + 功能模块 + 组件库。功能和快捷键约定作为需求保留，代码不沿用（UI 用代码直接拼 WPF、功能间直接互相调用，不符合 §5.2 和 §8） |
+| `ue/UEToVSLink` | localhost TCP：打开资产、Live Coding | 按 §6.9 的新协议重写为“编辑器桥” |
+| `tests/*` | Core 与 Indexer 单元测试 | 用例作为行为规格迁移到新测试项目，补充语料回归与性能基准 |
 
-### 2.2 现有代码中需要在新架构里解决的问题
+### 2.2 现有实现不能直接沿用的原因
 
-这些不是 bug，而是规模上去之后会成为瓶颈的点：
+这些是重写的依据，也是新设计必须避免的问题：
 
 1. **符号对象模型偏重**：`ScannedSymbol` 是 class，每个符号带多个 `string` 字段。25 万符号时还能接受，但加入“引用/出现位置”（数千万级）后无法用对象表示。→ 改为结构体数组 + 字符串池 + 32 位 ID（§9.3）。
 2. **全量重建快照**：`IndexStore.Rebuild()` 每次变化都把全部文件的符号拷进新数组并重建字典，O(总符号数)。→ 改为“不可变基段 + 可变增量段”的分段索引（§6.4）。
@@ -195,7 +195,7 @@ Rider 在 UE 上的优势主要不在“能做什么”，而在“怎么做”�
 - **P0 必须开发**：对标 VA 的核心能力，缺了就无法替代 VA。
 - **P1 优秀可选**：VA 或 Rider 有、价值高，但可以后置。
 - **P2 VA 没有、可新增**：差异化能力。
-- 状态：✅ 已有（可能需要迁移到新架构） / 🔶 部分已有 / ⬜ 未开始。
+- 状态：✅ 原型已有（行为作为参考，将在新架构上重写） / 🔶 原型部分已有 / ⬜ 未开始。
 - 依赖：L0 = 只需文件/声明索引；L1 = 需要容错解析 + 语义层；L2 = 需要 Clang 精确语义；Link = 需要 UE 编辑器插件。
 
 ### 4.1 P0 必须开发
@@ -350,7 +350,7 @@ Rider 在 UE 上的优势主要不在“能做什么”，而在“怎么做”�
 
 设计要点：
 
-- **VS 进程只做 UI 与编辑器集成**。所有解析、索引、搜索、重构计算都在 Engine 进程，崩溃不影响 VS，内存不计入 `devenv.exe`。这延续了现有 `UEToVS.Indexer` 的思路，Indexer 改名并扩展为 Engine。
+- **VS 进程只做 UI 与编辑器集成**。所有解析、索引、搜索、重构计算都在 Engine 进程，崩溃不影响 VS，内存不计入 `devenv.exe`。现有原型的 `UEToVS.Indexer` 也是进程外，但 Engine 按本设计重新实现。
 - **每个解决方案一个 Engine 进程**，引擎部分索引通过只读 mmap 在进程间共享（同一引擎版本只存一份、只占一份物理内存）。
 - **Clang Worker 是可选的**，默认只在需要精确语义的功能（代码检查、精确宏展开、复杂模板场景的二次确认）时按需启动，空闲超时自动退出。
 - **UEToVSLink** 从“打开资产 + Live Coding”扩展为编辑器桥，提供蓝图、资产注册表、日志、测试等编辑器内才有的信息。
@@ -375,23 +375,23 @@ L0  契约与通用库（UEToVS.Core / Contracts）  netstandard2.0，无 VS、�
 
 ### 5.3 解决方案与程序集划分
 
-| 程序集 | 目标框架 | 职责 | 由现有代码演进 |
+| 程序集 | 目标框架 | 职责 | 与现有代码的关系 |
 | --- | --- | --- | --- |
-| `UEToVS.Contracts` | netstandard2.0 | RPC 接口、DTO、错误码、版本号 | 从 `Core/Protocol` 拆出 |
-| `UEToVS.Core` | netstandard2.0 | 匹配、查询、导航历史、键位、Build.cs 模型、通用算法 | 现有 |
-| `UEToVS.Engine` | net8.0 | 引擎进程入口、RPC 服务、调度 | 现有 `Indexer` 改名 |
-| `UEToVS.Engine.Syntax` | net8.0 | UTF-8 词法、预处理、容错解析器、语法树 | `Parsing/*` 演进 |
+| `UEToVS.Contracts` | netstandard2.0 | RPC 接口、DTO、错误码、版本号 | 新建，不沿用 `IndexProtocol` |
+| `UEToVS.Core` | netstandard2.0 | 匹配、查询、导航历史、键位、Build.cs 模型、通用算法 | 新建；审查后迁入现有纯逻辑 |
+| `UEToVS.Engine` | net8.0 | 引擎进程入口、RPC 服务、调度 | 重写（替代 `Indexer`） |
+| `UEToVS.Engine.Syntax` | net8.0 | UTF-8 词法、预处理、容错解析器、语法树 | 重写，参考现有扫描器的 UE 关键字表 |
 | `UEToVS.Engine.Semantics` | net8.0 | 作用域、名称查找、类型、继承、UE 反射模型 | 新增 |
 | `UEToVS.Engine.Index` | net8.0 | 分段索引、mmap 存储、增量合并 | `Index/*` 重写 |
-| `UEToVS.Engine.Unreal` | net8.0 | 工程模型、UE 知识库、资产/ini/GameplayTags 解析 | `Unreal/*` 扩展 |
+| `UEToVS.Engine.Unreal` | net8.0 | 工程模型、UE 知识库、资产/ini/GameplayTags 解析 | 重写，参考 `ProjectLayout` 的目录约定 |
 | `UEToVS.Engine.Refactoring` | net8.0 | 重构与代码生成，产出 `WorkspaceEdit` | 新增 |
 | `UEToVS.Engine.Inspections` | net8.0 | 自有规则 + clang-tidy 结果归一 | 新增 |
 | `UEToVS.Engine.Clang` | net8.0 | Clang Worker 管理与协议适配 | 新增 |
-| `UEToVS.UI` | net48（WPF） | 组件库、设计令牌、主题 | 从 `src/UEToVS/UI` 拆出重做 |
-| `UEToVS.Host` | net48 | VSIX：Shell、编辑器适配、宿主服务 | 现有 `src/UEToVS` |
-| `UEToVS.Features.*` | net48 | 每个功能域一个程序集（或一个程序集内按命名空间严格隔离） | 现有 `Search/Navigation/Unreal/...` |
+| `UEToVS.UI` | net48（WPF） | 组件库、设计令牌、主题 | 新建，替代 `src/UEToVS/UI` |
+| `UEToVS.Host` | net48 | VSIX：Shell、编辑器适配、宿主服务 | 重写（替代 `src/UEToVS`） |
+| `UEToVS.Features.*` | net48 | 每个功能域一个程序集（或一个程序集内按命名空间严格隔离） | 重写，功能清单来自现有 `Search/Navigation/Unreal/...` |
 | `UEToVS.Mcp` | net8.0 | MCP 服务，复用 Engine 查询 | 新增 |
-| `ue/UEToVSLink` | C++ | UE 编辑器插件 | 现有 |
+| `ue/UEToVSLink` | C++ | UE 编辑器插件 | 按新协议重写 |
 
 > 程序集数量与加载成本需要平衡。建议 VS 侧最终合并为 `UEToVS.Host` + `UEToVS.UI` 两个程序集，功能模块以命名空间 + 架构测试隔离；Engine 侧按上表拆分，因为它在独立进程，加载成本不敏感，而拆分有利于测试和复用。
 
@@ -423,7 +423,7 @@ UTF-8 字节 ──▶ 词法分析（零分配，Span）──▶ 轻量预处�
                              UE 宏知识库（宏 → 语义）             └─▶ 引用出现表（Occurrences）
 ```
 
-**词法分析**：在 `ReadOnlySpan<byte>` 上运行，token 只记录（类型、起始偏移、长度），不创建字符串；标识符通过哈希查字符串池得到名称 ID。现有 `CppLexer` 改造为此形式。
+**词法分析**：在 `ReadOnlySpan<byte>` 上运行，token 只记录（类型、起始偏移、长度），不创建字符串；标识符通过哈希查字符串池得到名称 ID。
 
 **轻量预处理**：不做完整的 include 展开（这是 VA 快的关键）。处理：
 - `#if / #ifdef` 分支：用工程模型中的宏定义求值；求不出的分支两边都解析并标记“条件分支”。
@@ -490,7 +490,7 @@ UTF-8 字节 ──▶ 词法分析（零分配，Span）──▶ 轻量预处�
 
 ### 6.7 检查引擎
 
-- 自有规则（L1，毫秒级，随编辑运行）：UE 命名规范、UHT 规则、网络复制一致性、缺失 `_Implementation`、未在 Build.cs 声明的模块依赖（现有功能并入）。
+- 自有规则（L1，毫秒级，随编辑运行）：UE 命名规范、UHT 规则、网络复制一致性、缺失 `_Implementation`、未在 Build.cs 声明的模块依赖（原型已有此功能，在此重写）。
 - clang-tidy 规则（L2，后台/手动运行）：通过 Clang Worker 按文件执行，结果缓存（按文件内容哈希 + 编译参数哈希），全项目检查时并发度受控且可暂停。
 - 统一诊断模型：规则 ID、严重度、位置、消息、可选修复（`WorkspaceEdit`），由宿主统一显示为波浪线、错误列表、Alt+Enter 修复项。
 - 规则配置文件放在仓库（`.uetovs/inspections.json`），团队共享。
@@ -566,7 +566,7 @@ IAction
   Priority(context)      // 上下文相关排序
 ```
 
-- 一个能力注册一次，就同时出现在：Alt+Enter 菜单、VS 灯泡、Find Action（现有 `ActionCatalog` 演进）、右键菜单、命令（可绑定键位）。
+- 一个能力注册一次，就同时出现在：Alt+Enter 菜单、VS 灯泡、Find Action（取代原型的 `ActionCatalog`）、右键菜单、命令（可绑定键位）。
 - 功能模块之间不直接调用，而是通过 Action ID 调度，满足 §5.2 的隔离规则。
 
 ### 7.5 接管 VS 自带 C++ 感知
@@ -609,7 +609,7 @@ IAction
 | 成员补全（`.` `->` `::`） | 按语义类型列出成员；VA 风格匹配（首字母缩写、驼峰、子串），近期使用与上下文类型匹配优先 | `GENERATED_BODY` 注入成员（`StaticClass`、`Super`、`ThisClass`）；`TObjectPtr<T>`、`TWeakObjectPtr<T>`、`TSubclassOf<T>` 自动解包；`Cast<T>`、`CreateDefaultSubobject<T>`、`NewObject<T>` 推导结果类型 |
 | 全局/作用域补全 | 输入标识符时列出可见符号 | 省略 UE 前缀匹配（输入 `Actor` 命中 `AActor`，沿用现有 `UnrealNaming`） |
 | 反射说明符补全 | 在 `UPROPERTY(` `UFUNCTION(` `UCLASS(` `USTRUCT(` `UENUM(` `meta=(` 内补全说明符，带文档、互斥/依赖提示 | 来自 UE 宏知识库，按引擎版本 |
-| `#include` 补全 | 按模块 Public/Classes 路径补全，引号风格 | 选中不在 Build.cs 依赖中的头文件时，同步提示添加依赖（现有依赖修复能力并入） |
+| `#include` 补全 | 按模块 Public/Classes 路径补全，引号风格 | 选中不在 Build.cs 依赖中的头文件时，同步提示添加依赖（原型已有依赖修复，在此重写） |
 | 字符串上下文补全 | 资产路径、GameplayTag、`BindUFunction` 函数名、ini 键 | P2 能力在补全中的入口 |
 | Quick Info | 签名、所在模块与文件、注释（含 `/** */` 文档）、反射说明符摘要 | UPROPERTY/UFUNCTION 显示“蓝图可见/可编辑/复制”等标签；宏上悬停显示展开 |
 | 参数信息 | 重载列表、当前参数高亮、默认值 | 委托 `Broadcast`/`Execute` 的参数取自 `DECLARE_*_DELEGATE_*` 声明 |
@@ -711,11 +711,11 @@ IAction
   ContextMenu    = PopupShell + VirtualList（带分组、快捷键、子菜单）——Alt+Enter 使用
 ```
 
-现有界面到组件的对应：
+原型界面在新组件系统中的重写对应：
 
-| 现有 | 迁移后 |
+| 原型 | 重写后 |
 | --- | --- |
-| `SearchWindow`（507 行，手工拼装） | `CommandPalette` 模式 + 一个数据源适配器 |
+| `SearchWindow`（507 行，手工拼装） | 用 `CommandPalette` 模式重写，只需实现数据源适配器 |
 | `ListPopup` / `NavigationPopups` | `ChooserPopup` 模式 |
 | `ResultsToolWindow` + `ResultList` | `ResultsPanel` 模式 |
 | `InfoBar` | `Banner` 组件 |
@@ -863,7 +863,7 @@ struct SymbolRecord        // 32 bytes
 | 语料回归 | 在 UE 引擎与 Lyra 上运行“已知答案”查询：给定位置的定义、引用数、补全项、宏展开结果；与基线对比，统计准确率 |
 | 重构快照测试 | 输入代码 + 重构参数 → 期望输出代码（文本快照） |
 | 架构测试 | 依赖方向、禁止引用规则（§5.2） |
-| 集成测试 | 启动 Engine 进程走真实 RPC（现有 `RpcTests` 扩展） |
+| 集成测试 | 启动 Engine 进程走真实 RPC（原型 `RpcTests` 的用例作为规格迁移） |
 | UI 测试 | 组件截图回归 + 键盘交互（§8.7） |
 | VS 端到端 | 在 Windows CI 上用 VS 实验实例（`/rootsuffix Exp`）跑冒烟测试 |
 | 性能测试 | §9.7 |
@@ -883,7 +883,7 @@ struct SymbolRecord        // 32 bytes
 ### 10.7 版本与发布
 
 - 语义化版本；Engine、Host、UEToVSLink 同版本发布，协议版本独立管理。
-- CI：Windows 上构建 VSIX、跑全部测试与基准（现有 `.github/workflows` 扩展）；主干合并自动出预发布包。
+- CI：Windows 上构建 VSIX、跑全部测试与基准（在现有 workflow 基础上调整）；主干合并自动出预发布包。
 - 支持 VS 2022（17.x）与 VS 2026（18.x）；UE 5.3 及以上（知识库按版本分组，旧版本尽力支持）。
 
 ---
@@ -902,9 +902,9 @@ struct SymbolRecord        // 32 bytes
 
 - 用于代码检查、精确宏展开、复杂场景确认。默认不常驻，限制内存，空闲退出。
 
-### ADR-03：继续采用进程外 Engine，引擎索引跨进程共享
+### ADR-03：采用进程外 Engine，引擎索引跨进程共享
 
-- 现有架构已经是进程外，保留。新增 mmap 只读段，让多个 VS 实例、多个同引擎项目共享引擎索引的物理内存。
+- 解析与索引放在独立进程（现有原型也是这样做的，这一点得到验证）。用 mmap 只读段，让多个 VS 实例、多个同引擎项目共享引擎索引的物理内存。
 
 ### ADR-04：IPC 从 JSON 迁移到 MessagePack，支持流式
 
@@ -936,8 +936,8 @@ struct SymbolRecord        // 32 bytes
 
 | 里程碑 | 内容 | 退出标准 |
 | --- | --- | --- |
-| **M0 架构整理** | 拆出 Contracts；Indexer → Engine；UI 组件库雏形（令牌 + 原子 + PopupShell + VirtualList）；把 Search Everywhere 迁到 CommandPalette 模式；Action 中枢；规则化 UIContext；诊断面板 v1；基准与语料框架 | 现有功能无回退；架构测试上 CI |
-| **M1 新索引与解析** | UTF-8 零分配词法；容错解析器（声明 + 函数体引用）；UE 宏知识库 v1；分段 mmap 索引；字符串池；trigram 搜索；MessagePack + 流式 | 引擎冷索引 < 60 s；Engine 私有内存 < 400 MB；搜索 p95 < 30 ms |
+| **M0 骨架重建** | 按 §5.3 新建解决方案结构；Contracts 与 RPC（MessagePack）；Engine 进程骨架与调度；UI 组件库雏形（令牌 + 原子 + PopupShell + VirtualList）；Action 中枢；规则化 UIContext；诊断面板 v1；基准与语料框架；架构测试。旧代码移到 `legacy/` 仅供对照，不参与构建 | 新骨架上 CI；架构测试通过 |
+| **M1 新索引与解析 + 功能对齐** | UTF-8 零分配词法；容错解析器（声明 + 函数体引用）；UE 宏知识库 v1；分段 mmap 索引；字符串池；trigram 搜索；流式查询；在新架构上重新实现原型已有的全部功能（Search Everywhere、导航历史、书签、键位、相关项、模块依赖修复、资产搜索、Live Coding），完成后删除 `legacy/` | 原型功能全部对齐；引擎冷索引 < 60 s；Engine 私有内存 < 400 MB；搜索 p95 < 30 ms |
 | **M2 核心导航** | 转到定义/实现、查找引用、类型层次、引用高亮、导航栏、成员列表增强 | 语料回归：定义准确率 ≥ 95%（UE 宏场景） |
 | **M3 UE 感知 IntelliSense** | 成员补全、VA 风格语义着色、Quick Info、参数信息、宏展开悬停、`.`/`->` 纠正、反射说明符补全、自动关闭 VS 自带 C++ 感知（备份/恢复）、导入 VA 配色 | 补全 p95 < 50 ms；VS IntelliSense 关闭后所有感知功能正常；配色与 VA 截图逐项校准 |
 | **M4 重构与生成** | Rename（含 Core Redirects）、Create Decl/Impl（UE 三件套）、Change Signature、Extract Method、Encapsulate Field、Implement Virtual、Add Include/Forward Decl、Snippets、Diff 预览 | 重构快照测试全绿；所有重构一次撤销 |
