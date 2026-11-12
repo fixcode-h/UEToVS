@@ -6,6 +6,51 @@
 - 节内用 `### 新功能`、`### 改进`、`### Bug 修复`、`### 注意` 等小标题，条目写成 `- **短标题** — 说明`。
 - 改了 `src/` 的 PR 必须在最上面加一个新版本节（PR 检查会验证），这样每次合并都会出一个带更新日志的包。
 
+## v0.5.0
+
+### 新功能
+- **调用层次** — 新命令「调用层次」（默认 `Ctrl+Shift+Alt+U, H`，Rider 预设 `Ctrl+Alt+H`，VS 预设 `Ctrl+K, Ctrl+T`），在弹窗中查看光标处函数的调用者 / 被调用者，展开时逐层加载；委托绑定（AddDynamic、BindUFunction、SetTimer…）算作调用者并标注，UFUNCTION 的 `_Implementation` / `_Validate` 视为同一函数；支持输入过滤、代码预览、Enter 跳转。「导航到」中的调用层次也改用它（接管 IntelliSense 后 VS 自带的调用层次不可用）。日志 `navigation.callHierarchy`
+- **速览定义** — 接管 IntelliSense 后 Alt+F12 照常可用，由 UEToVS 查找定义并在 VS 速览窗口中显示；未接管时不受影响。日志 `navigation.peek`
+- **GENERATED_BODY 生成代码预览** — 悬停 `GENERATED_BODY()` / `GENERATED_UCLASS_BODY()` 显示 UHT 在 `.generated.h` 中为这一行生成的代码；还没编译时提示先编译一次
+- **基准测试** — `UEToVS.Engine bench` 子命令：在随机位置测补全、转到定义、查找引用的 p50/p95/p99、空结果比例、峰值内存和索引耗时，结果写入 `.vs\UEToVS\bench\bench.jsonl` 并与上次对比，见 docs/基准测试.md。日志 `bench.*`
+- **更改签名** — 在对话框中增删、重排、编辑参数（类型 / 名称 / 默认值 / 新参数的调用值），同步修改声明、定义、UFUNCTION 的 `_Implementation` / `_Validate`、可选的 override 链和所有调用处；修改前按文件预览，可逐处取消，引擎 / 第三方文件只列出不修改。默认键 `Ctrl+R, Ctrl+O`（Rider 方案 `Ctrl+F6`）
+- **移动实现** — 内联实现移到 .cpp（自动去掉 virtual / override / static / 默认值并加类限定），或把 .cpp 中的定义移回头文件；支持一次移动类的全部内联实现。默认键 `Ctrl+R, Ctrl+I`（Rider 方案 `F6`）
+- **添加前置声明** — 头文件中某类型只以指针、引用、TObjectPtr、TSubclassOf 等形式使用且未 include 时，Alt+Enter 优先提供 `class X;` / `struct X;` / `enum class E : uint8;`，插入在 include 之后、第一个 UCLASS 之前。默认键 `Ctrl+R, Ctrl+F`
+- **引入变量** — 把选中的表达式提取为局部变量，类型由 UEToVS 推断（推断不出时为 auto），可同时替换相同的表达式。默认键 `Ctrl+R, Ctrl+V`（Rider 方案 `Ctrl+Alt+V`）
+- **提取方法** — 把选中的完整语句提取为 private 成员函数，外部局部变量自动变成参数，最多一个返回值；声明加在头文件，定义加在当前函数之后。默认键 `Ctrl+R, Ctrl+M`（Rider 方案 `Ctrl+Alt+M`）
+- **封装字段 / 生成 Getter / Setter** — 按 UE 命名生成访问器（bool 用 IsX，bX 的 setter 为 SetX），可选在 UPROPERTY 上加 BlueprintGetter / BlueprintSetter；也在右键 UEToVS > 生成 菜单中。默认键 `Ctrl+R, Ctrl+E` / `Ctrl+R, Ctrl+P`
+- **编译错误波浪线** — VS 生成结束后解析“生成”输出（UBT / MSVC / clang / UHT / 链接器），在源码里用独立颜色（字体和颜色：“UEToVS 编译错误 / 编译警告”）标出错误和警告，下次生成开始时清除；结果写入 `.vs\UEToVS\build\last-build.json`。`Ctrl+Shift+Alt+U, Q` 跳到下一个，`Ctrl+Shift+Alt+U, X` 清除。设置：IntelliSense › 构建结果与错误列表。日志 `build.errors`
+- **错误列表** — UEToVS 的 UE 规则诊断（已打开文件的可见部分）以“UEToVS”来源写入 VS 错误列表；可选同时列出解析出的编译错误（默认关）。设置：IntelliSense › 构建结果与错误列表
+- **新建 UE 类** — `Ctrl+Shift+Alt+U, N`，或在解决方案资源管理器的文件夹 / 游戏项目上右键：选父类（常用父类置顶，可搜索索引）、类名自动加 A/U/F 前缀、项目或插件模块、Public / Private、子文件夹，Actor / 组件可生成 BeginPlay / Tick；生成 .h / .cpp 后打开，并重新生成 Visual Studio 项目文件。日志 `unreal.newClass`
+- **MCP 自检与重命名** — 新工具 `get_build_errors`（上次生成的错误，按文件 / 严重度过滤）、`get_diagnostics`（UE 规则诊断，引擎未运行时离线执行）、`rename_symbol`（默认预览，`apply=true` 写入，可写 CoreRedirects，不改引擎文件）；MCP 说明提示 Agent 修改后用 get_diagnostics / get_build_errors 自检
+- **UE 日志窗口** — `Ctrl+Shift+Alt+U, J` 打开弹出窗口，实时显示 UE 编辑器 / PIE 日志：可按级别（Error / Warning / Display / Log / Verbose）和分类筛选、多词搜索，自动滚动可暂停，可清空；最多保留行数默认 20000（设置 › 常规 › UE 编辑器联动）；双击一行时，只有 UE_LOG 格式完全匹配才跳到源码。日志 `link.log.*`
+- **自动化测试运行器** — `Ctrl+Shift+Alt+U, Z` 打开，从源码识别 IMPLEMENT_SIMPLE / COMPLEX_AUTOMATION_TEST、BEGIN_DEFINE_SPEC、DEFINE_SPEC，按点路径显示成树；运行选中项或重跑失败的，结果、错误和日志实时回传，F4 转到源码；编辑器离线时提示。日志 `link.tests.*`
+- **Live Coding 错误映射** — 收集 Live Coding 编译输出，失败时在状态栏和信息栏提示错误数，可“转到第一个错误”；错误同时以编译错误波浪线标在源码上。可在设置 › UE 编辑器联动里关闭。日志 `link.liveCoding.*`
+- **UEToVSLink 安装 / 更新 / 卸载** — 设置 › 常规 › UE 编辑器联动显示插件是否安装、安装位置、已安装与自带版本（版本不同时可更新）、编辑器是否在线；卸载前确认，删除插件目录（含 Binaries / Intermediate）并从 .uproject 移除；编辑器占用插件文件时不删除任何文件，并提示先关闭 UE 编辑器。日志 `link.plugin.install` / `link.plugin.uninstall`
+- **日志分类跳转** — 在 LogFoo 上使用“转到相关项”，列出 DECLARE_LOG_CATEGORY_EXTERN / DEFINE_LOG_CATEGORY 和全部 UE_LOG 使用处
+- **Surround With** — 选中代码后按 `Ctrl+Shift+Alt+U, 1`（Rider 方案 `Ctrl+Alt+J`）弹出模板：if(IsValid())、if、for、{ }、#if WITH_EDITOR、#if !UE_BUILD_SHIPPING、SCOPE_CYCLE_COUNTER、TRACE_CPUPROFILER_EVENT_SCOPE、QUICK_SCOPE_CYCLE_COUNTER、#pragma region；缩进跟随首行，字段可 Tab 编辑，一步撤销。设置 > 代码感知 > 编辑。日志 `editor.surround`
+- **内嵌提示（Inlay Hints）** — 字面量 / nullptr / true / false 实参前显示参数名，auto 变量可显示推导类型；只计算可见区域并按文档版本缓存。`Ctrl+Shift+Alt+U, 2` 临时显示 / 隐藏；设置 > 代码感知 > 内嵌提示（参数名默认开，auto 类型默认关）。日志 `editor.inlayHints`
+- **弃用 API 提示** — 当前文件里用到 UE_DEPRECATED / UE_DEPRECATED_FORGAME / [[deprecated]] / DeprecatedFunction 的符号显示删除线和警告（UE0011，带弃用版本和说明），Quick Info 显示说明；说明写了 “Use X instead / 请使用 X” 且 X 确实存在时，Alt+Enter 一键替换。设置 > 代码感知 > 代码检查。日志 `editor.deprecation.fix`
+- **UE 命名规范检查** — 检查当前文件声明的类型、枚举和 bool 成员的 A / U / F / E / T / I / S / b 前缀（UE0012，建议级，只查项目代码），Alt+Enter 打开重命名并预填规范名称。默认关闭，设置 > 代码感知 > 代码检查。日志 `editor.naming.fix`
+- **调试 Step Filter** — F11 单步进入时跳过 TArray / TMap operator[]、FString / FName 构造、TObjectPtr 转换、Cast<>、IsValid、check / ensure 内部；写入 文档\Visual Studio <版本>\Visualizers\UEToVS.natstepfilter，关闭设置后删除。设置 > 代码感知 > 调试。日志 `editor.stepFilter.*`
+- **就地重命名** — Ctrl+R, Ctrl+R 直接在当前文件里同步修改该符号的所有出现处，Enter 打开全工程重命名预览（已预填新名称），Esc 取消。设置 > 代码感知 > 编辑 > 重命名方式（就地 / 弹窗，默认就地）。日志 `editor.inlineRename.*`
+- **多重剪贴板** — `Ctrl+Shift+V` 列出最近复制 / 剪切的文本（默认 16 条，可设 1–100，单条 ≤1MB，仅内存），选择后插入到光标处。设置 > 代码感知 > 编辑。日志 `editor.clipboard.*`
+- **注释 #tag 书签** — `Ctrl+Shift+Alt+U, 3` 按标签分组列出已打开文件注释里的 #todo、#perf 等，选择后跳转。日志 `editor.hashtags`
+- **全项目 UE 规则检查** — 按需用 UE 规则（UE0001–UE0010）检查整个项目源码（可选含项目插件）：后台低优先级线程（线程数同 C++ 索引）、可取消、状态栏进度，结果流式写入 `.vs\UEToVS\inspections\<时间>.jsonl`，内存只留统计和当前页。结果弹窗按规则 / 文件分组、筛选、代码预览、回车跳转；UE0004（改名为 `_Implementation`）和 UE0003（插入 `GENERATED_BODY()`）可预览后批量修复、一次撤销。快捷键 `Ctrl+Shift+Alt+U, 6`（运行）/ `7`（结果）/ `U`（取消），设置 > 检查；MCP 新增 `run_project_inspection`（start / status / results / cancel）。日志 `inspection.*`
+- **引擎升级助手** — 索引记录 `UE_DEPRECATED` / `UE_DEPRECATED_FORGAME` / `[[deprecated]]`（索引格式 v3，升级后自动重建一次），按需列出项目对弃用 API 的引用并按弃用版本分组；说明里点名的替代 API 存在且签名兼容时，可预览后批量替换、一次撤销。快捷键 `Ctrl+Shift+Alt+U, 8`（查找）/ `9`（结果），设置 > 检查；日志 `upgrade.*`
+- **通用模板实例化** — 补全 / 成员推断把模板实参代入成员返回和字段类型：TOptional、TSharedPtr/Ref、TWeakPtr、TUniquePtr、TWeakObjectPtr、TSoftObjectPtr、TSubclassOf、TScriptInterface、自定义类模板、嵌套 typedef / using 与别名模板、`operator->`、显式模板实参函数（Cast / NewObject / FindComponentByClass / GetComponentByClass 等）。有深度上限，LRU 缓存容量可配；关闭后回到内置规则。设置 > 代码感知 > 模板实例化；日志 `intellisense.templates`
+
+### 改进
+- **接管后功能对照表** — 设置「常规 → C++ IntelliSense」新增表格，列出接管后不可用的 VS 功能（调用层次、类视图、对象浏览器、查找所有引用、重命名、提取函数…）和对应的 UEToVS 替代命令及快捷键
+- **重构入口统一** — 以上操作都可从 Alt+Enter、灯泡和 Find Action 使用，一步撤销；不在 UE C++ 中时，Ctrl+R 和弦执行 VS 自带的重构命令。日志 `refactor.<操作>`
+- **生成 Visual Studio 项目文件** — 菜单改名为“生成 Visual Studio 项目文件”；UEToVS 工具栏新增按钮（“查找引用”之后，可在设置 › 工具栏隐藏）；解决方案、游戏项目和 .uproject 右键菜单可直接执行（仅 UE 解决方案）；UBT 输出实时写入“输出 › UEToVS”窗格并自动显示，状态栏显示动画，运行期间命令置灰，失败时输出退出码和最后的错误行。快捷键仍为 `Ctrl+Shift+Alt+U, G`
+- **UEToVSLink 协议 2** — 插件升级到 0.2.0：握手时交换协议版本，可保持连接推送日志、测试结果和 Live Coding 输出，限流且不阻塞游戏线程；与旧版插件 / 旧版扩展双向兼容，旧插件会提示更新（需要在 UE 里重新安装插件）
+- **重型功能开关** — 以上三项在设置窗口里各有开关，默认开启，说明注明“可能占用较多 CPU / 内存”；关闭后命令置灰、MCP 返回 `feature_disabled`，正在运行的任务会被取消，后台不运行任何东西
+- **局部变量识别** — 支持 `TBox<T>::ValueType X;` 这种依赖成员类型的声明
+
+### 注意
+- **索引格式升级到 v3** — 首次启动会自动全量重建一次索引
+
 ## v0.4.7
 
 ### Bug 修复
