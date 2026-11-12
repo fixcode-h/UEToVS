@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    UEToVS.Mcp: Model Context Protocol server (stdio) for AI agents (VS Copilot agent mode, Claude Code, Cursor, VS Code).
+    Answers from the running UEToVS.Engine (named pipe found via .vs/UEToVS/engine.json) or, when no engine runs,
+    from the persisted index segments (read-only mmap). Shipped in the VSIX as Engine\Mcp\UEToVS.Mcp.exe: its own
+    folder, so its dependency versions never clash with the engine's. See docs/design/MCP.md.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>UEToVS.Mcp</RootNamespace>
+    <AssemblyName>UEToVS.Mcp</AssemblyName>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
+    <TieredPGO>true</TieredPGO>
+    <PublishReadyToRun>true</PublishReadyToRun>
+    <NoWarn>$(NoWarn);VSTHRD002;VSTHRD003;VSTHRD103;VSTHRD105;VSTHRD110;VSTHRD200;CA1416</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- 512 MiB managed heap cap: the server holds only query results; index data stays memory-mapped. -->
+    <RuntimeHostConfigurationOption Include="System.GC.HeapHardLimit" Value="536870912" />
+    <RuntimeHostConfigurationOption Include="System.GC.ConserveMemory" Value="5" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="ModelContextProtocol.Core" Version="2.4.0" />
+    <PackageReference Include="StreamJsonRpc" Version="2.19.27" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\UEToVS.Contracts\UEToVS.Contracts.csproj" />
+    <ProjectReference Include="..\UEToVS.Core\UEToVS.Core.csproj" />
+    <ProjectReference Include="..\UEToVS.Engine.Index\UEToVS.Engine.Index.csproj" />
+    <ProjectReference Include="..\UEToVS.Engine.Unreal\UEToVS.Engine.Unreal.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="UEToVS.Mcp.Tests" />
+  </ItemGroup>
+</Project>
