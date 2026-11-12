@@ -101,7 +101,7 @@ namespace UEToVS.Host.Logic.Settings
                 "true", gCpp, gCppEn));
             var mode = D(General, "intelliSense.mode", SettingKind.Choice, "接管范围", "Takeover scope",
                 "全局：安装期间一直接管；仅 UE 解决方案：打开 UE 解决方案时接管，关闭时恢复。", "Global: while installed; UE solutions only: restored when the UE solution closes.",
-                nameof(IntelliSenseTakeoverMode.Global), gCpp, gCppEn);
+                nameof(IntelliSenseTakeoverMode.UnrealSolutionOnly), gCpp, gCppEn);
             mode.Options = new[]
             {
                 new SettingOption(nameof(IntelliSenseTakeoverMode.Global), "全局", "Global"),
@@ -420,7 +420,7 @@ namespace UEToVS.Host.Logic.Settings
                         case "engine.unrealEngineRoot": s.UnrealEngineRootOverride = v; break;
                         case "engine.requestTimeoutSeconds": s.EngineRequestTimeoutSeconds = PI(v, 30); break;
                         case "intelliSense.takeover": s.IntelliSenseTakeover = PB(v); break;
-                        case "intelliSense.mode": s.IntelliSenseTakeoverMode = PE(v, IntelliSenseTakeoverMode.Global); break;
+                        case "intelliSense.mode": s.IntelliSenseTakeoverMode = PE(v, IntelliSenseTakeoverMode.UnrealSolutionOnly); break;
                         case "intelliSense.disableDatabase": s.DisableDatabase = PB(v); break;
                         case "intelliSense.disableBackgroundCodeAnalysis": s.DisableBackgroundCodeAnalysis = PB(v); break;
                         case "toolbar.show": s.ShowToolbar = PB(v); break;

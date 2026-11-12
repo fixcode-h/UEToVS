@@ -85,6 +85,17 @@ namespace UEToVS.Host.IntelliSense
             }
         }
 
+        /// <summary>A non-UE solution opened: in UE-only mode, VS's IntelliSense must be on, so restore a leftover takeover.</summary>
+        public async Task OnOtherSolutionOpenedAsync()
+        {
+            var s = _settings.Effective;
+            if (s.IntelliSenseTakeoverMode == IntelliSenseTakeoverMode.UnrealSolutionOnly && BackupExists)
+            {
+                L.Info("intellisense.otherSolution.restore", "Mode UnrealSolutionOnly and a non-UE solution opened with VS IntelliSense still taken over: restoring");
+                await RestoreAsync("otherSolution").ConfigureAwait(false);
+            }
+        }
+
         public async Task OnSettingsChangedAsync(HostSettings old, HostSettings now, bool unrealSolutionOpen)
         {
             if (old.DisableBackgroundCodeAnalysis != now.DisableBackgroundCodeAnalysis)
@@ -106,6 +117,8 @@ namespace UEToVS.Host.IntelliSense
             }
             if (unrealSolutionOpen || now.IntelliSenseTakeoverMode == IntelliSenseTakeoverMode.Global)
                 await TakeOverAsync("settingsChanged").ConfigureAwait(false);
+            else if (BackupExists) // switched to UE-only with no UE solution open
+                await RestoreAsync("modeUnrealOnly").ConfigureAwait(false);
         }
 
         // ---------------------------------------------------------------- commands

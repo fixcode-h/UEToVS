@@ -269,6 +269,9 @@ namespace UEToVS.Host
                 // §7.1: non-UE solution → nothing starts (no engine, no takeover, no solution log folder).
                 L.Info("solution.notUnreal", "Not an Unreal Engine solution; UEToVS stays idle");
                 await SetUnrealContextAsync(false);
+                // UE-only takeover: a backup left behind (e.g. VS closed while a UE solution was open, or the mode was Global)
+                // means VS's IntelliSense is still off for this ordinary solution; give it back.
+                if (_intelliSense != null) await _intelliSense.OnOtherSolutionOpenedAsync();
                 return;
             }
 

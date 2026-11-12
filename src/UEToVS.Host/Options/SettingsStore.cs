@@ -18,7 +18,7 @@ namespace UEToVS.Host.Options
     {
         private const string Collection = "UEToVS\\Settings";
         private const string VersionProperty = "_schemaVersion";
-        private const string CurrentVersion = "1";
+        private static string CurrentVersion => SettingsUpgrade.CurrentVersion;
         private static readonly Logger L = Log.For("Settings");
 
         private readonly Dictionary<string, string> _values = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -42,7 +42,8 @@ namespace UEToVS.Host.Options
                 HostSettings old = null;
                 try { old = legacy?.Invoke(); }
                 catch (Exception ex) { L.Warn("settings.migrate.read.failed", "Reading the old option pages failed; starting from defaults", ex); }
-                var values = HostSettingsSchema.Codec.ToValues(old ?? new HostSettings());
+                // Only non-default values: a later default change must reach users who never touched the setting.
+                var values = SettingsUpgrade.NonDefault(HostSettingsSchema.Codec.ToValues(old ?? new HostSettings()), Schema);
                 int written = 0;
                 foreach (var kv in values)
                     if (VsUserSettings.Set(Collection, kv.Key, kv.Value)) { _values[kv.Key] = kv.Value; written++; }
@@ -54,6 +55,15 @@ namespace UEToVS.Host.Options
             {
                 string v = VsUserSettings.Get(Collection, d.Key);
                 if (v != null) _values[d.Key] = v;
+            }
+            if (version != CurrentVersion)
+            {
+                var drop = SettingsUpgrade.KeysToDrop(version, _values, Schema);
+                foreach (var key in drop)
+                    if (VsUserSettings.Delete(Collection, key)) _values.Remove(key);
+                VsUserSettings.Set(Collection, VersionProperty, CurrentVersion);
+                L.Info("settings.upgraded", "Stored settings upgraded; values equal to a default now follow the default", ("from", version), ("to", CurrentVersion),
+                    ("dropped", string.Join(",", drop)));
             }
             L.Debug("settings.store.loaded", null, ("values", _values.Count), ("version", version));
         }
