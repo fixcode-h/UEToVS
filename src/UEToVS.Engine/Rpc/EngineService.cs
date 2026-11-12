@@ -215,6 +215,20 @@ namespace UEToVS.Engine.Rpc
         public Task RebuildIndexAsync(RebuildScope scope, CancellationToken ct) =>
             InvokeAsync("rpc.rebuildIndex", _ => Task.CompletedTask, ct, ("scope", scope.ToString()));
 
+        // ---- M3 IntelliSense: stubs, implemented by the IntelliSense service ----
+
+        public Task<CompletionResponse> GetCompletionsAsync(CompletionRequest request, CancellationToken ct) =>
+            InvokeAsync("rpc.getCompletions", _ => Task.FromResult(new CompletionResponse()), ct);
+
+        public Task<QuickInfoResponse> GetQuickInfoAsync(CaretRequest caret, CancellationToken ct) =>
+            InvokeAsync("rpc.getQuickInfo", _ => Task.FromResult(new QuickInfoResponse()), ct);
+
+        public Task<SignatureHelpResponse> GetSignatureHelpAsync(CaretRequest caret, CancellationToken ct) =>
+            InvokeAsync("rpc.getSignatureHelp", _ => Task.FromResult(new SignatureHelpResponse()), ct);
+
+        public Task<ClassifyResponse> ClassifyAsync(ClassifyRequest request, CancellationToken ct) =>
+            InvokeAsync("rpc.classify", _ => Task.FromResult(new ClassifyResponse { TextVersion = request?.Document?.TextVersion ?? 0 }), ct);
+
         public Task ShutdownAsync(CancellationToken ct) =>
             InvokeAsync("rpc.shutdown", _ =>
             {

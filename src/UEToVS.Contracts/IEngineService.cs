@@ -66,6 +66,20 @@ namespace UEToVS.Contracts
         /// <summary>Drop and rebuild the C++ index, the asset (Blueprint) index, or both. Returns immediately; progress via status.</summary>
         Task RebuildIndexAsync(RebuildScope scope, CancellationToken ct);
 
+        // ---- M3 UE-aware IntelliSense (see IntelliSense.cs) ----
+
+        /// <summary>Completion list at the caret. Budget: p95 &lt; 50 ms.</summary>
+        Task<CompletionResponse> GetCompletionsAsync(CompletionRequest request, CancellationToken ct);
+
+        /// <summary>Hover tooltip for the identifier at the caret (declaration, docs, UE reflection, macro expansion).</summary>
+        Task<QuickInfoResponse> GetQuickInfoAsync(CaretRequest caret, CancellationToken ct);
+
+        /// <summary>Parameter info for the call enclosing the caret.</summary>
+        Task<SignatureHelpResponse> GetSignatureHelpAsync(CaretRequest caret, CancellationToken ct);
+
+        /// <summary>Semantic colouring for a line range of a document (VA-style colours).</summary>
+        Task<ClassifyResponse> ClassifyAsync(ClassifyRequest request, CancellationToken ct);
+
         Task ShutdownAsync(CancellationToken ct);
     }
 
