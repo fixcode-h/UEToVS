@@ -34,8 +34,8 @@ namespace UEToVS.Engine.Tests
             public string[] Absent = Array.Empty<string>();
             public string Resolved;
             public string Fix;
-            public bool Empty;
-            public string FirstInsert;
+            public bool Empty = false; // filled from the corpus file
+            public string FirstInsert = null; // filled from the corpus file
         }
 
         private static Case C(string id, CompletionContextKind ctx, string[] top, int n = 10, string[] absent = null, string resolved = null, string fix = null) =>
