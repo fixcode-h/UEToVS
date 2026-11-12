@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  UEToVS brand mark (source of Resources/UEToVS16.png, UEToVS32.png, Icon.png 128, PreviewImage.png 256).
-  Same geometry as src/UEToVS.UI/Atoms/BrandMark.cs: indigo-to-blue rounded tile, white "U" whose right stem ends
-  in an upward chevron ("jump to"). Designed on a 16 px grid; re-export with Resources/README.md.
+  UEToVS brand mark: a game controller (rounded body with grips, d-pad on the left, four face buttons on the right)
+  on the indigo-to-blue rounded tile. Source of Resources/UEToVS16.png, UEToVS32.png, Icon.png (128) and
+  PreviewImage.png (256), all rendered by scripts/render_brand_icons.py (the geometry lives there and in
+  src/UEToVS.UI/Atoms/BrandMark.cs). 16-unit grid, pixel-aligned so the 16 px icon stays crisp.
 -->
 <svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 16 16">
   <defs>
@@ -10,8 +11,18 @@
       <stop offset="0" stop-color="#6B4FE8"/>
       <stop offset="1" stop-color="#1F7AE0"/>
     </linearGradient>
+    <mask id="pad" maskUnits="userSpaceOnUse" x="0" y="0" width="16" height="16">
+    <rect x="2" y="4" width="12" height="6" rx="2.0" fill="#FFFFFF"/>
+    <rect x="2" y="8" width="4" height="4" rx="2.0" fill="#FFFFFF"/>
+    <rect x="10" y="8" width="4" height="4" rx="2.0" fill="#FFFFFF"/>
+    <rect x="3" y="6" width="3" height="1" rx="0.18" fill="#000000"/>
+    <rect x="4" y="5" width="1" height="3" rx="0.18" fill="#000000"/>
+    <circle cx="11.5" cy="5.5" r="0.58" fill="#000000"/>
+    <circle cx="10.5" cy="6.5" r="0.58" fill="#000000"/>
+    <circle cx="12.5" cy="6.5" r="0.58" fill="#000000"/>
+    <circle cx="11.5" cy="7.5" r="0.58" fill="#000000"/>
+    </mask>
   </defs>
   <rect x="0.5" y="0.5" width="15" height="15" rx="3.5" ry="3.5" fill="url(#g)"/>
-  <path d="M 4.6,4 L 4.6,8.4 A 3,3 0 0 0 10.6,8.4 L 10.6,6.2" fill="none" stroke="#FFFFFF" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M 8.9,4.9 L 10.6,3.3 L 12.3,4.9" fill="none" stroke="#FFFFFF" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="0" y="0" width="16" height="16" fill="#FFFFFF" mask="url(#pad)"/>
 </svg>
