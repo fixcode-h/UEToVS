@@ -55,7 +55,7 @@ namespace UEToVS.Engine.IntelliSense
     /// The project's (and project plugins') Config/*.ini files, parsed lazily for string completion: sections and keys for
     /// GConfig calls, and the gameplay tags of DefaultGameplayTags.ini / Config/Tags/*.ini. Files come from the index's
     /// file table (listed, never parsed by the indexer); a file is re-read only when its size or time stamp changes and the
-    /// table is re-checked at most every <see cref="RecheckMs"/>. Bounded: big files are skipped, keys and tags are capped.
+    /// table is re-checked at most every <see cref="RecheckMs"/> (completion requests in between use the last result). Bounded: big files are skipped, keys and tags are capped.
     /// Thread-safe.
     /// </summary>
     public sealed class ConfigCatalog
@@ -95,7 +95,8 @@ namespace UEToVS.Engine.IntelliSense
             long now = Environment.TickCount64;
             lock (_gate)
             {
-                if (ReferenceEquals(snap, _source) && now - _checkedAt < RecheckMs) return _list;
+                // within the recheck interval nothing is re-checked, even when the table changed (it changes on every file while indexing)
+                if (_source != null && now - _checkedAt < RecheckMs) return _list;
                 Refresh(snap);
                 _source = snap;
                 _checkedAt = now;

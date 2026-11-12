@@ -277,6 +277,38 @@ namespace UEToVS.Engine.Tests
         }
 
         [Fact]
+        public void Catalog_ReReadsChangedIniAndSkipsEngineFiles()
+        {
+            string dir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "uetovs-ini-" + Guid.NewGuid().ToString("N"), "Config");
+            System.IO.Directory.CreateDirectory(dir);
+            try
+            {
+                string game = System.IO.Path.Combine(dir, "DefaultGame.ini");
+                string engine = System.IO.Path.Combine(dir, "BaseEngine.ini");
+                System.IO.File.WriteAllText(game, "[A]\nX=1\n");
+                System.IO.File.WriteAllText(engine, "[E]\nY=1\n");
+                var table = new UEToVS.Engine.Indexing.FileTable();
+                table.Upsert(new UEToVS.Engine.Unreal.ListedFile { Path = game, Name = "DefaultGame.ini", Origin = ItemOrigin.Project, Kind = UEToVS.Engine.Unreal.SourceFileKind.Config });
+                table.Upsert(new UEToVS.Engine.Unreal.ListedFile { Path = engine, Name = "BaseEngine.ini", Origin = ItemOrigin.Engine, Kind = UEToVS.Engine.Unreal.SourceFileKind.Config });
+                var catalog = new ConfigCatalog { RecheckMs = 0 };
+                var files = catalog.Files(table);
+                Assert.Single(files);
+                Assert.Equal("A", files[0].Sections[0].Name);
+                int v = catalog.Version;
+                Assert.Same(files, catalog.Files(table)); // unchanged: same parse
+                System.IO.File.WriteAllText(game, "[A]\nX=1\n[B]\nZ=2\n");
+                System.IO.File.SetLastWriteTimeUtc(game, DateTime.UtcNow.AddMinutes(1));
+                files = catalog.Files(table);
+                Assert.Equal(2, files[0].Sections.Count);
+                Assert.True(catalog.Version > v);
+            }
+            finally
+            {
+                System.IO.Directory.Delete(System.IO.Path.GetDirectoryName(dir), true);
+            }
+        }
+
+        [Fact]
         public void Logging_CarriesStringContextAndCandidates()
         {
             using var sink = new CapturingLogSink();
