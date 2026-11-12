@@ -202,11 +202,11 @@ namespace UEToVS.Host.Logic.Settings
             list.Add(D(Indexing, "indexing.engineIndexPath", SettingKind.Path, "共享引擎索引位置", "Shared engine index location",
                 "仅在共享时使用；留空 = %LocalAppData%\\UEToVS\\EngineIndex\\<引擎版本>。", "Used only when sharing; empty = %LocalAppData%\\UEToVS\\EngineIndex\\<engine version>.", "", gEi, gEiEn));
             const string gLua = "Lua 脚本", gLuaEn = "Lua scripts";
-            var lua = D(Indexing, "indexing.luaScriptPaths", SettingKind.Text, "Lua 脚本路径", "Lua script folders",
-                "要索引的 Lua 脚本文件夹（UnLua / sluaunreal 等），多个用 ; 分隔；相对路径相对于 .uproject 所在目录，如 Content/Script。留空不索引 Lua。" +
+            var lua = D(Indexing, "indexing.luaScriptPaths", SettingKind.PathList, "Lua 脚本路径", "Lua script folders",
+                "要索引的 Lua 脚本文件夹（UnLua / sluaunreal 等）。项目内的文件夹自动存成相对 .uproject 的路径，如 Content/Script。没有文件夹就不索引 Lua。" +
                 "索引后 MCP 的 search_lua / search_lua_files / get_lua_outline 可以直接查找 Lua，脚本保存、新增、删除时自动增量更新。",
-                "Lua script folders to index (UnLua, sluaunreal…), separated by ';'; relative paths are relative to the .uproject folder, e.g. Content/Script. " +
-                "Empty = no Lua index. Lets the MCP tools search_lua / search_lua_files / get_lua_outline find Lua code; saved, added and deleted scripts update incrementally.",
+                "Lua script folders to index (UnLua, sluaunreal…). Folders inside the project are stored relative to the .uproject folder, e.g. Content/Script. " +
+                "No folders = no Lua index. Lets the MCP tools search_lua / search_lua_files / get_lua_outline find Lua code; saved, added and deleted scripts update incrementally.",
                 "", gLua, gLuaEn);
             lua.Keywords = "lua unlua slua script 脚本 mcp";
             list.Add(lua);

@@ -128,6 +128,7 @@ namespace UEToVS.UI.Controls
             s.Setters.Add(bg == null ? new Setter(Control.BackgroundProperty, Brushes.Transparent) : Ui.Dyn(Control.BackgroundProperty, bg));
             s.Setters.Add(border == null ? new Setter(Control.BorderBrushProperty, Brushes.Transparent) : Ui.Dyn(Control.BorderBrushProperty, border));
             s.Setters.Add(Ui.Dyn(Control.ForegroundProperty, fg));
+            if (kind == ButtonKind.Primary) s.Setters.Add(new Setter(Control.FontWeightProperty, FontWeights.SemiBold));
 
             var over = new Trigger { Property = UIElement.IsMouseOverProperty, Value = true };
             over.Setters.Add(Ui.Dyn(Control.BackgroundProperty, hover));
@@ -326,20 +327,17 @@ namespace UEToVS.UI.Controls
             s.Setters.Add(new Setter(FrameworkElement.FocusVisualStyleProperty, null));
             s.Setters.Add(new Setter(Control.BackgroundProperty, Brushes.Transparent));
             s.Setters.Add(new Setter(Control.BorderBrushProperty, Brushes.Transparent));
-            s.Setters.Add(Ui.Dyn(Control.ForegroundProperty, Tokens.TextPrimary));
             s.Setters.Add(Ui.Dyn(Control.FontSizeProperty, Tokens.FontSizeBody));
             var over = new Trigger { Property = UIElement.IsMouseOverProperty, Value = true };
             over.Setters.Add(Ui.Dyn(Control.BackgroundProperty, Tokens.SurfaceHover));
             s.Triggers.Add(over);
+            // Warm scheme: the selected segment is a raised neutral tile (not an accent fill); others are quieter text.
+            s.Setters.Add(Ui.Dyn(Control.ForegroundProperty, Tokens.TextSecondary));
             var on = new Trigger { Property = ToggleButton.IsCheckedProperty, Value = true };
-            on.Setters.Add(Ui.Dyn(Control.BackgroundProperty, Tokens.Accent));
-            on.Setters.Add(Ui.Dyn(Control.ForegroundProperty, Tokens.TextOnAccent));
+            on.Setters.Add(Ui.Dyn(Control.BackgroundProperty, Tokens.SegmentSelected));
+            on.Setters.Add(Ui.Dyn(Control.ForegroundProperty, Tokens.TextPrimary));
+            on.Setters.Add(new Setter(Control.FontWeightProperty, FontWeights.Medium));
             s.Triggers.Add(on);
-            var onOver = new MultiTrigger();
-            onOver.Conditions.Add(new Condition(ToggleButton.IsCheckedProperty, true));
-            onOver.Conditions.Add(new Condition(UIElement.IsMouseOverProperty, true));
-            onOver.Setters.Add(Ui.Dyn(Control.BackgroundProperty, Tokens.AccentHover));
-            s.Triggers.Add(onOver);
             var dis = new Trigger { Property = UIElement.IsEnabledProperty, Value = false };
             dis.Setters.Add(new Setter(UIElement.OpacityProperty, 0.45));
             s.Triggers.Add(dis);

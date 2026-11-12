@@ -20,6 +20,19 @@ namespace UEToVS.UI
         public static string CommonAuto => Loc.T("自动", "Auto");
         public static string CommonLoading => Loc.T("正在加载…", "Loading…");
         public static string CommonMore => Loc.T("更多", "More");
+        // ---- path list / path input (settings: Lua script folders, engine paths)
+        public static string PathAddFolder => Loc.T("添加文件夹…", "Add folder…");
+        public static string PathBrowse => Loc.T("浏览…", "Browse…");
+        public static string PathBrowseRow => Loc.T("选择其他文件夹…", "Pick another folder…");
+        public static string PathRemove => Loc.T("删除", "Remove");
+        public static string PathEditName => Loc.T("路径", "Path");
+        public static string PathEditing => Loc.T("编辑中 · 回车确认", "Editing · Enter to confirm");
+        public static string PathRelativeTag(object baseName) => Loc.F("相对 {0}", "Relative to {0}", baseName);
+        public static string PathAbsoluteTag => Loc.T("绝对路径", "Absolute");
+        public static string PathMissing => Loc.T("⚠ 文件夹不存在", "⚠ Folder not found");
+        public static string PathPickTitle => Loc.T("选择文件夹", "Select folder");
+        public static string PathListEmpty => Loc.T("还没有文件夹，点击右上角的“添加文件夹…”添加。", "No folders yet; use “Add folder…” at the top right.");
+        public static string PathListHint => Loc.T("双击一行可直接编辑；旧配置里用 ; 分隔的路径会自动拆成多行。", "Double-click a row to edit it; paths separated by ';' in older settings are split into rows.");
         public static string SearchPlaceholder => Loc.T("输入以搜索", "Type to search");
         public static string SearchHistory => Loc.T("历史记录 (Alt+↑/↓)", "History (Alt+↑/↓)");
         public static string ListEmpty => Loc.T("没有结果", "No results");

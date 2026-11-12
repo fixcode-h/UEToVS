@@ -18,6 +18,8 @@ namespace UEToVS.UI.Logic
         Action = 5,
         /// <summary>Read-only line whose text comes from the host at render time (e.g. current index status).</summary>
         Info = 6,
+        /// <summary>Several folders (<see cref="PathListModel"/>): stored ';'-separated, edited as a list with a folder picker.</summary>
+        PathList = 7,
     }
 
     /// <summary>One choice of a <see cref="SettingKind.Choice"/> setting.</summary>
@@ -135,6 +137,8 @@ namespace UEToVS.UI.Logic
                 case SettingKind.Text:
                 case SettingKind.Path:
                     return (value ?? string.Empty).Trim();
+                case SettingKind.PathList:
+                    return PathListModel.Join(PathListModel.Parse(value));
                 default:
                     return null;
             }
@@ -192,7 +196,7 @@ namespace UEToVS.UI.Logic
                 if (string.IsNullOrEmpty(d.TitleZh) || string.IsNullOrEmpty(d.TitleEn)) problems.Add(d.Key + ": missing title");
                 if (d.Kind == SettingKind.Choice && (d.Options == null || d.Options.Count == 0)) problems.Add(d.Key + ": choice without options");
                 if ((d.Kind == SettingKind.Action || d.Kind == SettingKind.Info) && string.IsNullOrEmpty(d.ActionId)) problems.Add(d.Key + ": missing action id");
-                if (d.HasValue && d.Kind != SettingKind.Text && d.Kind != SettingKind.Path)
+                if (d.HasValue && d.Kind != SettingKind.Text && d.Kind != SettingKind.Path && d.Kind != SettingKind.PathList)
                 {
                     Normalize(d, d.Default, out bool ok);
                     if (!ok) problems.Add(d.Key + ": invalid default " + d.Default);

@@ -12,6 +12,23 @@ namespace UEToVS.Host.Logic.Localization
         public static string Cancel => Loc.T("取消", "Cancel");
         public static string ResetDefaults => Loc.T("恢复默认", "Restore defaults");
         public static string ResetConfirm => Loc.T("已把本页恢复为默认值（点击“应用”或“确定”后生效）。", "This page was reset to defaults (takes effect on Apply / OK).");
+        public static string ResetPage => Loc.T("恢复本页默认", "Reset this page");
+        public static string PendingChanges(int n) => Loc.F("● {0} 项未应用", "● {0} unapplied", n);
+
+        /// <summary>One-line description under each settings page title.</summary>
+        public static string PageDescription(string categoryId) => categoryId switch
+        {
+            "general" => Loc.T("引擎、IntelliSense 接管、工具栏、快捷操作和更新。", "Engine, IntelliSense takeover, toolbar, shortcuts and updates."),
+            "appearance" => Loc.T("颜色、圆角、密度和字体。修改即时预览，点击“应用”后保存。", "Colors, corners, density and fonts. Changes preview live and are saved on Apply."),
+            "indexing" => Loc.T("C++、蓝图和 Lua 索引的范围、线程数和存放位置。", "Scope, threads and location of the C++, Blueprint and Lua indexes."),
+            "keymap" => Loc.T("UEToVS 命令的快捷键；和 VS 冲突时 UEToVS 优先（原绑定已备份）。", "Shortcuts of UEToVS commands; UEToVS wins conflicts with VS (originals backed up)."),
+            "navigation" => Loc.T("跳转、搜索和引用高亮。", "Go to, search and reference highlighting."),
+            "intellisense" => Loc.T("补全、悬停信息和语义着色。", "Completion, Quick Info and semantic coloring."),
+            "agent" => Loc.T("本地 API 网关、模型和 MCP 服务。", "Local API gateway, models and the MCP server."),
+            "logging" => Loc.T("日志级别、保留时间和位置（JSON 行格式，方便分析问题）。", "Log level, retention and location (JSON lines, easy to analyse)."),
+            "performance" => Loc.T("性能面板和采样。", "Performance panel and sampling."),
+            _ => null,
+        };
         public static string NoMatches(string q) => Loc.F("没有与“{0}”匹配的设置", "No settings match “{0}”", q);
         public static string Unsaved => Loc.T("有未应用的修改", "Unapplied changes");
         public static string Saved => Loc.T("已应用", "Applied");

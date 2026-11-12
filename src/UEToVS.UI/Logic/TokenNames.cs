@@ -98,6 +98,16 @@ namespace UEToVS.UI.Logic
         /// <summary>Title / navigation pane background of windows (settings window left rail).</summary>
         public const string SurfaceNav = "Surface.Nav";
 
+        // ---- warm scheme additions (v0.4.5)
+        /// <summary>Descriptions and hints under a setting title (one step quieter than secondary text).</summary>
+        public const string TextTertiary = "Text.Tertiary";
+        /// <summary>Hairline between rows of a grouped card and between window regions.</summary>
+        public const string Divider = "Divider";
+        /// <summary>Raised fill of the selected segment of a segmented control.</summary>
+        public const string SegmentSelected = "Segment.Selected";
+        /// <summary>Selected item of the settings navigation (neutral; the accent bar marks it).</summary>
+        public const string NavSelected = "Nav.Selected";
+
         // ---- numbers (DIPs unless noted)
         public const string FontSizeBody = "Font.Size.Body";
         public const string FontSizeSmall = "Font.Size.Small";
@@ -107,6 +117,8 @@ namespace UEToVS.UI.Logic
         public const string FontSizeDisplay = "Font.Size.Display";
         public const string FontSizeInput = "Font.Size.Input";
         public const string FontSizeCode = "Font.Size.Code";
+        /// <summary>Settings page heading (serif display face, about twice the body size).</summary>
+        public const string FontSizePageTitle = "Font.Size.PageTitle";
         public const string RowHeight = "Row.Height";
         public const string RowHeaderHeight = "Row.HeaderHeight";
         public const string IconSize = "Icon.Size";

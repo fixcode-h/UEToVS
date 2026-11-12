@@ -293,6 +293,7 @@ namespace UEToVS.UI.Theming
             v[Tokens.ThicknessPopupPadding] = new Thickness(pp);
             v[Tokens.FontFamilyUi] = uiFont ?? SystemFonts.MessageFontFamily;
             v[Tokens.FontFamilyCode] = _codeFont;
+            v[Tokens.FontFamilyDisplay] = DisplayFont;
             if (_codeFontSize.HasValue && _codeFontSize.Value > 6) v[Tokens.FontSizeCode] = _codeFontSize.Value;
             v[Tokens.MatchFontWeight] = t.Number(TokenNames.MatchBold) > 0 ? FontWeights.Bold : FontWeights.Normal;
             if (t.Number(TokenNames.MatchUnderline) > 0)
@@ -309,6 +310,8 @@ namespace UEToVS.UI.Theming
             }
             return v;
         }
+
+        private static readonly FontFamily DisplayFont = new FontFamily("Georgia, Microsoft YaHei UI, Segoe UI");
 
         private void Push(Dictionary<object, object> values)
         {

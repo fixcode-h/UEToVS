@@ -51,6 +51,16 @@ namespace UEToVS.Host.Settings
 
         public IReadOnlyList<SettingDescriptor> Schema => _package.Settings.Schema;
 
+        public string ProjectDirectory
+        {
+            get
+            {
+                string project = _package.Unreal?.ProjectFile;
+                if (!string.IsNullOrEmpty(project)) return System.IO.Path.GetDirectoryName(project);
+                return _package.SolutionDirectory;
+            }
+        }
+
         public Dictionary<string, string> LoadValues() => _package.Settings.UserValues();
 
         public void SaveValues(IReadOnlyDictionary<string, string> values) => _package.Settings.ApplyUserValues(values, "settingsWindow");

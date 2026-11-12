@@ -39,7 +39,7 @@ namespace UEToVS.Host.Logic.Tests
                 IntelliSenseTakeover = true, IntelliSenseTakeoverMode = IntelliSenseTakeoverMode.UnrealSolutionOnly, DisableDatabase = false,
                 DisableBackgroundCodeAnalysis = true, LogRetentionDays = 3, LogMaxTotalMB = 50, CppIndexThreads = 6, BlueprintIndexThreads = 2,
                 IndexDuringBuild = IndexDuringBuild.Pause, IndexEngineSource = false, ShareEngineIndex = true, EngineIndexPath = @"D:\Idx",
-                LuaScriptPaths = @"Content/Script; D:\Shared\Lua",
+                LuaScriptPaths = @"Content/Script;D:\Shared\Lua",
                 ShowToolbar = false, HiddenToolbarButtons = "findReferences,performance", PerformanceSampleSeconds = 5,
                 // M1 / M2 fields
                 DoubleShiftEnabled = false, DoubleShiftIntervalMs = 450, DoubleShiftLeftOnly = true, SearchMaxResultsPerCategory = 80,
@@ -55,7 +55,9 @@ namespace UEToVS.Host.Logic.Tests
             Assert.Equal("#80FF0000", back.ReferenceHighlightWriteColor);
             Assert.False(back.NavigationBar);
             Assert.False(back.SyncSolutionExplorer);
-            Assert.Equal(@"Content/Script; D:\Shared\Lua", back.LuaScriptPaths);
+            // Path lists are normalized on load (old "a; b" text → "a;b"); the folders themselves are unchanged.
+            Assert.Equal(@"Content/Script;D:\Shared\Lua", back.LuaScriptPaths);
+            Assert.Equal(HostSettingsSchema.Codec.SplitPaths(s.LuaScriptPaths), HostSettingsSchema.Codec.SplitPaths(back.LuaScriptPaths));
         }
 
         [Fact]
