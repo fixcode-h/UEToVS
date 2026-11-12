@@ -132,15 +132,50 @@ namespace UEToVS.Host.Logic.Tests
             };
             var d = DefaultKeymapPlanner.Plan(CommandCatalog.All, ours, others, null).ToDictionary(x => x.Command);
             Assert.Equal(DefaultBindingOutcome.AlreadyBound, d["UEToVS.GoToDefinition"].Outcome);
+            Assert.Empty(d["UEToVS.GoToDefinition"].Overrides);                   // the user's own key: nothing to fight for
             Assert.Equal(DefaultBindingOutcome.CommandMissing, d["UEToVS.LiveCoding"].Outcome);
-            Assert.Equal(DefaultBindingOutcome.KeyTaken, d["UEToVS.ToggleHeaderSource"].Outcome);
-            Assert.Equal("Edit.Custom", d["UEToVS.ToggleHeaderSource"].TakenBy);
-            Assert.Equal(DefaultBindingOutcome.KeyTaken, d["UEToVS.FindReferences"].Outcome);
+            // UEToVS wins over VS commands: applied, the VS binding is removed
+            Assert.Equal(DefaultBindingOutcome.Apply, d["UEToVS.ToggleHeaderSource"].Outcome);
+            Assert.Equal(new[] { new KeyValuePair<string, string>("Edit.Custom", "Global::Alt+O") }, d["UEToVS.ToggleHeaderSource"].Overrides);
+            Assert.Equal(DefaultBindingOutcome.Apply, d["UEToVS.FindReferences"].Outcome);
+            Assert.Equal("Edit.Chord", Assert.Single(d["UEToVS.FindReferences"].Overrides).Key);
+            Assert.Equal(DefaultBindingOutcome.Apply, d["UEToVS.NavigateBack"].Outcome); // Global overlaps every scope
+            Assert.Equal("SolutionExplorer.Only", Assert.Single(d["UEToVS.NavigateBack"].Overrides).Key);
+            // but never over a key the user gave another UEToVS command
             Assert.Equal(DefaultBindingOutcome.KeyTaken, d["UEToVS.ListMembersInFile"].Outcome);
             Assert.Equal("UEToVS.GoToSymbol", d["UEToVS.ListMembersInFile"].TakenBy);
-            Assert.Equal(DefaultBindingOutcome.KeyTaken, d["UEToVS.NavigateBack"].Outcome); // Global overlaps every scope
             Assert.Equal(DefaultBindingOutcome.Apply, d["UEToVS.GoToImplementation"].Outcome);
+            Assert.Empty(d["UEToVS.GoToImplementation"].Overrides);
             Assert.Equal(DefaultBindingOutcome.Apply, d["UEToVS.NavigateForward"].Outcome);
+            // decisions with overrides are remembered only after they were applied
+            Assert.DoesNotContain(DefaultKeymapPlanner.ToRemember(d.Values), k => k.StartsWith("UEToVS.ToggleHeaderSource=", StringComparison.Ordinal));
+        }
+
+        [Fact]
+        public void DefaultAlreadyBoundButShadowedByVsIsReclaimed()
+        {
+            var ours = AllUnbound();
+            ours["UEToVS.GoToFile"] = new[] { "Global::Shift+Alt+O" };          // VSCT default reached VS…
+            var others = new Dictionary<string, string[]> { ["Edit.OpenFile"] = new[] { "Text Editor::Shift+Alt+O", "Global::Ctrl+O" } }; // …but VS shadows it in the editor
+            var d = DefaultKeymapPlanner.Plan(CommandCatalog.All, ours, others, null).Single(x => x.Command == "UEToVS.GoToFile");
+            Assert.Equal(DefaultBindingOutcome.AlreadyBound, d.Outcome);
+            Assert.True(d.NeedsConflictScan);
+            Assert.Equal(new[] { new KeyValuePair<string, string>("Edit.OpenFile", "Text Editor::Shift+Alt+O") }, d.Overrides);
+        }
+
+        [Fact]
+        public void RemovalsListOnlyNonUEToVSCommands()
+        {
+            var mine = new Dictionary<string, string[]> { ["UEToVS.SearchEverywhere"] = new[] { "Global::Ctrl+T" } };
+            var all = new Dictionary<string, string[]>
+            {
+                ["Edit.GoToAll"] = new[] { "Global::Ctrl+T", "Global::Ctrl+," },
+                ["UEToVS.GoToType"] = new[] { "Global::Ctrl+T" },
+                ["Edit.Unrelated"] = new[] { "Global::Ctrl+Shift+T" },
+            };
+            var r = DefaultKeymapPlanner.Removals(mine, all);
+            Assert.Equal(new[] { "Edit.GoToAll" }, r.Keys.ToArray());
+            Assert.Equal(new[] { "Global::Ctrl+T" }, r["Edit.GoToAll"].ToArray());
         }
 
         [Fact]
@@ -196,7 +231,13 @@ namespace UEToVS.Host.Logic.Tests
                 Assert.NotEmpty(mods);
                 Assert.All(mods, m => Assert.Contains(m, validMods));
                 Assert.Equal(mods.Length, mods.Distinct().Count());
-                Assert.True(seen.Add(editor + "|" + key + "|" + string.Join(" ", mods.OrderBy(m => m))), id + ": duplicate key binding");
+                string key2 = (string)kb.Attribute("key2");
+                if (key2 != null)
+                {
+                    Assert.True(key2.Length == 1 && char.IsLetterOrDigit(key2[0]) && !char.IsLower(key2[0]) || key2.StartsWith("VK_", StringComparison.Ordinal), id + ": key2 " + key2);
+                    Assert.All(((string)kb.Attribute("mod2") ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries), m => Assert.Contains(m, validMods));
+                }
+                Assert.True(seen.Add(editor + "|" + key + "|" + string.Join(" ", mods.OrderBy(m => m)) + "|" + key2 + "|" + (string)kb.Attribute("mod2")), id + ": duplicate key binding");
             }
         }
     }

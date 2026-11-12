@@ -40,7 +40,7 @@ namespace UEToVS.Host.Logic.Commands
         /// <summary>"navigation" | "search" | "related" | "bookmarks" | "unreal" | "tools" | "settings" | "diagnostics" — groups the keymap page.</summary>
         public string Group { get; set; }
         public CommandScope Scope { get; set; }
-        /// <summary>Visual Assist style default (also what the VSCT KeyBinding declares). VS key syntax; null = none.</summary>
+        /// <summary>Visual Assist style default (also what the VSCT KeyBinding declares). VS key syntax. Every command has one (tools use the "Ctrl+Shift+Alt+U, x" chords).</summary>
         public string VaKeys { get; set; }
         public string RiderKeys { get; set; }
         public string VsKeys { get; set; }
@@ -48,12 +48,16 @@ namespace UEToVS.Host.Logic.Commands
 
         public string Title(bool english) => english ? TitleEn : TitleZh;
 
+        /// <summary>
+        /// Keys of <paramref name="preset"/>; a command without an equivalent in Rider / VS falls back to its Visual Assist
+        /// default, so every UEToVS command has a shortcut under every preset.
+        /// </summary>
         public string KeysFor(KeymapPresetId preset)
         {
             switch (preset)
             {
-                case KeymapPresetId.Rider: return RiderKeys;
-                case KeymapPresetId.VisualStudio: return VsKeys;
+                case KeymapPresetId.Rider: return RiderKeys ?? VaKeys;
+                case KeymapPresetId.VisualStudio: return VsKeys ?? VaKeys;
                 default: return VaKeys;
             }
         }
@@ -195,46 +199,46 @@ namespace UEToVS.Host.Logic.Commands
             // navigation history (M1, global)
             C(M1, NavigateBack, "NavigateBack", ActionIds.NavigateBack, "后退", "Navigate Back", "navigation", Gl, "Alt+Left Arrow", "Ctrl+Alt+Left Arrow", "Ctrl+-"),
             C(M1, NavigateForward, "NavigateForward", ActionIds.NavigateForward, "前进", "Navigate Forward", "navigation", Gl, "Alt+Right Arrow", "Ctrl+Alt+Right Arrow", "Ctrl+Shift+-"),
-            C(M1, RecentFiles, "RecentFiles", ActionIds.RecentFiles, "最近文件", "Recent Files", "navigation", Gl, null, "Ctrl+E", null),
-            C(M1, RecentLocations, "RecentLocations", ActionIds.RecentLocations, "最近位置", "Recent Locations", "navigation", Gl, null, "Ctrl+Shift+E", null),
-            C(M1, LastEditLocation, "LastEditLocation", ActionIds.LastEditLocation, "上一个编辑位置", "Last Edit Location", "navigation", Gl, null, "Ctrl+Shift+Bkspce", null),
-            C(M1, NextEditLocation, "NextEditLocation", ActionIds.NextEditLocation, "下一个编辑位置", "Next Edit Location", "navigation", Gl, null, null, null),
-            C(M1, FileStructure, "FileStructure", ActionIds.FileStructure, "文件结构", "File Structure", "navigation", Gl, null, "Ctrl+F12", null),
-            C(M1, NavigateTo, "NavigateTo", ActionIds.NavigateTo, "导航到…", "Navigate To", "navigation", Gl, null, null, null),
+            C(M1, RecentFiles, "RecentFiles", ActionIds.RecentFiles, "最近文件", "Recent Files", "navigation", Gl, "Shift+Alt+E", "Ctrl+E", null),
+            C(M1, RecentLocations, "RecentLocations", ActionIds.RecentLocations, "最近位置", "Recent Locations", "navigation", Gl, "Shift+Alt+L", "Ctrl+Shift+E", null),
+            C(M1, LastEditLocation, "LastEditLocation", ActionIds.LastEditLocation, "上一个编辑位置", "Last Edit Location", "navigation", Gl, "Ctrl+Shift+Bkspce", "Ctrl+Shift+Bkspce", null),
+            C(M1, NextEditLocation, "NextEditLocation", ActionIds.NextEditLocation, "下一个编辑位置", "Next Edit Location", "navigation", Gl, "Ctrl+Shift+Alt+Bkspce", null, null),
+            C(M1, FileStructure, "FileStructure", ActionIds.FileStructure, "文件结构", "File Structure", "navigation", Gl, "Ctrl+Shift+Alt+M", "Ctrl+F12", null),
+            C(M1, NavigateTo, "NavigateTo", ActionIds.NavigateTo, "导航到…", "Navigate To", "navigation", Gl, "Shift+Alt+N", null, null),
 
             // search (M1); Search Everywhere is also "double Shift" (M1 InputMonitor), which VSCT cannot express
             C(H, FindAction, "FindAction", ActionIds.FindAction, "查找操作", "Find Action", "search", Gl, "Ctrl+Shift+Alt+A", "Ctrl+Shift+A", null),
-            C(M1, SearchEverywhere, "SearchEverywhere", ActionIds.SearchEverywhere, "Search Everywhere", "Search Everywhere", "search", Gl, null, null, null),
-            C(M1, GoToType, "GoToType", ActionIds.GoToType, "转到类型", "Go to Type", "search", Gl, null, "Ctrl+N", null),
+            C(M1, SearchEverywhere, "SearchEverywhere", ActionIds.SearchEverywhere, "Search Everywhere", "Search Everywhere", "search", Gl, "Ctrl+T", null, null),
+            C(M1, GoToType, "GoToType", ActionIds.GoToType, "转到类型", "Go to Type", "search", Gl, "Shift+Alt+T", "Ctrl+N", null),
             C(M1, GoToSymbol, "GoToSymbol", ActionIds.GoToSymbol, "转到符号", "Go to Symbol", "search", Gl, "Shift+Alt+S", "Ctrl+Shift+Alt+N", null),
             C(M1, GoToFile, "GoToFile", ActionIds.GoToFile, "转到文件", "Go to File", "search", Gl, "Shift+Alt+O", "Ctrl+Shift+N", null),
-            C(M1, GoToAsset, "GoToAsset", ActionIds.GoToAsset, "转到资产（蓝图）", "Go to Asset (Blueprint)", "search", Gl, null, null, null),
+            C(M1, GoToAsset, "GoToAsset", ActionIds.GoToAsset, "转到资产（蓝图）", "Go to Asset (Blueprint)", "search", Gl, "Shift+Alt+B", null, null),
 
             // related (M1)
             C(M1, ToggleHeaderSource, "ToggleHeaderSource", ActionIds.ToggleHeaderSource, "头文件/源文件切换", "Toggle Header/Source", "related", Gl, "Alt+O", "Ctrl+Alt+Home", "Ctrl+K, Ctrl+O"),
-            C(M1, GoToRelated, "GoToRelated", ActionIds.GoToRelated, "转到相关文件", "Go to Related", "related", Gl, null, null, null),
-            C(M1, OpenBuildCs, "OpenBuildCs", ActionIds.OpenBuildCs, "打开模块 Build.cs", "Open Module Build.cs", "related", Gl, null, null, null),
-            C(M1, AddModuleDependency, "AddModuleDependency", ActionIds.AddModuleDependency, "为 include 添加模块依赖", "Add Module Dependency for Include", "related", Gl, null, null, null),
+            C(M1, GoToRelated, "GoToRelated", ActionIds.GoToRelated, "转到相关文件", "Go to Related", "related", Gl, "Shift+Alt+R", null, null),
+            C(M1, OpenBuildCs, "OpenBuildCs", ActionIds.OpenBuildCs, "打开模块 Build.cs", "Open Module Build.cs", "related", Gl, "Ctrl+Shift+Alt+U, B", null, null),
+            C(M1, AddModuleDependency, "AddModuleDependency", ActionIds.AddModuleDependency, "为 include 添加模块依赖", "Add Module Dependency for Include", "related", Gl, "Ctrl+Shift+Alt+U, A", null, null),
 
             // bookmarks (M1)
-            C(M1, ToggleBookmark, "ToggleBookmark", ActionIds.ToggleBookmark, "切换书签", "Toggle Bookmark", "bookmarks", Gl, null, "F11", null),
-            C(M1, ShowBookmarks, "ShowBookmarks", ActionIds.ShowBookmarks, "书签列表", "Show Bookmarks", "bookmarks", Gl, null, "Shift+F11", null),
+            C(M1, ToggleBookmark, "ToggleBookmark", ActionIds.ToggleBookmark, "切换书签", "Toggle Bookmark", "bookmarks", Gl, "Ctrl+F2", "F11", null),
+            C(M1, ShowBookmarks, "ShowBookmarks", ActionIds.ShowBookmarks, "书签列表", "Show Bookmarks", "bookmarks", Gl, "Ctrl+Shift+F2", "Shift+F11", null),
 
             // Unreal (M1)
             C(M1, LiveCoding, "LiveCoding", ActionIds.LiveCoding, "Live Coding（UE 编辑器）", "Live Coding (Unreal Editor)", "unreal", Gl, "Ctrl+Alt+F11", "Ctrl+Alt+F11", "Ctrl+Alt+F11"),
-            C(M1, GenerateProjectFiles, "GenerateProjectFiles", ActionIds.GenerateProjectFiles, "生成项目文件", "Generate Project Files", "unreal", Gl, null, null, null),
-            C(M1, InstallEditorPlugin, "InstallEditorPlugin", ActionIds.InstallEditorPlugin, "安装 UEToVSLink 编辑器插件", "Install UEToVSLink Editor Plugin", "unreal", Gl, null, null, null),
+            C(M1, GenerateProjectFiles, "GenerateProjectFiles", ActionIds.GenerateProjectFiles, "生成项目文件", "Generate Project Files", "unreal", Gl, "Ctrl+Shift+Alt+U, G", null, null),
+            C(M1, InstallEditorPlugin, "InstallEditorPlugin", ActionIds.InstallEditorPlugin, "安装 UEToVSLink 编辑器插件", "Install UEToVSLink Editor Plugin", "unreal", Gl, "Ctrl+Shift+Alt+U, E", null, null),
 
             // tools / settings / diagnostics (host)
-            C(H, ShowPerformancePanel, "PerformancePanel", ActionIds.ShowPerformancePanel, "性能面板", "Performance Panel", "tools", Gl, null, null, null),
-            C(H, Settings, "Settings", ActionIds.Settings, "设置…", "Settings...", "settings", Gl, null, "Ctrl+Alt+S", null),
-            C(H, RestartEngine, "RestartEngine", "uetovs.engine.restart", "重启引擎", "Restart Engine", "tools", Gl, null, null, null),
-            C(H, ToggleIntelliSense, "ToggleIntelliSense", "uetovs.intellisense.takeOver", "接管/恢复 VS C++ IntelliSense", "Take Over / Restore C++ IntelliSense", "settings", Gl, null, null, null),
-            C(H, OpenLogFolder, "OpenLogFolder", "uetovs.diagnostics.openLogFolder", "打开日志文件夹", "Open Log Folder", "diagnostics", Gl, null, null, null),
-            C(H, OpenCurrentLog, "OpenCurrentLog", "uetovs.diagnostics.openCurrentLog", "打开当前日志", "Open Current Log", "diagnostics", Gl, null, null, null),
-            C(H, CreateDiagnostics, "CreateDiagnosticsPackage", "uetovs.diagnostics.createPackage", "生成诊断包", "Create Diagnostics Package", "diagnostics", Gl, null, null, null),
-            C(H, ShowComponentGallery, "ShowComponentGallery", "uetovs.ui.componentGallery", "组件画廊", "Component Gallery", "diagnostics", Gl, null, null, null),
-            C(H, WriteMcpConfig, "WriteMcpConfig", "uetovs.mcp.writeConfig", "写入 .mcp.json 到解决方案目录", "Write .mcp.json to Solution Folder", "tools", Gl, null, null, null),
+            C(H, ShowPerformancePanel, "PerformancePanel", ActionIds.ShowPerformancePanel, "性能面板", "Performance Panel", "tools", Gl, "Ctrl+Shift+Alt+U, P", null, null),
+            C(H, Settings, "Settings", ActionIds.Settings, "设置…", "Settings...", "settings", Gl, "Ctrl+Shift+Alt+U, S", "Ctrl+Alt+S", null),
+            C(H, RestartEngine, "RestartEngine", "uetovs.engine.restart", "重启引擎", "Restart Engine", "tools", Gl, "Ctrl+Shift+Alt+U, R", null, null),
+            C(H, ToggleIntelliSense, "ToggleIntelliSense", "uetovs.intellisense.takeOver", "接管/恢复 VS C++ IntelliSense", "Take Over / Restore C++ IntelliSense", "settings", Gl, "Ctrl+Shift+Alt+U, I", null, null),
+            C(H, OpenLogFolder, "OpenLogFolder", "uetovs.diagnostics.openLogFolder", "打开日志文件夹", "Open Log Folder", "diagnostics", Gl, "Ctrl+Shift+Alt+U, F", null, null),
+            C(H, OpenCurrentLog, "OpenCurrentLog", "uetovs.diagnostics.openCurrentLog", "打开当前日志", "Open Current Log", "diagnostics", Gl, "Ctrl+Shift+Alt+U, L", null, null),
+            C(H, CreateDiagnostics, "CreateDiagnosticsPackage", "uetovs.diagnostics.createPackage", "生成诊断包", "Create Diagnostics Package", "diagnostics", Gl, "Ctrl+Shift+Alt+U, D", null, null),
+            C(H, ShowComponentGallery, "ShowComponentGallery", "uetovs.ui.componentGallery", "组件画廊", "Component Gallery", "diagnostics", Gl, "Ctrl+Shift+Alt+U, C", null, null),
+            C(H, WriteMcpConfig, "WriteMcpConfig", "uetovs.mcp.writeConfig", "写入 .mcp.json 到解决方案目录", "Write .mcp.json to Solution Folder", "tools", Gl, "Ctrl+Shift+Alt+U, M", null, null),
         };
 
         public static CommandInfo ById(int id)

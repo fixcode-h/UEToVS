@@ -252,11 +252,15 @@ namespace UEToVS.Host.Logic.Tests
             var declared = new Dictionary<int, string>();
             foreach (var kb in doc.Descendants(Ns + "KeyBinding"))
             {
-                string key = (string)kb.Attribute("key1");
-                key = key == "VK_LEFT" ? "Left Arrow" : key == "VK_RIGHT" ? "Right Arrow" : key.StartsWith("VK_") ? key.Substring(3) : key;
-                string mods = string.Join("+", ((string)kb.Attribute("mod1") ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries)
-                                                                                 .Select(m => m == "Control" ? "Ctrl" : m));
-                declared[sym[(string)kb.Attribute("id")]] = Shortcut.Normalize(mods.Length > 0 ? mods + "+" + key : key);
+                string Chord(string key, string mod)
+                {
+                    key = key == "VK_LEFT" ? "Left Arrow" : key == "VK_RIGHT" ? "Right Arrow" : key == "VK_BACK" ? "Bkspce" : key.StartsWith("VK_") ? key.Substring(3) : key;
+                    string mods = string.Join("+", (mod ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries).Select(m => m == "Control" ? "Ctrl" : m));
+                    return mods.Length > 0 ? mods + "+" + key : key;
+                }
+                string text = Chord((string)kb.Attribute("key1"), (string)kb.Attribute("mod1"));
+                if (kb.Attribute("key2") != null) text += ", " + Chord((string)kb.Attribute("key2"), (string)kb.Attribute("mod2"));
+                declared[sym[(string)kb.Attribute("id")]] = Shortcut.Normalize(text);
             }
             foreach (var c in CommandCatalog.All)
             {
@@ -266,6 +270,19 @@ namespace UEToVS.Host.Logic.Tests
             // no two commands share a default key in the same scope
             var dup = CommandCatalog.All.Where(c => c.VaKeys != null).GroupBy(c => Shortcut.Normalize(c.VaKeys)).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
             Assert.Empty(dup);
+        }
+
+        [Fact]
+        public void EveryCommandHasADefaultUnderEveryPresetWithoutInternalConflicts()
+        {
+            foreach (KeymapPresetId preset in Enum.GetValues(typeof(KeymapPresetId)))
+            {
+                var bindings = KeymapPlanner.PresetBindings(preset);
+                foreach (var c in CommandCatalog.All)
+                    Assert.True(bindings[c.Name].Length == 1 && bindings[c.Name][0] != null && !bindings[c.Name][0].EndsWith("::"), $"{preset}: {c.Name} has no key");
+                var conflicts = KeymapPlanner.FindConflicts(bindings, null);
+                Assert.True(conflicts.Count == 0, preset + ": " + string.Join("; ", conflicts));
+            }
         }
 
         [Fact]

@@ -12,20 +12,21 @@ using UEToVS.Host.Logic.Commands;
 namespace UEToVS.Host.Keymap
 {
     /// <summary>
-    /// Safety net for the VSCT default key bindings (Alt+G, Shift+Alt+G, Alt+←/→, …). VS only applies VSCT
-    /// KeyBindings when it merges the package's menu resources, which is not guaranteed after an install / upgrade
-    /// (v0.3.0 report: every UEToVS command unbound in VS 18). Shortly after the package loads, every catalog command
-    /// whose default has not been decided yet is checked (<see cref="DefaultKeymapPlanner"/>): a command without any
-    /// binding gets its default through DTE when no other command uses the key; a command that already has a binding
-    /// (VSCT worked, or the user's choice) and a key used elsewhere are left alone. Each default is decided once and
-    /// remembered in the VS user settings store (UEToVS\Keymap\defaultsHandled), so a binding the user removes later is
-    /// not brought back; a command not registered yet is retried on the next start. A backup is written before any change
-    /// (keymap page → 还原上次备份 undoes it). UI thread for DTE; the full command scan yields to keep VS responsive.
+    /// First-run default key bindings. VS only applies VSCT KeyBindings when it merges the package's menu resources,
+    /// which is not guaranteed after an install / upgrade (v0.3.0 report: every UEToVS command unbound in VS 18), and VS's
+    /// own commands often hold the same keys. Shortly after the package loads, every catalog command whose default has not
+    /// been decided yet is planned (<see cref="DefaultKeymapPlanner"/>): UEToVS shortcuts take priority, so a command
+    /// without a binding gets its default and the VS bindings that overlap it are removed. A binding the user gave a
+    /// UEToVS command is left alone. Each default is decided once and remembered in the VS user settings store
+    /// (UEToVS\Keymap\defaultsHandled.v2 — v0.3.3 starts a new list, so defaults skipped by v0.3.1/v0.3.2 because the key was
+    /// taken are applied now). A command not registered yet is retried on the next start. One backup covering every
+    /// command touched (ours and VS's) is written before any change (keymap page → 还原上次备份 undoes it).
+    /// UI thread for DTE; the full command scan yields to keep VS responsive.
     /// </summary>
     internal static class DefaultKeyBindings
     {
         private const string Collection = "UEToVS\\Keymap";
-        private const string HandledProperty = "defaultsHandled";
+        private const string HandledProperty = "defaultsHandled.v2";
         private static readonly Logger L = Log.For("Keymap");
 
         public static async Task EnsureAsync(DTE dte, CancellationToken ct)
@@ -48,36 +49,66 @@ namespace UEToVS.Host.Keymap
                 var scopes = DteKeymap.DetectScopes(dte);
                 var ours = DteKeymap.ReadOurs(dte, scopes, "defaults");
                 var decisions = DefaultKeymapPlanner.Plan(CommandCatalog.All, ours.Bindings, null, handled);
-                if (decisions.Any(d => d.Outcome == DefaultBindingOutcome.Apply))
+                if (decisions.Any(d => d.NeedsConflictScan))
                 {
-                    // Some command has no binding at all: check its key against every other command before binding it.
+                    // Find the VS bindings that would shadow our defaults (removed below: UEToVS wins).
                     var all = await DteKeymap.ReadAllAsync(dte, scopes);
                     ct.ThrowIfCancellationRequested();
                     ours = DteKeymap.ReadOurs(dte, scopes, "defaults.recheck");
                     decisions = DefaultKeymapPlanner.Plan(CommandCatalog.All, ours.Bindings, all, handled);
                 }
 
-                var apply = decisions.Where(d => d.Outcome == DefaultBindingOutcome.Apply).ToList();
+                var apply = decisions.Where(d => d.Outcome == DefaultBindingOutcome.Apply || d.Overrides.Count > 0).ToList();
+                // VS command → canonical bindings to remove
+                var removals = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+                foreach (var d in apply)
+                    foreach (var o in d.Overrides)
+                    {
+                        if (!removals.TryGetValue(o.Key, out var set)) removals[o.Key] = set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                        set.Add(o.Value);
+                    }
                 var applied = new List<DefaultBindingDecision>();
                 var failed = new List<string>();
+                var removed = new List<string>();
                 string backupFile = null;
                 if (apply.Count > 0)
                 {
                     var backup = new KeymapPlanner.Backup { CreatedUtc = DateTime.UtcNow, Reason = "firstRunDefaults" };
-                    foreach (var d in apply) backup.Bindings[d.Command] = DteKeymap.Raw(DteKeymap.FindByName(dte, d.Command));
+                    foreach (var d in apply.Where(x => x.Outcome == DefaultBindingOutcome.Apply)) backup.Bindings[d.Command] = DteKeymap.Raw(DteKeymap.FindByName(dte, d.Command));
+                    foreach (var name in removals.Keys) backup.Bindings[name] = DteKeymap.Raw(DteKeymap.FindByName(dte, name));
                     backupFile = KeymapBackups.Write(backup);
                     if (backupFile == null)
                     {
                         L.Warn("keymap.defaults.skipped", "No backup could be written; default key bindings not applied (retried next start)",
                                ("pending", apply.Select(d => d.ToString()).ToList()));
                         apply.Clear();
+                        removals.Clear();
                     }
+                }
+                // 1) take the keys away from VS's commands, 2) bind ours
+                var removeFailed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var kv in removals)
+                {
+                    var cmd = DteKeymap.FindByName(dte, kv.Key);
+                    if (cmd == null) { removeFailed.Add(kv.Key); continue; }
+                    var raw = DteKeymap.Raw(cmd);
+                    var keep = raw.Where(b => !(scopes.Canonical(b) is string canon && kv.Value.Contains(canon))).ToArray();
+                    var back = DteKeymap.Write(cmd, keep, scopes, kv.Key);
+                    if (back == null || back.Any(b => kv.Value.Contains(b))) removeFailed.Add(kv.Key);
+                    else removed.Add(kv.Key + " -[" + string.Join(" | ", kv.Value) + "]");
                 }
                 foreach (var d in apply)
                 {
+                    bool overridesOk = d.Overrides.All(o => !removeFailed.Contains(o.Key));
+                    if (d.Outcome != DefaultBindingOutcome.Apply)
+                    {
+                        if (overridesOk) applied.Add(d);
+                        else failed.Add(d.ToString());
+                        continue;
+                    }
                     var cmd = DteKeymap.FindByName(dte, d.Command);
                     var back = cmd == null ? null : DteKeymap.Write(cmd, new[] { d.Binding }, scopes, d.Command);
-                    if (back != null && back.Contains(d.Binding, StringComparer.OrdinalIgnoreCase)) applied.Add(d);
+                    if (back != null && back.Contains(d.Binding, StringComparer.OrdinalIgnoreCase) && overridesOk) applied.Add(d);
                     else failed.Add(d.ToString());
                 }
 
@@ -88,11 +119,12 @@ namespace UEToVS.Host.Keymap
 
                 List<string> Of(DefaultBindingOutcome o) => decisions.Where(d => d.Outcome == o).Select(d => d.ToString()).ToList();
                 L.Info("keymap.apply", null, ("reason", "firstRunDefaults"), ("applied", applied.Select(d => d.Command + "=" + d.Binding).ToList()),
+                       ("removedFromVs", removed), ("removeFailed", removeFailed.ToList()),
                        ("failed", failed), ("alreadyBound", Of(DefaultBindingOutcome.AlreadyBound)), ("keyTaken", Of(DefaultBindingOutcome.KeyTaken)),
                        ("commandMissing", Of(DefaultBindingOutcome.CommandMissing)), ("previouslyHandled", Of(DefaultBindingOutcome.AlreadyHandled).Count),
                        ("backup", backupFile), ("scopes", scopes.ToString()));
                 if (decisions.Any(d => d.Outcome == DefaultBindingOutcome.KeyTaken))
-                    L.Warn("keymap.defaults.keyTaken", "Some UEToVS default shortcuts are used by other commands and were not bound (see the keymap page)",
+                    L.Info("keymap.defaults.keyTaken", "Some UEToVS defaults use a key the user gave another UEToVS command; left alone",
                            ("keyTaken", Of(DefaultBindingOutcome.KeyTaken)));
             }
         }

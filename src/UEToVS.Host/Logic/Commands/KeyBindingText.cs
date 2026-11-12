@@ -188,11 +188,11 @@ namespace UEToVS.Host.Logic.Commands
     /// <summary>What the first-run step decided for one UEToVS command's default (Visual Assist preset / VSCT) binding.</summary>
     public enum DefaultBindingOutcome
     {
-        /// <summary>No binding yet and the key is free: bind it.</summary>
+        /// <summary>No binding yet: bind it. Non-UEToVS commands using the key lose that binding (<see cref="DefaultBindingDecision.Overrides"/>): UEToVS wins.</summary>
         Apply = 0,
-        /// <summary>The command already has a binding (the VSCT default reached VS, or the user chose one): left alone.</summary>
+        /// <summary>The command already has a binding (the VSCT default reached VS, or the user chose one): left alone. When it is the default, VS bindings that shadow it are removed.</summary>
         AlreadyBound = 1,
-        /// <summary>Another command (VS's or the user's) uses the key in an overlapping scope: left alone.</summary>
+        /// <summary>Another UEToVS command uses the key (the user moved one there): left alone.</summary>
         KeyTaken = 2,
         /// <summary>Handled on an earlier start (applied, already bound or skipped then): never re-applied.</summary>
         AlreadyHandled = 3,
@@ -209,20 +209,31 @@ namespace UEToVS.Host.Logic.Commands
         public string[] Existing { get; set; } = Array.Empty<string>();
         public string TakenBy { get; set; }
         public string TakenByBinding { get; set; }
+        /// <summary>Bindings of non-UEToVS commands (command, canonical binding) that overlap the default and are removed so UEToVS wins.</summary>
+        public List<KeyValuePair<string, string>> Overrides { get; } = new List<KeyValuePair<string, string>>();
 
         /// <summary>Key recorded once handled, so the decision is not revisited (a later catalog default gets a new key).</summary>
         public string HandledKey => Command + "=" + Binding;
 
-        public override string ToString() =>
-            Outcome == DefaultBindingOutcome.KeyTaken ? $"{Command} [{Binding}] taken by {TakenBy} [{TakenByBinding}]"
-            : Outcome == DefaultBindingOutcome.AlreadyBound ? $"{Command} [{Binding}] has {string.Join(" | ", Existing)}"
-            : $"{Command} [{Binding}] {Outcome}";
+        /// <summary>Applying this decision needs every other command's bindings (the conflict scan).</summary>
+        public bool NeedsConflictScan =>
+            Outcome == DefaultBindingOutcome.Apply || (Outcome == DefaultBindingOutcome.AlreadyBound && Existing.Contains(Binding, StringComparer.OrdinalIgnoreCase));
+
+        public override string ToString()
+        {
+            string ov = Overrides.Count == 0 ? string.Empty : " overrides " + string.Join(", ", Overrides.Select(o => o.Key + " [" + o.Value + "]"));
+            return Outcome == DefaultBindingOutcome.KeyTaken ? $"{Command} [{Binding}] taken by {TakenBy} [{TakenByBinding}]"
+                : Outcome == DefaultBindingOutcome.AlreadyBound ? $"{Command} [{Binding}] has {string.Join(" | ", Existing)}{ov}"
+                : $"{Command} [{Binding}] {Outcome}{ov}";
+        }
     }
 
     /// <summary>
-    /// First-run safety net for the VSCT default key bindings: VS applies VSCT KeyBindings only when it merges the
-    /// package's menu resources, which is not guaranteed after an install / upgrade. Commands that still have no binding
-    /// get their Visual Assist default through DTE, unless the key is used by another command (the user's choice wins).
+    /// First-run defaults: VS applies VSCT KeyBindings only when it merges the package's menu resources, which is not
+    /// guaranteed after an install / upgrade, and VS's own commands often use the same keys. UEToVS shortcuts take
+    /// priority (user decision, v0.3.3): a command without a binding gets its Visual Assist default, and every
+    /// non-UEToVS binding that overlaps it (same keys or chord prefix, overlapping scope) is removed — after a backup.
+    /// A binding the user gave a UEToVS command is never touched, nor a key the user moved another UEToVS command onto.
     /// Every default is decided once and remembered (<see cref="DefaultBindingDecision.HandledKey"/>).
     /// </summary>
     public static class DefaultKeymapPlanner
@@ -230,7 +241,7 @@ namespace UEToVS.Host.Logic.Commands
         /// <summary>
         /// <paramref name="ours"/>: catalog name → canonical bindings (a missing key = command not registered).
         /// <paramref name="others"/>: canonical bindings of every other command (null = not read yet; candidates come back
-        /// as <see cref="DefaultBindingOutcome.Apply"/> without the conflict check — read all bindings, then plan again).
+        /// as <see cref="DefaultBindingOutcome.Apply"/> without overrides — read all bindings, then plan again).
         /// </summary>
         public static List<DefaultBindingDecision> Plan(IEnumerable<CommandInfo> commands, IReadOnlyDictionary<string, string[]> ours,
                                                         IEnumerable<KeyValuePair<string, string[]>> others, ICollection<string> handled)
@@ -246,28 +257,38 @@ namespace UEToVS.Host.Logic.Commands
                 if (handled != null && handled.Contains(d.HandledKey)) { d.Outcome = DefaultBindingOutcome.AlreadyHandled; continue; }
                 if (ours == null || !ours.TryGetValue(c.Name, out var existing) || existing == null) { d.Outcome = DefaultBindingOutcome.CommandMissing; continue; }
                 d.Existing = existing;
-                if (existing.Length > 0) { d.Outcome = DefaultBindingOutcome.AlreadyBound; continue; }
                 string scope = c.DteScope, keys = Shortcut.Normalize(c.VaKeys);
-                if (otherList != null)
+                if (existing.Length > 0)
                 {
-                    // other UEToVS commands' current bindings count too (the user may have moved one onto this key)
-                    var candidates = otherList.Concat(ours.Where(kv => !string.Equals(kv.Key, c.Name, StringComparison.OrdinalIgnoreCase)));
-                    var hit = FirstOverlap(candidates, scope, keys);
-                    if (hit == null)
-                        foreach (var p in planned)
-                            if (Shortcut.ScopesOverlap(p.Scope, scope) && Shortcut.Overlaps(p.Keys, keys)) { hit = (p.Command, p.Scope + "::" + p.Keys); break; }
-                    if (hit != null)
-                    {
-                        d.Outcome = DefaultBindingOutcome.KeyTaken;
-                        d.TakenBy = hit.Value.Command;
-                        d.TakenByBinding = hit.Value.Binding;
-                        continue;
-                    }
+                    d.Outcome = DefaultBindingOutcome.AlreadyBound;
+                    if (otherList != null && d.NeedsConflictScan) AddOverlaps(d.Overrides, otherList, scope, keys);
+                    continue;
                 }
+                // other UEToVS commands' current bindings (the user may have moved one onto this key) and defaults planned so far
+                var hit = FirstOverlap(ours.Where(kv => !string.Equals(kv.Key, c.Name, StringComparison.OrdinalIgnoreCase)), scope, keys);
+                if (hit == null)
+                    foreach (var p in planned)
+                        if (Shortcut.ScopesOverlap(p.Scope, scope) && Shortcut.Overlaps(p.Keys, keys)) { hit = (p.Command, p.Scope + "::" + p.Keys); break; }
+                if (hit != null)
+                {
+                    d.Outcome = DefaultBindingOutcome.KeyTaken;
+                    d.TakenBy = hit.Value.Command;
+                    d.TakenByBinding = hit.Value.Binding;
+                    continue;
+                }
+                if (otherList != null) AddOverlaps(d.Overrides, otherList, scope, keys);
                 d.Outcome = DefaultBindingOutcome.Apply;
                 planned.Add((c.Name, scope, keys));
             }
             return result;
+        }
+
+        private static void AddOverlaps(List<KeyValuePair<string, string>> into, IEnumerable<KeyValuePair<string, string[]>> all, string scope, string keys)
+        {
+            foreach (var kv in all)
+                foreach (var b in kv.Value ?? Array.Empty<string>())
+                    if (Shortcut.TryParseBinding(b, out var s, out var k) && Shortcut.ScopesOverlap(s, scope) && Shortcut.Overlaps(k, keys))
+                        into.Add(new KeyValuePair<string, string>(kv.Key, b));
         }
 
         private static (string Command, string Binding)? FirstOverlap(IEnumerable<KeyValuePair<string, string[]>> all, string scope, string keys)
@@ -279,9 +300,25 @@ namespace UEToVS.Host.Logic.Commands
             return null;
         }
 
+        /// <summary>
+        /// Every binding of a non-UEToVS command that collides with <paramref name="ours"/> (command → canonical bindings to
+        /// remove). Used when a preset or an edited shortcut is written: UEToVS shortcuts take priority over VS's.
+        /// </summary>
+        public static Dictionary<string, HashSet<string>> Removals(IReadOnlyDictionary<string, string[]> ours, IEnumerable<KeyValuePair<string, string[]>> all)
+        {
+            var r = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+            foreach (var c in KeymapPlanner.FindConflicts(ours, all))
+            {
+                if (CommandCatalog.ByName(c.OtherCommand) != null || ours.ContainsKey(c.OtherCommand)) continue;
+                if (!r.TryGetValue(c.OtherCommand, out var set)) r[c.OtherCommand] = set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                set.Add(c.OtherScope + "::" + c.OtherKeys);
+            }
+            return r;
+        }
+
         /// <summary>Decisions that are final and should be remembered (everything except a missing command).</summary>
         public static IEnumerable<string> ToRemember(IEnumerable<DefaultBindingDecision> decisions) =>
-            decisions.Where(d => d.Outcome == DefaultBindingOutcome.AlreadyBound || d.Outcome == DefaultBindingOutcome.KeyTaken || d.Outcome == DefaultBindingOutcome.AlreadyHandled)
+            decisions.Where(d => (d.Outcome == DefaultBindingOutcome.AlreadyBound && d.Overrides.Count == 0) || d.Outcome == DefaultBindingOutcome.KeyTaken || d.Outcome == DefaultBindingOutcome.AlreadyHandled)
                      .Select(d => d.HandledKey);
 
         public static HashSet<string> ParseHandled(string text)
