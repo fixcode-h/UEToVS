@@ -103,6 +103,11 @@ namespace UEToVS.Host.Logic.Commands
         /// <summary>v0.4.2 Smart Select (Editing/SmartSelectActions.cs).</summary>
         public const int ExpandSelection = 0x0163;
         public const int ShrinkSelection = 0x0164;
+        // ---- v0.4.5 编辑体验 (0x0180–0x019F): Editing/EditorFeatureActions.cs
+        public const int SurroundWith = 0x0180;
+        public const int ToggleInlayHints = 0x0181;
+        public const int ShowHashtags = 0x0182;
+        public const int PasteFromHistory = 0x0183;
 
         // ---- M2 navigation (0x0200–0x02FF): Navigation/NavigationActions.cs
         public const int GoToDefinition = 0x0200;
@@ -269,6 +274,11 @@ namespace UEToVS.Host.Logic.Commands
             C(H, GenerateRpc, "GenerateRpc", "uetovs.generate.rpc", "生成 RPC（_Implementation / _Validate）", "Generate RPC (Implementation / Validate)", "unreal", Gl, "Ctrl+Shift+Alt+U, W", null, null),
             C(H, ExpandSelection, "ExpandSelection", "uetovs.edit.expandSelection", "扩大选区", "Extend Selection", "navigation", Ed, "Shift+Alt+W", null, null),
             C(H, ShrinkSelection, "ShrinkSelection", "uetovs.edit.shrinkSelection", "缩小选区", "Shrink Selection", "navigation", Ed, "Ctrl+Shift+Alt+W", null, null),
+            // ---- v0.4.5 编辑体验 (host; Editing/EditorFeatureActions.cs)
+            C(H, SurroundWith, "SurroundWith", "uetovs.edit.surroundWith", "Surround With…", "Surround With...", "refactor", Ed, "Ctrl+Shift+Alt+U, 1", "Ctrl+Alt+J", null),
+            C(H, ToggleInlayHints, "ToggleInlayHints", "uetovs.edit.toggleInlayHints", "显示 / 隐藏内嵌提示", "Toggle Inlay Hints", "tools", Ed, "Ctrl+Shift+Alt+U, 2", null, null),
+            C(H, ShowHashtags, "ShowHashtags", "uetovs.edit.hashtags", "#tag 书签", "#tag Bookmarks", "bookmarks", Gl, "Ctrl+Shift+Alt+U, 3", null, null),
+            C(H, PasteFromHistory, "PasteFromHistory", "uetovs.edit.pasteFromHistory", "从剪贴板历史粘贴…", "Paste from Clipboard History...", "tools", Ed, "Ctrl+Shift+V", "Ctrl+Shift+V", null),
         };
 
         public static CommandInfo ById(int id)

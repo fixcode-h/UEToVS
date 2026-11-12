@@ -313,10 +313,13 @@ namespace UEToVS.Host.Logic.Settings
                 "true", gTpl, gTplEn));
             const string gInlay = "内嵌提示", gInlayEn = "Inlay hints";
             list.Add(D(IntelliSense, "inlay.parameterNames", SettingKind.Bool, "参数名提示", "Parameter name hints",
-                "实参是字面量或 nullptr 时，在它前面显示形参名。只计算可见区域。", "Shows the parameter name before literal / nullptr arguments. Only the visible lines are computed.",
+                "实参是字面量、nullptr、true / false 时，在它前面显示形参名（和 Rider 一致）。只计算可见区域，Ctrl+Shift+Alt+U, 2 临时开关。",
+                "Shows the parameter name before literal / nullptr / true / false arguments (like Rider). Only the visible lines are computed; Ctrl+Shift+Alt+U, 2 toggles.",
                 "true", gInlay, gInlayEn));
             list.Add(D(IntelliSense, "inlay.autoTypes", SettingKind.Bool, "auto 推导类型", "Deduced auto types",
-                "在 auto 变量后显示推导出的类型。", "Shows the deduced type after auto variables.", "false", gInlay, gInlayEn));
+                "在 auto 变量名后显示推导出的类型（推导不出时不显示）。", "Shows the deduced type after auto variable names (nothing when it cannot be deduced).", "false", gInlay, gInlayEn));
+            // ---- v0.4.5 编辑体验
+            EditorFeatureSettings.AddDescriptors(list, IntelliSense);
 
             // ================= 日志与诊断
             const string gLog = "日志", gLogEn = "Logs";
@@ -455,6 +458,7 @@ namespace UEToVS.Host.Logic.Settings
                 foreach (var b in ToolbarButtons.All)
                     if (b.Key != "settings") d["toolbar.button." + b.Key] = B(!hidden.Contains(b.Key));
                 UEToVS.Host.Logic.Fonts.FontSettingsSchema.ToValues(s, d);
+                EditorFeatureSettings.ToValues(s, d); // v0.4.5 编辑体验
                 return d;
             }
 
@@ -553,6 +557,7 @@ namespace UEToVS.Host.Logic.Settings
                         case "inlay.autoTypes": s.InlayAutoTypes = PB(v); break;
                         default:
                             if (UEToVS.Host.Logic.Fonts.FontSettingsSchema.TrySet(s, d.Key, v)) break;
+                            if (EditorFeatureSettings.TrySet(s, d.Key, v)) break; // v0.4.5 编辑体验
                             if (d.Key.StartsWith("toolbar.button.", StringComparison.Ordinal))
                             {
                                 string key = d.Key.Substring("toolbar.button.".Length);
