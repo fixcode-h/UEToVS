@@ -87,6 +87,15 @@ namespace UEToVS.Engine.Index.Storage
         public uint OccCount;
     }
 
+    /// <summary>Bases of one symbol: a slice of the BaseTexts section. 12 bytes.</summary>
+    [StructLayout(LayoutKind.Sequential, Pack = 4)]
+    internal struct BaseEntry
+    {
+        public uint Symbol;
+        public uint First;
+        public uint Count;
+    }
+
     internal static class Varint
     {
         public static void Write(System.IO.Stream s, uint v)

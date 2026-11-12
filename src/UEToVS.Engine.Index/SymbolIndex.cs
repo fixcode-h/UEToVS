@@ -486,6 +486,16 @@ namespace UEToVS.Engine.Index
             using (var s = AcquireSnapshot()) return s.GetFileSymbols(path);
         }
 
+        public IReadOnlyList<TypeEntry> FindTypes(string name, string container = null, CancellationToken ct = default)
+        {
+            using (var s = AcquireSnapshot()) return s.FindTypes(name, container, ct);
+        }
+
+        public IReadOnlyList<TypeEntry> FindDerived(string simpleBaseName, CancellationToken ct = default)
+        {
+            using (var s = AcquireSnapshot()) return s.FindDerived(simpleBaseName, ct);
+        }
+
         public IndexedFile GetFile(string path)
         {
             using (var s = AcquireSnapshot()) return s.GetFile(path);

@@ -107,6 +107,87 @@ namespace UEToVS.Engine.Index
             return result;
         }
 
+        /// <summary>True for kinds that can appear in a type hierarchy (class, struct, union).</summary>
+        public static bool IsRecordKind(SymbolKind k) => k == SymbolKind.Class || k == SymbolKind.Struct || k == SymbolKind.Union;
+
+        /// <summary>
+        /// Classes/structs/unions named <paramref name="name"/> (container rule as in <see cref="FindByName"/>) with their
+        /// base texts. Source order per segment, engine first, then the delta.
+        /// </summary>
+        public IReadOnlyList<TypeEntry> FindTypes(string name, string container = null, CancellationToken ct = default)
+        {
+            var result = new List<TypeEntry>();
+            if (string.IsNullOrEmpty(name)) return result;
+            var snap = Inner;
+            foreach (var view in snap.Bases)
+            {
+                ct.ThrowIfCancellationRequested();
+                var seg = view.Segment;
+                int n = seg.FindName(name);
+                if (n < 0) continue;
+                var syms = seg.SymbolsOfName(n);
+                for (int k = 0; k < syms.Length; k++)
+                {
+                    var r = seg.Symbols[(int)syms[k]];
+                    if (view.IsDead(r.FileId) || !IsRecordKind(r.SymbolKind)) continue;
+                    if (container != null && !ContainerMatches(seg.GetString(r.ContainerId), container)) continue;
+                    result.Add(new TypeEntry { Symbol = Dto.Symbol(seg, syms[k]), Bases = seg.BaseStrings(syms[k]) });
+                }
+            }
+            foreach (var df in snap.DeltaSorted)
+            {
+                for (int i = 0; i < df.Decls.Length; i++)
+                {
+                    ref readonly var d = ref df.Decls[i];
+                    if (!IsRecordKind(d.Kind) || !string.Equals(d.Name, name, StringComparison.Ordinal)) continue;
+                    if (container != null && !ContainerMatches(d.Container, container)) continue;
+                    result.Add(new TypeEntry { Symbol = Dto.Symbol(df, i), Bases = d.Bases ?? Array.Empty<string>() });
+                }
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Types that list a base whose simple name (<see cref="BaseNames.Simple"/>: no template arguments, last <c>::</c>
+        /// segment) equals <paramref name="simpleBaseName"/>. Callers check the full base text when namespaces matter.
+        /// </summary>
+        public IReadOnlyList<TypeEntry> FindDerived(string simpleBaseName, CancellationToken ct = default)
+        {
+            var result = new List<TypeEntry>();
+            if (string.IsNullOrEmpty(simpleBaseName)) return result;
+            var snap = Inner;
+            using (L.Time("index.find_derived", 30))
+            {
+                foreach (var view in snap.Bases)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    var seg = view.Segment;
+                    var syms = seg.DerivedOf(simpleBaseName);
+                    for (int k = 0; k < syms.Length; k++)
+                    {
+                        var r = seg.Symbols[(int)syms[k]];
+                        if (view.IsDead(r.FileId)) continue;
+                        result.Add(new TypeEntry { Symbol = Dto.Symbol(seg, syms[k]), Bases = seg.BaseStrings(syms[k]) });
+                    }
+                }
+                foreach (var df in snap.DeltaSorted)
+                {
+                    for (int i = 0; i < df.Decls.Length; i++)
+                    {
+                        var bases = df.Decls[i].Bases;
+                        if (bases == null) continue;
+                        foreach (var b in bases)
+                        {
+                            if (!string.Equals(BaseNames.Simple(b), simpleBaseName, StringComparison.Ordinal)) continue;
+                            result.Add(new TypeEntry { Symbol = Dto.Symbol(df, i), Bases = bases });
+                            break;
+                        }
+                    }
+                }
+            }
+            return result;
+        }
+
         private static bool ContainerMatches(string actual, string wanted)
         {
             if (string.IsNullOrEmpty(actual)) return wanted.Length == 0;
