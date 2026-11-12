@@ -70,6 +70,10 @@ namespace UEToVS.Engine.Rpc
             ["rpc.getHighlights"] = 50,    // per caret move: p95 < 20 ms
             ["rpc.getCaretContext"] = 100,
             ["rpc.getMembers"] = 300,
+            ["rpc.getCompletions"] = 50,   // M3: completion p95 < 50 ms
+            ["rpc.getQuickInfo"] = 100,
+            ["rpc.getSignatureHelp"] = 50,
+            ["rpc.classify"] = 30,         // viewport (~100 lines) p95 < 15 ms
         };
 
         public static double For(string evt) => ByEvent.TryGetValue(evt, out var b) ? b : double.MaxValue;

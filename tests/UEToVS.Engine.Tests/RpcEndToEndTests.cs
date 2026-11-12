@@ -292,6 +292,63 @@ namespace UEToVS.Engine.Tests
         }
 
         [Fact]
+        public async Task IntelliSenseThroughTheRealPipeline()
+        {
+            using var c = await ConnectReadyAsync();
+            string source = _t.P("Game/Source/MyGame/Private/MyCharacter.cpp");
+            // an unsaved buffer: member completion after 'this->', with AccessorFix for '.' on a pointer
+            string buffer = File.ReadAllText(source) + "void AMyCharacter::Tick(float DeltaSeconds)\n{\n\tthis->Fi\n\tthis.He\n\tFire(1.f, \n}\n";
+            var lines = buffer.Split('\n');
+            int arrow = Array.FindIndex(lines, l => l == "\tthis->Fi");
+            var comp = await c.Engine.GetCompletionsAsync(new CompletionRequest
+            {
+                Caret = new CaretRequest { FilePath = source, Text = buffer, TextVersion = 5, Line = arrow, Column = lines[arrow].Length },
+                TriggerChar = '>',
+            }, CancellationToken.None);
+            Assert.Equal(CompletionContextKind.Member, comp.Context);
+            Assert.Equal("AMyCharacter", comp.ResolvedType);
+            Assert.True(comp.IndexReady);
+            var fire = comp.Items[0];
+            Assert.Equal("Fire", fire.Label);
+            Assert.Equal(SymbolKind.Method, fire.Kind);
+            Assert.True(fire.Ue.HasFlag(UeFlags.UFunction));
+            Assert.Equal(lines[arrow].Length - 2, comp.ReplaceColumn);
+            Assert.Equal(2, comp.ReplaceLength);
+
+            int dot = arrow + 1;
+            var fix = await c.Engine.GetCompletionsAsync(new CompletionRequest
+            {
+                Caret = new CaretRequest { FilePath = source, Text = buffer, TextVersion = 5, Line = dot, Column = lines[dot].Length },
+            }, CancellationToken.None);
+            Assert.Equal("Health", fix.Items[0].Label);
+            Assert.Equal("->", fix.AccessorFix.Replacement);
+
+            // parameter info and Quick Info over the pipe
+            int call = arrow + 2;
+            var sig = await c.Engine.GetSignatureHelpAsync(new CaretRequest { FilePath = source, Text = buffer, TextVersion = 5, Line = call, Column = lines[call].Length }, CancellationToken.None);
+            Assert.Equal("void Fire(float Power)", Assert.Single(sig.Signatures).Label);
+            var qi = await c.Engine.GetQuickInfoAsync(new CaretRequest { FilePath = source, Text = buffer, TextVersion = 5, Line = call, Column = 2 }, CancellationToken.None);
+            Assert.Equal("void AMyCharacter::Fire(float Power)", qi.Declaration);
+            Assert.StartsWith("UFUNCTION(BlueprintCallable, Category = \"Combat\")", qi.Reflection);
+
+            // semantic colouring of the requested lines only
+            var cls = await c.Engine.ClassifyAsync(new ClassifyRequest
+            {
+                Document = new CaretRequest { FilePath = source, Text = buffer, TextVersion = 5 },
+                StartLine = 1,
+                EndLine = 1,
+            }, CancellationToken.None);
+            Assert.Equal(5, cls.TextVersion);
+            Assert.All(cls.Spans, s => Assert.Equal(1, s.Line));
+            Assert.Contains(cls.Spans, s => s.Kind == SemanticKind.UeType && s.Column == "void ".Length && s.Length == "AMyCharacter".Length);
+            Assert.Contains(cls.Spans, s => s.Kind == SemanticKind.Method && s.Modifiers.HasFlag(SemanticModifiers.Declaration));
+            Assert.Contains(cls.Spans, s => s.Kind == SemanticKind.Parameter && s.Modifiers.HasFlag(SemanticModifiers.Declaration));
+
+            var bad = await Assert.ThrowsAsync<RemoteInvocationException>(() => c.Engine.GetCompletionsAsync(new CompletionRequest(), CancellationToken.None));
+            Assert.Equal(RpcErrorCodes.InvalidArgument, bad.ErrorCode);
+        }
+
+        [Fact]
         public async Task PerformanceSnapshotOverRpc()
         {
             using var c = await ConnectReadyAsync();
