@@ -146,6 +146,9 @@ namespace UEToVS.Host
                 // M1 prototype features (Search Everywhere, navigation history, bookmarks, related, Build.cs, UE link).
                 Safe.Execute(L, "m1.initialize", () => M1Feature.Initialize(this, Actions, _commands,
                     GetService(typeof(System.ComponentModel.Design.IMenuCommandService)) as OleMenuCommandService));
+                // M3 IntelliSense commands (import VA colours, toggle / reset semantic colouring; 0x0600–0x06FF).
+                Safe.Execute(L, "is.initialize", () => UEToVS.Host.IntelliSense.IntelliSenseFeature.Initialize(this, Actions, _commands,
+                    GetService(typeof(System.ComponentModel.Design.IMenuCommandService)) as OleMenuCommandService));
 
                 // 4b. Toolbar: shown on the first run (double Shift → Search Everywhere is M1's InputMonitor).
                 var dte = await GetServiceAsync(typeof(DTE)) as DTE;

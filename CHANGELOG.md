@@ -29,8 +29,6 @@
 - **查找引用** — 按名字查索引里的出现位置并合并未保存的缓冲区，再逐个按作用域过滤（不同类的同名成员不会混在一起），标出声明 / 定义 / 读 / 写 / 调用 / 类型使用，带行文本和所在函数；支持结果上限、取消、是否包含引擎代码
 - **类型层次、引用高亮、导航栏上下文、成员列表** — 基类 / 派生树（防环、深度与节点上限，未索引的基类按原文显示）；高亮只看当前文档、按文本版本缓存；导航栏给出外→内作用域和全文件声明；成员列表含继承成员与 GENERATED_BODY 注入成员，派生类 override 只保留最派生的
 - **MCP 服务（给 AI Agent 用）** — 自带 `UEToVS.Mcp.exe`（stdio），让 VS Copilot Agent 模式、Claude Code、Cursor、VS Code 直接查 UEToVS 的索引：`search_symbols`、`search_files`、`search_assets`（蓝图等资产）、`get_file_outline`、`go_to_definition`、`find_references`、`get_type_hierarchy`、`get_members`、`index_status`。VS 开着时问 Engine，没开时读磁盘索引。合成工程上常见查询比 rg 快 13–25 倍，详见 docs/design/MCP.md
-- **自动注册到 Visual Studio** — 打开 UE 解决方案时把服务写进 `.vs\mcp.json`，在 Copilot Agent 模式的工具列表里就能勾选。可在 工具 > 选项 > UEToVS > 启用 MCP 服务 关闭
-- **写入 .mcp.json 到解决方案目录** — 新命令（扩展 > UEToVS），生成 Claude Code / Cursor / VS Code 也能读的 `.mcp.json`；已有文件会合并，不覆盖其他服务器
 - **C++ / 蓝图索引线程数可配置** — 两者各自设置并发线程数，默认 = 逻辑核心数 / 4（至少 1）；运行时修改立即生效，不用重启引擎（引擎命令行也可用 `--cpp-threads` / `--asset-threads` 指定初始值）
 - **编译期间的索引策略** — 编译时可选“暂停 / 单线程继续（默认）/ 全速”；索引线程平时为 BelowNormal，编译期间降为 Lowest，不拖慢编译
 - **分开重建** — 可单独重建项目索引、引擎索引、蓝图索引，或全部重建；进度显示在状态里，连续点多次会合并成一次
@@ -44,6 +42,10 @@
 - **默认快捷键补充** — Shift+Alt+O 转到文件、Shift+Alt+S 转到符号、Ctrl+Shift+Alt+A Find Action（其余沿用 Alt+G / Alt+Shift+G / Shift+Alt+F / Alt+M / Alt+O / Alt+←→ / 双击 Shift）
 - **UEToVS 工具栏** — 默认显示：UEToVS（打开设置）、Search Everywhere、后退、前进、转到定义、查找引用、性能面板；整个工具栏和每个按钮都可以在设置里隐藏
 - **品牌图标** — 新的 UEToVS 图标，用于扩展图标、工具栏和设置窗口标题栏
+- **UE 感知补全（M3）** — VS 原生补全界面：输入标识符、`.`、`->`、`::`、`#include "`/`<`、`UCLASS(` / `UPROPERTY(` / `meta=(` 等说明符括号内、Ctrl+Space 时弹出；图标按符号种类，UE 反射符号带徽章，继承成员带“继承自 X”标记；右侧显示类型 / 签名；每次按键本地按模糊匹配（精确 > 前缀 > 驼峰 > 子串，可省略 UE 前缀）+ 本类优先 + 最近使用重排；提交时按 VA 习惯把 `.` 改成 `->`（或反之，可在设置关闭）。未接管 VS IntelliSense 时只补 VS 没有的 UE 增强项（说明符、#include、override、UE 反射成员），不重复刷屏
+- **Quick Info 与参数信息（M3）** — 悬停 / Ctrl+K,I 显示与编辑器同色的声明、“+N 个重载”、文档注释、UE 反射摘要（蓝图可调用、服务器 RPC 等标签）和可折叠的宏展开；`(`、`,` 与 Ctrl+Shift+Space 显示参数信息，当前参数加粗并随光标移动
+- **VA 风格语义着色（M3）** — 类型、函数、变量、宏、枚举值、命名空间、UE 反射宏与说明符等 21 类，出现在 工具 > 选项 > 字体和颜色（“UEToVS …”），深 / 浅色两套默认值随主题切换且不覆盖你改过的颜色；只请求可见区域 ± 50 行，滚动 / 编辑节流，编辑时沿用旧结果避免闪烁
+- **导入 Visual Assist 配色** — Find Action 中“导入 Visual Assist 配色…”，选择 VA 导出的 .vssettings，把 VA Class / Method / Variable / Macro / Enum Member / Namespace（含旧版 VA X 名称）映射到 UEToVS 着色项；另有“切换语义着色”“恢复默认语义配色”
 
 ### 改进
 - **索引记录继承关系** — 类的基类（含模板实参原文）和“基类 → 派生类”倒排表写入索引段；项目文件额外索引声明里出现的类型名（字段 / 参数 / 基类），查找引用能找到头文件里的用法
@@ -63,6 +65,7 @@
 ### 注意
 - 工具 > 选项 > UEToVS 下只剩一个跳转到新设置窗口的按钮
 - 状态栏的“正在从 X.uproject 中扫描 Blueprint … Config/*.ini”来自 VS 自带的 Unreal Engine 集成，不是 UEToVS；它没有公开的开关，设置窗口 常规 页有说明
+- **默认接管 VS 自带 C++ IntelliSense** — UEToVS 已能提供完整的 C++ 感知，打开 UE 解决方案时默认关闭 VS 自带 C++ IntelliSense（原设置先备份）；首次接管会在信息栏说明并提供“恢复”。接管后 Ctrl+Space / Ctrl+J / Ctrl+Shift+Space / Ctrl+K,I / 悬停 / F12 都由 UEToVS 处理
 - 旧原型目录 `legacy/` 已删除，原型的全部功能已在新架构上重新实现
 - 原型的“全文搜索（Text 页签）”暂未迁移：Engine 还没有全文搜索接口，`/text` 前缀暂时按“全部”搜索
 - 索引格式升级（段格式 v2），升级后第一次打开会自动重建索引

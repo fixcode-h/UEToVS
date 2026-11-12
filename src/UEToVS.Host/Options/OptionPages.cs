@@ -30,7 +30,7 @@ namespace UEToVS.Host.Options
         [Browsable(false)] public string EnginePathOverride { get; set; } = string.Empty;
         [Browsable(false)] public string UnrealEngineRootOverride { get; set; } = string.Empty;
         [Browsable(false)] public int EngineRequestTimeoutSeconds { get; set; } = 30;
-        [Browsable(false)] public bool IntelliSenseTakeover { get; set; } = false;
+        [Browsable(false)] public bool IntelliSenseTakeover { get; set; } = true; // ADR-08: on by default since M3
         [Browsable(false)] public IntelliSenseTakeoverMode IntelliSenseTakeoverMode { get; set; } = IntelliSenseTakeoverMode.Global;
         [Browsable(false)] public bool DisableDatabase { get; set; } = true;
         [Browsable(false)] public bool DisableBackgroundCodeAnalysis { get; set; } = false;

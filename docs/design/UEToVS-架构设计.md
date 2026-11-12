@@ -662,6 +662,8 @@ IAction
 | UEToVS 匹配括号 | Matching braces | 边框高亮 | 边框高亮 | |
 
 > 上表颜色是初版建议，取值风格参考 VA 与 VS 默认深/浅色主题的协调色，最终在 M3 用 VA 实际截图逐项校准，并提供“导入 VA 配色”命令：读取 VA 导出的颜色设置（`.vssettings` 中 VA 的分类项）映射到 UEToVS 分类，方便从 VA 迁移的用户保持习惯。
+>
+> M3 实现：每个 `SemanticKind` 一个分类（`UEToVS 类`、`UEToVS 方法`、`UEToVS 成员变量`…，共 21 项），默认色按上表分组取值；成员变量默认与局部变量同色（VA 观感），需要区分时在字体和颜色里单独改，或用设置 `SemanticColorOverrides`（如 `Field=#DAD085; Functions=#DCDCAA`）。深/浅色切换时只替换仍是默认值的项，用户在字体和颜色里改过的颜色不动。“导入 VA 配色”读取 `.vssettings` 中文本编辑器类别（`{A27B4E24-…}`）里的 VA 项：`VA Class` → 类/结构体/枚举/typedef/模板参数/UE 类型/委托，`VA Method` → 函数/方法，`VA Variable` → 局部变量/参数/成员/全局变量，`VA Macro` → 宏/UE 反射宏，`VA Enum Member` → 枚举值，`VA Namespace` → 命名空间；旧版 Visual Assist X 的 `VA X Class`/`VA X Method`/`VA X Variable`/`VA X Macro / Enum` 同样识别（更具体的项优先）。颜色为 COLORREF（`0x00BBGGRR`），高字节非 0（自动/默认/系统色）的项跳过。
 
 着色管线：
 1. **词法着色**（同步、本地、零延迟）：关键字、字符串、注释、数字、预处理指令、已知 UE 宏名。打开文件第一帧就有颜色。
@@ -1037,7 +1039,8 @@ struct SymbolRecord        // 32 bytes
 
 - **背景**：两套 C++ 感知同时运行会出现双重补全/提示、互相抢快捷键，且 VS IntelliSense 在 UE 工程上占用大量内存、CPU 并在 UE 宏上误报。
 - **决定**：UE 解决方案中由 UEToVS 全面接管（补全、着色、Quick Info、波浪线、导航），自动关闭 VS 自带 C++ IntelliSense，修改前备份、可一键恢复（§7.5）。
-- **代价**：UEToVS 必须覆盖 VS 原有的全部日常感知能力（§7.6、§7.7），因此自动接管在 M3 达标后才默认启用。
+- **代价**：UEToVS 必须覆盖 VS 原有的全部日常感知能力（§7.6、§7.7）。
+- **状态（M3 起）**：UEToVS 已提供补全、Quick Info、参数信息、语义着色与跳转，自动接管**默认开启**（`HostSettings.IntelliSenseTakeover = true`）。首次接管时 InfoBar 说明一次并提供“恢复”一键还原；接管后 Ctrl+Space / Ctrl+J / Ctrl+Shift+Space / Ctrl+K,I / 悬停 / F12 都由 UEToVS 直接处理，不经过 VS 的 C++ 语言服务。接管前（或用户关闭接管时）UEToVS 补全只提供 VS 没有的 UE 增强项（说明符、#include、override、UE 反射成员），避免两套列表重复。
 
 ---
 
@@ -1065,7 +1068,7 @@ struct SymbolRecord        // 32 bytes
 | 自研解析器在复杂 C++ 上准确率不足 | 跳转错、重构漏改 | 置信度标注；重构必预览；Clang 二次确认；语料回归持续跟踪 |
 | UE 版本差异（宏、说明符、目录结构变化） | 新版本支持滞后 | 知识库数据化、按版本分组；新 UE 版本发布后先跑语料回归 |
 | 与 VA / Copilot 的快捷键和补全冲突 | 体验割裂 | 冲突检测与二选一提示；键位与 IntelliSense 设置都有备份恢复 |
-| 关闭 VS IntelliSense 后我们的感知在 M3 前不完整 | 早期版本体验倒退 | 自动接管只在 M3 完成后默认开启；此前作为实验选项 |
+| 关闭 VS IntelliSense 后我们的感知在 M3 前不完整 | 早期版本体验倒退 | M3 前接管为实验选项；M3 起默认开启（ADR-08），首次接管提示并可一键恢复 |
 | 卸载扩展后 VS IntelliSense 仍处于关闭状态 | 用户困惑 | 禁用前提示恢复；设置页与 README 写明手动恢复步骤 |
 | 引用索引体积过大 | 磁盘与首次索引耗时 | 压缩编码；引擎段共享与可预构建分发；引擎符号引用可按需延迟索引（先只索引项目对引擎符号的引用） |
 | VS 版本 API 变化（2026 及以后） | 适配成本 | 宿主保持薄；编辑器适配层隔离；CI 覆盖两个主版本 |

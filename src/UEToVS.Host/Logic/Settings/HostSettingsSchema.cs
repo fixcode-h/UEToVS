@@ -20,6 +20,7 @@ namespace UEToVS.Host.Logic.Settings
         public const string Indexing = "indexing";
         public const string Keymap = "keymap";
         public const string Navigation = "navigation";
+        public const string IntelliSense = "intellisense";
         public const string Logging = "logging";
         public const string Performance = "performance";
 
@@ -43,6 +44,7 @@ namespace UEToVS.Host.Logic.Settings
             new SettingCategory(Indexing, "索引", "Indexing"),
             new SettingCategory(Keymap, "快捷键", "Keyboard"),
             new SettingCategory(Navigation, "导航", "Navigation"),
+            new SettingCategory(IntelliSense, "代码感知", "IntelliSense"),
             new SettingCategory(Logging, "日志与诊断", "Logs & Diagnostics"),
             new SettingCategory(Performance, "性能", "Performance"),
         };
@@ -94,7 +96,7 @@ namespace UEToVS.Host.Logic.Settings
             list.Add(A(General, "intelliSense.status", WindowActions.IntelliSenseStatus, "当前状态", "Current state", null, null, gCpp, gCppEn, SettingKind.Info));
             list.Add(D(General, "intelliSense.takeover", SettingKind.Bool, "接管 VS C++ IntelliSense", "Take over VS C++ IntelliSense",
                 "关闭 VS 自带的 C++ IntelliSense（修改前备份，可随时恢复），由 UEToVS 提供。", "Turns VS's own C++ IntelliSense off (backed up first, restorable); UEToVS provides it instead.",
-                "false", gCpp, gCppEn));
+                "true", gCpp, gCppEn));
             var mode = D(General, "intelliSense.mode", SettingKind.Choice, "接管范围", "Takeover scope",
                 "全局：安装期间一直接管；仅 UE 解决方案：打开 UE 解决方案时接管，关闭时恢复。", "Global: while installed; UE solutions only: restored when the UE solution closes.",
                 nameof(IntelliSenseTakeoverMode.Global), gCpp, gCppEn);
@@ -215,6 +217,49 @@ namespace UEToVS.Host.Logic.Settings
             perCat.Min = 10; perCat.Max = 1000;
             list.Add(perCat);
 
+            // ================= 代码感知（M3：补全 / Quick Info / 参数信息 / 语义着色）
+            const string gCmp = "补全", gCmpEn = "Completion";
+            list.Add(D(IntelliSense, "completion.enabled", SettingKind.Bool, "启用 UEToVS 补全", "Enable UEToVS completion",
+                "在 VS 原生补全列表中提供 UE 感知的候选项。", "Adds UE-aware items to VS's completion list.", "true", gCmp, gCmpEn));
+            var scope = D(IntelliSense, "completion.scope", SettingKind.Choice, "补全范围", "Completion scope",
+                "自动：接管 VS IntelliSense 前只补 UE 增强项（说明符、#include、override、UE 反射成员），接管后提供全部。",
+                "Auto: UE enhancements only (specifiers, #include, overrides, reflected members) until VS IntelliSense is taken over, then everything.",
+                nameof(CompletionScope.Auto), gCmp, gCmpEn);
+            scope.Options = new[]
+            {
+                new SettingOption(nameof(CompletionScope.Auto), "自动", "Auto"),
+                new SettingOption(nameof(CompletionScope.UeOnly), "仅 UE 增强项", "UE enhancements only"),
+                new SettingOption(nameof(CompletionScope.All), "全部", "Everything"),
+            };
+            list.Add(scope);
+            list.Add(D(IntelliSense, "completion.onIdentifier", SettingKind.Bool, "输入标识符时自动弹出", "Open while typing identifiers",
+                "VA 风格；关闭后只在 . -> :: #include、说明符括号和 Ctrl+Space 时弹出。", "VA style; off = only on . -> :: #include, specifier lists and Ctrl+Space.", "true", gCmp, gCmpEn));
+            list.Add(D(IntelliSense, "completion.accessorFix", SettingKind.Bool, "提交时自动修正 . 和 ->", "Fix . / -> on commit",
+                "按变量是否为指针把 . 改成 ->（或反之）。", "Turns . into -> (or back) depending on whether the variable is a pointer.", "true", gCmp, gCmpEn));
+            var maxItems = D(IntelliSense, "completion.maxResults", SettingKind.Int, "每次最多候选项", "Items per request",
+                "超过时随输入继续向引擎重新查询。", "More are fetched from the engine as you keep typing.", "500", gCmp, gCmpEn);
+            maxItems.Min = 50; maxItems.Max = 5000;
+            list.Add(maxItems);
+            const string gQi = "Quick Info 与参数信息", gQiEn = "Quick Info & parameter info";
+            list.Add(D(IntelliSense, "quickInfo.enabled", SettingKind.Bool, "悬停显示 Quick Info", "Quick Info on hover",
+                "声明、文档注释、UE 反射摘要与宏展开（也可 Ctrl+K,I）。", "Declaration, docs, UE reflection summary and macro expansion (also Ctrl+K,I).", "true", gQi, gQiEn));
+            list.Add(D(IntelliSense, "signatureHelp.enabled", SettingKind.Bool, "参数信息", "Parameter info",
+                "输入 ( 或 , 时显示（也可 Ctrl+Shift+Space）。", "Shown on ( and , (also Ctrl+Shift+Space).", "true", gQi, gQiEn));
+            const string gCol = "语义着色", gColEn = "Semantic coloring";
+            list.Add(D(IntelliSense, "coloring.enabled", SettingKind.Bool, "VA 风格语义着色", "VA-style semantic coloring",
+                "类型、函数、变量、宏、枚举值等分别着色；颜色可在 VS 字体和颜色（“UEToVS …”）中修改。",
+                "Colors types, functions, variables, macros, enum members …; colors are editable in VS Fonts and Colors (\"UEToVS …\").", "true", gCol, gColEn));
+            list.Add(D(IntelliSense, "coloring.overrides", SettingKind.Text, "颜色覆盖", "Color overrides",
+                "例如 Class=#4EC9B0; Functions=#DCDCAA；留空 = 跟随主题 / 字体和颜色。", "e.g. Class=#4EC9B0; Functions=#DCDCAA; empty = theme / Fonts and Colors.", "", gCol, gColEn));
+            var margin = D(IntelliSense, "coloring.marginLines", SettingKind.Int, "预着色行数", "Lines colored ahead",
+                "可见区域上下额外请求的行数。", "Extra lines above and below the viewport.", "50", gCol, gColEn);
+            margin.Min = 0; margin.Max = 1000;
+            list.Add(margin);
+            list.Add(A(IntelliSense, "coloring.importVa", "uetovs.intellisense.importVaColors", "导入 Visual Assist 配色…", "Import Visual Assist colors…",
+                "选择 VA 导出的 .vssettings 文件。", "Pick a .vssettings file exported from Visual Assist.", gCol, gColEn));
+            list.Add(A(IntelliSense, "coloring.reset", "uetovs.intellisense.resetSemanticColors", "恢复默认语义配色", "Reset semantic colors",
+                null, null, gCol, gColEn));
+
             // ================= 日志与诊断
             const string gLog = "日志", gLogEn = "Logs";
             var level = D(Logging, "log.level", SettingKind.Choice, "日志级别", "Log level",
@@ -301,6 +346,16 @@ namespace UEToVS.Host.Logic.Settings
                     ["log.retentionDays"] = I(s.LogRetentionDays),
                     ["log.maxTotalMB"] = I(s.LogMaxTotalMB),
                     ["perf.sampleSeconds"] = I(s.PerformanceSampleSeconds),
+                    ["completion.enabled"] = B(s.CompletionEnabled),
+                    ["completion.scope"] = s.CompletionScope.ToString(),
+                    ["completion.onIdentifier"] = B(s.CompletionOnIdentifier),
+                    ["completion.accessorFix"] = B(s.CompletionAccessorFix),
+                    ["completion.maxResults"] = I(s.CompletionMaxResults),
+                    ["quickInfo.enabled"] = B(s.QuickInfoEnabled),
+                    ["signatureHelp.enabled"] = B(s.SignatureHelpEnabled),
+                    ["coloring.enabled"] = B(s.SemanticColoring),
+                    ["coloring.overrides"] = s.SemanticColorOverrides ?? "",
+                    ["coloring.marginLines"] = I(s.SemanticColoringMarginLines),
                 };
                 foreach (var b in ToolbarButtons.All)
                     if (b.Key != "settings") d["toolbar.button." + b.Key] = B(!hidden.Contains(b.Key));
@@ -368,6 +423,16 @@ namespace UEToVS.Host.Logic.Settings
                         case "log.retentionDays": s.LogRetentionDays = PI(v, 7); break;
                         case "log.maxTotalMB": s.LogMaxTotalMB = PI(v, 200); break;
                         case "perf.sampleSeconds": s.PerformanceSampleSeconds = PI(v, 1); break;
+                        case "completion.enabled": s.CompletionEnabled = PB(v); break;
+                        case "completion.scope": s.CompletionScope = PE(v, CompletionScope.Auto); break;
+                        case "completion.onIdentifier": s.CompletionOnIdentifier = PB(v); break;
+                        case "completion.accessorFix": s.CompletionAccessorFix = PB(v); break;
+                        case "completion.maxResults": s.CompletionMaxResults = PI(v, 500); break;
+                        case "quickInfo.enabled": s.QuickInfoEnabled = PB(v); break;
+                        case "signatureHelp.enabled": s.SignatureHelpEnabled = PB(v); break;
+                        case "coloring.enabled": s.SemanticColoring = PB(v); break;
+                        case "coloring.overrides": s.SemanticColorOverrides = v; break;
+                        case "coloring.marginLines": s.SemanticColoringMarginLines = PI(v, 50); break;
                         default:
                             if (d.Key.StartsWith("toolbar.button.", StringComparison.Ordinal))
                             {

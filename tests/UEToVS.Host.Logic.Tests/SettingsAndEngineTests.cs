@@ -68,7 +68,7 @@ namespace UEToVS.Host.Logic.Tests
             Assert.Equal(4, r.Warnings.Count);
             Assert.Equal(LogLevel.Info, r.Effective.LogLevel);
             Assert.Equal(7, r.Effective.LogRetentionDays);
-            Assert.False(r.Effective.IntelliSenseTakeover); // unchanged default
+            Assert.True(r.Effective.IntelliSenseTakeover); // unchanged default (on since M3, ADR-08)
         }
 
         [Fact]

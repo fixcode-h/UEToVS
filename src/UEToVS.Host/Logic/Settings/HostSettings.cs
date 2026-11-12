@@ -37,7 +37,7 @@ namespace UEToVS.Host.Logic.Settings
 
         public int EngineRequestTimeoutSeconds { get; set; } = 30;
 
-        public bool IntelliSenseTakeover { get; set; } = false; // ADR-08: default on only once our own IntelliSense (M3) is complete
+        public bool IntelliSenseTakeover { get; set; } = true; // ADR-08: on by default since M3 (UEToVS provides completion, Quick Info, parameter info, colouring)
 
         public IntelliSenseTakeoverMode IntelliSenseTakeoverMode { get; set; } = IntelliSenseTakeoverMode.Global;
 
@@ -129,6 +129,37 @@ namespace UEToVS.Host.Logic.Settings
         // ---- 性能 ----
         /// <summary>Performance panel sampling interval in seconds.</summary>
         public int PerformanceSampleSeconds { get; set; } = 1;
+
+        // ---- IntelliSense（M3）----
+        /// <summary>UEToVS completion list in C++ editors.</summary>
+        public bool CompletionEnabled { get; set; } = true;
+
+        /// <summary>Which items UEToVS contributes: Auto = UE enhancements only until VS's IntelliSense is taken over, then everything.</summary>
+        public CompletionScope CompletionScope { get; set; } = CompletionScope.Auto;
+
+        /// <summary>Open the list as soon as an identifier is typed (VA style); off = only '.', '-&gt;', '::', #include, specifiers, Ctrl+Space.</summary>
+        public bool CompletionOnIdentifier { get; set; } = true;
+
+        /// <summary>VA '.' ↔ '-&gt;' correction applied when a member completion is committed.</summary>
+        public bool CompletionAccessorFix { get; set; } = true;
+
+        /// <summary>Items requested from the engine per completion (it re-queries as the prefix grows when there are more).</summary>
+        public int CompletionMaxResults { get; set; } = 500;
+
+        /// <summary>Hover / Ctrl+K,I Quick Info (declaration, docs, UE reflection, macro expansion).</summary>
+        public bool QuickInfoEnabled { get; set; } = true;
+
+        /// <summary>Parameter info on '(' / ',' and Ctrl+Shift+Space.</summary>
+        public bool SignatureHelpEnabled { get; set; } = true;
+
+        /// <summary>VA-style semantic coloring (types, functions, variables, macros, enum members …; §7.7).</summary>
+        public bool SemanticColoring { get; set; } = true;
+
+        /// <summary>Per-kind colour overrides, e.g. "Class=#4EC9B0; Functions=#DCDCAA" (kinds or plural groups; empty = theme defaults / Fonts and Colors).</summary>
+        public string SemanticColorOverrides { get; set; } = string.Empty;
+
+        /// <summary>Lines above / below the viewport classified ahead of scrolling.</summary>
+        public int SemanticColoringMarginLines { get; set; } = 50;
 
         public HostSettings Clone() => (HostSettings)MemberwiseClone();
     }
