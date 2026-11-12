@@ -23,7 +23,7 @@ namespace UEToVS.UI.Gallery
     /// (VS / Dark / Light / Blue / High contrast), style preset, UI language, data size (empty / 10 / 100k).
     /// Host: <c>new ComponentGallery().Show()</c> from a dev-only command; also usable for screenshot tests.
     /// </summary>
-    public class ComponentGallery : Window
+    public class ComponentGallery : UtilityWindow
     {
         private readonly ContentControl _page = new ContentControl { Focusable = false };
         private readonly VirtualList<string> _nav;
@@ -40,13 +40,11 @@ namespace UEToVS.UI.Gallery
         private VirtualList<SampleSymbol> _bigList;
         private DispatcherTimer _perfTimer;
 
-        public ComponentGallery()
+        /// <summary>Floating VS 2026-style window (title bar, remembered position/size via <see cref="UtilityWindow"/>).</summary>
+        public ComponentGallery() : base("componentGallery", () => Strings.GalleryTitle, new Size(1180, 780))
         {
-            Width = 1180;
-            Height = 780;
-            ThemeManager.Instance.Attach(this);
-            this.Bind(BackgroundProperty, Tokens.SurfaceBase);
-            Strings.Track(this, () => Title = Strings.GalleryTitle);
+            MinVisibleWidth = 720;
+            MinVisibleHeight = 480;
 
             _nav = new VirtualList<string>(new DelegatePresenter<string>((s, r) => r.Primary = s)) { Width = 200 };
             DefinePages();
@@ -69,7 +67,9 @@ namespace UEToVS.UI.Gallery
             DockPanel.SetDock(toolbar, Dock.Top);
             root.Children.Add(toolbar);
             root.Children.Add(body);
-            Content = root;
+            var surface = new Border { Child = root };
+            surface.Bind(Border.BackgroundProperty, Tokens.SurfaceBase);
+            WindowContent = surface;
 
             _nav.SelectionChanged += (s, e) => Ui.Safe("ui.gallery.nav", () => ShowPage(_nav.SelectedIndex));
             Strings.Track(root, RelabelNav);
