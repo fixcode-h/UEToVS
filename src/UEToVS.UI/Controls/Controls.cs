@@ -399,7 +399,10 @@ namespace UEToVS.UI.Controls
     /// <summary>Numeric field with −/+ steppers; ↑/↓ step, Enter / focus loss commit.</summary>
     public class NumberStepper : Grid
     {
-        private readonly TextInput _box = new TextInput { Width = 56, HorizontalContentAlignment = HorizontalAlignment.Right };
+        // Box width: room for 6 digits at the 8px Fluent inset; the box takes any extra width the owner gives the
+        // stepper, and the stepper never gets narrower than box + both buttons (so −/+ are never clipped).
+        private const double BoxMinWidth = 64, ButtonSize = 24, ButtonGap = 4;
+        private readonly TextInput _box = new TextInput { MinWidth = BoxMinWidth };
         private double _value;
 
         public NumberStepper(double min, double max, double step, double value, string format = "0")
@@ -408,11 +411,12 @@ namespace UEToVS.UI.Controls
             Maximum = max;
             Step = step;
             Format = format;
+            MinWidth = BoxMinWidth + ButtonGap + 2 * ButtonSize;
+            ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MinWidth = BoxMinWidth });
             ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            var minus = new IconButton(Ui.FrozenGeometry("M 0,4 L 8,4"), "−") { Margin = new Thickness(4, 0, 0, 0) };
-            var plus = new IconButton(Ui.FrozenGeometry("M 0,4 L 8,4 M 4,0 L 4,8"), "+");
+            var minus = new IconButton(Ui.FrozenGeometry("M 0,4 L 8,4"), "−") { Margin = new Thickness(ButtonGap, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
+            var plus = new IconButton(Ui.FrozenGeometry("M 0,4 L 8,4 M 4,0 L 4,8"), "+") { VerticalAlignment = VerticalAlignment.Center };
             minus.Focusable = false;
             plus.Focusable = false;
             SetColumn(_box, 0);

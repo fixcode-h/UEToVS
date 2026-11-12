@@ -460,7 +460,7 @@ namespace UEToVS.Host.Settings
                 case SettingKind.Text:
                 case SettingKind.Path:
                 {
-                    var box = new TextInput { Text = Value(d), Width = 320, Placeholder = d.Kind == SettingKind.Path ? (English ? "(default)" : "（默认）") : string.Empty };
+                    var box = new TextInput { Text = Value(d), Width = 320, Placeholder = d.Kind == SettingKind.Path ? (English ? "Default" : "默认") : string.Empty };
                     System.Windows.Automation.AutomationProperties.SetName(box, d.Title(English));
                     box.TextChanged += (s, e) => Safe.Execute(L, "settings.edit", () => Set(d, box.Text));
                     return box;

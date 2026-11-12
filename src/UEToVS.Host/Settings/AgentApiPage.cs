@@ -180,11 +180,7 @@ namespace UEToVS.Host.Settings
             url.TextChanged += (s, e) => { api.BaseUrl = url.Text.Trim(); urlHint.Text = UrlHint(api.BaseUrl); };
             body.Children.Add(Field(T("地址", "Base URL"), url, null, urlHint));
 
-            var key = new PasswordBox { MinHeight = 28, Padding = new Thickness(6, 4, 6, 4), VerticalContentAlignment = VerticalAlignment.Center };
-            key.Bind(Control.BackgroundProperty, Tokens.InputBackground);
-            key.Bind(Control.ForegroundProperty, Tokens.InputForeground);
-            key.Bind(Control.BorderBrushProperty, Tokens.InputBorder);
-            key.Bind(PasswordBox.CaretBrushProperty, Tokens.InputForeground);
+            var key = new PasswordBox { Style = Styles.PasswordInput };
             if (_typedKeys.TryGetValue(api.Id, out var typed)) key.Password = typed;
             bool stored = _service.HasKey(api.Id);
             var keyHint = new UiText(KeyHint(stored, typed), TextVariant.Caption);
@@ -220,20 +216,29 @@ namespace UEToVS.Host.Settings
             foreach (var m in api.Models) models.Children.Add(ModelRow(api, m));
             body.Children.Add(models);
 
-            var manual = new TextInput { Placeholder = T("自己输入模型名，回车添加", "Type a model id, Enter to add"), Width = 320, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 8, 0, 0) };
+            var manual = new TextInput { Placeholder = T("输入模型名筛选，回车添加", "Type to filter, Enter to add"), Width = 320, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 8, 0, 0) };
+            body.Children.Add(manual);
+
+            IReadOnlyList<string> remaining = Array.Empty<string>();
+            PoolView poolView = null;
+            if (_fetched.TryGetValue(api.Id, out var pool))
+            {
+                remaining = pool.Where(id => api.Models.All(m => !string.Equals(m.Id, id, StringComparison.Ordinal))).ToList();
+                if (remaining.Count > 0)
+                {
+                    poolView = new PoolView(this, api, remaining);
+                    body.Children.Add(poolView.Root);
+                }
+            }
+            // Typing filters the returned models live; Enter adds the only match, or the text as typed.
+            manual.TextChanged += (s, e) => Safe.Execute(L, "agent.model.filter", () => poolView?.Filter(manual.Text));
             manual.KeyDown += (s, e) => Safe.Execute(L, "agent.model.manual", () =>
             {
                 if (e.Key != Key.Enter) return;
                 e.Handled = true;
-                AddModels(api, new[] { manual.Text });
+                string id = ModelFilter.ResolveEnter(remaining, manual.Text);
+                if (id != null) AddModels(api, new[] { id });
             });
-            body.Children.Add(manual);
-
-            if (_fetched.TryGetValue(api.Id, out var pool))
-            {
-                var remaining = pool.Where(id => api.Models.All(m => !string.Equals(m.Id, id, StringComparison.Ordinal))).ToList();
-                if (remaining.Count > 0) body.Children.Add(PoolPanel(api, remaining));
-            }
 
             var footer = new DockPanel { Margin = new Thickness(0, 12, 0, 0), LastChildFill = false };
             var delete = new UiButton(T("删除这个 API", "Delete this API"), ButtonKind.Ghost);
@@ -295,7 +300,7 @@ namespace UEToVS.Host.Settings
             tools.Click += (s, e) => m.ToolCalling = tools.IsChecked == true;
             var vision = new UiCheckBox(T("图片", "Vision"), m.Vision) { Margin = new Thickness(12, 0, 0, 0) };
             vision.Click += (s, e) => m.Vision = vision.IsChecked == true;
-            var ctx = new NumberStepper(1, 4096, 8, Math.Max(1, m.ContextTokens / 1000)) { Width = 96, AccessibleName = T("上下文（K）", "Context (K)") };
+            var ctx = new NumberStepper(1, 4096, 8, Math.Max(1, m.ContextTokens / 1000)) { AccessibleName = T("上下文（K）", "Context (K)") };
             ctx.ValueChanged += (s, e) => m.ContextTokens = (int)ctx.Value * 1000;
             right.Children.Add(tools);
             right.Children.Add(vision);
@@ -311,31 +316,71 @@ namespace UEToVS.Host.Settings
             return row;
         }
 
-        private UIElement PoolPanel(AgentApi api, IReadOnlyList<string> remaining)
+        /// <summary>Models the API returned that are not added yet: click a chip to add it; filtered by the add box.</summary>
+        private sealed class PoolView
         {
-            var box = new Border { Padding = new Thickness(10), Margin = new Thickness(0, 8, 0, 0), BorderThickness = new Thickness(1) };
-            box.Bind(Border.BackgroundProperty, Tokens.SurfaceSunken);
-            box.Bind(Border.BorderBrushProperty, Tokens.BorderSubtle);
-            box.Bind(Border.CornerRadiusProperty, Tokens.CornerRadiusControl);
-            var panel = new StackPanel();
-            var head = new DockPanel { LastChildFill = true, Margin = new Thickness(0, 0, 0, 6) };
-            var addAll = new UiButton(T("添加全部", "Add all"), ButtonKind.Ghost);
-            addAll.Click += (s, e) => Safe.Execute(L, "agent.model.addAll", () => AddModels(api, remaining));
-            DockPanel.SetDock(addAll, Dock.Right);
-            head.Children.Add(addAll);
-            head.Children.Add(new UiText(Loc.F("接口返回的模型（{0} 个未添加），点一下添加", "Models from the API ({0} not added): click to add", remaining.Count), TextVariant.Secondary) { VerticalAlignment = VerticalAlignment.Center });
-            panel.Children.Add(head);
-            var wrap = new WrapPanel();
-            foreach (var id in remaining)
+            private readonly AgentApiPage _page;
+            private readonly AgentApi _api;
+            private readonly List<(string Id, Chip Chip)> _chips = new List<(string, Chip)>();
+            private readonly UiText _head = new UiText((string)null, TextVariant.Secondary) { VerticalAlignment = VerticalAlignment.Center };
+            private readonly UiText _none = new UiText((string)null, TextVariant.Secondary) { Visibility = Visibility.Collapsed };
+            private readonly UiButton _addAll;
+            private IReadOnlyList<string> _visible;
+
+            public PoolView(AgentApiPage page, AgentApi api, IReadOnlyList<string> remaining)
             {
-                var modelId = id;
-                var chip = new Chip(modelId) { Margin = new Thickness(0, 0, 6, 6) };
-                chip.Click += (s, e) => Safe.Execute(L, "agent.model.add", () => AddModels(api, new[] { modelId }));
-                wrap.Children.Add(chip);
+                _page = page;
+                _api = api;
+                _visible = remaining;
+                var box = new Border { Padding = new Thickness(10), Margin = new Thickness(0, 8, 0, 0), BorderThickness = new Thickness(1) };
+                box.Bind(Border.BackgroundProperty, Tokens.SurfaceSunken);
+                box.Bind(Border.BorderBrushProperty, Tokens.BorderSubtle);
+                box.Bind(Border.CornerRadiusProperty, Tokens.CornerRadiusControl);
+                var panel = new StackPanel();
+                var head = new DockPanel { LastChildFill = true, Margin = new Thickness(0, 0, 0, 6) };
+                _addAll = new UiButton(T("添加全部", "Add all"), ButtonKind.Ghost);
+                _addAll.Click += (s, e) => Safe.Execute(L, "agent.model.addAll", () => _page.AddModels(_api, _visible));
+                DockPanel.SetDock(_addAll, Dock.Right);
+                head.Children.Add(_addAll);
+                head.Children.Add(_head);
+                panel.Children.Add(head);
+                var wrap = new WrapPanel();
+                foreach (var id in remaining)
+                {
+                    var modelId = id;
+                    var chip = new Chip(modelId) { Margin = new Thickness(0, 0, 6, 6) };
+                    chip.Click += (s, e) => Safe.Execute(L, "agent.model.add", () => _page.AddModels(_api, new[] { modelId }));
+                    wrap.Children.Add(chip);
+                    _chips.Add((modelId, chip));
+                }
+                panel.Children.Add(wrap);
+                panel.Children.Add(_none);
+                box.Child = panel;
+                Root = box;
+                Filter(null);
             }
-            panel.Children.Add(wrap);
-            box.Child = panel;
-            return box;
+
+            public UIElement Root { get; }
+
+            public void Filter(string query)
+            {
+                var visible = new List<string>();
+                foreach (var (id, chip) in _chips)
+                {
+                    bool show = ModelFilter.Matches(id, query);
+                    chip.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+                    if (show) visible.Add(id);
+                }
+                _visible = visible;
+                bool filtered = !string.IsNullOrWhiteSpace(query);
+                _head.Text = filtered
+                    ? Loc.F("接口返回的模型（匹配 {0} / {1} 个），点一下添加", "Models from the API ({0} of {1} match): click to add", visible.Count, _chips.Count)
+                    : Loc.F("接口返回的模型（{0} 个未添加），点一下添加", "Models from the API ({0} not added): click to add", _chips.Count);
+                _addAll.Content = filtered ? Loc.F("添加匹配的 {0} 个", "Add {0} matching", visible.Count) : T("添加全部", "Add all");
+                _addAll.IsEnabled = visible.Count > 0;
+                _none.Text = T("没有匹配的模型；回车会按输入的名字添加。", "No match; Enter adds the name as typed.");
+                _none.Visibility = visible.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+            }
         }
 
         private void AddModels(AgentApi api, IEnumerable<string> ids)
