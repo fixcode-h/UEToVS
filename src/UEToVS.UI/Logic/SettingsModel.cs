@@ -65,6 +65,13 @@ namespace UEToVS.UI.Logic
         /// <summary>What "auto" (stored 0) resolves to on this machine, shown greyed in the disabled number box; null = unknown.</summary>
         public int? AutoValue { get; set; }
         public IReadOnlyList<SettingOption> Options { get; set; } = Array.Empty<SettingOption>();
+        /// <summary>
+        /// Choice: options computed when the editor is built (e.g. installed fonts), replacing <see cref="Options"/> in the
+        /// dropdown. <see cref="Options"/> stays the fixed part used for validation. Null = static options only.
+        /// </summary>
+        public Func<IReadOnlyList<SettingOption>> OptionsSource { get; set; }
+        /// <summary>Choice: any non-empty value is accepted (the options are suggestions), e.g. a font family name.</summary>
+        public bool AllowCustomValue { get; set; }
         /// <summary>Action: short button text ("重建", "打开"); null = the title is used.</summary>
         public string ActionLabelZh { get; set; }
         public string ActionLabelEn { get; set; }
@@ -76,6 +83,26 @@ namespace UEToVS.UI.Logic
         public bool RequiresRestart { get; set; }
 
         public bool HasValue => Kind != SettingKind.Action && Kind != SettingKind.Info;
+
+        /// <summary>
+        /// Options for the editor: <see cref="OptionsSource"/> when set (falls back to <see cref="Options"/> when it throws
+        /// or returns nothing), plus the current value when <see cref="AllowCustomValue"/> and it is not listed.
+        /// </summary>
+        public IReadOnlyList<SettingOption> ResolveOptions(string current = null)
+        {
+            IReadOnlyList<SettingOption> options = null;
+            if (OptionsSource != null)
+            {
+                try { options = OptionsSource(); }
+                catch (Exception) { options = null; } // a broken provider must not break the page; static options remain
+            }
+            if (options == null || options.Count == 0) options = Options ?? Array.Empty<SettingOption>();
+            if (!AllowCustomValue || string.IsNullOrWhiteSpace(current)) return options;
+            foreach (var o in options)
+                if (string.Equals(o.Value, current.Trim(), StringComparison.OrdinalIgnoreCase)) return options;
+            var list = new List<SettingOption>(options) { new SettingOption(current.Trim(), current.Trim(), current.Trim()) };
+            return list;
+        }
 
         public string Title(bool english) => english ? (TitleEn ?? TitleZh) : (TitleZh ?? TitleEn);
         public string Description(bool english) => english ? (DescriptionEn ?? DescriptionZh) : (DescriptionZh ?? DescriptionEn);
@@ -132,6 +159,7 @@ namespace UEToVS.UI.Logic
                     if (d.Options != null)
                         foreach (var o in d.Options)
                             if (string.Equals(o.Value, value?.Trim(), StringComparison.OrdinalIgnoreCase)) return o.Value;
+                    if (d.AllowCustomValue && !string.IsNullOrWhiteSpace(value)) return value.Trim();
                     ok = false;
                     return d.Default;
                 case SettingKind.Text:

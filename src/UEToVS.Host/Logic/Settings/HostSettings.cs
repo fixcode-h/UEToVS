@@ -190,6 +190,22 @@ namespace UEToVS.Host.Logic.Settings
         /// <summary>Inlay hints: deduced type after <c>auto</c> variables.</summary>
         public bool InlayAutoTypes { get; set; }
 
+        // ---- 字体（设置 > 外观 > 字体；值见 UEToVS.UI.Logic.FontChoice，VS 类别见 Logic/Fonts/VsFontCategories）----
+        /// <summary>英文字体: Latin part of the UEToVS UI font ("bundled:IBM Plex Sans", "vs" or an installed family).</summary>
+        public string UiLatinFont { get; set; } = UEToVS.UI.Logic.FontSettings.DefaultUiLatin.ToString();
+
+        /// <summary>中文字体: CJK part of the UEToVS UI font.</summary>
+        public string UiCjkFont { get; set; } = UEToVS.UI.Logic.FontSettings.DefaultUiCjk.ToString();
+
+        /// <summary>代码字体: code previews, and the VS categories set to "同代码字体".</summary>
+        public string CodeFont { get; set; } = UEToVS.UI.Logic.FontSettings.DefaultCode.ToString();
+
+        /// <summary>由 UEToVS 管理 VS 字体: write the VS font categories below (backed up first; off restores them).</summary>
+        public bool ManageVsFonts { get; set; } = true;
+
+        /// <summary>Per VS category family/size, only the ones that differ from the defaults (Logic/Fonts/VsFontSettingsText).</summary>
+        public string VsFonts { get; set; } = string.Empty;
+
         public HostSettings Clone() => (HostSettings)MemberwiseClone();
     }
 }
