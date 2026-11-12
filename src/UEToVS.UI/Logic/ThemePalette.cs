@@ -27,6 +27,9 @@ namespace UEToVS.UI.Logic
         public Rgba? ToolTipText { get; set; }
         public Rgba? Link { get; set; }
 
+        /// <summary>The palette's own <see cref="Accent"/> wins over the Windows accent (warm scheme: clay).</summary>
+        public bool PreferOwnAccent { get; set; }
+
         /// <summary>Windows high-contrast mode: tokens use the palette colors directly, no tints.</summary>
         public bool IsHighContrast { get; set; }
 

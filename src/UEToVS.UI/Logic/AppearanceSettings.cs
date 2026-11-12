@@ -20,7 +20,7 @@ namespace UEToVS.UI.Logic
     /// </summary>
     public sealed class AppearanceSettings
     {
-        public const int CurrentVersion = 2;
+        public const int CurrentVersion = 3;
 
         /// <summary>Fallback accent (Fluent / VS 2026 communication blue) when the VS theme gives none.</summary>
         public const string DefaultAccent = "#0078D4";
@@ -43,13 +43,16 @@ namespace UEToVS.UI.Logic
         /// <summary>列表行高 in DIPs.</summary>
         public double RowHeight { get; set; } = 24;
 
-        /// <summary>VS 2026 / Fluent: flyouts and dialogs 8px, controls 4px, badges 4px.</summary>
-        public double PopupRadius { get; set; } = 8;
-        public double ControlRadius { get; set; } = 4;
+        /// <summary>Warm scheme (v0.4.5): windows and popups 12px, controls 8px, badges 4px.</summary>
+        public double PopupRadius { get; set; } = 12;
+        public double ControlRadius { get; set; } = 8;
         public double BadgeRadius { get; set; } = 4;
 
         /// <summary>Multiplies paddings (not the 4px grid itself). Preset-driven: Compact 0.75, VS 2026 1, Comfortable 1.25.</summary>
         public double SpacingScale { get; set; } = 1.0;
+
+        /// <summary>Warm (default since v0.4.5) or colors derived from the VS theme.</summary>
+        public ColorScheme ColorScheme { get; set; } = ColorScheme.Warm;
 
         public AccentMode AccentMode { get; set; } = AccentMode.FollowVs;
 
@@ -89,13 +92,13 @@ namespace UEToVS.UI.Logic
             switch (preset)
             {
                 case StylePreset.Compact:
-                    RowHeight = 20; PopupRadius = 6; ControlRadius = 3; BadgeRadius = 3; SpacingScale = 0.75;
+                    RowHeight = 20; PopupRadius = 8; ControlRadius = 6; BadgeRadius = 3; SpacingScale = 0.75;
                     break;
                 case StylePreset.Comfortable:
-                    RowHeight = 28; PopupRadius = 8; ControlRadius = 5; BadgeRadius = 4; SpacingScale = 1.25;
+                    RowHeight = 28; PopupRadius = 14; ControlRadius = 10; BadgeRadius = 5; SpacingScale = 1.25;
                     break;
                 default:
-                    RowHeight = 24; PopupRadius = 8; ControlRadius = 4; BadgeRadius = 4; SpacingScale = 1.0;
+                    RowHeight = 24; PopupRadius = 12; ControlRadius = 8; BadgeRadius = 4; SpacingScale = 1.0;
                     break;
             }
         }
@@ -124,6 +127,7 @@ namespace UEToVS.UI.Logic
         {
             var notes = new List<string>();
             if (!Enum.IsDefined(typeof(StylePreset), Preset)) { notes.Add("Preset invalid: " + Preset); Preset = StylePreset.Vs2026; }
+            if (!Enum.IsDefined(typeof(ColorScheme), ColorScheme)) { notes.Add("ColorScheme invalid"); ColorScheme = ColorScheme.Warm; }
             if (!Enum.IsDefined(typeof(AccentMode), AccentMode)) { notes.Add("AccentMode invalid"); AccentMode = AccentMode.FollowVs; }
             if (!Enum.IsDefined(typeof(PreviewPosition), PreviewPosition)) { notes.Add("PreviewPosition invalid"); PreviewPosition = PreviewPosition.Bottom; }
             if (!Enum.IsDefined(typeof(PopupChromeMode), PopupChrome)) { notes.Add("PopupChrome invalid"); PopupChrome = PopupChromeMode.Layered; }
@@ -132,8 +136,8 @@ namespace UEToVS.UI.Logic
 
             FontScale = Clamp(nameof(FontScale), FontScale, MinFontScale, MaxFontScale, 1.0, notes);
             RowHeight = Clamp(nameof(RowHeight), RowHeight, MinRowHeight, MaxRowHeight, 24, notes);
-            PopupRadius = Clamp(nameof(PopupRadius), PopupRadius, 0, MaxRadius, 8, notes);
-            ControlRadius = Clamp(nameof(ControlRadius), ControlRadius, 0, MaxRadius, 4, notes);
+            PopupRadius = Clamp(nameof(PopupRadius), PopupRadius, 0, MaxRadius, 12, notes);
+            ControlRadius = Clamp(nameof(ControlRadius), ControlRadius, 0, MaxRadius, 8, notes);
             BadgeRadius = Clamp(nameof(BadgeRadius), BadgeRadius, 0, MaxRadius, 4, notes);
             SpacingScale = Clamp(nameof(SpacingScale), SpacingScale, MinSpacingScale, MaxSpacingScale, 1.0, notes);
             if (AnimationMs < 0 || AnimationMs > MaxAnimationMs)
@@ -189,6 +193,7 @@ namespace UEToVS.UI.Logic
             W("radius.control", D(ControlRadius));
             W("radius.badge", D(BadgeRadius));
             W("spacingScale", D(SpacingScale));
+            W("colorScheme", ColorScheme.ToString());
             W("accentMode", AccentMode.ToString());
             W("accent", CustomAccent ?? "");
             W("matchStyle", ((int)MatchStyle).ToString(CultureInfo.InvariantCulture));
@@ -233,6 +238,13 @@ namespace UEToVS.UI.Logic
                 if (legacyRider && s.PopupRadius == 6 && s.BadgeRadius == 3) { s.PopupRadius = 8; s.BadgeRadius = 4; problems.Add("Migrated Rider preset to VS 2026"); }
                 if (string.Equals(s.CustomAccent, "#3574F0", StringComparison.OrdinalIgnoreCase) && s.AccentMode == AccentMode.FollowVs) s.CustomAccent = DefaultAccent;
             }
+            // v2 → v3: the warm scheme's rounder corners replace the VS 2026 defaults (8 / 4) where untouched.
+            if (s.Version < 3)
+            {
+                if (s.PopupRadius == 8 && s.ControlRadius == 4) { s.PopupRadius = 12; s.ControlRadius = 8; problems.Add("Migrated radii to the warm scheme defaults"); }
+                else if (s.Preset == StylePreset.Compact && s.PopupRadius == 6 && s.ControlRadius == 3) { s.PopupRadius = 8; s.ControlRadius = 6; }
+                else if (s.Preset == StylePreset.Comfortable && s.PopupRadius == 8 && s.ControlRadius == 5) { s.PopupRadius = 14; s.ControlRadius = 10; s.BadgeRadius = 5; }
+            }
             problems.AddRange(s.Normalize());
             return s;
         }
@@ -250,6 +262,7 @@ namespace UEToVS.UI.Logic
                 case "radius.control": return TryD(val, out d) && Set(() => ControlRadius = d);
                 case "radius.badge": return TryD(val, out d) && Set(() => BadgeRadius = d);
                 case "spacingScale": return TryD(val, out d) && Set(() => SpacingScale = d);
+                case "colorScheme": return TryEnum(val, out ColorScheme cs) && Set(() => ColorScheme = cs);
                 case "accentMode": return TryEnum(val, out AccentMode am) && Set(() => AccentMode = am);
                 case "accent": CustomAccent = val; return Rgba.TryParse(val, out _);
                 case "matchStyle":

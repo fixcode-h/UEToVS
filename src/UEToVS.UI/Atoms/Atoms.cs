@@ -30,6 +30,12 @@ namespace UEToVS.UI.Atoms
         Subtitle,
         /// <summary>Page title (settings page heading): semibold, body + 8.</summary>
         Display,
+        /// <summary>Description under a setting title: small, tertiary text.</summary>
+        Description,
+        /// <summary>Label above a settings group card: small, semibold, secondary text.</summary>
+        GroupLabel,
+        /// <summary>Settings page heading: serif display face, about twice the body size.</summary>
+        PageTitle,
     }
 
     /// <summary>Text atom: a TextBlock whose font size / color come from tokens per <see cref="Variant"/>.</summary>
@@ -79,6 +85,9 @@ namespace UEToVS.UI.Atoms
                 case TextVariant.Link: fg = Tokens.TextLink; break;
                 case TextVariant.Subtitle: size = Tokens.FontSizeSubtitle; weight = FontWeights.SemiBold; break;
                 case TextVariant.Display: size = Tokens.FontSizeDisplay; weight = FontWeights.SemiBold; break;
+                case TextVariant.Description: fg = Tokens.TextTertiary; size = Tokens.FontSizeSmall; break;
+                case TextVariant.GroupLabel: fg = Tokens.TextSecondary; size = Tokens.FontSizeSmall; weight = FontWeights.SemiBold; break;
+                case TextVariant.PageTitle: size = Tokens.FontSizePageTitle; weight = FontWeights.Medium; this.Bind(FontFamilyProperty, Tokens.FontFamilyDisplay); break;
             }
             this.Bind(ForegroundProperty, fg);
             this.Bind(FontSizeProperty, size);

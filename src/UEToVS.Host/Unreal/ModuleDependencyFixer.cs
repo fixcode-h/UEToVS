@@ -30,6 +30,7 @@ namespace UEToVS.Host.Unreal
         private static readonly Logger L = Log.For("BuildCs");
         private static readonly HashSet<string> Dismissed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         private static int _onSaveRunning;
+        private static readonly IncludeLookupCache LookupCache = new IncludeLookupCache();
 
         private sealed class IncludeEnv : IIncludeEnvironment
         {
@@ -93,7 +94,9 @@ namespace UEToVS.Host.Unreal
             {
                 L.Warn("buildcs.openDocs.failed", "Reading open Build.cs documents failed", ex);
             }
-            return new IncludeEnv(package.Engine, open);
+            // Lookups are shared across checks (one per file open / include edit); see IncludeLookupCache.
+            LookupCache.BindTo(package.Engine);
+            return new CachingIncludeEnvironment(new IncludeEnv(package.Engine, open), LookupCache);
         }
 
         /// <summary>On save of a .h/.cpp (setting CheckIncludesOnSave): check and offer a fix in a banner.</summary>

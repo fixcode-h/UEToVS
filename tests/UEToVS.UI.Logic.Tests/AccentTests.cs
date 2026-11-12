@@ -72,7 +72,7 @@ namespace UEToVS.UI.Logic.Tests
         {
             var p = ThemePalette.FallbackLight();
             p.SystemAccent = Rgba.FromHex(0x0078D4);
-            var t = TokenDerivation.Derive(p, new AppearanceSettings());
+            var t = TokenDerivation.Derive(p, new AppearanceSettings { ColorScheme = ColorScheme.FollowVs });
             Assert.Equal(AccentSource.System, t.AccentSource);
         }
 

@@ -141,8 +141,7 @@ namespace UEToVS.Host.Logic.Commands
         /// <summary>Toolbar-only buttons (separate ids so each can be hidden from the settings window).</summary>
         public const int TbSettings = 0x0480;
         public const int TbSearchEverywhere = 0x0481;
-        public const int TbBack = 0x0482;
-        public const int TbForward = 0x0483;
+        // 0x0482 / 0x0483 were the toolbar Back / Forward buttons (removed in v0.4.5: VS has its own); ids stay reserved.
         public const int TbGoToDefinition = 0x0484;
         public const int TbFindReferences = 0x0485;
         public const int TbPerformance = 0x0486;
@@ -311,8 +310,6 @@ namespace UEToVS.Host.Logic.Commands
         {
             new ToolbarButtonInfo("settings", CommandCatalog.TbSettings, CommandCatalog.ActionIds.Settings, "UEToVS 设置", "UEToVS Settings"),
             new ToolbarButtonInfo("searchEverywhere", CommandCatalog.TbSearchEverywhere, CommandCatalog.ActionIds.SearchEverywhere, "Search Everywhere", "Search Everywhere"),
-            new ToolbarButtonInfo("back", CommandCatalog.TbBack, CommandCatalog.ActionIds.NavigateBack, "后退", "Navigate Back"),
-            new ToolbarButtonInfo("forward", CommandCatalog.TbForward, CommandCatalog.ActionIds.NavigateForward, "前进", "Navigate Forward"),
             new ToolbarButtonInfo("goToDefinition", CommandCatalog.TbGoToDefinition, CommandCatalog.ActionIds.GoToDefinition, "转到定义", "Go to Definition"),
             new ToolbarButtonInfo("findReferences", CommandCatalog.TbFindReferences, CommandCatalog.ActionIds.FindReferences, "查找引用", "Find References"),
             new ToolbarButtonInfo("performance", CommandCatalog.TbPerformance, CommandCatalog.ActionIds.ShowPerformancePanel, "性能面板", "Performance Panel"),

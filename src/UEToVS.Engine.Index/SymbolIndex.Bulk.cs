@@ -47,9 +47,41 @@ namespace UEToVS.Engine.Index
             if (files == null || files.Count == 0) return 0;
             lock (_maintenanceLock)
             {
-                using (var scope = L.Time("index.segment.append", double.MaxValue, ("kind", kind.ToString()), ("files", files.Count)))
+                using (var prepared = PrepareSegment(kind, files, ct))
+                    return PublishSegment(prepared);
+            }
+        }
+
+        /// <summary>
+        /// First half of <see cref="AppendSegment"/>: encodes and writes the segment file and maps it, without touching
+        /// the published snapshot and without the maintenance lock, so several batches can be prepared in parallel (each
+        /// gets its own segment number and file). Publish with <see cref="PublishSegment"/>; disposing an unpublished
+        /// result deletes its file. Returns null for an empty batch.
+        /// </summary>
+        public PreparedSegment PrepareSegment(SegmentKind kind, IReadOnlyCollection<FileSymbols> files, CancellationToken ct = default)
+        {
+            ThrowIfDisposed();
+            if (files == null || files.Count == 0) return null;
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            var seg = WriteAndOpen(kind, files, ct);
+            return new PreparedSegment(seg, kind, files.Count, sw.Elapsed.TotalMilliseconds);
+        }
+
+        /// <summary>
+        /// Second half of <see cref="AppendSegment"/>: adds a prepared segment next to the existing bases (tombstoning
+        /// older copies of its files) and saves the manifest. Thread-safe; blocks other maintenance. Segments published
+        /// later win over earlier ones for the same file, so callers publish in batch order.
+        /// </summary>
+        public int PublishSegment(PreparedSegment prepared)
+        {
+            if (prepared == null) return 0;
+            ThrowIfDisposed();
+            var seg = prepared.Take();
+            var kind = prepared.Kind;
+            lock (_maintenanceLock)
+            {
+                using (var scope = L.Time("index.segment.append", double.MaxValue, ("kind", kind.ToString()), ("files", prepared.Files)))
                 {
-                    var seg = WriteAndOpen(kind, files, ct);
                     Snapshot published;
                     lock (_writeLock)
                     {
@@ -90,7 +122,7 @@ namespace UEToVS.Engine.Index
                     seg.Release();
                     SaveManifest(published);
                     L.Debug("index.segment.appended", null, ("kind", kind.ToString()), ("file", seg.FileName), ("files", seg.FileCount),
-                        ("symbols", seg.SymbolCount), ("bytes", seg.Length), ("ms", Math.Round(scope.ElapsedMs, 1)));
+                        ("symbols", seg.SymbolCount), ("bytes", seg.Length), ("writeMs", Math.Round(prepared.WriteMs, 1)), ("ms", Math.Round(scope.ElapsedMs, 1)));
                     return seg.FileCount;
                 }
             }
@@ -392,6 +424,44 @@ namespace UEToVS.Engine.Index
             {
                 return false;
             }
+        }
+    }
+    /// <summary>
+    /// A segment written by <see cref="SymbolIndex.PrepareSegment"/> but not published yet. Dispose without publishing
+    /// deletes the file (an orphan left by a crash is cleaned up when the index is next opened).
+    /// </summary>
+    public sealed class PreparedSegment : IDisposable
+    {
+        private Segment _segment;
+
+        internal PreparedSegment(Segment segment, SegmentKind kind, int files, double writeMs)
+        {
+            _segment = segment;
+            Kind = kind;
+            Files = files;
+            WriteMs = writeMs;
+        }
+
+        public SegmentKind Kind { get; }
+        public int Files { get; }
+
+        /// <summary>Encode + write + map time.</summary>
+        public double WriteMs { get; }
+
+        public string FileName => _segment?.FileName;
+
+        internal Segment Take()
+        {
+            var s = Interlocked.Exchange(ref _segment, null);
+            return s ?? throw new InvalidOperationException("Prepared segment was already published or disposed");
+        }
+
+        public void Dispose()
+        {
+            var s = Interlocked.Exchange(ref _segment, null);
+            if (s == null) return;
+            s.Retire();
+            s.Release();
         }
     }
 }

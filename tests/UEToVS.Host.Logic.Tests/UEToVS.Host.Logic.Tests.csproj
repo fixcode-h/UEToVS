@@ -15,6 +15,9 @@
     <Compile Include="..\..\src\UEToVS.UI\Logic\PerformanceViewData.cs" Link="UI\PerformanceViewData.cs" />
     <!-- Declarative settings descriptors used by Logic/Settings/HostSettingsSchema.cs (settings window). -->
     <Compile Include="..\..\src\UEToVS.UI\Logic\SettingsModel.cs" Link="UI\SettingsModel.cs" />
+    <Compile Include="..\..\src\UEToVS.UI\Logic\PathListModel.cs" Link="UI\PathListModel.cs" />
+    <!-- Font choices used by Logic/Fonts (外观 > 字体, VS font categories). -->
+    <Compile Include="..\..\src\UEToVS.UI\Logic\FontSettings.cs" Link="UI\FontSettings.cs" />
   </ItemGroup>
   <ItemGroup>
     <!-- The VSCT is checked against Logic/Commands/CommandCatalog.cs (ids, key bindings). -->

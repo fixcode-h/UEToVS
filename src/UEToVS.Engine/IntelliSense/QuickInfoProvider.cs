@@ -264,6 +264,8 @@ namespace UEToVS.Engine.IntelliSense
                     var args = def.IsFunctionLike ? MacroExpander.InvocationArgs(doc, ti) : null;
                     var (one, full) = expander.Expand(def, args);
                     resp.MacroExpansion = one == full ? one : one + "\n\n" + full;
+                    resp.MacroExpansionOneLevel = one;
+                    resp.MacroExpansionFull = full;
                 }
                 resp.Confidence = def != null || ueMacro ? ResolutionConfidence.Exact : ResolutionConfidence.NameOnly;
                 if (def != null || ueMacro || resp.Documentation != null) return resp;

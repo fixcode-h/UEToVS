@@ -123,6 +123,12 @@ namespace UEToVS.Contracts
         /// <summary>When hovering a macro: its expansion (one level, then fully expanded if different), capped in size.</summary>
         public string MacroExpansion { get; set; }
 
+        /// <summary>The macro body with the arguments substituted (null when not a macro).</summary>
+        public string MacroExpansionOneLevel { get; set; }
+
+        /// <summary>Every nested macro expanded (equal to <see cref="MacroExpansionOneLevel"/> when nothing nests).</summary>
+        public string MacroExpansionFull { get; set; }
+
         /// <summary>Other overloads / declarations (count shown as "+N overloads").</summary>
         public int OverloadCount { get; set; }
 

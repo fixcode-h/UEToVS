@@ -68,6 +68,11 @@ namespace UEToVS.Host.Keymap
                         set.Add(o.Value);
                     }
                 var applied = new List<DefaultBindingDecision>();
+                // Our binding is in place but VS refused to drop an overlapping key of its own (VS 18 keeps
+                // "Text Editor::Alt+Right Arrow" on Edit.CompleteWord whatever is written). Retrying cannot fix that and
+                // cost ~1.2 s plus a backup file on every start, so these are remembered as handled too; the Alt+←/→ case
+                // is redirected by the editor command filter instead.
+                var boundOnly = new List<DefaultBindingDecision>();
                 var failed = new List<string>();
                 var removed = new List<string>();
                 string backupFile = null;
@@ -103,23 +108,26 @@ namespace UEToVS.Host.Keymap
                     if (d.Outcome != DefaultBindingOutcome.Apply)
                     {
                         if (overridesOk) applied.Add(d);
-                        else failed.Add(d.ToString());
+                        else boundOnly.Add(d);
                         continue;
                     }
                     var cmd = DteKeymap.FindByName(dte, d.Command);
                     var back = cmd == null ? null : DteKeymap.Write(cmd, new[] { d.Binding }, scopes, d.Command);
-                    if (back != null && back.Contains(d.Binding, StringComparer.OrdinalIgnoreCase) && overridesOk) applied.Add(d);
+                    bool bound = back != null && back.Contains(d.Binding, StringComparer.OrdinalIgnoreCase);
+                    if (bound && overridesOk) applied.Add(d);
+                    else if (bound) boundOnly.Add(d);
                     else failed.Add(d.ToString());
                 }
 
                 var remember = new HashSet<string>(handled, StringComparer.OrdinalIgnoreCase);
                 foreach (var k in DefaultKeymapPlanner.ToRemember(decisions)) remember.Add(k);
                 foreach (var d in applied) remember.Add(d.HandledKey);
+                foreach (var d in boundOnly) remember.Add(d.HandledKey);
                 if (remember.Count != handled.Count) VsUserSettings.Set(Collection, HandledProperty, DefaultKeymapPlanner.FormatHandled(remember));
 
                 List<string> Of(DefaultBindingOutcome o) => decisions.Where(d => d.Outcome == o).Select(d => d.ToString()).ToList();
                 L.Info("keymap.apply", null, ("reason", "firstRunDefaults"), ("applied", applied.Select(d => d.Command + "=" + d.Binding).ToList()),
-                       ("removedFromVs", removed), ("removeFailed", removeFailed.ToList()),
+                       ("removedFromVs", removed), ("removeFailed", removeFailed.ToList()), ("boundButVsKeptKey", boundOnly.Select(d => d.ToString()).ToList()),
                        ("failed", failed), ("alreadyBound", Of(DefaultBindingOutcome.AlreadyBound)), ("keyTaken", Of(DefaultBindingOutcome.KeyTaken)),
                        ("commandMissing", Of(DefaultBindingOutcome.CommandMissing)), ("previouslyHandled", Of(DefaultBindingOutcome.AlreadyHandled).Count),
                        ("backup", backupFile), ("scopes", scopes.ToString()));

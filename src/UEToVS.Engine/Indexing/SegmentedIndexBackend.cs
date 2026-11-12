@@ -16,7 +16,7 @@ namespace UEToVS.Engine.Indexing
     /// knowledge-base version, so a parser/format change automatically invalidates them. Compaction runs in the
     /// background whenever the delta grows past its threshold; <see cref="Save"/> compacts so nothing is lost on exit.
     /// </summary>
-    public sealed class SegmentedIndexBackend : ISymbolIndexBackend
+    public sealed class SegmentedIndexBackend : ISymbolIndexBackend, IParallelBulkBackend
     {
         private static readonly Logger L = Log.For("Index");
         private readonly object _gate = new object();
@@ -180,6 +180,26 @@ namespace UEToVS.Engine.Indexing
                 else UpdateFile(path, result.Symbols); // foreign payload: delta path
             }
             idx.AppendSegment(engine ? SegmentKind.Engine : SegmentKind.Project, list, ct);
+        }
+
+        public IDisposable PrepareBatch(bool engine, IReadOnlyList<(string Path, ParseResult Result)> batch, CancellationToken ct)
+        {
+            var idx = Current ?? throw new InvalidOperationException("Index store not opened (TryLoad was not called)");
+            var list = new List<FileSymbols>(batch.Count);
+            foreach (var (path, result) in batch)
+            {
+                if (result.Payload is FileSymbols fs) list.Add(Fill(fs, path, result));
+                else UpdateFile(path, result.Symbols); // foreign payload: delta path (the delta always wins over bases)
+            }
+            return idx.PrepareSegment(engine ? SegmentKind.Engine : SegmentKind.Project, list, ct);
+        }
+
+        public void PublishBatch(IDisposable prepared)
+        {
+            if (prepared == null) return;
+            if (!(prepared is PreparedSegment seg)) throw new ArgumentException("Not a prepared segment of this backend", nameof(prepared));
+            var idx = Current ?? throw new InvalidOperationException("Index store not opened (TryLoad was not called)");
+            idx.PublishSegment(seg);
         }
 
         public void FinishBulk(bool engine, CancellationToken ct)

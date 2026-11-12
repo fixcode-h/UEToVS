@@ -82,6 +82,8 @@ namespace UEToVS.UI.Logic
             if (palette == null) throw new ArgumentNullException(nameof(palette));
             settings = settings?.Clone() ?? new AppearanceSettings();
             settings.Normalize();
+            bool warm = settings.ColorScheme == ColorScheme.Warm && !palette.IsHighContrast;
+            if (warm) palette = WarmScheme.Palette(palette.Background.IsDark, palette.BaseFontSize, palette.SystemAccent);
 
             var t = new TokenSet { Settings = settings, PaletteName = palette.Name };
             bool dark = palette.Background.IsDark;
@@ -132,6 +134,7 @@ namespace UEToVS.UI.Logic
             C[TokenNames.AccentHover] = hc ? accent : AccentHoverOf(accent, popup);
             C[TokenNames.AccentPressed] = hc ? accent : AccentPressedOf(accent, popup);
             C[TokenNames.AccentSubtle] = hc ? popup : Rgba.Mix(popup, accent, dark ? 0.22 : 0.12);
+            C[TokenNames.AccentBorder] = hc ? accent : Rgba.Mix(popup, accent, dark ? 0.42 : 0.40);
             C[TokenNames.TextOnAccent] = Rgba.Contrast(Rgba.White, accent) >= 3.0 ? Rgba.White : Rgba.FromHex(0x111111);
 
             // ---- selection (VS 2026 / Fluent: soft accent-tinted row + accent indicator pill, text keeps its color)
@@ -212,6 +215,10 @@ namespace UEToVS.UI.Logic
             C[TokenNames.SegmentTrack] = hc ? popup : Rgba.Mix(popup, dark ? Rgba.Black : popupFg, dark ? 0.16 : 0.04);
             C[TokenNames.SelectionIndicator] = hc ? selFg : accent.EnsureContrast(selBg, 3);
             C[TokenNames.SurfaceNav] = hc ? bg : Rgba.Mix(bg, dark ? Rgba.Black : popupFg, dark ? 0.10 : 0.025);
+            C[TokenNames.TextTertiary] = hc ? popupFg : Rgba.Mix(C[TokenNames.TextSecondary], popup, 0.12).EnsureContrast(popup, 3.5);
+            C[TokenNames.Divider] = hc ? (palette.Border ?? fg) : Rgba.Mix(popup, popupFg, dark ? 0.09 : 0.08);
+            C[TokenNames.SegmentSelected] = hc ? selBg : Rgba.Mix(popup, popupFg, dark ? 0.16 : 0.0);
+            C[TokenNames.NavSelected] = hc ? selBg : Rgba.Mix(popup, popupFg, dark ? 0.08 : 0.07);
 
             // ---- severities
             foreach (var kv in SeverityBase)
@@ -236,8 +243,27 @@ namespace UEToVS.UI.Logic
                 C[TokenNames.Glyph(kv.Key)] = hc ? fg : Tone(kv.Value.H, kv.Value.S, dark).EnsureContrast(gbg, 3.5);
             }
 
+            if (warm)
+            {
+                foreach (var kv in WarmScheme.Overrides(dark)) C[kv.Key] = kv.Value;
+                if (accentSource == AccentSource.Custom) RetintAccentTokens(t, accent, dark);
+            }
+
             DeriveMetrics(t, palette, settings, dark, hc);
             return t;
+        }
+
+        /// <summary>Custom accent on the warm scheme: the accent-derived chrome follows the user's color.</summary>
+        private static void RetintAccentTokens(TokenSet t, Rgba accent, bool dark)
+        {
+            var C = t.Colors;
+            var popup = C[TokenNames.SurfacePopup];
+            C[TokenNames.TextLink] = (dark ? accent.WithLightness(Math.Max(accent.Lightness, 0.66)) : accent.WithLightness(Math.Min(accent.Lightness, 0.40))).EnsureContrast(popup, 4.5);
+            C[TokenNames.TextLinkHover] = C[TokenNames.TextLink];
+            C[TokenNames.TextOnAccent] = Rgba.Contrast(Rgba.White, accent) >= 3.0 ? Rgba.White : Rgba.FromHex(0x1F1E1C);
+            C[TokenNames.ToggleThumb] = C[TokenNames.TextOnAccent];
+            C[TokenNames.AccentSubtle] = Rgba.Mix(popup, accent, dark ? 0.15 : 0.12);
+            C[TokenNames.AccentBorder] = Rgba.Mix(popup, accent, dark ? 0.42 : 0.40);
         }
 
         /// <summary>Foreground tone for a hue: lighter + softer on dark themes, darker on light themes.</summary>
@@ -288,6 +314,7 @@ namespace UEToVS.UI.Logic
             // VS 2026 search boxes use the body size (Rider used a much larger input font).
             N[TokenNames.FontSizeInput] = body + (s.Preset == StylePreset.Compact ? 0 : 1);
             N[TokenNames.FontSizeCode] = body;
+            N[TokenNames.FontSizePageTitle] = Math.Round(body * 2);
 
             // Row must fit the text: never smaller than ~1.45 line heights of body text.
             double minRow = Math.Ceiling(body * 1.45 + 2);
@@ -308,7 +335,10 @@ namespace UEToVS.UI.Logic
             N[TokenNames.PadPopup] = Snap(8 * k);
             N[TokenNames.GapInline] = Snap(8 * k);
             // Fluent standard control height is 32 at 14px text; VS 2026 shell uses ~26 at 12px.
-            N[TokenNames.ControlHeight] = Math.Max(Math.Ceiling(body * 1.6 + 4), Snap(26 * (0.5 + 0.5 * k)));
+            // Warm scheme (mockup): 30px inputs/segments at 13px text; VS-derived scheme keeps the VS 2026 shell height.
+            N[TokenNames.ControlHeight] = s.ColorScheme == ColorScheme.Warm && !hc
+                ? Math.Max(Math.Ceiling(body * 1.6 + 8), Snap(30 * (0.5 + 0.5 * k)))
+                : Math.Max(Math.Ceiling(body * 1.6 + 4), Snap(26 * (0.5 + 0.5 * k)));
             N[TokenNames.FocusThickness] = hc ? 2 : 2;
 
             // Fluent flyout shadow: soft and wide, lighter than Rider's.

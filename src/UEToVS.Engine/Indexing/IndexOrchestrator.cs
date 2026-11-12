@@ -415,7 +415,7 @@ namespace UEToVS.Engine.Indexing
                 var toParse = Prioritize(listed.Where(f => f.IsCpp && _parser.CanParse(Context(f))));
                 Interlocked.Exchange(ref _filesToParse, toParse.Count);
                 int engineParsed = 0;
-                using (var sink = new BulkSink(_backend, ct))
+                using (var sink = new BulkSink(_backend, ct, writers: BulkSink.DefaultWriters(CppThrottle.Configured)))
                 {
                     foreach (bool project in new[] { true, false })
                     {
@@ -447,6 +447,7 @@ namespace UEToVS.Engine.Indexing
                     ("modules", Modules.Count), ("processed", FilesParsed), ("engineParsed", engineParsed), ("sharedEngine", sharedHit),
                     ("totalMs", Math.Round(total.Elapsed.TotalMilliseconds)));
                 _ready.TrySetResult(true);
+                if (FilesParsed >= TrimAfterParsedFiles) TrimAfterIndexing(FilesParsed);
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
@@ -1050,6 +1051,35 @@ namespace UEToVS.Engine.Indexing
             catch (Exception ex)
             {
                 L.Error("index.save.failed", "Saving the index failed", ex);
+            }
+        }
+
+        /// <summary>Runs with at least this many freshly parsed files trigger <see cref="TrimAfterIndexing"/>.</summary>
+        internal const int TrimAfterParsedFiles = 5000;
+
+        /// <summary>
+        /// One compacting GC after a big index run. Parse buffers and segment batches are garbage by now, but with no
+        /// allocation pressure the GC may not run for a long time: a diagnostics package showed the engine idling at
+        /// 877 MB private for 13 minutes after an 81k-file build, dropping to 470 MB only at the next gen2 collection.
+        /// Blocking for a few hundred ms once, right after "Ready", is cheaper than holding ~400 MB.
+        /// </summary>
+        private static void TrimAfterIndexing(int parsed)
+        {
+            try
+            {
+                var sw = Stopwatch.StartNew();
+                long before = GC.GetTotalMemory(false);
+                long privBefore = Process.GetCurrentProcess().PrivateMemorySize64;
+                System.Runtime.GCSettings.LargeObjectHeapCompactionMode = System.Runtime.GCLargeObjectHeapCompactionMode.CompactOnce;
+                GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking: true, compacting: true);
+                long after = GC.GetTotalMemory(false);
+                long privAfter = Process.GetCurrentProcess().PrivateMemorySize64;
+                L.Info("index.trim", "Compacted the heap after indexing", ("parsed", parsed), ("managedMBBefore", before / 1048576), ("managedMBAfter", after / 1048576),
+                    ("privateMBBefore", privBefore / 1048576), ("privateMBAfter", privAfter / 1048576), ("ms", Math.Round(sw.Elapsed.TotalMilliseconds, 1)));
+            }
+            catch (Exception ex)
+            {
+                L.Warn("index.trim.failed", "Compacting the heap after indexing failed", ex);
             }
         }
 

@@ -252,7 +252,7 @@ namespace UEToVS.UI.Controls
         public SegmentedControl(params string[] options)
         {
             Child = _panel;
-            Padding = new Thickness(2);
+            Padding = new Thickness(3);
             BorderThickness = new Thickness(1);
             HorizontalAlignment = HorizontalAlignment.Left;
             SnapsToDevicePixels = true;
@@ -396,10 +396,16 @@ namespace UEToVS.UI.Controls
         public event EventHandler Click;
     }
 
-    /// <summary>Numeric field with −/+ steppers; ↑/↓ step, Enter / focus loss commit.</summary>
-    public class NumberStepper : Grid
+    /// <summary>
+    /// Numeric field (warm-scheme mockup): one rounded box holding the number, an optional unit ("%", "px") and a narrow
+    /// column of ▲/▼ steppers separated by a hairline. ↑/↓ step, Enter / focus loss commit, mouse wheel steps while
+    /// focused. The box never gets narrower than <see cref="MinBoxWidth"/>, so values are never clipped.
+    /// </summary>
+    public class NumberStepper : Border
     {
-        private readonly TextInput _box = new TextInput { Width = 56, HorizontalContentAlignment = HorizontalAlignment.Right };
+        public const double MinBoxWidth = 96, StepperColumnWidth = 22;
+        private readonly TextInput _box = new TextInput { Style = Styles.BareTextInput, MinWidth = 28, VerticalAlignment = VerticalAlignment.Center };
+        private readonly UiText _unit = new UiText((string)null, TextVariant.Description) { Margin = new Thickness(2, 0, 6, 0), Visibility = Visibility.Collapsed };
         private double _value;
 
         public NumberStepper(double min, double max, double step, double value, string format = "0")
@@ -408,30 +414,98 @@ namespace UEToVS.UI.Controls
             Maximum = max;
             Step = step;
             Format = format;
-            ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            var minus = new IconButton(Ui.FrozenGeometry("M 0,4 L 8,4"), "−") { Margin = new Thickness(4, 0, 0, 0) };
-            var plus = new IconButton(Ui.FrozenGeometry("M 0,4 L 8,4 M 4,0 L 4,8"), "+");
-            minus.Focusable = false;
-            plus.Focusable = false;
-            SetColumn(_box, 0);
-            SetColumn(minus, 1);
-            SetColumn(plus, 2);
-            Children.Add(_box);
-            Children.Add(minus);
-            Children.Add(plus);
-            minus.Click += (s, e) => Ui.Safe("ui.stepper.minus", () => Value = _value - Step);
-            plus.Click += (s, e) => Ui.Safe("ui.stepper.plus", () => Value = _value + Step);
+            BorderThickness = new Thickness(1);
+            SnapsToDevicePixels = true;
+            MinWidth = MinBoxWidth;
+            HorizontalAlignment = HorizontalAlignment.Left;
+            this.Bind(BackgroundProperty, Tokens.InputBackground);
+            this.Bind(BorderBrushProperty, Tokens.InputBorder);
+            this.Bind(CornerRadiusProperty, Tokens.CornerRadiusControl);
+            this.Bind(HeightProperty, Tokens.ControlHeight);
+            _box.Padding = new Thickness(8, 0, 0, 0);
+
+            var up = StepButton(Ui.FrozenGeometry("M 0,4 L 3.5,0.5 L 7,4"), "+", false);
+            var down = StepButton(Ui.FrozenGeometry("M 0,0.5 L 3.5,4 L 7,0.5"), "−", true);
+            var column = new Grid { Width = StepperColumnWidth };
+            column.RowDefinitions.Add(new RowDefinition());
+            column.RowDefinitions.Add(new RowDefinition());
+            Grid.SetRow(down, 1);
+            column.Children.Add(up);
+            column.Children.Add(down);
+            var columnHost = new Border { Child = column, BorderThickness = new Thickness(1, 0, 0, 0) };
+            columnHost.Bind(Border.BorderBrushProperty, Tokens.Divider);
+
+            var grid = new Grid { ClipToBounds = true };
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            Grid.SetColumn(_unit, 1);
+            Grid.SetColumn(columnHost, 2);
+            grid.Children.Add(_box);
+            grid.Children.Add(_unit);
+            grid.Children.Add(columnHost);
+            Child = grid;
+
+            up.Click += (s, e) => Ui.Safe("ui.stepper.plus", () => { Commit(); Value = _value + Step; });
+            down.Click += (s, e) => Ui.Safe("ui.stepper.minus", () => { Commit(); Value = _value - Step; });
             _box.PreviewKeyDown += (s, e) => Ui.Safe("ui.stepper.key", () =>
             {
                 if (e.Key == Key.Up) { Commit(); Value = _value + Step; e.Handled = true; }
                 else if (e.Key == Key.Down) { Commit(); Value = _value - Step; e.Handled = true; }
                 else if (e.Key == Key.Enter) { Commit(); e.Handled = true; }
             });
+            _box.PreviewMouseWheel += (s, e) => Ui.Safe("ui.stepper.wheel", () =>
+            {
+                if (!_box.IsKeyboardFocusWithin) return;
+                Commit();
+                Value = _value + (e.Delta > 0 ? Step : -Step);
+                e.Handled = true;
+            });
             _box.LostKeyboardFocus += (s, e) => Ui.Safe("ui.stepper.blur", Commit);
+            MouseLeftButtonDown += (s, e) => Ui.Safe("ui.stepper.click", () => { if (!_box.IsKeyboardFocusWithin) FocusInput(); });
+            IsKeyboardFocusWithinChanged += (s, e) => Ui.Safe("ui.stepper.focus", UpdateChrome);
+            MouseEnter += (s, e) => Ui.Safe("ui.stepper.hover", UpdateChrome);
+            MouseLeave += (s, e) => Ui.Safe("ui.stepper.hover", UpdateChrome);
+            IsEnabledChanged += (s, e) => Opacity = IsEnabled ? 1 : 0.5;
             _value = double.NaN;
             Value = value;
+        }
+
+        /// <summary>Unit shown after the number ("%", "px", "ms"); null hides it.</summary>
+        public string Unit
+        {
+            get => _unit.Text;
+            set
+            {
+                _unit.Text = value ?? string.Empty;
+                _unit.Visibility = string.IsNullOrEmpty(value) ? Visibility.Collapsed : Visibility.Visible;
+            }
+        }
+
+        private static ButtonBase StepButton(Geometry chevron, string name, bool bottom)
+        {
+            var path = new System.Windows.Shapes.Path
+            {
+                Data = chevron, StrokeThickness = 1.3, Width = 7, Height = 4.5, Stretch = Stretch.Fill,
+                StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round, StrokeLineJoin = PenLineJoin.Round,
+                HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
+            };
+            path.Bind(System.Windows.Shapes.Shape.StrokeProperty, Tokens.TextSecondary);
+            var b = new RepeatButton
+            {
+                Content = path, Focusable = false, Delay = 400, Interval = 60, Padding = new Thickness(0), MinHeight = 0,
+                BorderThickness = new Thickness(0, bottom ? 1 : 0, 0, 0), Style = Styles.Button(ButtonKind.Ghost),
+            };
+            b.Bind(Control.BorderBrushProperty, Tokens.Divider);
+            AutomationProperties.SetName(b, name);
+            return b;
+        }
+
+        private void UpdateChrome()
+        {
+            if (_box.IsKeyboardFocusWithin) this.Bind(BorderBrushProperty, Tokens.Accent);
+            else if (IsMouseOver) this.Bind(BorderBrushProperty, Tokens.BorderStrong);
+            else this.Bind(BorderBrushProperty, Tokens.InputBorder);
         }
 
         public double Minimum { get; set; }

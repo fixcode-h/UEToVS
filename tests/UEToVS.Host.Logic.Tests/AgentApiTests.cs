@@ -40,6 +40,37 @@ namespace UEToVS.Host.Logic.Tests
         }
 
         [Fact]
+        public void DefaultPortIsOllamasAndOldDefaultMigrates()
+        {
+            Assert.Equal(11434, new AgentApiConfig().GatewayPort);
+            Assert.Equal(11434, AgentApiConfig.Parse(@"{ ""GatewayPort"": 47811, ""Apis"": [] }").GatewayPort); // pre-v0.4.5 default
+            Assert.Equal(47811, AgentApiConfig.Parse(@"{ ""Format"": 2, ""GatewayPort"": 47811, ""Apis"": [] }").GatewayPort); // chosen by the user
+            Assert.Equal(50000, AgentApiConfig.Parse(@"{ ""GatewayPort"": 50000 }").GatewayPort);
+        }
+
+        [Fact]
+        public void DefaultContextIsOneMillionAndOldDefaultMigrates()
+        {
+            Assert.Equal(1000000, new AgentModel().ContextTokens);
+            var old = AgentApiConfig.Parse(@"{ ""Apis"": [ { ""Name"": ""a"", ""Models"": [ { ""Id"": ""m1"", ""ContextTokens"": 128000 }, { ""Id"": ""m2"", ""ContextTokens"": 64000 } ] } ] }");
+            Assert.Equal(1000000, old.Apis[0].Models[0].ContextTokens);
+            Assert.Equal(64000, old.Apis[0].Models[1].ContextTokens);
+            var chosen = AgentApiConfig.Parse(@"{ ""Format"": 2, ""Apis"": [ { ""Name"": ""a"", ""Models"": [ { ""Id"": ""m1"", ""ContextTokens"": 128000 } ] } ] }");
+            Assert.Equal(128000, chosen.Apis[0].Models[0].ContextTokens);
+        }
+
+        [Fact]
+        public void TakenDefaultPortFallsBackButAUserPortNeverMoves()
+        {
+            Assert.Equal(11434, AgentApiConfig.ChoosePort(11434, p => false, out bool f1));
+            Assert.False(f1);
+            Assert.Equal(47811, AgentApiConfig.ChoosePort(11434, p => p == 11434, out bool f2));
+            Assert.True(f2);
+            Assert.Equal(50000, AgentApiConfig.ChoosePort(50000, p => true, out bool f3));
+            Assert.False(f3);
+        }
+
+        [Fact]
         public void Routes_PrefixOnlyDuplicateIds_AndSkipDisabled()
         {
             var c = new AgentApiConfig();
