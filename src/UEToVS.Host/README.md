@@ -15,8 +15,7 @@
 | --- | --- | --- |
 | 查找操作… | `uetovs.findAction` | 命令面板（UI 组件库的 `CommandPalette`），列出当前可用的全部操作；可在 工具 > 选项 > 环境 > 键盘 中为 `UEToVS.FindAction` 绑定快捷键 |
 | 重启引擎 | `uetovs.engine.restart` | 手动重启，同时重置自动重启次数 |
-| 接管 VS C++ IntelliSense | `uetovs.intellisense.takeOver` | 立即执行接管（会先备份） |
-| 恢复 VS 自带 C++ IntelliSense | `uetovs.intellisense.restore` | 按备份逐项还原 |
+| 接管 VS C++ IntelliSense / 恢复 VS 自带 C++ IntelliSense | `uetovs.intellisense.takeOver` / `uetovs.intellisense.restore` | 菜单里只有一项，按当前状态切换：还没接管（没有备份）时显示“接管”，立即执行接管（会先备份）；已接管（存在备份）时显示“恢复”，按备份逐项还原。Find Action 里两个操作都在 |
 | 打开日志文件夹 / 打开当前日志 | `uetovs.diagnostics.openLogFolder` / `openCurrentLog` | |
 | 生成诊断包 | `uetovs.diagnostics.createPackage` | zip：日志、脱敏设置、索引 manifest、环境/引擎/IntelliSense/性能快照 |
 | 性能面板 | `uetovs.diagnostics.performancePanel` | 工具窗口“UEToVS 性能”，仅可见时每秒采样 |

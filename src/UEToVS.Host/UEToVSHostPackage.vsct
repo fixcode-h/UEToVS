@@ -64,22 +64,14 @@
         </Strings>
       </Button>
 
-      <Button guid="guidUEToVSHostCmdSet" id="cmdTakeOverIntelliSense" priority="0x0100" type="Button">
+      <!-- One toggle item: text and action switch between take over / restore in BeforeQueryStatus (CommandRouter). -->
+      <Button guid="guidUEToVSHostCmdSet" id="cmdToggleIntelliSense" priority="0x0100" type="Button">
         <Parent guid="guidUEToVSHostCmdSet" id="grpIntelliSense" />
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
           <ButtonText>Take Over C++ IntelliSense</ButtonText>
-          <CanonicalName>UEToVS.TakeOverIntelliSense</CanonicalName>
-          <LocCanonicalName>UEToVS.TakeOverIntelliSense</LocCanonicalName>
-        </Strings>
-      </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdRestoreIntelliSense" priority="0x0101" type="Button">
-        <Parent guid="guidUEToVSHostCmdSet" id="grpIntelliSense" />
-        <CommandFlag>TextChanges</CommandFlag>
-        <Strings>
-          <ButtonText>Restore Visual Studio C++ IntelliSense</ButtonText>
-          <CanonicalName>UEToVS.RestoreIntelliSense</CanonicalName>
-          <LocCanonicalName>UEToVS.RestoreIntelliSense</LocCanonicalName>
+          <CanonicalName>UEToVS.ToggleIntelliSense</CanonicalName>
+          <LocCanonicalName>UEToVS.ToggleIntelliSense</LocCanonicalName>
         </Strings>
       </Button>
 
@@ -160,8 +152,7 @@
       <IDSymbol name="cmdCreateDiagnostics" value="0x0102" />
       <IDSymbol name="cmdShowPerformancePanel" value="0x0104" />
       <IDSymbol name="cmdRestartEngine" value="0x0110" />
-      <IDSymbol name="cmdTakeOverIntelliSense" value="0x0120" />
-      <IDSymbol name="cmdRestoreIntelliSense" value="0x0121" />
+      <IDSymbol name="cmdToggleIntelliSense" value="0x0120" />
       <IDSymbol name="cmdShowComponentGallery" value="0x0130" />
       <IDSymbol name="cmdSettings" value="0x0140" />
       <IDSymbol name="cmdFindAction" value="0x0150" />
