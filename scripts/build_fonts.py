@@ -15,7 +15,9 @@ Sources (npm registry tarballs, pinned by version and verified against the regis
                   download MapleMonoNL-TTF.zip from https://github.com/subframe7536/maple-font/releases and pass
                   --maple-nl-zip <path>; its MapleMonoNL-Regular.ttf / MapleMonoNL-Bold.ttf are then copied untouched.
 
-Needs: pip install fonttools brotli.  Usage: python3 scripts/build_fonts.py [--maple-nl-zip MapleMonoNL-TTF.zip]
+Needs: pip install fonttools brotli.
+Usage: python3 scripts/build_fonts.py --maple-cn-zip MapleMono-NF-CN-unhinted.zip   (what v0.4.5 ships)
+       python3 scripts/build_fonts.py [--maple-nl-zip MapleMonoNL-TTF.zip]          (Latin-only Maple Mono NL)
 """
 import argparse
 import base64
@@ -161,6 +163,43 @@ def build_maple(pkg, official_zip):
     shutil.copyfile(os.path.join(pkg, "LICENSE"), os.path.join(out, "OFL.txt"))
 
 
+def build_maple_cn(pkg_license_dir, cn_zip):
+    """Maple Mono NL from the official "Maple Mono NF CN" release (code font with matching 2:1 CJK glyphs).
+
+    Regular + Bold, subset to ASCII / Latin / punctuation / box drawing + GB2312 + CJK and full-width punctuation
+    (the Nerd Font icons and rare CJK are dropped), ligature features removed, family named "Maple Mono NL".
+    Maple Mono's OFL declares no Reserved Font Name, so a modified build may keep the name.
+    """
+    out = os.path.join(OUT, "MapleMonoNL")
+    reset_dir(out)
+    unicodes = sorted(set(cjk_unicodes()) | set(range(0x100, 0x180)) | set(range(0x2200, 0x22FF)) | set(range(0x2300, 0x23FF)))
+    with zipfile.ZipFile(cn_zip) as z:
+        for style in ("Regular", "Bold"):
+            member = next(n for n in z.namelist() if n.endswith(f"-CN-{style}.ttf"))
+            font = TTFont(io.BytesIO(z.read(member)))
+            features = sorted({r.FeatureTag for r in font["GSUB"].table.FeatureList.FeatureRecord} - NO_LIGATURES)
+            opts = subset.Options()
+            opts.layout_features = features
+            opts.name_IDs = ["*"]
+            opts.name_languages = ["*"]
+            opts.notdef_outline = True
+            opts.hinting = False
+            s = subset.Subsetter(opts)
+            s.populate(unicodes=unicodes)
+            s.subset(font)
+            rename_family(font, "Maple Mono NL", style)
+            font["OS/2"].fsSelection = (font["OS/2"].fsSelection & ~0b1100001) | (0b100000 if style == "Bold" else 0b1000000)
+            font["head"].macStyle = 1 if style == "Bold" else 0
+            save_ttf(font, os.path.join(out, f"MapleMonoNL-{style}.ttf"))
+            print(f"  from {member}")
+        lic = next((n for n in z.namelist() if n.lower().endswith("license.txt")), None)
+        if lic:
+            with open(os.path.join(out, "OFL.txt"), "wb") as f:
+                f.write(z.read(lic))
+        else:
+            shutil.copyfile(os.path.join(pkg_license_dir, "LICENSE"), os.path.join(out, "OFL.txt"))
+
+
 def verify():
     for family, files in (("IBMPlexSans", None), ("NotoSansSC", None), ("MapleMonoNL", None)):
         folder = os.path.join(OUT, family)
@@ -180,12 +219,16 @@ def verify():
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--maple-nl-zip", help="official MapleMonoNL-TTF.zip (used untouched instead of deriving NL)")
+    ap.add_argument("--maple-cn-zip", help="official MapleMono-NF-CN-unhinted.zip: code font with CJK (preferred; used for v0.4.5)")
     args = ap.parse_args()
     work = tempfile.mkdtemp(prefix="uetovs-fonts-")
     try:
         build_plex(fetch_package(*PLEX, work))
         build_noto(fetch_package(*NOTO, work))
-        build_maple(fetch_package(*MAPLE, work), args.maple_nl_zip)
+        if args.maple_cn_zip:
+            build_maple_cn(fetch_package(*MAPLE, work), args.maple_cn_zip)
+        else:
+            build_maple(fetch_package(*MAPLE, work), args.maple_nl_zip)
         verify()
     finally:
         shutil.rmtree(work, ignore_errors=True)
