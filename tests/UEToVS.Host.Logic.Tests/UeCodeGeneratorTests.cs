@@ -5,7 +5,8 @@ namespace UEToVS.Host.Logic.Tests
 {
     public sealed class UeCodeGeneratorTests
     {
-        private const string Header = @"#pragma once
+        // Normalized: a Windows checkout (core.autocrlf) turns this verbatim string into CRLF.
+        private static readonly string Header = (@"#pragma once
 #include ""Weapon.generated.h""
 
 // class ANotThis { };
@@ -29,7 +30,7 @@ public:
 	UPROPERTY(Replicated)
 	uint8 bFlag : 1;
 };
-";
+").Replace("\r\n", "\n");
 
         private static int Caret(string marker) => Header.IndexOf(marker, System.StringComparison.Ordinal);
 
