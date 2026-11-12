@@ -31,7 +31,8 @@ namespace UEToVS.Mcp.Server
             "prebuilt index in milliseconds and return exact file:line locations. search_symbols (fuzzy/exact, kinds, UE markers) → " +
             "go_to_definition / get_file_outline / get_members / get_type_hierarchy / find_references for details; search_files for file names; " +
             "search_assets for Blueprints, maps, materials. Lines and columns are 1-based. Lists are paged (limit/offset, hasMore/nextOffset); " +
-            "scope='all' includes engine code. Read the source with your file tools around the returned line when you need the body.";
+            "scope='all' includes engine code. Read the source with your file tools around the returned line when you need the body. " +
+            "Keep using grep for string literals, comments and config (.ini) contents: those are not indexed.";
 
         public static McpServerOptions CreateOptions(ToolInvoker invoker)
         {
