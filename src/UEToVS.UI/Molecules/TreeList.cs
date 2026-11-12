@@ -27,6 +27,15 @@ namespace UEToVS.UI.Molecules
 
         public event EventHandler<ListInvokeEventArgs<T>> ItemInvoked;
 
+        /// <summary>A node was expanded or collapsed by the user (→ / ← / chevron / Enter); lazy trees load its children here.</summary>
+        public event EventHandler<TreeNode<T>> NodeToggled;
+
+        /// <summary>
+        /// Enter / double-click on a node with children raises <see cref="ItemInvoked"/> (jump) instead of toggling it;
+        /// → / ← and the chevron still expand / collapse. For trees whose inner nodes are targets too (call hierarchy).
+        /// </summary>
+        public bool InvokeExpandableItems { get; set; }
+
         public IReadOnlyList<TreeNode<T>> Roots => _roots;
 
         public void SetRoots(IReadOnlyList<TreeNode<T>> roots)
@@ -63,6 +72,21 @@ namespace UEToVS.UI.Molecules
             _flat.SetExpanded(rowIndex, !node.IsExpanded);
             UpdateCount(_flat.Rows.Count);
             SelectedIndex = rowIndex;
+            NodeToggled?.Invoke(this, node);
+        }
+
+        /// <summary>Selects (and scrolls to) the first visible row whose item matches; false when none does.</summary>
+        public bool SelectItem(Func<T, bool> match)
+        {
+            if (match == null) return false;
+            for (int i = 0; i < _flat.Rows.Count; i++)
+                if (match(_flat.Rows[i].Node.Item))
+                {
+                    SelectedIndex = i;
+                    ScrollIntoView(i);
+                    return true;
+                }
+            return false;
         }
 
         protected override FrameworkElement CreateRow() => new ListRow();
@@ -94,7 +118,7 @@ namespace UEToVS.UI.Molecules
         protected override void OnInvoke(int index, InvokeKind kind)
         {
             var node = _flat.Rows[index].Node;
-            if (node.HasChildren && kind == InvokeKind.Open)
+            if (node.HasChildren && kind == InvokeKind.Open && !InvokeExpandableItems)
             {
                 Toggle(index);
                 return;

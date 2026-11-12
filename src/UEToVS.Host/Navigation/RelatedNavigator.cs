@@ -202,7 +202,8 @@ namespace UEToVS.Host.Navigation
             Vs(FeatureStrings.NavDefinition, "Edit.GoToDefinition");
             Vs(FeatureStrings.NavBase, "Edit.GoToBase");
             Vs(FeatureStrings.NavUsages, "Edit.FindAllReferences");
-            Vs(FeatureStrings.NavCallHierarchy, "EditorContextMenus.CodeWindow.ViewCallHierarchy");
+            // ---- v0.4.5 navigation gaps: VS's View Call Hierarchy needs VS's C++ IntelliSense (off after the takeover)
+            Own(FeatureStrings.NavCallHierarchy, Logic.Commands.CommandCatalog.ActionIds.CallHierarchy);
             Own(FeatureStrings.NavRelated, M1ActionIds.GoToRelated);
             Own(FeatureStrings.CmdToggleHeaderSource, M1ActionIds.ToggleHeaderSource);
             Own(FeatureStrings.CmdFileStructure, M1ActionIds.FileStructure);

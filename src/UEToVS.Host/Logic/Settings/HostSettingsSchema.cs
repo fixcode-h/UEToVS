@@ -129,6 +129,11 @@ namespace UEToVS.Host.Logic.Settings
                 "false", gCpp, gCppEn));
             list.Add(A(General, "vs.unrealIntegration", WindowActions.VsUnrealIntegration, "VS 自带的 Unreal Engine 集成", "VS's built-in Unreal Engine integration",
                 null, null, gCpp, gCppEn, SettingKind.Info));
+            // ---- v0.4.5 navigation gaps: what VS loses after the takeover and the UEToVS replacement (table drawn by the settings window)
+            list.Add(A(General, "intelliSense.featureMatrix", UEToVS.Host.Logic.IntelliSense.TakeoverFeatures.SettingsInfoId, "接管后 VS 自带功能", "VS features after the takeover",
+                "接管后 VS 的 C++ IntelliSense 和浏览数据库关闭，依赖它们的 VS 功能会失效；下表列出 UEToVS 的替代命令和默认快捷键。",
+                "With VS's C++ IntelliSense and browse database off, the VS features built on them stop working; the table lists the UEToVS replacements and their default keys.",
+                gCpp, gCppEn, SettingKind.Info));
 
             list.Add(A(General, "update.check", WindowActions.CheckForUpdates, "检查更新", "Check for updates",
                 "查询 GitHub 上的最新版本；有新版本时下载安装包并启动 VS 的扩展安装程序，关闭 VS 后完成安装。",

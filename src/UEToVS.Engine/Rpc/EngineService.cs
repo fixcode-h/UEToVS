@@ -283,6 +283,17 @@ namespace UEToVS.Engine.Rpc
                     : _host.Scheduler.RunAsync(WorkPriority.Interactive, "rpc.getOverridableMethods", t => _host.Refactoring.GetOverridableMethods(request, t), c),
                 ct, ("type", request?.TypeName), ("file", request?.Caret?.FilePath), ("line", request?.Caret?.Line));
 
+        // ---- v0.4.5 navigation gaps: call hierarchy (one level per call, Visible lane, cancellable like references)
+
+        public Task<CallHierarchyResponse> GetCallHierarchyAsync(CallHierarchyRequest request, CancellationToken ct) =>
+            InvokeAsync("rpc.getCallHierarchy", c =>
+            {
+                if (request == null || (request.Caret == null && request.Function == null))
+                    throw Error(RpcErrorCodes.InvalidArgument, "GetCallHierarchy needs a caret or a function");
+                return _host.Scheduler.RunAsync(WorkPriority.Visible, "rpc.getCallHierarchy", t => _host.Navigation.GetCallHierarchy(request, t), c);
+            }, ct, ("direction", request?.Direction.ToString()), ("file", request?.Caret?.FilePath), ("line", request?.Caret?.Line),
+                ("function", request?.Function?.Name), ("nonProject", request?.IncludeNonProject));
+
         private static LocalRpcException Error(int code, string message) => new LocalRpcException(message) { ErrorCode = code };
 
         private static bool SamePath(string a, string b)

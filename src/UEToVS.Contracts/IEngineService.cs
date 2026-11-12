@@ -92,6 +92,11 @@ namespace UEToVS.Contracts
 
         /// <summary>Virtual functions of a class's bases (engine classes included) that it does not override yet.</summary>
         Task<OverridableMethodsResponse> GetOverridableMethodsAsync(OverridableMethodsRequest request, CancellationToken ct);
+
+        // ---- v0.4.5 navigation gaps (see CallHierarchy.cs)
+
+        /// <summary>One level of the call hierarchy: direct callers (delegate bindings included) or direct callees of a function.</summary>
+        Task<CallHierarchyResponse> GetCallHierarchyAsync(CallHierarchyRequest request, CancellationToken ct);
     }
 
     /// <summary>Notifications engine → host.</summary>

@@ -264,7 +264,22 @@ namespace UEToVS.Host.Logic.IntelliSense
         /// <summary>Low-confidence note or null.</summary>
         public string ConfidenceNote { get; set; }
 
-        public bool IsEmpty => Declaration.Count == 0 && Documentation == null && MacroExpansion == null && Reflection == null;
+        // ---- v0.4.5 navigation gaps: GENERATED_BODY() → the UHT output of that line (from the .generated.h)
+        /// <summary>The generated code (capped), or null.</summary>
+        public string GeneratedCode { get; set; }
+
+        /// <summary>File name of the .generated.h it came from.</summary>
+        public string GeneratedCodeFile { get; set; }
+
+        public int GeneratedCodeLines { get; set; }
+
+        /// <summary>"Build once" / "stale" hint when there is no generated code to show, or null.</summary>
+        public string GeneratedNote { get; set; }
+
+        public const int MaxGeneratedLines = 400;
+
+        public bool IsEmpty => Declaration.Count == 0 && Documentation == null && MacroExpansion == null && Reflection == null &&
+                               GeneratedCode == null && GeneratedNote == null;
 
         public static QuickInfoModel Build(QuickInfoResponse r)
         {
@@ -313,8 +328,30 @@ namespace UEToVS.Host.Logic.IntelliSense
                 m.MacroExpansionLines = total;
                 m.MacroExpansionTruncated = truncated;
             }
+            ApplyGeneratedCode(m, r);
             if (r.Confidence == ResolutionConfidence.NameOnly) m.ConfidenceNote = IntelliSenseStrings.HeuristicNote;
             return m;
+        }
+
+        private static void ApplyGeneratedCode(QuickInfoModel m, QuickInfoResponse r)
+        {
+            switch (r.GeneratedCodeState)
+            {
+                case GeneratedCodeState.Available when !string.IsNullOrWhiteSpace(r.GeneratedCode):
+                    var lines = r.GeneratedCode.Replace("\r\n", "\n").TrimEnd().Split('\n');
+                    m.GeneratedCodeLines = Math.Min(lines.Length, MaxGeneratedLines);
+                    m.GeneratedCode = string.Join("\n", lines.Take(MaxGeneratedLines));
+                    string path = r.GeneratedCodeFile ?? string.Empty;
+                    m.GeneratedCodeFile = path.Substring(Math.Max(path.LastIndexOf('\\'), path.LastIndexOf('/')) + 1);
+                    break;
+                case GeneratedCodeState.NotBuilt:
+                    m.GeneratedNote = NavGapStrings.GeneratedCodeNotBuilt;
+                    break;
+                case GeneratedCodeState.Stale:
+                case GeneratedCodeState.Available:
+                    m.GeneratedNote = NavGapStrings.GeneratedCodeStale;
+                    break;
+            }
         }
 
         private static string Cap(string s) => s == null || s.Length <= MaxMacroChars * 2 ? s : s.Substring(0, MaxMacroChars * 2);

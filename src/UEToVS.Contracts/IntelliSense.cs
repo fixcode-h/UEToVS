@@ -132,6 +132,16 @@ namespace UEToVS.Contracts
         /// <summary>Other overloads / declarations (count shown as "+N overloads").</summary>
         public int OverloadCount { get; set; }
 
+        // ---- v0.4.5 GENERATED_BODY() preview
+        /// <summary>GENERATED_BODY() / GENERATED_UCLASS_BODY(): whether UHT output was found (None for other identifiers).</summary>
+        public GeneratedCodeState GeneratedCodeState { get; set; }
+
+        /// <summary>The UHT-generated code of that line, sub-macros expanded and one statement per line (capped).</summary>
+        public string GeneratedCode { get; set; }
+
+        /// <summary>The .generated.h the code was read from (or would be read from).</summary>
+        public string GeneratedCodeFile { get; set; }
+
         public ResolutionConfidence Confidence { get; set; }
         public double ElapsedMs { get; set; }
     }

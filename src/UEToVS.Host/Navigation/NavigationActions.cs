@@ -16,6 +16,8 @@ namespace UEToVS.Host.Navigation
         public const int TypeHierarchy = 0x0203;
         public const int ListMembersInFile = 0x0204;
         public const int ListTypeMembers = 0x0205;
+        // ---- v0.4.5 navigation gaps (0x0210–0x022F)
+        public const int CallHierarchy = 0x0210;
     }
 
     /// <summary>Stable action ids of the navigation features (§7.4).</summary>
@@ -27,6 +29,10 @@ namespace UEToVS.Host.Navigation
         public const string TypeHierarchy = "uetovs.navigation.typeHierarchy";
         public const string ListMembersInFile = "uetovs.navigation.listMembersInFile";
         public const string ListTypeMembers = "uetovs.navigation.listTypeMembers";
+        // ---- v0.4.5 navigation gaps
+        public const string CallHierarchy = "uetovs.navigation.callHierarchy";
+        /// <summary>Find Action only (no VSCT command): Alt+F12 stays VS's Edit.PeekDefinition, which PeekDefinitionCommandFilter serves after the takeover.</summary>
+        public const string PeekDefinition = "uetovs.navigation.peekDefinition";
     }
 
     /// <summary>
@@ -47,6 +53,8 @@ namespace UEToVS.Host.Navigation
             (NavigationCommandIds.TypeHierarchy, NavigationActionIds.TypeHierarchy, () => NavStrings.CmdTypeHierarchy),
             (NavigationCommandIds.ListMembersInFile, NavigationActionIds.ListMembersInFile, () => NavStrings.CmdListMembersInFile),
             (NavigationCommandIds.ListTypeMembers, NavigationActionIds.ListTypeMembers, () => NavStrings.CmdListTypeMembers),
+            // ---- v0.4.5 navigation gaps
+            (NavigationCommandIds.CallHierarchy, NavigationActionIds.CallHierarchy, () => NavGapStrings.CmdCallHierarchy),
         };
 
         public static void Register(ActionRegistry registry)
@@ -68,6 +76,11 @@ namespace UEToVS.Host.Navigation
                 ctx => MemberListFeature.ListMembersInFileAsync(Src(ctx)), Available, EditorFirst, NavStrings.KwMembers));
             registry.Register(new DelegateAction(NavigationActionIds.ListTypeMembers, NavStrings.CmdListTypeMembers, ActionCategory.Navigation,
                 ctx => MemberListFeature.ListTypeMembersAsync(Src(ctx)), Available, EditorFirst, NavStrings.KwMembers));
+            // ---- v0.4.5 navigation gaps
+            registry.Register(new DelegateAction(NavigationActionIds.CallHierarchy, NavGapStrings.CmdCallHierarchy, ActionCategory.Navigation,
+                ctx => CallHierarchyFeature.ExecuteAsync(Src(ctx)), Available, EditorFirst, NavGapStrings.KwCallHierarchy));
+            registry.Register(new DelegateAction(NavigationActionIds.PeekDefinition, NavGapStrings.CmdPeekDefinition, ActionCategory.Navigation,
+                ctx => PeekDefinitionFeature.ExecuteAsync(Src(ctx)), Available, EditorFirst, NavGapStrings.KwPeekDefinition));
             L.Info("nav.actions.registered", null, ("count", Map.Count));
         }
     }

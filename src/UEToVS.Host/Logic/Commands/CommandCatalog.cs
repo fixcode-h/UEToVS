@@ -111,6 +111,8 @@ namespace UEToVS.Host.Logic.Commands
         public const int TypeHierarchy = 0x0203;
         public const int ListMembersInFile = 0x0204;
         public const int ListTypeMembers = 0x0205;
+        // ---- v0.4.5 navigation gaps (0x0210–0x022F): Navigation/CallHierarchyFeature.cs
+        public const int CallHierarchy = 0x0210;
 
         // ---- M1 features (0x0300–0x03FF): Features/M1Feature.cs
         public const int SearchEverywhere = 0x0300;
@@ -160,6 +162,9 @@ namespace UEToVS.Host.Logic.Commands
             public const string TypeHierarchy = "uetovs.navigation.typeHierarchy";
             public const string ListMembersInFile = "uetovs.navigation.listMembersInFile";
             public const string ListTypeMembers = "uetovs.navigation.listTypeMembers";
+            // ---- v0.4.5 navigation gaps
+            public const string CallHierarchy = "uetovs.navigation.callHierarchy";
+            public const string PeekDefinition = "uetovs.navigation.peekDefinition";
             public const string SearchEverywhere = "uetovs.search.everywhere";
             public const string GoToType = "uetovs.search.type";
             public const string GoToSymbol = "uetovs.search.symbol";
@@ -215,6 +220,8 @@ namespace UEToVS.Host.Logic.Commands
             C(M2, TypeHierarchy, "TypeHierarchy", ActionIds.TypeHierarchy, "类型层次", "Type Hierarchy", "navigation", Ed, "Shift+Alt+H", "Ctrl+H", null),
             C(M2, ListMembersInFile, "ListMembersInFile", ActionIds.ListMembersInFile, "文件成员", "List Members in File", "navigation", Ed, "Alt+M", null, null),
             C(M2, ListTypeMembers, "ListTypeMembers", ActionIds.ListTypeMembers, "类型成员（含继承）", "Type Members (with Inherited)", "navigation", Ed, "Shift+Alt+M", null, null),
+            // ---- v0.4.5 navigation gaps: call hierarchy (VS: View Call Hierarchy = Ctrl+K, Ctrl+T)
+            C(M2, CallHierarchy, "CallHierarchy", ActionIds.CallHierarchy, "调用层次", "Call Hierarchy", "navigation", Ed, "Ctrl+Shift+Alt+U, H", "Ctrl+Alt+H", "Ctrl+K, Ctrl+T"),
             // navigation history (M1, global)
             C(M1, NavigateBack, "NavigateBack", ActionIds.NavigateBack, "后退", "Navigate Back", "navigation", Gl, "Alt+Left Arrow", "Ctrl+Alt+Left Arrow", "Ctrl+-"),
             C(M1, NavigateForward, "NavigateForward", ActionIds.NavigateForward, "前进", "Navigate Forward", "navigation", Gl, "Alt+Right Arrow", "Ctrl+Alt+Right Arrow", "Ctrl+Shift+-"),

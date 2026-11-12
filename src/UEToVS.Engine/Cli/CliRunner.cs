@@ -14,6 +14,7 @@ namespace UEToVS.Engine.Cli
     {
         public static async Task<int> RunAsync(EngineHost host, EngineOptions options)
         {
+            if (options.Bench) return await BenchRunner.RunAsync(host, options).ConfigureAwait(false);
             _ = host.StartIndexing();
             bool ready;
             try

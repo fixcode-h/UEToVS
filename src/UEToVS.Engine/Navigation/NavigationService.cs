@@ -17,7 +17,7 @@ namespace UEToVS.Engine.Navigation
     /// M2 core navigation over the index and editor buffers: go to definition / declaration / implementation, find
     /// references, type hierarchy, reference highlighting, navigation bar context and member lists. Thread-safe.
     /// </summary>
-    public sealed class NavigationService
+    public sealed partial class NavigationService
     {
         private static readonly Logger L = Log.For("Nav");
 
