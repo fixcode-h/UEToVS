@@ -125,12 +125,17 @@ namespace UEToVS.Host.Logic.Link
         public Task<EditorLinkReply> PingAsync(CancellationToken ct = default) =>
             SendAsync(LinkProtocol.Ping(), 1000, ct);
 
+        private string _lastCapabilities;
+
         /// <summary>What the running plugin supports (null when the editor is not reachable).</summary>
         public async Task<LinkCapabilities> GetCapabilitiesAsync(CancellationToken ct = default)
         {
             var r = await PingAsync(ct).ConfigureAwait(false);
             if (!r.Reached) return null;
             var caps = LinkProtocol.ParseCapabilities(r.Raw);
+            // Polled by the settings card: log only when something changed.
+            string key = caps.ToString() + "|" + caps.Project + "|" + caps.EngineVersion;
+            if (Interlocked.Exchange(ref _lastCapabilities, key) == key) return caps;
             L.Info("link.capabilities", null, ("protocol", caps.Protocol), ("plugin", caps.PluginVersion), ("features", string.Join(",", caps.Features)),
                 ("project", caps.Project), ("engine", caps.EngineVersion));
             return caps;

@@ -112,43 +112,11 @@ namespace UEToVS.Host.Unreal
         }
 
         /// <summary>Copies the bundled UEToVSLink plugin (&lt;extension&gt;/EditorPlugin/UEToVSLink) into &lt;Project&gt;/Plugins.</summary>
-        public static Task InstallEditorPluginAsync(HostPackage package)
+        public static async Task InstallEditorPluginAsync(HostPackage package)
         {
-            string projectRoot = EditorLinkService.Instance?.ProjectRoot;
-            if (projectRoot == null)
-            {
-                VsStatusBar.SetText(FeatureStrings.NoUProject);
-                return Task.CompletedTask;
-            }
-            string source = Path.Combine(HostPackage.ExtensionDirectory, "EditorPlugin", "UEToVSLink");
-            string target = Path.Combine(projectRoot, "Plugins", "UEToVSLink");
-            if (!Directory.Exists(source))
-            {
-                L.Error("link.plugin.sourceMissing", "Plugin source missing in the extension", null, ("source", source));
-                VsStatusBar.SetText(FeatureStrings.PluginSourceMissing(source));
-                return Task.CompletedTask;
-            }
-            return Task.Run(() =>
-            {
-                try
-                {
-                    int n = 0;
-                    foreach (var file in Directory.GetFiles(source, "*", SearchOption.AllDirectories))
-                    {
-                        string dest = Path.Combine(target, file.Substring(source.Length).TrimStart('\\', '/'));
-                        Directory.CreateDirectory(Path.GetDirectoryName(dest));
-                        File.Copy(file, dest, true);
-                        n++;
-                    }
-                    L.Info("link.plugin.installed", null, ("target", target), ("files", n));
-                    VsStatusBar.SetText(FeatureStrings.PluginInstalled);
-                }
-                catch (Exception ex)
-                {
-                    L.Error("link.plugin.install.failed", "Installing UEToVSLink failed", ex, ("target", target));
-                    VsStatusBar.SetText(FeatureStrings.PluginInstallFailed);
-                }
-            });
+            // v0.4.5: same code path as the settings card (update in place, lock check, link.plugin.install log).
+            string text = await Link.LinkPluginManager.InstallAsync(package, "command");
+            if (text != null) VsStatusBar.SetText(text);
         }
     }
 }

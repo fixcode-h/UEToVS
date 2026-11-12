@@ -920,7 +920,7 @@
     <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdInstallEditorPlugin" editor="guidVSStd97" key1="U" mod1="Control Shift Alt" key2="E" />
     <!-- v0.4.5 UE editor link -->
     <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdUeLogWindow" editor="guidVSStd97" key1="U" mod1="Control Shift Alt" key2="J" />
-    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdUeTestRunner" editor="guidVSStd97" key1="U" mod1="Control Shift Alt" key2="T" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdUeTestRunner" editor="guidVSStd97" key1="U" mod1="Control Shift Alt" key2="Z" />
     <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdShowPerformancePanel" editor="guidVSStd97" key1="U" mod1="Control Shift Alt" key2="P" />
     <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdSettings" editor="guidVSStd97" key1="U" mod1="Control Shift Alt" key2="S" />
     <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdRestartEngine" editor="guidVSStd97" key1="U" mod1="Control Shift Alt" key2="R" />

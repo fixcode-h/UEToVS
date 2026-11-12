@@ -89,6 +89,7 @@ namespace UEToVS.Host.Link
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
             VsEditor.TryExecute("File.SaveAll");
             VsStatusBar.SetText(FeatureStrings.LiveCodingRequesting);
+            LinkFeature.OnLiveCodingRequested(); // v0.4.5: collect the compile output for error mapping
             var r = await Client.LiveCodingAsync().ConfigureAwait(false);
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
             if (r.Ok) VsStatusBar.SetText(FeatureStrings.LiveCodingStarted(r.Message));

@@ -650,7 +650,7 @@ Assert.Equal(19, view.Count); // 99, 199 … 999 and 990 … 998
                 Assert.Equal(CommandOwner.Features, c.Owner);
             }
             Assert.Equal("Ctrl+Shift+Alt+U, J", CommandCatalog.ById(CommandCatalog.UeLogWindow).VaKeys);
-            Assert.Equal("Ctrl+Shift+Alt+U, T", CommandCatalog.ById(CommandCatalog.UeTestRunner).VaKeys);
+            Assert.Equal("Ctrl+Shift+Alt+U, Z", CommandCatalog.ById(CommandCatalog.UeTestRunner).VaKeys);
         }
 
         [Fact]

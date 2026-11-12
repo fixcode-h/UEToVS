@@ -90,7 +90,7 @@ namespace UEToVS.Host.Navigation
             string word = VsEditor.WordAtCaret(view);
             List<SearchRow> rows;
             using (L.Time("related.collect", 300, ("file", Path.GetFileName(cur.FilePath))))
-                rows = await CollectAsync(package, cur.FilePath, word, package.DisposalToken);
+                rows = await CollectAsync(package, cur.FilePath, word, package.DisposalToken, VsEditor.CaretLineText(view));
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
             L.Info("related.items", null, ("word", word), ("count", rows.Count));
             if (rows.Count == 0)
@@ -106,10 +106,13 @@ namespace UEToVS.Host.Navigation
             await PickAndJumpAsync("uetovs.related", FeatureStrings.RelatedTitle, rows);
         }
 
-        private static async Task<List<SearchRow>> CollectAsync(HostPackage package, string file, string word, CancellationToken ct)
+        private static async Task<List<SearchRow>> CollectAsync(HostPackage package, string file, string word, CancellationToken ct, string lineText = null)
         {
             var rows = new List<SearchRow>();
             var engine = package.Engine;
+
+            // ---- v0.4.5 log category: declaration / definition / UE_LOG uses (Link/LogCategoryNavigator.cs)
+            rows.AddRange(await Link.LogCategoryNavigator.RelatedRowsAsync(package, file, word, lineText, ct).ConfigureAwait(false));
 
             // 1. UE function trios (Foo / Foo_Implementation / Foo_Validate) in the same class.
             if (engine?.IsConnected == true && !string.IsNullOrEmpty(word))

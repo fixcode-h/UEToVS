@@ -255,7 +255,7 @@ namespace UEToVS.Host.Logic.Commands
             C(M1, InstallEditorPlugin, "InstallEditorPlugin", ActionIds.InstallEditorPlugin, "安装 UEToVSLink 编辑器插件", "Install UEToVSLink Editor Plugin", "unreal", Gl, "Ctrl+Shift+Alt+U, E", null, null),
             // ---- v0.4.5 UE editor link (Link/LinkFeature.cs binds them)
             C(M1, UeLogWindow, "UeLogWindow", ActionIds.UeLogWindow, "UE 日志窗口", "Unreal Log Window", "unreal", Gl, "Ctrl+Shift+Alt+U, J", null, null),
-            C(M1, UeTestRunner, "UeTestRunner", ActionIds.UeTestRunner, "UE 自动化测试", "Unreal Automation Tests", "unreal", Gl, "Ctrl+Shift+Alt+U, T", null, null),
+            C(M1, UeTestRunner, "UeTestRunner", ActionIds.UeTestRunner, "UE 自动化测试", "Unreal Automation Tests", "unreal", Gl, "Ctrl+Shift+Alt+U, Z", null, null),
 
             // tools / settings / diagnostics (host)
             C(H, ShowPerformancePanel, "PerformancePanel", ActionIds.ShowPerformancePanel, "性能面板", "Performance Panel", "tools", Gl, "Ctrl+Shift+Alt+U, P", null, null),
