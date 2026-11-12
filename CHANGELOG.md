@@ -11,6 +11,7 @@
 ### 新功能
 
 ### 改进
+- **共享的 .mcp.json 不再含本机路径** — “写入 .mcp.json 到项目根目录”改为写 `cmd /c %LOCALAPPDATA%\UEToVS\Mcp\uetovs-mcp.cmd --solution-dir <相对 .mcp.json 的路径>`：启动器脚本由每台装了 UEToVS 的机器在打开 UE 解决方案时自动更新（指向当前 VSIX 里的 UEToVS.Mcp.exe，找不到时在 `%LOCALAPPDATA%\Microsoft\VisualStudio\*\Extensions` 下查找），环境变量由 cmd 自己展开，不依赖客户端是否支持；提交到版本库后同事机器上也能直接用。旧版本写的绝对路径条目在打开解决方案时自动迁移，用户自己加的参数和 `env` 保留；`.vs\mcp.json`（VS 自己读，每人一份）仍写本机路径。MCP 服务的相对 `--solution-dir` 找不到解决方案时回退为从工作目录向上查找
 - **关闭解决方案时保存未落盘的索引改动** — Engine 正常退出时先把内存里尚未压实的增量（最近编辑过的文件）写成一个小的附加段（只写增量，不重写整个工程段，上限 5 秒），离线 MCP 立即能查到最新结果；宿主停止 Engine 时最多等 7 秒（后台进行，不阻塞 VS 关闭）。日志 `index.shutdown.flush`（文件数、耗时）/ `index.shutdown.flush.timeout`、`index.delta.persisted`
 
 ### Bug 修复

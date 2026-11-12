@@ -161,6 +161,17 @@ namespace UEToVS.Mcp.Tests
             Assert.Equal(DataSourceMode.IndexOnly, a.Source);
             Assert.Equal("argument", a.SolutionDirMethod);
 
+            // shared .mcp.json: "--solution-dir" relative to the folder the agent starts in
+            string parent = Path.GetDirectoryName(_f.T.ProjectRoot);
+            string rel = Path.GetFileName(_f.T.ProjectRoot);
+            var r = McpOptions.Parse(new[] { "--solution-dir", rel }, out err, cwd: parent, env: _ => null);
+            Assert.Equal(_f.T.ProjectRoot, r.SolutionDir);
+            Assert.Equal("argument", r.SolutionDirMethod);
+            // started somewhere else inside the project: the relative path misses, discovery from the working directory wins
+            var d = McpOptions.Parse(new[] { "--solution-dir", "." }, out err, cwd: Path.Combine(_f.T.ProjectRoot, "Source", "MyGame"), env: _ => null);
+            Assert.Equal(_f.T.ProjectRoot, d.SolutionDir);
+            Assert.Equal("argument-relative-discovered", d.SolutionDirMethod);
+
             Assert.Null(McpOptions.Parse(new[] { "--source", "cloud" }, out err));
             Assert.Contains("--source", err);
             Assert.Null(McpOptions.Parse(new[] { "--nope" }, out err));

@@ -170,6 +170,75 @@ namespace UEToVS.Host.Logic.Tests
         }
 
         [Fact]
+        public void PortableEntry_HasNoMachinePath()
+        {
+            var e = McpConfig.BuildPortableEntry(McpConfig.RelativeSolutionDir(@"D:\Repo", @"D:\Repo\Games\MyGame"));
+            Assert.Equal("cmd", (string)e["command"]);
+            Assert.Equal(new[] { "/c", @"%LOCALAPPDATA%\UEToVS\Mcp\uetovs-mcp.cmd", "--solution-dir", "Games/MyGame" }, e["args"].ToObject<string[]>());
+            Assert.True(McpConfig.IsPortableCommand((string)e["command"]));
+            Assert.Equal(".", McpConfig.RelativeSolutionDir(@"D:\Repo\", @"d:\repo"));
+            Assert.Equal(@"E:\Other", McpConfig.RelativeSolutionDir(@"D:\Repo", @"E:\Other")); // outside: stays absolute
+            Assert.Equal(Path.Combine("L", "UEToVS", "Mcp", "uetovs-mcp.cmd"), McpConfig.ResolveLauncherPath("L"));
+        }
+
+        [Fact]
+        public void PortableEntry_MigratesTheOldAbsoluteForm_KeepingUserArgs_AndIsStable()
+        {
+            var shared = McpConfigTarget.SharedProject(Sln);
+            string old = new JObject
+            {
+                ["mcpServers"] = new JObject
+                {
+                    ["uetovs"] = new JObject
+                    {
+                        ["type"] = "stdio",
+                        ["command"] = @"C:\Users\me\AppData\Local\Microsoft\VisualStudio\17.0_x\Extensions\abc\Engine\Mcp\UEToVS.Mcp.exe",
+                        ["args"] = new JArray("--log-level", "debug", "--solution-dir", @"D:\Proj"),
+                        ["env"] = new JObject { ["X"] = "1" },
+                    },
+                },
+            }.ToString();
+            var portable = McpConfig.BuildPortableEntry(".");
+            var r = McpConfig.Merge(old, shared.RootKeys, portable, shared.DropKeys);
+            Assert.Equal(McpMergeOutcome.Updated, r.Outcome);
+            var e = JObject.Parse(r.Json)["mcpServers"]["uetovs"];
+            Assert.Equal("cmd", (string)e["command"]);
+            Assert.Equal(new[] { "/c", McpConfig.PortableLauncherPath, "--log-level", "debug", "--solution-dir", "." }, e["args"].ToObject<string[]>());
+            Assert.Equal("1", (string)e["env"]["X"]);
+            Assert.DoesNotContain(@"C:\Users", r.Json);
+            Assert.Equal(McpMergeOutcome.Unchanged, McpConfig.Merge(r.Json, shared.RootKeys, portable, shared.DropKeys).Outcome);
+
+            // back to a direct exe (VS's own file): the "/c <launcher>" prefix goes away
+            var back = McpConfig.Merge(r.Json, shared.RootKeys, Entry(), shared.DropKeys);
+            Assert.Equal(new[] { "--log-level", "debug", "--solution-dir", Sln }, JObject.Parse(back.Json)["mcpServers"]["uetovs"]["args"].ToObject<string[]>());
+        }
+
+        [Fact]
+        public void Launcher_RunsTheRecordedExe_FallsBackToASearch_AndIsRewrittenOnlyOnChange()
+        {
+            string text = McpConfig.BuildLauncherScript(Exe);
+            Assert.StartsWith("@echo off\r\n", text);
+            Assert.Contains("set \"UETOVS_MCP=" + Exe + "\"", text);
+            Assert.Contains("\"%UETOVS_MCP%\" %*", text);
+            Assert.Contains(@"%LOCALAPPDATA%\Microsoft\VisualStudio\*", text);
+            Assert.Contains(@"\Engine\Mcp\UEToVS.Mcp.exe", text);
+            Assert.Contains("once. 1>&2\r\n", text); // the error goes to stderr: stdout belongs to the MCP protocol
+            string dir = Path.Combine(Path.GetTempPath(), "uetovs-launcher-" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                string path = McpConfig.ResolveLauncherPath(dir);
+                Assert.True(McpConfig.WriteLauncher(path, Exe));
+                Assert.False(McpConfig.WriteLauncher(path, Exe));
+                Assert.True(McpConfig.WriteLauncher(path, @"C:\New\Engine\Mcp\UEToVS.Mcp.exe"));
+                Assert.Contains(@"C:\New\", File.ReadAllText(path));
+            }
+            finally
+            {
+                if (Directory.Exists(dir)) Directory.Delete(dir, true);
+            }
+        }
+
+        [Fact]
         public void ApplyToFile_RemoveWithDeleteIfEmpty_DeletesOnlyAnEmptyFile()
         {
             string dir = Path.Combine(Path.GetTempPath(), "uetovs-mcpcfg-" + Guid.NewGuid().ToString("N"));
