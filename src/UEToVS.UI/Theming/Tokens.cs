@@ -136,5 +136,6 @@ namespace UEToVS.UI.Theming
         public static ComponentResourceKey BadgeBackground(BadgeKind k) => Key(TokenNames.BadgeBackground(k));
         public static ComponentResourceKey BadgeSolid(BadgeKind k) => Key(TokenNames.BadgeSolid(k));
         public static ComponentResourceKey Glyph(SymbolKind k) => Key(TokenNames.Glyph(k));
+        public static ComponentResourceKey GlyphBackground(SymbolKind k) => Key(TokenNames.GlyphBackground(k));
     }
 }

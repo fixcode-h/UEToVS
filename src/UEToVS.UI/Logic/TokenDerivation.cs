@@ -212,7 +212,11 @@ namespace UEToVS.UI.Logic
                 DeriveBadge(t, kv.Key, kv.Value.H, kv.Value.S, overrideColor, popup, popupFg, dark, hc);
             }
             foreach (var kv in GlyphHues)
-                C[TokenNames.Glyph(kv.Key)] = hc ? fg : Tone(kv.Value.H, kv.Value.S, dark).EnsureContrast(popup, 3.0);
+            {
+                var gbg = hc ? popup : Rgba.Mix(popup, Rgba.FromHsl(kv.Value.H, kv.Value.S, 0.5), dark ? 0.24 : 0.14);
+                C[TokenNames.GlyphBackground(kv.Key)] = gbg;
+                C[TokenNames.Glyph(kv.Key)] = hc ? fg : Tone(kv.Value.H, kv.Value.S, dark).EnsureContrast(gbg, 3.5);
+            }
 
             DeriveMetrics(t, palette, settings, dark, hc);
             return t;

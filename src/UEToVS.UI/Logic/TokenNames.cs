@@ -106,6 +106,7 @@ namespace UEToVS.UI.Logic
         public static string BadgeBackground(BadgeKind k) => "Badge." + k + ".Background";
         public static string BadgeSolid(BadgeKind k) => "Badge." + k + ".Solid";
         public static string Glyph(SymbolKind k) => "Glyph." + k;
+        public static string GlyphBackground(SymbolKind k) => "Glyph." + k + ".Background";
 
         public static IEnumerable<BadgeKind> AllBadgeKinds => (BadgeKind[])Enum.GetValues(typeof(BadgeKind));
         public static IEnumerable<SymbolKind> AllSymbolKinds => (SymbolKind[])Enum.GetValues(typeof(SymbolKind));
