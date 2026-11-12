@@ -49,6 +49,17 @@ namespace UEToVS.Host.Logic.Tests
         }
 
         [Fact]
+        public void DefaultContextIsOneMillionAndOldDefaultMigrates()
+        {
+            Assert.Equal(1000000, new AgentModel().ContextTokens);
+            var old = AgentApiConfig.Parse(@"{ ""Apis"": [ { ""Name"": ""a"", ""Models"": [ { ""Id"": ""m1"", ""ContextTokens"": 128000 }, { ""Id"": ""m2"", ""ContextTokens"": 64000 } ] } ] }");
+            Assert.Equal(1000000, old.Apis[0].Models[0].ContextTokens);
+            Assert.Equal(64000, old.Apis[0].Models[1].ContextTokens);
+            var chosen = AgentApiConfig.Parse(@"{ ""Format"": 2, ""Apis"": [ { ""Name"": ""a"", ""Models"": [ { ""Id"": ""m1"", ""ContextTokens"": 128000 } ] } ] }");
+            Assert.Equal(128000, chosen.Apis[0].Models[0].ContextTokens);
+        }
+
+        [Fact]
         public void TakenDefaultPortFallsBackButAUserPortNeverMoves()
         {
             Assert.Equal(11434, AgentApiConfig.ChoosePort(11434, p => false, out bool f1));

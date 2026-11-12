@@ -72,9 +72,14 @@ namespace UEToVS.Host.Logic.Agent
         public const int DefaultPort = 11434;
         /// <summary>Used when a real Ollama (or anything else) already listens on 11434; the default before v0.4.5.</summary>
         public const int FallbackPort = 47811;
-        /// <summary>File format: 2 = default port 11434 (older files with the then-default 47811 are moved to 11434).</summary>
+        /// <summary>
+        /// File format: 2 = default port 11434 and default context 1M tokens (older files with the then-defaults 47811 /
+        /// 128K are moved to the new defaults; values the user changed stay).
+        /// </summary>
         public const int CurrentFormat = 2;
-        public const int DefaultContextTokens = 128000;
+        public const int DefaultContextTokens = 1000000;
+        /// <summary>Default context before v0.4.5 (migrated to <see cref="DefaultContextTokens"/>).</summary>
+        public const int OldDefaultContextTokens = 128000;
         public const int DefaultMaxOutputTokens = 16384;
 
         public int Format { get; set; } = CurrentFormat;
@@ -142,6 +147,7 @@ namespace UEToVS.Host.Logic.Agent
         public void Normalize()
         {
             if (Format < 2 && GatewayPort == FallbackPort) GatewayPort = DefaultPort; // old default → new default
+            bool oldContextDefault = Format < 2;
             Format = CurrentFormat;
             if (!IsValidPort(GatewayPort)) GatewayPort = DefaultPort;
             Apis = (Apis ?? new List<AgentApi>()).Where(a => a != null).ToList();
@@ -157,7 +163,7 @@ namespace UEToVS.Host.Logic.Agent
                     .ToList();
                 foreach (var m in a.Models)
                 {
-                    if (m.ContextTokens <= 0) m.ContextTokens = DefaultContextTokens;
+                    if (m.ContextTokens <= 0 || oldContextDefault && m.ContextTokens == OldDefaultContextTokens) m.ContextTokens = DefaultContextTokens;
                     if (m.MaxOutputTokens <= 0) m.MaxOutputTokens = DefaultMaxOutputTokens;
                 }
             }

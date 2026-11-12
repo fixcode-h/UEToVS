@@ -40,6 +40,24 @@ namespace UEToVS.Host.Logic.Localization
         // ---- Quick Info ----
         public static string Overloads(int n) => Loc.F("(+{0} 个重载)", "(+{0} overloads)", n);
         public static string MacroExpansionHeader(int lines) => Loc.F("宏展开（{0} 行）", "Macro expansion ({0} lines)", lines);
+        public static string MacroExpansionTitle => Loc.T("宏展开", "Macro expansion");
+
+        public static string MacroExpansionCopy => Loc.T("复制最终展开结果", "Copy the final expansion");
+
+        public static string MacroExpansionCopyLink => Loc.T("复制", "Copy");
+
+        public static string MacroExpansionCopied => Loc.T("已复制", "Copied");
+
+        public static string MacroStepLabel(IntelliSense.MacroStepKind kind)
+        {
+            switch (kind)
+            {
+                case IntelliSense.MacroStepKind.Full: return Loc.T("完全展开", "Fully expanded");
+                case IntelliSense.MacroStepKind.Folded: return Loc.T("计算常量后", "Constants computed");
+                default: return Loc.T("展开一层", "One level");
+            }
+        }
+
         public static string MacroExpansionTruncated => Loc.T("…（已截断）", "... (truncated)");
         public static string HeuristicNote => Loc.T("（仅按名称匹配，可能不准确）", "(matched by name only; may be inaccurate)");
         public static string ReflectionHeader => Loc.T("UE 反射", "UE reflection");

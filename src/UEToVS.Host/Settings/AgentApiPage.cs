@@ -300,11 +300,20 @@ namespace UEToVS.Host.Settings
             tools.Click += (s, e) => m.ToolCalling = tools.IsChecked == true;
             var vision = new UiCheckBox(T("图片", "Vision"), m.Vision) { Margin = new Thickness(12, 0, 0, 0) };
             vision.Click += (s, e) => m.Vision = vision.IsChecked == true;
-            var ctx = new NumberStepper(1, 4096, 8, Math.Max(1, m.ContextTokens / 1000)) { AccessibleName = T("上下文（K）", "Context (K)") };
-            ctx.ValueChanged += (s, e) => m.ContextTokens = (int)ctx.Value * 1000;
+            // Context length: "128K" below 1M tokens, "1M" / "1.5M" from there; accepts 1M, 1000K, 128 (= K).
+            var ctx = new TextInput { Width = 72, Text = ContextSize.Format(m.ContextTokens) };
+            System.Windows.Automation.AutomationProperties.SetName(ctx, T("上下文长度", "Context length"));
+            Tip.Set(ctx, T("上下文长度：可写 128K、1000K、1M、1.5M；只写数字按 K 算", "Context length: 128K, 1000K, 1M, 1.5M; a bare number means K"));
+            void CommitCtx()
+            {
+                if (ContextSize.TryParse(ctx.Text, out int tokens)) m.ContextTokens = tokens;
+                ctx.Text = ContextSize.Format(m.ContextTokens);
+            }
+            ctx.LostKeyboardFocus += (s, e) => Safe.Execute(L, "agent.model.context", CommitCtx);
+            ctx.KeyDown += (s, e) => Safe.Execute(L, "agent.model.context", () => { if (e.Key == Key.Enter) { e.Handled = true; CommitCtx(); } });
             right.Children.Add(tools);
             right.Children.Add(vision);
-            right.Children.Add(new UiText(T("上下文 K", "Context K"), TextVariant.Secondary) { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 6, 0) });
+            right.Children.Add(new UiText(T("上下文", "Context"), TextVariant.Secondary) { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 6, 0) });
             right.Children.Add(ctx);
             DockPanel.SetDock(right, Dock.Right);
             row.Children.Add(right);
