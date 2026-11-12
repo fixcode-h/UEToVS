@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Threading;
 using UEToVS.Core.Diagnostics;
+using UEToVS.Core.Localization;
 using UEToVS.Host.Diagnostics;
 using UEToVS.Host.Logic.Fonts;
 using UEToVS.Host.Logic.Settings;
@@ -104,6 +105,35 @@ namespace UEToVS.Host.Fonts
             }
             _previewTimer.Stop();
             _previewTimer.Start();
+        }
+
+        /// <summary>
+        /// 设置 > 外观 > VS 字体「当前状态」. The editor falls back to another font without telling anyone when a family
+        /// is missing, so name the fonts VS cannot show yet: installed by this session (VS's WPF font list is fixed at
+        /// startup) or not installed at all.
+        /// </summary>
+        public string VsStatusText(HostSettings s)
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+            if (!s.ManageVsFonts) return Loc.T("未管理：VS 使用自己“字体和颜色”里的设置", "Not managed: VS uses its own Fonts and Colors settings");
+            var targets = VsFontPlanner.Targets(s);
+            if (targets.Count == 0) return Loc.T("所有类别都设为“不修改”", "Every category is set to \"Don't change\"");
+            var installed = new HashSet<string>(InstalledFamilies(), StringComparer.OrdinalIgnoreCase);
+            var restart = new List<string>();
+            var missing = new List<string>();
+            foreach (var face in targets.Select(t => t.Face).Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                if (FontInstaller.InstalledThisSession(face)) restart.Add(face);
+                else if (!installed.Contains(face)) missing.Add(face);
+            }
+            var lines = new List<string>();
+            if (restart.Count > 0)
+                lines.Add(Loc.T("刚为当前用户安装了 " + string.Join("、", restart) + "，重启 VS 后编辑器等 VS 窗口才会显示（在这之前 VS 会用别的字体代替）",
+                                string.Join(", ", restart) + " was just installed for the current user; VS's editor and windows show it after a VS restart (until then VS substitutes another font)"));
+            if (missing.Count > 0)
+                lines.Add(Loc.T("VS 找不到字体 " + string.Join("、", missing) + "，会用别的字体代替", "VS cannot find " + string.Join(", ", missing) + " and substitutes another font"));
+            if (lines.Count == 0) lines.Add(Loc.T("已写入 VS 的“字体和颜色”，修改后立即生效", "Written to VS's Fonts and Colors; changes apply immediately"));
+            return string.Join("\n", lines);
         }
 
         private void ApplyUiFonts(HostSettings s, string reason)

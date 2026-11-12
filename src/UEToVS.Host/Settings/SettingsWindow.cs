@@ -87,6 +87,8 @@ namespace UEToVS.Host.Settings
         private bool _closingByButton;
         /// <summary>Font rows were previewed since the last Apply: Cancel / close has to put the saved fonts back.</summary>
         private bool _fontsPreviewed;
+        /// <summary>Rows with <see cref="SettingDescriptor.EnabledWhenKey"/> on the visible page (re-evaluated when that setting changes).</summary>
+        private readonly List<(string Key, UIElement Row)> _dependentRows = new List<(string, UIElement)>();
         private bool English => Loc.IsEnglish;
 
         public SettingsWindow(ISettingsWindowHost host, string initialCategory = null)
@@ -387,6 +389,7 @@ namespace UEToVS.Host.Settings
         {
             string group = null;
             SettingsGroup card = null;
+            _dependentRows.Clear();
             var own = SettingsModel.MergeInlineRows(rows, out var inline);
             foreach (var d in own)
             {
@@ -407,7 +410,19 @@ namespace UEToVS.Host.Settings
                     body.Children.Add(card);
                 }
                 card.Add(row);
+                if (!string.IsNullOrEmpty(d.EnabledWhenKey))
+                {
+                    _dependentRows.Add((d.EnabledWhenKey, row));
+                    UpdateDependentRow(d.EnabledWhenKey, row);
+                }
             }
+        }
+
+        private void UpdateDependentRow(string key, UIElement row)
+        {
+            bool on = _working.TryGetValue(key, out var v) ? v == "true" : _schema.FirstOrDefault(x => x.Key == key)?.Default == "true";
+            row.IsEnabled = on;
+            row.Opacity = on ? 1.0 : 0.45;
         }
 
         /// <param name="inline">Settings drawn on this row (<see cref="SettingDescriptor.InlineWithKey"/>), right of its editor.</param>
@@ -469,6 +484,8 @@ namespace UEToVS.Host.Settings
         {
             _working[d.Key] = SettingsModel.Normalize(d, value, out _);
             UpdateStatus();
+            foreach (var (key, row) in _dependentRows)
+                if (key == d.Key) UpdateDependentRow(key, row);
             if (FontSettingsSchema.IsFontKey(d.Key)) PreviewFonts("edit");
         }
 

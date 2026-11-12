@@ -167,7 +167,7 @@ namespace UEToVS.Host.Logic.Tests
             Assert.Equal("IBM Plex Sans（内置）", rows[0].Options.Single(o => o.Value == rows[0].Default).TitleZh);
             var manage = rows.Single(d => d.Key == FontSettingsSchema.ManageVsKey);
             Assert.Equal("true", manage.Default);
-            Assert.Equal(1 + 3 + 2 * VsFontCategories.All.Count, rows.Count);
+            Assert.Equal(1 + 1 + 3 + 2 * VsFontCategories.All.Count, rows.Count);
             Assert.All(rows.Where(d => d.Kind == SettingKind.Choice), d => Assert.True(d.AllowCustomValue));
             Assert.All(rows.Where(d => d.Kind == SettingKind.Int), d => Assert.False(string.IsNullOrEmpty(d.AutoLabelZh)));
         }
@@ -175,7 +175,8 @@ namespace UEToVS.Host.Logic.Tests
         [Fact]
         public void VsFontRowsAreGroupedWithSizeOnTheFamilyRow()
         {
-            var rows = Schema.Where(d => d.Key.StartsWith(FontSettingsSchema.VsPrefix, StringComparison.Ordinal) && d.Key != FontSettingsSchema.ManageVsKey).ToList();
+            var rows = Schema.Where(d => d.Key.StartsWith(FontSettingsSchema.VsPrefix, StringComparison.Ordinal) && d.Key != FontSettingsSchema.ManageVsKey && d.Key != FontSettingsSchema.VsStatusKey).ToList();
+            Assert.All(rows, d => Assert.Equal(FontSettingsSchema.ManageVsKey, d.EnabledWhenKey));
             var own = SettingsModel.MergeInlineRows(rows, out var inline);
             Assert.Equal(VsFontCategories.All.Count, own.Count);
             Assert.All(own, d => Assert.Equal(SettingKind.Choice, d.Kind));

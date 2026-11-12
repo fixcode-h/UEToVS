@@ -18,6 +18,9 @@ namespace UEToVS.Host.Logic.Fonts
         public const string UiCjkKey = "fonts.uiCjk";
         public const string CodeKey = "fonts.code";
         public const string ManageVsKey = "fonts.vs.manage";
+        /// <summary>Info row under the toggle: what VS shows now (fonts that need a VS restart, management off…).</summary>
+        public const string VsStatusKey = "fonts.vs.status";
+        public const string VsStatusInfoId = "uetovs.fonts.vsStatus";
         public const string VsPrefix = "fonts.vs.";
         public const string FamilySuffix = ".family";
         public const string SizeSuffix = ".size";
@@ -55,15 +58,22 @@ namespace UEToVS.Host.Logic.Fonts
                 DescriptionEn = "Replaces Tools > Options > Environment > Fonts and Colors: writes VS's fonts from the rows below (bundled fonts are installed for the current user first, no admin needed). The original fonts are backed up before the first change and restored when turned off. Newly installed fonts may need a VS restart to take full effect.",
                 Default = "true", Keywords = Keywords,
             });
+            list.Add(new SettingDescriptor
+            {
+                Category = category, Key = VsStatusKey, Kind = SettingKind.Info, ActionId = VsStatusInfoId, GroupZh = VsGroup, GroupEn = VsGroupEn,
+                TitleZh = "当前状态", TitleEn = "Current state", Keywords = Keywords,
+            });
             // Code-role categories first, then UI ones, so each group is one card; the size sits on the family's row.
             foreach (var c in VsFontCategories.All.OrderBy(c => c.Role == VsFontRole.Code ? 0 : 1))
             {
                 bool code = c.Role == VsFontRole.Code;
                 string g = code ? VsCodeGroup : VsUiGroup, gEn = code ? VsCodeGroupEn : VsUiGroupEn;
-                list.Add(FontRow(category, FamilyKey(c), c.TitleZh, c.TitleEn, null, null, c.DefaultFamily, VsKeywords, code, g, gEn));
+                var family = FontRow(category, FamilyKey(c), c.TitleZh, c.TitleEn, null, null, c.DefaultFamily, VsKeywords, code, g, gEn);
+                family.EnabledWhenKey = ManageVsKey; // 关掉“由 UEToVS 管理”后改这些行不会写进 VS，置灰免得误以为没生效
+                list.Add(family);
                 list.Add(new SettingDescriptor
                 {
-                    Category = category, Key = SizeKey(c), Kind = SettingKind.Int, GroupZh = g, GroupEn = gEn, InlineWithKey = FamilyKey(c),
+                    Category = category, Key = SizeKey(c), Kind = SettingKind.Int, GroupZh = g, GroupEn = gEn, InlineWithKey = FamilyKey(c), EnabledWhenKey = ManageVsKey,
                     InlineLabelZh = "字号", InlineLabelEn = "Size",
                     TitleZh = c.TitleZh + " · 字号", TitleEn = c.TitleEn + " · size",
                     Default = c.DefaultSize.ToString(CultureInfo.InvariantCulture), Min = 0, Max = VsFontCategories.MaxSize,

@@ -149,6 +149,8 @@ namespace UEToVS.Host.Settings
                 }
                 case HostSettingsSchema.WindowActions.IntelliSenseStatus:
                     return _package.IntelliSense?.BackupExists == true ? SettingsText.IntelliSenseTakenOver : SettingsText.IntelliSenseNotTakenOver;
+                case UEToVS.Host.Logic.Fonts.FontSettingsSchema.VsStatusInfoId:
+                    return _package.Fonts?.VsStatusText(_package.Settings.Effective) ?? SettingsText.ActionUnavailable;
                 case HostSettingsSchema.WindowActions.LogDirectory:
                     return SettingsText.LogDirectory(HostLog.LogDirectory);
                 case HostSettingsSchema.WindowActions.VsUnrealIntegration:

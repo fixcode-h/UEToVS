@@ -87,6 +87,11 @@ namespace UEToVS.UI.Logic
         /// page (search hits). Null = own row.
         /// </summary>
         public string InlineWithKey { get; set; }
+        /// <summary>
+        /// Key of a Bool setting this row depends on: greyed out and not editable while that setting is off in the window
+        /// (e.g. the VS font rows while "由 UEToVS 管理 VS 字体" is off). Null = always editable.
+        /// </summary>
+        public string EnabledWhenKey { get; set; }
         /// <summary>Short label in front of the editor when shown inline ("字号"); null = none.</summary>
         public string InlineLabelZh { get; set; }
         public string InlineLabelEn { get; set; }
