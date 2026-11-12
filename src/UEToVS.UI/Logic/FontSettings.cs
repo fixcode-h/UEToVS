@@ -157,7 +157,7 @@ namespace UEToVS.UI.Logic
             "IBMPlexSans-Regular.ttf", "IBMPlexSans-Medium.ttf", "IBMPlexSans-SemiBold.ttf");
 
         public static readonly BundledFont NotoSansSc = new BundledFont("Noto Sans SC", "NotoSansSC", "思源黑体 Noto Sans SC", "Noto Sans SC", false,
-            "NotoSansSC-Regular.ttf", "NotoSansSC-Medium.ttf");
+            "NotoSansSC-Regular.ttf", "NotoSansSC-Medium.ttf", "NotoSansSC-SemiBold.ttf"); // SemiBold: titles / primary buttons ask for 600; without it Chinese gets a smeared synthetic bold
 
         public static readonly BundledFont MapleMonoNl = new BundledFont("Maple Mono NL", "MapleMonoNL", "Maple Mono NL", "Maple Mono NL", true,
             "MapleMonoNL-Regular.ttf"); // regular only (user 2026-11-12): bold is synthesized; saves ~5 MB
