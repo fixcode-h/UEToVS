@@ -333,6 +333,19 @@ namespace UEToVS.Host.Logic.Tests
         }
 
         [Fact]
+        public void DisplayLineStripsIndentAndShiftsMatch()
+        {
+            var h = new ReferenceHit { Location = new SourceLocation { FilePath = "a", Line = 41 }, LineText = "\t    Health = 10;  ", LineTextColumn = 5, Length = 6 };
+            string s = ReferenceResults.DisplayLine(h, out int start, out int len);
+            Assert.Equal("42  Health = 10;", s);
+            Assert.Equal("Health", s.Substring(start, len));
+            var noMatch = new ReferenceHit { Location = new SourceLocation { FilePath = "a", Line = 0 }, LineText = "x", LineTextColumn = 7, Length = 2 };
+            Assert.Equal("1  x", ReferenceResults.DisplayLine(noMatch, out _, out len));
+            Assert.Equal(0, len);
+            Assert.Equal(string.Empty, ReferenceResults.DisplayLine(null, out _, out _));
+        }
+
+        [Fact]
         public void KindTextPrefersWriteAndSummaryCounts()
         {
             Loc.Language = UiLanguage.English;

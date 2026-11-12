@@ -108,6 +108,30 @@ namespace UEToVS.Host.Logic.Navigation
             return len > 0 ? (start, len) : ((int, int)?)null;
         }
 
+        /// <summary>
+        /// Row text "123  line text" (1-based line number, leading indentation removed) and the match range inside it
+        /// (length 0 when the match is not inside the text).
+        /// </summary>
+        public static string DisplayLine(ReferenceHit h, out int matchStart, out int matchLength)
+        {
+            matchStart = 0;
+            matchLength = 0;
+            if (h?.Location == null) return string.Empty;
+            string prefix = (h.Location.Line + 1).ToString(System.Globalization.CultureInfo.InvariantCulture) + "  ";
+            string text = h.LineText ?? string.Empty;
+            int indent = 0;
+            while (indent < text.Length && char.IsWhiteSpace(text[indent])) indent++;
+            var m = MatchRange(h);
+            if (m.HasValue && m.Value.Start < indent) indent = m.Value.Start; // never cut into the match
+            string body = text.Substring(indent).TrimEnd();
+            if (m.HasValue && m.Value.Start - indent < body.Length)
+            {
+                matchStart = prefix.Length + m.Value.Start - indent;
+                matchLength = Math.Min(m.Value.Length, body.Length - (m.Value.Start - indent));
+            }
+            return prefix + body;
+        }
+
         /// <summary>Most telling kind badge: Write &gt; Definition &gt; Declaration &gt; Call &gt; TypeUse &gt; Read.</summary>
         public static string KindText(ReferenceKind k)
         {
