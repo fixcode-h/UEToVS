@@ -11,8 +11,6 @@
 ### 新功能
 - **Agent / API：自定义 API 的模型接入 VS 自带聊天** — UEToVS 设置新增“Agent / API”页（布局参考 AgentPanel）：每个 API 填名称、地址、密钥、密钥的发送方式（Authorization: Bearer / x-api-key）、并发上限，可“测试连接”“从接口获取”模型，在模型列表里勾选要用的模型，并设置是否支持工具调用、图片和上下文大小，也可以手动输入模型名添加。勾选的模型会自动写入 VS Copilot 聊天的自定义模型，重新打开聊天窗口后就能在模型选择器里选到
 - **本地转发服务** — UEToVS 在本机 127.0.0.1（默认端口 47811，可改）起一个转发服务，VS 聊天把它当 Ollama 提供商来用；请求按模型转到你配置的 API，换上真实模型名和密钥后流式转发，API 返回的错误原样显示在聊天里。只接受本机非浏览器的请求，可按 API 限制并发
-
-### 新功能
 - **GameplayTag 补全** — 在 `RequestGameplayTag(FName("…"))` / `TEXT("…")`、`UE_DEFINE_GAMEPLAY_TAG(…, "…")`、`meta=(Categories="…")` 的字符串里按 `.` 分层补全（输入 `Ability.` 列出下一层），右侧显示 DevComment；标签来自项目和项目插件的 Config/DefaultGameplayTags.ini、Config/Tags/*.ini 以及代码里的 `UE_DEFINE_GAMEPLAY_TAG*`（含当前未保存的文件）
 - **资产路径补全** — `ConstructorHelpers::FObjectFinder<T>` / `FClassFinder<T>`、`FSoftObjectPath`、`LoadObject<T>(nullptr, …)` 等的字符串以及任何以 `/Game/` 等挂载点开头的字符串里，按 `/` 逐级补全文件夹和资产，插入 `Name.Name`（类查找插入 `Name.Name_C`）；`UWorld` 只列地图，其它类型按 UE 命名约定（SM_、T_、M_、BP_ …）把更可能的资产排在前面
 - **UFUNCTION 名补全** — `BindUFunction` / `AddUFunction` / `CreateUFunction` 的函数名字符串补全目标对象类型（`this` 时为所在类）的 UFUNCTION，`Obj->FindFunction(TEXT("…"))` 补全 `Obj` 类型的 UFUNCTION；非 UFUNCTION 的成员不列出
