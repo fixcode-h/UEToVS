@@ -22,6 +22,23 @@
 | 组件画廊 | `uetovs.ui.componentGallery` | UI 组件库的 `ComponentGallery` 窗口（开发用），父窗口为 VS 主窗口 |
 | 设置… | `uetovs.settings.open` | 打开 工具 > 选项 > UEToVS |
 
+### 导航（M2，扩展 > UEToVS 与编辑器右键 > UEToVS）
+
+| 命令 | 默认快捷键 | Action ID | 说明 |
+| --- | --- | --- | --- |
+| 转到定义 / 声明 | Alt+G | `uetovs.navigation.goToDefinition` | Toggle：在声明处去定义，在定义处回声明，其他位置去定义。一个目标直接跳，多个弹选择器，没有结果时状态栏说明原因 |
+| 转到实现 | Alt+Shift+G | `uetovs.navigation.goToImplementation` | 重写、派生类型、UE 的 `_Implementation` / `_Validate` |
+| 查找引用 | Shift+Alt+F | `uetovs.navigation.findReferences` | 浮动弹窗：按文件分组、行号 + 行文本高亮、读/写等徽章、不确定的结果灰显；工具条：重新搜索、只看写入、包含引擎代码、显示不确定的结果 |
+| 类型层次 | Alt+Shift+H | `uetovs.navigation.typeHierarchy` | 浮动弹窗：基类 / 派生类两个标签，未在索引中的类型灰显 |
+| 文件成员列表 | Alt+M | `uetovs.navigation.listMembersInFile` | 当前文件的声明，输入即模糊过滤 |
+| 类型成员（含继承） | Alt+Shift+M | `uetovs.navigation.listTypeMembers` | 光标所在类型的成员，继承来的灰显并标注“继承自 X” |
+
+- **Ctrl+鼠标左键点击 = 转到定义**（不是搜索）。按住 Ctrl 悬停在标识符上会出现下划线和手形光标；Ctrl+Alt / Ctrl+Shift 点击仍是 VS 的多光标 / 扩展选择。设置 `CtrlClickNavigation`。
+- 已接管 VS C++ IntelliSense 时，F12 在 UE 解决方案的 C++ 编辑器里也走 UEToVS 的转到定义。
+- **引用高亮**：光标停留约 150 ms 后高亮当前符号在本文件的其他出现处，读 / 写两种颜色（字体和颜色里的 “UEToVS Reference Highlight (Read/Write)”，设置 `ReferenceHighlightReadColor` / `WriteColor` 覆盖，留空按深浅主题取默认）。设置 `ReferenceHighlighting`。
+- **导航栏**：C++ 编辑器顶部，左边当前类型、右边当前函数，点击弹出可模糊过滤的列表。设置 `NavigationBar`。
+- 所有跳转都经过 `Navigation/NavigationService.JumpToAsync(location, reason)`，统一写入导航历史（Alt+← / Alt+→）并记录日志 `nav.jump`。
+
 所有命令都注册为 `IAction`（`Logic/Actions`），菜单只是转发；Find Action / Alt+Enter 将列出同一批动作。菜单文字在 VSCT 中是英文默认值，运行时按语言替换（`TextChanges`）。
 
 ## 设置（工具 > 选项 > UEToVS）
@@ -88,7 +105,9 @@ VS 每次打开或保存 .cpp 都会在后台用编译器（/analyze）完整分
 | --- | --- |
 | `Logic/` | 纯逻辑（无 VS 类型），由 `tests/UEToVS.Host.Logic.Tests` 以链接文件方式编译和测试 |
 | `Diagnostics/` | 日志生命周期、输出窗格、`Safe` 包装与 UI 线程看门狗 |
-| `Engine/` | 引擎客户端 |
+| `Engine/` | 引擎客户端（`EngineClient.Navigation.cs`：导航 RPC 的超时、取消、降级与日志） |
+| `Editor/` | MEF 编辑器适配器：Ctrl+点击、引用高亮标签器、导航栏 margin、F12 拦截、活动视图 / CaretRequest / 弹窗锚点 |
+| `Navigation/` | 导航功能：转到定义、查找引用、类型层次、成员列表、`NavigationService`（统一跳转 + 历史）、动作与命令注册 |
 | `IntelliSense/` | DTE 设置读写、接管服务、VA 检测 |
 | `Options/` | 选项页与设置合并 |
 | `Performance/` | 性能采样与工具窗口 |
