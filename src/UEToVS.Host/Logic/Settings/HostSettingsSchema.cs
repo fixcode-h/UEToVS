@@ -121,6 +121,10 @@ namespace UEToVS.Host.Logic.Settings
                 "打开 UE 解决方案时关闭 VS 的 C++ 后台代码分析（修改前备份，可恢复）。", "Turns VS's C++ background code analysis off for UE solutions (backed up, restorable).", "false", gCpp, gCppEn));
             list.Add(A(General, "intelliSense.toggle", WindowActions.ToggleIntelliSense, "立即接管 / 恢复", "Take over / restore now",
                 "根据当前状态接管或恢复 VS 自带的 C++ IntelliSense。", "Takes over or restores VS's own C++ IntelliSense, depending on the current state.", gCpp, gCppEn));
+            list.Add(D(General, "vs.blueprintSupport", SettingKind.Bool, "启用 VS 自带的蓝图扫描", "Enable VS's own Blueprint scan",
+                "VS 自带的 Unreal Engine 集成每次打开解决方案都会“从 X.uproject 中扫描 Blueprint”。关闭时 UEToVS 会把它关掉（修改前备份，重新打开即恢复），下次启动 VS 生效。",
+                "VS's own Unreal Engine integration scans every Blueprint (\"Scanning Blueprints from X.uproject\") on each solution load. When off, UEToVS switches it off (backed up; turning this on restores it); takes effect from the next VS start.",
+                "false", gCpp, gCppEn));
             list.Add(A(General, "vs.unrealIntegration", WindowActions.VsUnrealIntegration, "VS 自带的 Unreal Engine 集成", "VS's built-in Unreal Engine integration",
                 null, null, gCpp, gCppEn, SettingKind.Info));
 
@@ -292,6 +296,20 @@ namespace UEToVS.Host.Logic.Settings
                 "接管 VS IntelliSense 后提供：未知成员、缺少 GENERATED_BODY()、#include 的模块不在 Build.cs 依赖中。只报确定的问题，不因 .generated.h 缺失报错。",
                 "Shown once VS IntelliSense is taken over: unknown members, missing GENERATED_BODY(), #include of a module missing from Build.cs. Only certain problems; a missing .generated.h is never reported.",
                 "true", gSquiggle, gSquiggleEn));
+            const string gTpl = "代码模板", gTplEn = "Templates";
+            list.Add(D(IntelliSense, "snippets.enabled", SettingKind.Bool, "UE 代码模板", "UE live templates",
+                "在行首输入缩写（uclass、ustruct、uprop、ufunc、uelog …）后按 Tab 展开，或在补全列表里选择；Tab / Shift+Tab 在占位符之间跳转，Enter / Esc 结束。",
+                "Type an abbreviation at line start (uclass, ustruct, uprop, ufunc, uelog …) and press Tab, or pick it from the completion list; Tab / Shift+Tab move between fields, Enter / Esc finish.",
+                "true", gTpl, gTplEn));
+            list.Add(D(IntelliSense, "postfix.enabled", SettingKind.Bool, "Postfix 模板", "Postfix templates",
+                "在表达式后输入 .if、.notnull、.cast、.isvalid、.for 等，把表达式包进对应代码。", "Type .if, .notnull, .cast, .isvalid, .for … after an expression to wrap it.",
+                "true", gTpl, gTplEn));
+            const string gInlay = "内嵌提示", gInlayEn = "Inlay hints";
+            list.Add(D(IntelliSense, "inlay.parameterNames", SettingKind.Bool, "参数名提示", "Parameter name hints",
+                "实参是字面量或 nullptr 时，在它前面显示形参名。只计算可见区域。", "Shows the parameter name before literal / nullptr arguments. Only the visible lines are computed.",
+                "true", gInlay, gInlayEn));
+            list.Add(D(IntelliSense, "inlay.autoTypes", SettingKind.Bool, "auto 推导类型", "Deduced auto types",
+                "在 auto 变量后显示推导出的类型。", "Shows the deduced type after auto variables.", "false", gInlay, gInlayEn));
 
             // ================= 日志与诊断
             const string gLog = "日志", gLogEn = "Logs";
@@ -378,6 +396,7 @@ namespace UEToVS.Host.Logic.Settings
                     ["intelliSense.mode"] = s.IntelliSenseTakeoverMode.ToString(),
                     ["intelliSense.disableDatabase"] = B(s.DisableDatabase),
                     ["intelliSense.disableBackgroundCodeAnalysis"] = B(s.DisableBackgroundCodeAnalysis),
+                    ["vs.blueprintSupport"] = B(s.VsBlueprintSupport),
                     ["toolbar.show"] = B(s.ShowToolbar),
                     ["keyboard.doubleShift"] = B(s.DoubleShiftEnabled),
                     ["keyboard.doubleShiftIntervalMs"] = I(s.DoubleShiftIntervalMs),
@@ -417,6 +436,10 @@ namespace UEToVS.Host.Logic.Settings
                     ["coloring.overrides"] = s.SemanticColorOverrides ?? "",
                     ["coloring.marginLines"] = I(s.SemanticColoringMarginLines),
                     ["diagnostics.enabled"] = B(s.DiagnosticsEnabled),
+                    ["snippets.enabled"] = B(s.SnippetsEnabled),
+                    ["postfix.enabled"] = B(s.PostfixTemplatesEnabled),
+                    ["inlay.parameterNames"] = B(s.InlayParameterNames),
+                    ["inlay.autoTypes"] = B(s.InlayAutoTypes),
                 };
                 foreach (var b in ToolbarButtons.All)
                     if (b.Key != "settings") d["toolbar.button." + b.Key] = B(!hidden.Contains(b.Key));
@@ -472,6 +495,7 @@ namespace UEToVS.Host.Logic.Settings
                         case "intelliSense.mode": s.IntelliSenseTakeoverMode = PE(v, IntelliSenseTakeoverMode.UnrealSolutionOnly); break;
                         case "intelliSense.disableDatabase": s.DisableDatabase = PB(v); break;
                         case "intelliSense.disableBackgroundCodeAnalysis": s.DisableBackgroundCodeAnalysis = PB(v); break;
+                        case "vs.blueprintSupport": s.VsBlueprintSupport = PB(v); break;
                         case "toolbar.show": s.ShowToolbar = PB(v); break;
                         case "keyboard.doubleShift": s.DoubleShiftEnabled = PB(v); break;
                         case "keyboard.doubleShiftIntervalMs": s.DoubleShiftIntervalMs = PI(v, 300); break;
@@ -511,6 +535,10 @@ namespace UEToVS.Host.Logic.Settings
                         case "coloring.overrides": s.SemanticColorOverrides = v; break;
                         case "coloring.marginLines": s.SemanticColoringMarginLines = PI(v, 50); break;
                         case "diagnostics.enabled": s.DiagnosticsEnabled = PB(v); break;
+                        case "snippets.enabled": s.SnippetsEnabled = PB(v); break;
+                        case "postfix.enabled": s.PostfixTemplatesEnabled = PB(v); break;
+                        case "inlay.parameterNames": s.InlayParameterNames = PB(v); break;
+                        case "inlay.autoTypes": s.InlayAutoTypes = PB(v); break;
                         default:
                             if (d.Key.StartsWith("toolbar.button.", StringComparison.Ordinal))
                             {

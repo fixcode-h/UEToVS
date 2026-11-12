@@ -117,6 +117,7 @@ namespace UEToVS.Host.Options
                 ["intelliSenseTakeoverMode"] = s.IntelliSenseTakeoverMode.ToString(),
                 ["disableDatabase"] = s.DisableDatabase,
                 ["disableBackgroundCodeAnalysis"] = s.DisableBackgroundCodeAnalysis,
+                ["vsBlueprintSupport"] = s.VsBlueprintSupport,
                 ["logRetentionDays"] = s.LogRetentionDays,
                 ["logMaxTotalMB"] = s.LogMaxTotalMB,
                 ["cppIndexThreads"] = s.CppIndexThreads,

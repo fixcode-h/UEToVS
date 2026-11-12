@@ -24,6 +24,27 @@ namespace UEToVS.Contracts
 
         /// <summary>UCLASS / USTRUCT / UINTERFACE type without GENERATED_BODY() (UHT error). Args: macro, type.</summary>
         public const string MissingGeneratedBody = "UE0003";
+
+        /// <summary>A UFUNCTION whose body UHT generates (Server / Client / NetMulticast / BlueprintNativeEvent / BlueprintImplementableEvent) is defined by hand. Args: function, specifier, class.</summary>
+        public const string GeneratedFunctionBody = "UE0004";
+
+        /// <summary>ReplicatedUsing=X but the class (and its bases) has no X, or X is not a UFUNCTION. Args: property, function, class, "missing" | "not-ufunction".</summary>
+        public const string MissingRepNotify = "UE0005";
+
+        /// <summary>A Replicated / ReplicatedUsing property of the class is not registered in its GetLifetimeReplicatedProps. Args: property, class.</summary>
+        public const string UnregisteredReplicatedProperty = "UE0006";
+
+        /// <summary>RequestGameplayTag("X") with a tag that is not in the known tag tree (warning). Args: tag.</summary>
+        public const string UnknownGameplayTag = "UE0007";
+
+        /// <summary>A /Game/... asset path that is not in the asset table (warning). Args: path.</summary>
+        public const string UnknownAssetPath = "UE0008";
+
+        /// <summary>UPROPERTY on a type UHT rejects (TSharedPtr family, std::, pointer to a struct / builtin). Args: property, type.</summary>
+        public const string UnsupportedPropertyType = "UE0009";
+
+        /// <summary>UFUNCTION parameter of a type UHT rejects (pointer to struct / builtin, TSharedPtr family; int8/int16/uint16/uint32/uint64 in BlueprintCallable). Args: parameter, type, function, "pointer" | "unsupported" | "blueprint".</summary>
+        public const string UnsupportedParameterType = "UE0010";
     }
 
     public sealed class CodeDiagnosticsRequest

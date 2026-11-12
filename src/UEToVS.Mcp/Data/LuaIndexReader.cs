@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using UEToVS.Core.Diagnostics;
 using UEToVS.Core.Matching;
 using UEToVS.Core.Storage;
@@ -147,6 +148,36 @@ namespace UEToVS.Mcp.Data
                 }
             return hits.OrderByDescending(h => h.Score).ThenBy(h => KindRank(h.Symbol.Kind))
                 .ThenBy(h => h.File.Path, StringComparer.OrdinalIgnoreCase).ThenBy(h => h.Symbol.Line).ToList();
+        }
+
+        private Tuple<LuaIndexData, Dictionary<string, List<LuaHit>>> _functionsByName; // one reference: swapped atomically
+
+        /// <summary>
+        /// Lua functions and methods named exactly <paramref name="name"/> (case-sensitive, like Lua and UnLua's override
+        /// lookup). Backed by a name map built once per loaded index (only names of functions/methods; the hits reference the
+        /// loaded data), so linking many C++ UFUNCTIONs to Lua costs one dictionary lookup each.
+        /// </summary>
+        public IReadOnlyList<LuaHit> FunctionsNamed(string name)
+        {
+            var data = Data;
+            if (data == null || string.IsNullOrEmpty(name)) return Array.Empty<LuaHit>();
+            var cached = Volatile.Read(ref _functionsByName);
+            if (cached == null || !ReferenceEquals(cached.Item1, data))
+            {
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                var map = new Dictionary<string, List<LuaHit>>(StringComparer.Ordinal);
+                foreach (var f in data.Files)
+                    foreach (var s in f.Symbols)
+                    {
+                        if (s.Kind != LuaSymbolKind.Function && s.Kind != LuaSymbolKind.Method) continue;
+                        if (!map.TryGetValue(s.Name, out var list)) map[s.Name] = list = new List<LuaHit>(1);
+                        list.Add(new LuaHit { Symbol = s, File = f });
+                    }
+                cached = Tuple.Create(data, map);
+                Volatile.Write(ref _functionsByName, cached);
+                L.Info("mcp.lua.byname.built", null, ("names", map.Count), ("ms", Math.Round(sw.Elapsed.TotalMilliseconds, 1)));
+            }
+            return cached.Item2.TryGetValue(name, out var hits) ? hits : (IReadOnlyList<LuaHit>)Array.Empty<LuaHit>();
         }
 
         /// <summary>Files by name or module: 'MainPanel', 'UI.MainPanel', 'UI/MainPanel.lua'.</summary>

@@ -4,16 +4,46 @@
 
 - 每个版本一节，标题为 `## vX.Y.Z`，最新的在最上面。合并到 main 时，CI 读取最上面一节：如果这个版本还没有发布，就自动打包并发布 Release，发布说明由这一节生成。
 - 节内用 `### 新功能`、`### 改进`、`### Bug 修复`、`### 注意` 等小标题，条目写成 `- **短标题** — 说明`。
-- **每次启动都“正在从 X.uproject 中扫描 Blueprint”** — 这是 VS 自带的 Unreal Engine 集成，不是 UEToVS。设置 > 常规里的说明改成准确的关闭方法：项目 > Configure Tools for Unreal Engine，关掉 Blueprint Support 后重启 VS
 - 改了 `src/` 的 PR 必须在最上面加一个新版本节（PR 检查会验证），这样每次合并都会出一个带更新日志的包。
 
-## v0.4.2
+## v0.4.3
 
 ### Bug 修复
 - **Search Everywhere 等弹窗打开时抽搐一下** — 弹窗关掉后是隐藏起来复用的，再打开时会先闪出上一次的画面（旧结果、旧预览），接着变透明、再往上滑入淡出，看起来像抽了一下；如果输入框带了选中的文字，旧结果还会在新结果出来时整体换掉。现在弹窗先在不可见状态下布局好再显示：Search Everywhere 和查找操作等新查询结果出来（最多等 0.1 秒）后才显示，只淡入、不再滑动；打开时同一个查询也不再连跑两次（预览不会再重新定位一次）。查找引用、类型层次等其它弹窗也不会再闪出上一次的画面
+
+## v0.4.2
+
+### 新功能
+- **Alt+Enter 上下文操作** — 接管 VS C++ IntelliSense 后，Alt+Enter 按光标位置列出可用的 UEToVS 操作（生成实现 / 声明、重写虚函数、添加 #include、重命名），同样的操作也出现在 VS 灯泡菜单和“查找操作”里；未接管或非 C++ 文件时 Alt+Enter 仍执行 VS 自带的快速操作。操作由可注册的提供者生成，统一经 Action 中心执行并记录日志（`refactor.*`）
+- **生成实现 / 生成声明** — 在头文件的函数声明上生成成对 .cpp 里的函数体，放在同一个类相邻成员的实现之后；UFUNCTION 的 Server / Client / NetMulticast / BlueprintNativeEvent 生成 `_Implementation`，Server + WithValidation 还生成返回 true 的 `_Validate`；在 .cpp 的成员定义上反向生成类里的声明。签名取自引擎解析，默认参数只留在声明里，virtual / override / static 只出现在声明里；一次撤销还原
+- **重写虚函数** — 列出基类（含引擎类）里还没有重写的虚函数，按声明它的类分组，可多选；在类的 public 区生成 `override` 声明，在成对 .cpp 里生成调用 `Super::` 的实现（纯虚函数和接口方法不调用 Super）。默认快捷键 `Ctrl+Shift+Alt+U, V`（Rider 方案 `Ctrl+O`）
+- **添加 #include** — 光标处类型所在头文件没有被当前文件直接或间接包含时，提供“添加 #include "Xxx.h"”，路径按 UE 习惯相对模块的 Public / Classes 目录，插入到 `.generated.h` 之前的 include 组里；随后检查 Build.cs 模块依赖，缺少时弹出添加依赖的横幅。间接包含只按索引里已有的 include 列表查找，最多 4 层、600 个文件，结果有缓存
+- **重命名** — 重命名项目中的类型、函数、变量、UPROPERTY / UFUNCTION：用“查找引用”的结果生成预览，按文件列出每一处，可取消勾选；引擎和第三方文件中的引用只列出不修改，仅名称匹配的位置默认不勾选；所有文件的修改一次撤销还原。UCLASS / USTRUCT / UENUM / UPROPERTY / UFUNCTION 可选写入项目 Config/DefaultEngine.ini 的 `[CoreRedirects]`；类名与文件名一致时可同时重命名 .h / .cpp 并更新 #include。快捷键 `Ctrl+R, Ctrl+R`（Rider 方案 `Shift+F6`）
+- **MCP：`get_reflection_info`** — 类/结构体的全部 UPROPERTY / UFUNCTION，说明符拆成标志、键值和 meta，标出复制（Replicated / ReplicatedUsing=OnRep_X）和 RPC（Server/Client/NetMulticast、Reliable、WithValidation），可按说明符（如 `BlueprintReadWrite` 或 meta 键）、属性/函数、只看复制过滤；UFUNCTION 附带同名 Lua 函数（UnLua 覆盖）
+- **MCP：`get_module_info` / `suggest_include`** — 文件所属模块、模块类型（来自 .uproject/.uplugin，否则按目录推断）、插件、Build.cs Public/Private 依赖；给一个头文件（`GameFramework/Actor.h` 或路径）回答“它属于哪个模块、当前模块是否已能包含、应加到 Public 还是 Private 依赖”。`suggest_include` 给出类型应写的 UE 风格 `#include` 路径和需要的模块依赖
+- **MCP：`search_config`** — 查 ini 键值（项目 Config 和项目插件，scope=all 加引擎 Config，带行号）、`UPROPERTY(config)` 与 `Default<Config>.ini [/Script/模块.类] 键` 的对应及当前值（ini 键也反查到对应 UPROPERTY）、项目代码里的控制台变量（`TAutoConsoleVariable` / `FAutoConsoleVariableRef` / `FAutoConsoleCommand`：名字、变量、帮助文本、位置）和 GameplayTag（ini 与 `UE_DEFINE_GAMEPLAY_TAG`）。ini 解析复用 Engine 的 ConfigCatalog；C++ 只读索引里出现这些标识符的文件，按文件时间戳缓存
+- **MCP：`find_delegate_bindings`** — 函数被哪些 `AddDynamic` / `AddUObject` / `BindUObject` / `BindRaw` / `BindSP` / `BindUFunction`（含字符串名和 `GET_FUNCTION_NAME_CHECKED`）、`BindAction` / `BindAxis`、`SetTimer` 绑定，给出委托表达式、绑定方式和所在行；`Class::Func` 只保留指明该类的绑定。不改索引格式：成员指针绑定来自函数名的引用位置，字符串名绑定只扫描调用了 BindUFunction 等的文件
+- **MCP：Lua ↔ C++ 关联** — `find_references` 查 UFUNCTION 时附带同名 Lua 函数定义（UnLua 同名覆盖），说明 Lua 调用点不在索引里
+- **UE 规则波浪线（UHT / 网络复制 / 字符串）** — 在 v0.4.1 波浪线的基础上新增 7 条规则，仍然只报确定的问题：UE0004 `Server` / `Client` / `NetMulticast` / `BlueprintNativeEvent` / `BlueprintImplementableEvent` 的 UFUNCTION 被手写了本体（应写 `_Implementation`；重载、CustomThunk、条件编译、未保存的头文件不报）；UE0005 `ReplicatedUsing=OnRep_X` 但本类和基类都没有 `OnRep_X` 或它不是 UFUNCTION（类和所有基类完整解析时才报）；UE0006 本类的 Replicated 属性没有在当前文件的 `GetLifetimeReplicatedProps` 里 `DOREPLIFETIME*`（函数体里有循环、`#if`、未知宏、把 `OutLifetimeProps` 传给别的函数时不报）；UE0007 `RequestGameplayTag("A.B.X")` 的标签不存在（警告；只在父标签 `A.B` 已知时报，项目里有 GameplayTag 表、重定向或原生标签注册时整条规则跳过）；UE0008 `/Game/...` 资产路径不存在（警告；索引完成后才报，报之前再查一次磁盘，拼接、格式化字符串和文件夹不报）；UE0009 UPROPERTY 用了 UHT 不支持的类型（`TSharedPtr` 系列、`std::`、结构体/内置类型指针）；UE0010 UFUNCTION 参数用了这些类型，或 BlueprintCallable / BlueprintPure 参数用了 `int8/int16/uint16/uint32/uint64`。日志 `intellisense.diagnostics` 新增 `ueRules`（各规则命中数），跳过原因带 `ue000N:` 前缀
+- **UE 代码模板（Live Templates）** — 行首输入缩写后按 Tab 展开，或在补全列表里选择：`uclass`、`ustruct`、`uenum`、`uinterface`、`uprop`、`upropr`（ReplicatedUsing + OnRep）、`ufunc`、`ufuncn`（BlueprintNativeEvent + _Implementation）、`userver`、`uelog` / `uelogf`、`logcat` / `logdef`、`uecheck` / `checkf` / `ensuremsg`、`dmdel` / `ddel` / `mdel` / `del` 委托、`cds`（CreateDefaultSubobject）、`adddyn`、`gbody`、`superbp`。展开后 Tab / Shift+Tab 在占位符间跳转，同名占位符联动修改，Enter 跳到结束位置，Esc 退出；类名默认取自文件名。设置“代码感知 > 代码模板”可关闭；日志 `snippets.expand`
+- **Postfix 模板** — 在表达式后输入 `.if`、`.notnull`、`.null`、`.ifvalid`、`.for`、`.return`、`.var`、`.check`、`.ensure`（表达式在行首时）以及 `.cast`（→ `Cast<T>(expr)`）、`.isvalid` / `.valid`（→ `IsValid(expr)`）、`.not`、`.par`、`.text`，从补全列表选择后把表达式包进对应代码；只做行内文本分析，不请求 Engine
+- **Generate：构造函数 / GetLifetimeReplicatedProps / RPC** — 三个新命令（编辑器右键 UEToVS 菜单、Find Action，默认键 Ctrl+Shift+Alt+U 再按 K / Y / W），在头文件的类里执行：生成构造函数声明和 .cpp 定义；按类里的 Replicated / ReplicatedUsing 属性生成 `GetLifetimeReplicatedProps`（已有定义时只补缺少的 `DOREPLIFETIME`，并补 `#include "Net/UnrealNetwork.h"` 和头文件里的 override 声明）；光标在 Server / Client / NetMulticast 声明上时补 `_Implementation` / `_Validate`，在普通函数上时生成一个转发到它的 `Server…` RPC 三件套。头文件和 .cpp 各一次撤销；日志 `generate.run`
+- **Smart Select（扩大 / 缩小选区）** — Shift+Alt+W 按语法逐级扩大选区：单词 → 字符串内容 → 字符串 → 参数 → 括号内容 → 括号 → 调用（含 `Obj->Func`）→ 语句 → 块内容 → 块 → 带 if / for / 函数签名的整块；Ctrl+Shift+Alt+W 按原路缩回。只在按键时计算（超大文件只看选区附近 200 KB）；日志 `edit.smartSelect`
+- **Natvis：补充 UE 常见类型** — VSIX 自带调试可视化（NativeVisualizer）：`FGameplayTag`、`FGameplayTagContainer`、`FTopLevelAssetPath`、`FSoftObjectPath`、`TSoftObjectPtr` / `TSoftClassPtr`、`FPrimaryAssetId` / `FPrimaryAssetType`、`FTimerHandle`、`FDataTableRowHandle`、`FGameplayAttributeData`、GAS 句柄。引擎 Unreal.natvis 已有的类型（TArray、FString、FName、TMap、UObject、TObjectPtr …）不重复定义
+- **着色器文件（.usf / .ush）着色与 #include 跳转** — HLSL 关键字、向量 / 矩阵 / 资源类型、内建函数、`SV_` 语义、注释、字符串、数字和预处理指令按 VS 标准颜色显示（只着色可见行，逐行词法分析）；在 `#include "/Engine/…"`、`"/Project/…"`、`"/Plugin/<名>/…"` 或相对路径上按 F12 打开对应文件（`/Plugin/` 只在按键时查找一次同名 .uplugin）。日志 `shader.include.goto`
+- **.uproject / .uplugin / .ini 补全与跳转** — 描述文件里补全模块 `Type`、`LoadingPhase`、平台 / 目标 / 配置的允许和禁止列表；在 `Modules` 的 `Name`、`AdditionalDependencies` 上按 F12 打开对应 `.Build.cs`，在 `Plugins` 的 `Name` 上打开 `.uplugin`。ini 里 `[/Script/模块.类]` 下的行首补全该类（含基类）的 `Config` / `GlobalConfig` 属性名，F12 在节标题上跳到类、在键名上跳到属性声明。全部只在按键时计算，结果按节缓存 30 秒；日志 `projectFiles.goto`
+
+### 改进
+- **MCP 提示与说明** — 去掉没有数据支撑的 `find_blueprint_usage` 提示词（`explain_ue_class` 改用 `get_reflection_info`）；`uetovs://guide` 增加“索引未就绪时如何退回 grep”；服务说明列出新工具
+- **共享的 .mcp.json 不再含本机路径** — “写入 .mcp.json 到项目根目录”改为写 `cmd /c %LOCALAPPDATA%\UEToVS\Mcp\uetovs-mcp.cmd --solution-dir <相对 .mcp.json 的路径>`：启动器脚本由每台装了 UEToVS 的机器在打开 UE 解决方案时自动更新（指向当前 VSIX 里的 UEToVS.Mcp.exe，找不到时在 `%LOCALAPPDATA%\Microsoft\VisualStudio\*\Extensions` 下查找），环境变量由 cmd 自己展开，不依赖客户端是否支持；提交到版本库后同事机器上也能直接用。旧版本写的绝对路径条目在打开解决方案时自动迁移，用户自己加的参数和 `env` 保留；`.vs\mcp.json`（VS 自己读，每人一份）仍写本机路径。MCP 服务的相对 `--solution-dir` 找不到解决方案时回退为从工作目录向上查找
+- **关闭解决方案时保存未落盘的索引改动** — Engine 正常退出时先把内存里尚未压实的增量（最近编辑过的文件）写成一个小的附加段（只写增量，不重写整个工程段，上限 5 秒），离线 MCP 立即能查到最新结果；宿主停止 Engine 时最多等 7 秒（后台进行，不阻塞 VS 关闭）。日志 `index.shutdown.flush`（文件数、耗时）/ `index.shutdown.flush.timeout`、`index.delta.persisted`
+
+### Bug 修复
+- **每次启动都“正在从 X.uproject 中扫描 Blueprint”** — 这是 VS 自带的 Unreal Engine 集成（Blueprint Support），不是 UEToVS。设置 > 常规新增“启用 VS 自带的蓝图扫描”，默认关闭：打开 UE 解决方案时 UEToVS 找到 VS 的这个开关并关掉（修改前备份，打开设置即恢复），下次启动 VS 生效。找到哪些开关记在日志 `vsBlueprint.discovered`；没找到时设置页会提示手动在 项目 > Configure Tools for Unreal Engine 里关闭
 - **UE 反射宏转到定义报“找不到定义（ue-macro）”** — `GENERATED_BODY`、`UENUM`、`UCLASS` 等现在跳到宏的 `#define`（如 ObjectMacros.h）；`GENERATED_BODY` 这类宏还会列出 UHT 在 `.generated.h` 里为这一行生成的展开。
 - **在 UEToVS 窗口里粘贴，内容却进了代码** — 设置窗口、Search Everywhere 等 UEToVS 弹窗是独立的浮动窗口，VS 会先把 Ctrl+V / Ctrl+C / Ctrl+X / Ctrl+Z / Ctrl+Y / Ctrl+A / Delete 当成自己的编辑命令，发给最后一个代码编辑器（例如在“Agent / API”页粘贴密钥，结果粘到了代码里）。现在 UEToVS 窗口处于激活状态时，这些命令只作用于窗口里当前的输入框，不会再进入代码编辑器（日志 `shell.editRouter.exec`）
 - **在解决方案资源管理器中定位后文件不居中** — VS 只把定位到的文件滚到刚好可见（常在列表最底部）。现在展开并选中后，会把它滚到视图中间；本来就在中间三分之一以内时不跳动（日志 `solutionExplorer.center`）
+- **压实多段工程索引时丢文件** — 工程段不止一个且同一文件的旧副本在较早的段里已被覆盖时，压实会把较新段里的这个文件当成“压实期间被删除”而丢掉；现在只把压实期间新出现的删除算作删除
 
 ## v0.4.1
 

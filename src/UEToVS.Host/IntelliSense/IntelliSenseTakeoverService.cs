@@ -36,6 +36,7 @@ namespace UEToVS.Host.IntelliSense
         private readonly SettingsService _settings;
         private readonly string _backupPath;
         private readonly string _codeAnalysisBackupPath;
+        private readonly string _vsBlueprintBackupPath = IntelliSenseBackupFile.DefaultVsBlueprintPath;
         private bool _propertiesLogged;
         private bool _vaChecked;
 
@@ -56,6 +57,11 @@ namespace UEToVS.Host.IntelliSense
 
         public bool CodeAnalysisBackupExists => File.Exists(_codeAnalysisBackupPath);
 
+        public bool VsBlueprintBackupExists => File.Exists(_vsBlueprintBackupPath);
+
+        /// <summary>Options found for VS's Blueprint support on the last check (null = not checked yet; empty = none found).</summary>
+        public IReadOnlyList<string> VsBlueprintOptions { get; private set; }
+
         /// <summary>Visual Assist found (null = not checked yet).</summary>
         public string VisualAssistEvidence { get; private set; }
 
@@ -72,6 +78,7 @@ namespace UEToVS.Host.IntelliSense
             if (s.IntelliSenseTakeover) await TakeOverAsync("auto").ConfigureAwait(false);
             else await RefreshStateAsync().ConfigureAwait(false);
             if (s.DisableBackgroundCodeAnalysis) await DisableBackgroundCodeAnalysisAsync("auto").ConfigureAwait(false);
+            if (!s.VsBlueprintSupport) await DisableVsBlueprintSupportAsync("auto").ConfigureAwait(false);
             await CheckVisualAssistAsync().ConfigureAwait(false);
         }
 
@@ -103,6 +110,12 @@ namespace UEToVS.Host.IntelliSense
                 L.Info("codeAnalysis.settings.changed", null, ("disableBackgroundCodeAnalysis", now.DisableBackgroundCodeAnalysis), ("ueSolutionOpen", unrealSolutionOpen));
                 if (!now.DisableBackgroundCodeAnalysis) await RestoreBackgroundCodeAnalysisAsync("settingOff").ConfigureAwait(false);
                 else if (unrealSolutionOpen) await DisableBackgroundCodeAnalysisAsync("settingsChanged").ConfigureAwait(false);
+            }
+            if (old.VsBlueprintSupport != now.VsBlueprintSupport)
+            {
+                L.Info("vsBlueprint.settings.changed", null, ("vsBlueprintSupport", now.VsBlueprintSupport), ("ueSolutionOpen", unrealSolutionOpen));
+                if (now.VsBlueprintSupport) await RestoreVsBlueprintSupportAsync("settingOn").ConfigureAwait(false);
+                else await DisableVsBlueprintSupportAsync("settingsChanged").ConfigureAwait(false);
             }
             bool takeoverChanged = old.IntelliSenseTakeover != now.IntelliSenseTakeover;
             bool dbChanged = old.DisableDatabase != now.DisableDatabase;
@@ -320,6 +333,103 @@ namespace UEToVS.Host.IntelliSense
             }
             LogReport("codeAnalysis.restore", trigger, report, _codeAnalysisBackupPath);
             return report;
+        }
+
+        // ---------------------------------------------------------------- VS's own Blueprint scan
+
+        /// <summary>
+        /// Turns off VS's own Unreal Engine "Blueprint Support" (the "Scanning Blueprints from X.uproject" pass on every solution
+        /// load). The option is undocumented, so it is discovered (<see cref="VsBlueprintSupport"/>); originals are backed up to
+        /// vs-blueprint-backup.json before anything is written. VS reads it at startup: the scan stops from the next VS start.
+        /// </summary>
+        public async Task<TakeoverReport> DisableVsBlueprintSupportAsync(string trigger)
+        {
+            IntelliSenseBackup backup;
+            try
+            {
+                backup = await Task.Run(() => IntelliSenseBackupFile.Load(_vsBlueprintBackupPath)).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is InvalidDataException || ex is IOException || ex is UnauthorizedAccessException)
+            {
+                L.Error("vsBlueprint.backup.corrupt", "VS Blueprint option backup unreadable; nothing changed", ex, ("path", _vsBlueprintBackupPath));
+                return null;
+            }
+            await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+            TakeoverReport report;
+            using (UiThread.Measure(L, "vsBlueprint.apply", ("trigger", trigger)))
+            {
+                var store = await CreateVsBlueprintStoreAsync();
+                if (store == null) return null;
+                var found = store.Discover(CppIntelliSenseSettings.Pages, out int visited);
+                VsBlueprintOptions = found.Select(f => f.Key + "/" + f.Value).ToList();
+                L.Info("vsBlueprint.discovered", "Options of VS's own Unreal Engine Blueprint support on this VS", ("trigger", trigger),
+                       ("options", VsBlueprintOptions), ("collectionsVisited", visited));
+                if (found.Count == 0)
+                {
+                    L.Warn("vsBlueprint.notFound", "No Blueprint support option found on this VS; turn it off under Project > Configure Tools for Unreal Engine");
+                    return new TakeoverReport();
+                }
+                if (backup == null) backup = new IntelliSenseBackup();
+                report = IntelliSenseTakeover.Apply(store, backup, null, b => IntelliSenseBackupFile.Save(_vsBlueprintBackupPath, b),
+                    VsBlueprintSupport.BuildTable(found));
+            }
+            LogReport("vsBlueprint.disable", trigger, report, _vsBlueprintBackupPath);
+            return report;
+        }
+
+        /// <summary>Writes back the Blueprint support options UEToVS turned off, then deletes the backup.</summary>
+        public async Task<TakeoverReport> RestoreVsBlueprintSupportAsync(string trigger)
+        {
+            IntelliSenseBackup backup;
+            try
+            {
+                backup = await Task.Run(() => IntelliSenseBackupFile.Load(_vsBlueprintBackupPath)).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is InvalidDataException || ex is IOException || ex is UnauthorizedAccessException)
+            {
+                L.Error("vsBlueprint.backup.corrupt", "VS Blueprint option backup unreadable; cannot restore", ex, ("path", _vsBlueprintBackupPath));
+                return null;
+            }
+            if (backup == null || backup.IsEmpty)
+            {
+                L.Info("vsBlueprint.restore.nothing", "VS Blueprint support was not changed by UEToVS", ("trigger", trigger));
+                return new TakeoverReport();
+            }
+            await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+            TakeoverReport report;
+            using (UiThread.Measure(L, "vsBlueprint.restore", ("trigger", trigger)))
+            {
+                var store = await CreateVsBlueprintStoreAsync();
+                if (store == null) return null;
+                report = IntelliSenseTakeover.Restore(store, backup);
+            }
+            try
+            {
+                IntelliSenseBackupFile.SaveOrDelete(_vsBlueprintBackupPath, backup);
+            }
+            catch (Exception ex)
+            {
+                L.Error("vsBlueprint.backup.update.failed", "Could not update the VS Blueprint option backup after restore", ex, ("path", _vsBlueprintBackupPath));
+            }
+            LogReport("vsBlueprint.restore", trigger, report, _vsBlueprintBackupPath);
+            return report;
+        }
+
+        private async Task<VsBlueprintSettingsStore> CreateVsBlueprintStoreAsync()
+        {
+            await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+            var dte = await CreateStoreAsync();
+            Microsoft.VisualStudio.Settings.WritableSettingsStore user = null;
+            try
+            {
+                user = new ShellSettingsManager(_package).GetWritableSettingsStore(Microsoft.VisualStudio.Settings.SettingsScope.UserSettings);
+            }
+            catch (Exception ex)
+            {
+                L.Warn("vsBlueprint.settingsStore.unavailable", "VS user settings store unavailable", ex);
+            }
+            if (dte == null && user == null) return null;
+            return new VsBlueprintSettingsStore(dte, user);
         }
 
         // ---------------------------------------------------------------- Visual Assist

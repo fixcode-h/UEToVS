@@ -14,7 +14,7 @@ namespace UEToVS.Mcp.Server
 {
     /// <summary>
     /// Builds the MCP server (official ModelContextProtocol C# SDK, low-level handler API) around <see cref="ToolInvoker"/>:
-    /// tools/list + tools/call, two resources (index status, usage guide) and two prompts. Transport-agnostic: Program
+    /// tools/list + tools/call, two resources (index status, usage guide) and one prompt. Transport-agnostic: Program
     /// passes the stdio transport, tests pass in-memory streams.
     /// </summary>
     public static class McpServerFactory
@@ -27,20 +27,18 @@ namespace UEToVS.Mcp.Server
 
         // Kept under ~2000 chars: some clients (Claude Code) truncate server instructions beyond 2 KB.
         public const string Instructions =
-            "UEToVS indexes this Unreal Engine project: its C++ (project, plugins, engine source), its assets (.uasset/.umap) and, when " +
-            "configured, its Lua scripts (UnLua/slua). USE THESE TOOLS FIRST, before Grep/Glob/find or reading whole files, whenever you look for " +
-            "code or assets in this project: they answer from a prebuilt index in milliseconds, return exact file:line, and skip the millions of " +
-            "engine lines that make grep slow and noisy.\n" +
-            "Which tool: C++ class/function/property/macro by (part of) its name -> search_symbols; where is X defined -> go_to_definition; " +
-            "who uses/calls X -> find_references; base/derived classes -> get_type_hierarchy; fields/UFUNCTIONs/UPROPERTYs of a type -> get_members; " +
-            "structure of a .h/.cpp -> get_file_outline; a source file by name -> search_files (instead of Glob); Blueprints, widgets, maps, " +
-            "materials, data tables -> search_assets; Lua function/method/class/module table -> search_lua; a Lua script by name or require path " +
-            "-> search_lua_files; structure of a Lua script -> get_lua_outline.\n" +
-            "Then read only the lines you need around the returned line. Lines/columns are 1-based; lists are paged (limit/offset, hasMore/nextOffset); " +
-            "scope='all' adds engine code and content.\n" +
-            "Use grep only for what is not indexed: string literals, comments, log text, .ini/config/.uplugin/.Build.cs contents, and usages of " +
-            "Lua functions (Lua references are not indexed). If results look empty or stale, call index_status (indexing may still be running, or " +
-            "no Lua folder is set) and fall back to grep.";
+            "UEToVS indexes this Unreal Engine project: C++ (project, plugins, engine source), assets (.uasset/.umap) and, when configured, " +
+            "Lua scripts (UnLua/slua). USE THESE TOOLS FIRST, before Grep/Glob/find or reading whole files: they answer from a prebuilt index in " +
+            "milliseconds with exact file:line, and skip the millions of engine lines that make grep slow and noisy.\n" +
+            "Which tool: C++ symbol by name -> search_symbols; definition -> go_to_definition; users/callers -> find_references; base/derived -> " +
+            "get_type_hierarchy; members -> get_members; UPROPERTY/UFUNCTION specifiers, replication, RPCs -> get_reflection_info; file structure -> " +
+            "get_file_outline; file by name -> search_files; Blueprints/maps/materials -> search_assets; module, Build.cs deps, 'which module has this " +
+            "header' -> get_module_info; #include + dependency for a type -> suggest_include; ini keys, UPROPERTY(config), CVars, gameplay tags -> " +
+            "search_config; who binds a handler (AddDynamic, BindUFunction, timers, input) -> find_delegate_bindings; Lua -> search_lua, " +
+            "search_lua_files, get_lua_outline.\n" +
+            "Read only the lines you need around the returned line. Lines/columns are 1-based; lists are paged (limit/offset); scope='all' adds engine code.\n" +
+            "Grep only what is not indexed: string literals, comments, log text, .uplugin contents, Lua call sites. If results look empty or stale, " +
+            "call index_status (indexing may still run) and fall back to grep.";
 
         public static McpServerOptions CreateOptions(ToolInvoker invoker)
         {
@@ -141,10 +139,21 @@ Lua scripts are indexed separately when Lua script folders are set (UEToVS setti
 | Lua function / method / class / module table | `search_lua` (`M:Fire`, `kinds: [""method""]`) |
 | A Lua script by name or require path | `search_lua_files` (`UI.MainPanel`) |
 | Structure of a Lua script | `get_lua_outline` (path or module name) |
+| UPROPERTY/UFUNCTION specifiers, meta, replication, RPCs | `get_reflection_info` (`specifiers: [""BlueprintReadWrite""]`, `replicated_only`) |
+| Module of a file, Build.cs dependencies, which module provides a header | `get_module_info` (`path` or `module`, `header`) |
+| `#include` line and Build.cs dependency for a type | `suggest_include` (`type`, `from`) |
+| ini keys, UPROPERTY(config) ↔ ini, console variables, gameplay tags | `search_config` (`kinds`) |
+| Who binds a function to a delegate / input / timer | `find_delegate_bindings` |
 | Is the index complete? | `index_status` |
 
 Use these before Grep/Glob or reading whole files. Grep is still the tool for what is not indexed: string literals, comments,
-log text, `.ini`/config/`.uplugin`/`.Build.cs` contents, and usages of Lua functions (Lua references are not indexed).
+log text, `.uplugin` contents, and call sites of Lua functions (Lua references are not indexed; `find_references` and
+`get_reflection_info` list Lua functions with the same name as a UFUNCTION, i.e. UnLua overrides).
+
+When the index is not ready: `index_status` says why (`phase` still `Parsing`/`Listing`, `engine.running: false` and no `onDisk`
+index, or a `lastError`). Results are then partial or empty, and each answer's `note` says so. Fall back to Grep/Glob for that
+question (scope the search to the project's Source/Plugins/Config folders, not the engine), and use the tools again once
+`ready` is true. Without a running engine the answers come from the last index written to disk (`source: ""index""`).
 
 Conventions: 1-based `line`/`col`; absolute paths; omitted fields mean default (no `container` = global scope,
 `origin` absent = project code); `def: true` marks definitions (bodies); paged lists return `hasMore`/`nextOffset`.
@@ -167,13 +176,6 @@ UE tips: UE type prefixes matter (A = Actor, U = UObject, F = struct, E = enum, 
                 Description = "Summarise a C++ class: hierarchy, reflected members, where it is used and which Blueprints may derive from it.",
                 Arguments = new List<PromptArgument> { new PromptArgument { Name = "class_name", Description = "e.g. AMyCharacter", Required = true } },
             },
-            new Prompt
-            {
-                Name = "find_blueprint_usage",
-                Title = "Find Blueprint-facing API",
-                Description = "List the UFUNCTIONs/UPROPERTYs of a class that Blueprints can use, and assets that likely use them.",
-                Arguments = new List<PromptArgument> { new PromptArgument { Name = "class_name", Description = "e.g. UMyComponent", Required = true } },
-            },
         };
 
         public static GetPromptResult Get(string name, IDictionary<string, JsonElement> args)
@@ -184,14 +186,9 @@ UE tips: UE type prefixes matter (A = Actor, U = UObject, F = struct, E = enum, 
             {
                 "explain_ue_class" =>
                     $"Explain the Unreal C++ class {cls} using the uetovs tools (do not grep). 1) go_to_definition symbol={cls} kind=declaration. " +
-                    $"2) get_type_hierarchy type_name={cls} direction=both max_depth=6. 3) get_members type_name={cls} ue=[\"REFLECTED\"]. " +
+                    $"2) get_type_hierarchy type_name={cls} direction=both max_depth=6. 3) get_reflection_info type_name={cls}. " +
                     $"4) find_references symbol={cls} limit=50. 5) search_assets query={TrimPrefix(cls)} class=Blueprint. " +
                     "Then summarise: purpose, base chain, key reflected properties/functions (with specifiers), main users, related assets. Cite file:line.",
-                "find_blueprint_usage" =>
-                    $"List the Blueprint-facing API of {cls}: get_members type_name={cls} ue=[\"UFUNCTION\",\"UPROPERTY\"] include_inherited=false, " +
-                    "keep members whose spec contains BlueprintCallable, BlueprintPure, BlueprintImplementableEvent, BlueprintNativeEvent, " +
-                    $"BlueprintReadWrite, BlueprintReadOnly or BlueprintAssignable. Then search_assets query={TrimPrefix(cls)} class=Blueprint for likely users. " +
-                    "Answer as a table (member, kind, specifiers, file:line).",
                 _ => throw new ArgumentException("Unknown prompt: " + name),
             };
             return new GetPromptResult

@@ -119,5 +119,23 @@ namespace UEToVS.Mcp.Tests
                 if (Directory.Exists(dir)) Directory.Delete(dir, true);
             }
         }
+
+        [Fact]
+        public async Task UeTools_AnswerFromTheRunningEngine()
+        {
+            var r = await _f.Call("get_reflection_info", new { type_name = "AMyCharacter" });
+            Assert.Equal("engine", r.GetProperty("source").GetString());
+            var fire = r.GetProperty("items").EnumerateArray().First(i => i.GetProperty("name").GetString() == "Fire");
+            Assert.Contains("BlueprintCallable", fire.GetProperty("specifiers").EnumerateArray().Select(x => x.GetString()));
+            Assert.Equal("Combat", fire.GetProperty("values").GetProperty("Category").GetString());
+
+            var m = await _f.Call("get_module_info", new { module = "Engine" });
+            Assert.Equal("engine", m.GetProperty("source").GetString());
+            Assert.EndsWith("Engine.Build.cs", m.GetProperty("module").GetProperty("buildCs").GetString());
+
+            var inc = await _f.Call("suggest_include", new { type = "APawn" });
+            Assert.Equal("engine", inc.GetProperty("source").GetString());
+            Assert.Equal("#include \"GameFramework/Pawn.h\"", inc.GetProperty("include").GetString());
+        }
     }
 }

@@ -232,7 +232,7 @@ namespace UEToVS.Engine.Index.Tests
             }
         }
 
-        private static string Fingerprint(SymbolIndex idx)
+        internal static string Fingerprint(SymbolIndex idx)
         {
             var sb = new System.Text.StringBuilder();
             foreach (var p in new[] { "Tick", "Actor", "AMy", "PCM", "my", "a", "Health", "Mana", "My*h", "Up", "act" })

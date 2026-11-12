@@ -50,6 +50,7 @@ namespace UEToVS.Engine
             Navigation = new Navigation.NavigationService(Index.Backend, Index.Files, () => Index.Phase == IndexPhase.Ready);
             IntelliSense = new IntelliSense.IntelliSenseService(Index.Backend, Index.Files, () => Index.Phase == IndexPhase.Ready, Navigation.Documents,
                 assets: Index.Assets);
+            Refactoring = new Refactoring.RefactoringService(Index.Backend, Index.Files, Navigation.Documents, () => Index.Phase == IndexPhase.Ready);
             Changes = new FileChangeTracker(batch => Index.ApplyChangesAsync(batch, _shutdown.Token));
             Watchdog = new Watchdog { Context = () => QueueContext() };
             Performance = new PerformanceMonitor();
@@ -68,6 +69,9 @@ namespace UEToVS.Engine
         public SearchService Search { get; }
         public Navigation.NavigationService Navigation { get; }
         public IntelliSense.IntelliSenseService IntelliSense { get; }
+
+        /// <summary>M4 refactoring queries (read-only; the host edits).</summary>
+        public Refactoring.RefactoringService Refactoring { get; }
         public FileChangeTracker Changes { get; }
         public Watchdog Watchdog { get; }
         public PerformanceMonitor Performance { get; }
@@ -336,6 +340,9 @@ namespace UEToVS.Engine
             {
                 L.Warn("process.shutdown.wait_failed", "Waiting for the index run failed", ex);
             }
+            // delta first (bounded, cheap); SaveState then has nothing left to compact and only writes the manifest and file states
+            // (when the flush did not finish, SaveState compacts as before; being killed meanwhile loses nothing on disk)
+            Index.FlushForShutdown(IndexOrchestrator.ShutdownFlushBudget);
             Index.SaveState();
             Dispose();
         }

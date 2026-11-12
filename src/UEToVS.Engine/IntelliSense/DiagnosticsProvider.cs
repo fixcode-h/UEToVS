@@ -17,6 +17,18 @@ namespace UEToVS.Engine.IntelliSense
         public int UnknownMember;
         public int MissingGeneratedBody;
 
+        /// <summary>v0.4.2 UE rules (UE0004…UE0010): rule code → reported count.</summary>
+        public Dictionary<string, int> UeRuleHits { get; } = new Dictionary<string, int>(StringComparer.Ordinal);
+
+        internal void Hit(string code)
+        {
+            UeRuleHits.TryGetValue(code, out int n);
+            UeRuleHits[code] = n + 1;
+        }
+
+        /// <summary>"UE0004=1,UE0007=2" for the log (null when nothing was reported).</summary>
+        public string UeRuleSummary() => UeRuleHits.Count == 0 ? null : string.Join(",", UeRuleHits.OrderBy(p => p.Key).Select(p => p.Key + "=" + p.Value));
+
         /// <summary>Why candidates were skipped (reason → count): tells how much is missed and why.</summary>
         public Dictionary<string, int> UncertainReasons { get; } = new Dictionary<string, int>(StringComparer.Ordinal);
 
@@ -46,7 +58,7 @@ namespace UEToVS.Engine.IntelliSense
     /// Uses the shared per-version document parse and member tables of <see cref="IsSession"/>; the expression resolver is a
     /// strict subset of <see cref="ExpressionTypes"/> (which guesses, fine for completion but not for errors).
     /// </summary>
-    public sealed class DiagnosticsProvider
+    public sealed partial class DiagnosticsProvider
     {
         private const int MaxChain = 4;
         private const int MaxLineage = 64;
@@ -93,12 +105,13 @@ namespace UEToVS.Engine.IntelliSense
             var run = new Pass(this, s, stats, caretOffset, unsavedFiles);
             run.Members(start, end, result);
             run.GeneratedBody(start, end, result);
+            run.UeRules(start, end, result);
             result.Sort((a, b) => a.Line != b.Line ? a.Line.CompareTo(b.Line) : a.Column.CompareTo(b.Column));
             return result;
         }
 
         /// <summary>One request: memoised type certainty and member lookups.</summary>
-        private sealed class Pass
+        private sealed partial class Pass
         {
             private readonly DiagnosticsProvider _p;
             private readonly IsSession _s;
