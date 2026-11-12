@@ -69,6 +69,7 @@ namespace UEToVS.Host
         private DiagnosticsReporter _reporter;
         private CommandRouter _commands;
         private BuildMonitor _build;
+        private Integration.ModelessEditCommandRouter _editRouter;
         private SolutionExplorerTracker _solutionExplorer;
         private SettingsWindowService _settingsWindow;
         private UEToVS.Host.Agent.AgentService _agent;
@@ -162,6 +163,8 @@ namespace UEToVS.Host
                 // 4b. Toolbar: shown on the first run (double Shift → Search Everywhere is M1's InputMonitor).
                 var dte = await GetServiceAsync(typeof(DTE)) as DTE;
                 Safe.Execute(L, "toolbar.firstRun", () => ToolbarController.ApplyOnFirstRun(dte, s.ShowToolbar));
+                // 4b'. Ctrl+C/V/X/Z/A in our modeless windows: keep them out of the code editor.
+                Safe.Execute(L, "shell.editRouter", () => _editRouter = Integration.ModelessEditCommandRouter.Register(this));
                 // 4c. Default shortcuts: VSCT KeyBindings don't always reach VS after an install/upgrade; bind the ones still missing.
                 _ = Safe.RunAsync(L, "keymap.defaults", () => Keymap.DefaultKeyBindings.EnsureAsync(dte, DisposalToken));
 
@@ -606,6 +609,8 @@ namespace UEToVS.Host
                     L.Info("package.disposing", null);
                     _engine?.Dispose();
                     _engine = null;
+                    Safe.Execute(L, "shell.editRouter.dispose", () => _editRouter?.Dispose());
+                    _editRouter = null;
                     _build?.Dispose();
                     _solutionExplorer?.Dispose();
                     M1Feature.Dispose();
