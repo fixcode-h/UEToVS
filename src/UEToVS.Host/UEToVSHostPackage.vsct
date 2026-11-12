@@ -684,30 +684,6 @@
           <LocCanonicalName>UEToVS.Toolbar.SearchEverywhere</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdTbBack" priority="0x0082" type="Button">
-        <Parent guid="guidUEToVSHostCmdSet" id="grpToolbarNav" />
-        <Icon guid="ImageCatalogGuid" id="Backwards" />
-        <CommandFlag>IconIsMoniker</CommandFlag>
-        <CommandFlag>DynamicVisibility</CommandFlag>
-        <CommandFlag>TextChanges</CommandFlag>
-        <Strings>
-          <ButtonText>Navigate Back</ButtonText>
-          <CanonicalName>UEToVS.Toolbar.NavigateBack</CanonicalName>
-          <LocCanonicalName>UEToVS.Toolbar.NavigateBack</LocCanonicalName>
-        </Strings>
-      </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdTbForward" priority="0x0083" type="Button">
-        <Parent guid="guidUEToVSHostCmdSet" id="grpToolbarNav" />
-        <Icon guid="ImageCatalogGuid" id="Forwards" />
-        <CommandFlag>IconIsMoniker</CommandFlag>
-        <CommandFlag>DynamicVisibility</CommandFlag>
-        <CommandFlag>TextChanges</CommandFlag>
-        <Strings>
-          <ButtonText>Navigate Forward</ButtonText>
-          <CanonicalName>UEToVS.Toolbar.NavigateForward</CanonicalName>
-          <LocCanonicalName>UEToVS.Toolbar.NavigateForward</LocCanonicalName>
-        </Strings>
-      </Button>
       <Button guid="guidUEToVSHostCmdSet" id="cmdTbGoToDefinition" priority="0x0084" type="Button">
         <Parent guid="guidUEToVSHostCmdSet" id="grpToolbarNav" />
         <Icon guid="ImageCatalogGuid" id="GoToDefinition" />
@@ -1038,8 +1014,6 @@
       <IDSymbol name="grpToolbarTools" value="0x0404" />
       <IDSymbol name="cmdTbSettings" value="0x0480" />
       <IDSymbol name="cmdTbSearchEverywhere" value="0x0481" />
-      <IDSymbol name="cmdTbBack" value="0x0482" />
-      <IDSymbol name="cmdTbForward" value="0x0483" />
       <IDSymbol name="cmdTbGoToDefinition" value="0x0484" />
       <IDSymbol name="cmdTbFindReferences" value="0x0485" />
       <IDSymbol name="cmdTbPerformance" value="0x0486" />

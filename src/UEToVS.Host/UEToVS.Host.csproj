@@ -80,6 +80,17 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- v0.4.5 bundled fonts (IBM Plex Sans, Noto Sans SC subset, Maple Mono NL) + their OFL texts → <ext>\Fonts\<Family>\.
+         Built by scripts/build_fonts.py; loaded by UEToVS.UI Theming/BundledFonts, installed per user by Fonts/FontInstaller. -->
+    <Content Include="Resources\Fonts\**\*.ttf;Resources\Fonts\**\OFL.txt">
+      <Link>Fonts\%(RecursiveDir)%(Filename)%(Extension)</Link>
+      <IncludeInVSIX>true</IncludeInVSIX>
+      <VSIXSubPath>Fonts\%(RecursiveDir)</VSIXSubPath>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- UEToVSLink editor plugin source, copied into <Project>/Plugins by the "install editor plugin" action (Link/UnrealTools.cs). -->
     <Content Include="..\..\ue\UEToVSLink\**\*" Exclude="..\..\ue\UEToVSLink\Binaries\**;..\..\ue\UEToVSLink\Intermediate\**">
       <Link>EditorPlugin\UEToVSLink\%(RecursiveDir)%(Filename)%(Extension)</Link>

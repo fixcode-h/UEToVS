@@ -49,6 +49,11 @@ namespace UEToVS.UI.Logic
                 source = AccentSource.Custom;
                 return custom.Opaque();
             }
+            if (palette.PreferOwnAccent && palette.Accent.HasValue)
+            {
+                source = AccentSource.VsTheme;
+                return palette.Accent.Value.Opaque();
+            }
             if (palette.SystemAccent.HasValue && IsUsable(palette.SystemAccent.Value, surface))
             {
                 source = AccentSource.System;

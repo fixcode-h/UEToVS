@@ -121,10 +121,19 @@ namespace UEToVS.Host.IntelliSense
             if (m.MacroExpansion != null)
             {
                 if (parts.Count > 0) parts.Add(new ThematicBreakElement());
-                var runs = DeclarationTokenizer.Tokenize(m.MacroExpansion).Select(t => new ClassifiedTextRun(IntelliSenseEditor.ClassificationFor(t), t.Text)).ToList();
-                if (m.MacroExpansionTruncated) runs.Add(new ClassifiedTextRun(PredefinedClassificationTypeNames.Comment, "\n" + IntelliSenseStrings.MacroExpansionTruncated));
-                parts.Add(new MacroExpansionElement(IntelliSenseStrings.MacroExpansionHeader(m.MacroExpansionLines), new ClassifiedTextElement(runs),
-                                                   expanded: m.MacroExpansionLines <= 3));
+                var steps = new List<MacroStepView>();
+                for (int i = 0; i < m.MacroSteps.Count; i++)
+                {
+                    var step = m.MacroSteps[i];
+                    var runs = DeclarationTokenizer.Tokenize(step.Text).Select(t => new ClassifiedTextRun(IntelliSenseEditor.ClassificationFor(t), t.Text)).ToList();
+                    // "1 展开一层 → 2 完全展开 → 3 计算常量后": numbered so the order of the steps is obvious
+                    string label = m.MacroSteps.Count > 1 ? (i + 1) + "  " + step.Label : step.Label;
+                    steps.Add(new MacroStepView(label, new ClassifiedTextElement(runs)));
+                }
+                if (m.MacroExpansionTruncated && steps.Count > 0)
+                    steps.Add(new MacroStepView(null, new ClassifiedTextElement(new ClassifiedTextRun(PredefinedClassificationTypeNames.Comment, IntelliSenseStrings.MacroExpansionTruncated))));
+                string final = m.MacroSteps.Count > 0 ? m.MacroSteps[m.MacroSteps.Count - 1].Text : m.MacroExpansion;
+                parts.Add(new MacroExpansionElement(IntelliSenseStrings.MacroExpansionTitle, steps, final, expanded: m.MacroExpansionLines <= 6));
             }
             if (!ueOnly && m.ConfidenceNote != null)
                 parts.Add(new ClassifiedTextElement(new ClassifiedTextRun(PredefinedClassificationTypeNames.Comment, m.ConfidenceNote)));
@@ -150,24 +159,41 @@ namespace UEToVS.Host.IntelliSense
         }
     }
 
+    /// <summary>One step of a macro expansion: a caption ("1  展开一层") and the coloured code.</summary>
+    internal sealed class MacroStepView
+    {
+        public MacroStepView(string label, ClassifiedTextElement code)
+        {
+            Label = label;
+            Code = code;
+        }
+
+        public string Label { get; }
+        public ClassifiedTextElement Code { get; }
+    }
+
     /// <summary>Collapsible macro expansion block inside Quick Info (rendered by <see cref="MacroExpansionViewElementFactory"/>).</summary>
     internal sealed class MacroExpansionElement
     {
-        public MacroExpansionElement(string header, ClassifiedTextElement body, bool expanded)
+        public MacroExpansionElement(string header, IReadOnlyList<MacroStepView> steps, string copyText, bool expanded)
         {
             Header = header;
-            Body = body;
+            Steps = steps;
+            CopyText = copyText;
             Expanded = expanded;
         }
 
         public string Header { get; }
-        public ClassifiedTextElement Body { get; }
+        public IReadOnlyList<MacroStepView> Steps { get; }
+        public string CopyText { get; }
         public bool Expanded { get; }
     }
 
     /// <summary>
-    /// Renders <see cref="MacroExpansionElement"/>: a clickable header (UEToVS.UI <see cref="UiText"/>, link style, ▸/▾) that
-    /// shows or hides the coloured expansion (rendered by VS's own factory, so classifications apply).
+    /// Renders <see cref="MacroExpansionElement"/>: a clickable header (▸/▾) with a "复制" link on the right, then each
+    /// step as a small caption over a code block (monospace, subtle tinted background, rounded; VS's own factory
+    /// renders the coloured runs so classifications apply). The tint is a neutral translucent gray so it reads on
+    /// both light and dark Quick Info backgrounds.
     /// </summary>
     [Export(typeof(IViewElementFactory))]
     [Name("UEToVS Macro Expansion Element Factory")]
@@ -176,6 +202,9 @@ namespace UEToVS.Host.IntelliSense
     internal sealed class MacroExpansionViewElementFactory : IViewElementFactory
     {
         private static readonly Logger L = Log.For("IntelliSense");
+        private static readonly System.Windows.Media.Brush CodeBackground = Frozen(System.Windows.Media.Color.FromArgb(0x1F, 0x80, 0x80, 0x80));
+        private static readonly System.Windows.Media.Brush CodeBorder = Frozen(System.Windows.Media.Color.FromArgb(0x33, 0x80, 0x80, 0x80));
+        private static readonly System.Windows.Media.FontFamily Mono = new System.Windows.Media.FontFamily("Cascadia Mono, Consolas, Courier New");
 
         [Import]
         internal IViewElementFactoryService Factory { get; set; }
@@ -185,20 +214,56 @@ namespace UEToVS.Host.IntelliSense
             if (!(model is MacroExpansionElement m) || typeof(TView) != typeof(UIElement)) return null;
             try
             {
-                var body = Factory.CreateViewElement<UIElement>(textView, m.Body);
-                var header = new UiText(Arrow(m.Expanded) + " " + m.Header, TextVariant.Link) { Cursor = Cursors.Hand, Margin = new Thickness(0, 2, 0, 2) };
-                if (body != null) body.Visibility = m.Expanded ? Visibility.Visible : Visibility.Collapsed;
+                var body = new StackPanel { Margin = new Thickness(0, 2, 0, 0) };
+                foreach (var step in m.Steps)
+                {
+                    if (step.Label != null)
+                        body.Children.Add(new UiText(step.Label, TextVariant.Caption) { Margin = new Thickness(0, 6, 0, 3), Opacity = 0.8 });
+                    var code = Factory.CreateViewElement<UIElement>(textView, step.Code);
+                    if (code == null) continue;
+                    if (code is FrameworkElement fe) System.Windows.Documents.TextElement.SetFontFamily(fe, Mono);
+                    if (step.Label == null) { body.Children.Add(code); continue; }
+                    body.Children.Add(new Border
+                    {
+                        Child = code, Background = CodeBackground, BorderBrush = CodeBorder, BorderThickness = new Thickness(1),
+                        CornerRadius = new CornerRadius(4), Padding = new Thickness(8, 4, 8, 5),
+                        HorizontalAlignment = HorizontalAlignment.Stretch, MaxWidth = 720,
+                    });
+                }
+                body.Visibility = m.Expanded ? Visibility.Visible : Visibility.Collapsed;
+
+                var header = new UiText(Arrow(m.Expanded) + " " + m.Header, TextVariant.Link) { Cursor = Cursors.Hand, VerticalAlignment = VerticalAlignment.Center };
                 header.MouseLeftButtonUp += (s, e) =>
                 {
-                    if (body == null) return;
                     bool show = body.Visibility != Visibility.Visible;
                     body.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
                     header.Text = Arrow(show) + " " + m.Header;
                     e.Handled = true;
                 };
+                var copy = new UiText(IntelliSenseStrings.MacroExpansionCopyLink, TextVariant.Link) { Cursor = Cursors.Hand, Margin = new Thickness(16, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
+                UEToVS.UI.Controls.Tip.Set(copy, IntelliSenseStrings.MacroExpansionCopy);
+                copy.MouseLeftButtonUp += (s, e) =>
+                {
+                    e.Handled = true;
+                    try
+                    {
+                        Clipboard.SetText(m.CopyText ?? string.Empty);
+                        copy.Text = IntelliSenseStrings.MacroExpansionCopied;
+                        L.Info("is.quickInfo.macroCopied", null, ("chars", (m.CopyText ?? string.Empty).Length));
+                    }
+                    catch (Exception ex)
+                    {
+                        L.Warn("is.quickInfo.macroCopyFailed", "Clipboard busy", ex);
+                    }
+                };
+                var head = new DockPanel { LastChildFill = true, Margin = new Thickness(0, 2, 0, 0) };
+                DockPanel.SetDock(copy, Dock.Right);
+                head.Children.Add(copy);
+                head.Children.Add(header);
+
                 var panel = new StackPanel();
-                panel.Children.Add(header);
-                if (body != null) panel.Children.Add(body);
+                panel.Children.Add(head);
+                panel.Children.Add(body);
                 return panel as TView;
             }
             catch (Exception ex)
@@ -206,6 +271,13 @@ namespace UEToVS.Host.IntelliSense
                 L.Error("is.quickInfo.macroElement.failed", "Rendering the macro expansion failed", ex);
                 return null;
             }
+        }
+
+        private static System.Windows.Media.Brush Frozen(System.Windows.Media.Color c)
+        {
+            var b = new System.Windows.Media.SolidColorBrush(c);
+            b.Freeze();
+            return b;
         }
 
         private static string Arrow(bool expanded) => expanded ? "▾" : "▸";

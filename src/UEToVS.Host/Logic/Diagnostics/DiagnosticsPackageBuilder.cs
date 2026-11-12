@@ -32,8 +32,11 @@ namespace UEToVS.Host.Logic.Diagnostics
         /// <param name="outputDirectory">Where the zip is created.</param>
         /// <param name="sanitizedSettingsJson">Settings already passed through <see cref="Sanitizer"/>.</param>
         /// <param name="extraTextFiles">name → content (e.g. environment.txt, intellisense-state.json).</param>
+        /// <param name="sanitizeLine">Applied to every line of the logs and the index manifest (user name / profile path);
+        /// null copies them unchanged.</param>
         public static DiagnosticsPackageResult Create(string storageRoot, string outputDirectory, string sanitizedSettingsJson,
-                                                      IDictionary<string, string> extraTextFiles, DateTime? now = null)
+                                                      IDictionary<string, string> extraTextFiles, DateTime? now = null,
+                                                      Func<string, string> sanitizeLine = null)
         {
             var result = new DiagnosticsPackageResult();
             Directory.CreateDirectory(outputDirectory);
@@ -59,7 +62,7 @@ namespace UEToVS.Host.Logic.Diagnostics
                         }
                         try
                         {
-                            AddFileShared(zip, f.FullName, "Logs/" + f.Name);
+                            AddFileShared(zip, f.FullName, "Logs/" + f.Name, sanitizeLine);
                             total += f.Length;
                             result.LogFiles++;
                         }
@@ -78,7 +81,7 @@ namespace UEToVS.Host.Logic.Diagnostics
                 {
                     try
                     {
-                        AddFileShared(zip, manifest, "Index/manifest.json");
+                        AddFileShared(zip, manifest, "Index/manifest.json", sanitizeLine);
                         result.IndexManifestIncluded = true;
                     }
                     catch (IOException ex)
@@ -104,7 +107,9 @@ namespace UEToVS.Host.Logic.Diagnostics
                     "UEToVS diagnostics package\n" +
                     "Logs/*.log: JSON Lines (ts, lvl, proc, mod, evt, msg, req, ms, data, ex). host-* = VS process, engine-* = engine process.\n" +
                     "Start with evt=session.start, then search lvl=error / evt=*.slow / resource.* / perf.summary.\n" +
-                    "No source code is included; user name and profile paths are replaced in settings.\n");
+                    (sanitizeLine != null
+                        ? "No source code is included; user name and profile paths are replaced in every file.\n"
+                        : "No source code is included; user name and profile paths are replaced in settings.\n"));
             }
             if (File.Exists(zipPath)) File.Delete(zipPath);
             File.Move(tmp, zipPath);
@@ -112,12 +117,27 @@ namespace UEToVS.Host.Logic.Diagnostics
             return result;
         }
 
-        private static void AddFileShared(ZipArchive zip, string path, string entryName)
+        private static void AddFileShared(ZipArchive zip, string path, string entryName, Func<string, string> sanitizeLine = null)
         {
             using (var src = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
             {
                 var entry = zip.CreateEntry(entryName, CompressionLevel.Optimal);
-                using (var dst = entry.Open()) src.CopyTo(dst);
+                using (var dst = entry.Open())
+                {
+                    if (sanitizeLine == null)
+                    {
+                        src.CopyTo(dst);
+                        return;
+                    }
+                    // Line by line: the current log is still being written and logs can be large.
+                    using (var reader = new StreamReader(src, Encoding.UTF8, true))
+                    using (var writer = new StreamWriter(dst, new UTF8Encoding(false)))
+                    {
+                        writer.NewLine = "\n";
+                        string line;
+                        while ((line = reader.ReadLine()) != null) writer.WriteLine(sanitizeLine(line));
+                    }
+                }
             }
         }
 
@@ -137,6 +157,31 @@ namespace UEToVS.Host.Logic.Diagnostics
     {
         /// <summary>Keys whose values are always masked (case-insensitive, substring match).</summary>
         public static readonly string[] SecretKeyHints = { "token", "password", "secret", "apikey", "api_key" };
+
+        /// <summary>
+        /// <see cref="Sanitize"/> with the patterns compiled once, for many lines (logs). Lines without the profile path or
+        /// the user name skip the regexes.
+        /// </summary>
+        public static Func<string, string> CreateLineSanitizer(string userName, string userProfile)
+        {
+            var patterns = new List<Regex>();
+            if (!string.IsNullOrEmpty(userProfile))
+                foreach (var variant in new[] { userProfile, userProfile.Replace("\\", "\\\\"), userProfile.Replace('\\', '/') }.Distinct(StringComparer.OrdinalIgnoreCase))
+                    patterns.Add(new Regex(Regex.Escape(variant), RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled));
+            Regex user = !string.IsNullOrEmpty(userName) && userName.Length >= 2
+                ? new Regex(@"(?<![A-Za-z0-9])" + Regex.Escape(userName) + @"(?![A-Za-z0-9])", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled)
+                : null;
+            string probe = !string.IsNullOrEmpty(userName) && userName.Length >= 2 ? userName : null;
+            return line =>
+            {
+                if (string.IsNullOrEmpty(line)) return line;
+                // every pattern contains the user name in practice (C:\Users\<name>); cheap pre-check first
+                if (probe != null && line.IndexOf(probe, StringComparison.OrdinalIgnoreCase) < 0 && patterns.Count > 0
+                    && line.IndexOf(userProfile, StringComparison.OrdinalIgnoreCase) < 0) return line;
+                foreach (var r in patterns) line = r.Replace(line, "%USERPROFILE%");
+                return user == null ? line : user.Replace(line, "<user>");
+            };
+        }
 
         /// <summary>Replaces the user profile path and user name with placeholders.</summary>
         public static string Sanitize(string text, string userName, string userProfile)

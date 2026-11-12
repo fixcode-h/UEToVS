@@ -8,10 +8,19 @@ namespace UEToVS.UI.Logic
     /// </summary>
     public enum StylePreset
     {
-        /// <summary>Visual Studio 2026 (Fluent) default density.</summary>
+        /// <summary>Standard density (shown as "标准"; the enum name is kept for stored settings).</summary>
         Vs2026 = 0,
         Compact = 1,
         Comfortable = 2,
+    }
+
+    /// <summary>Color scheme of every UEToVS surface.</summary>
+    public enum ColorScheme
+    {
+        /// <summary>Warm neutrals + clay accent (Claude Code style, v0.4.5 default).</summary>
+        Warm = 0,
+        /// <summary>Colors derived from the VS theme (pre-v0.4.5 look).</summary>
+        FollowVs = 1,
     }
 
     public enum AccentMode

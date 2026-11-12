@@ -35,7 +35,7 @@ namespace UEToVS.Host.Settings
 
         public IndexStatusCard(string caption)
         {
-            _caption = new UiText(caption, TextVariant.Caption) { Margin = new Thickness(0, 0, 0, 2) };
+            _caption = new UiText(caption, TextVariant.GroupLabel) { Margin = new Thickness(0, 0, 0, 4) };
             _icon.Child = _iconText;
             _viewLog = new UiButton(() => SettingsText.ViewLog) { MinWidth = 88 };
             _rebuild = new UiButton(() => SettingsText.Rebuild, ButtonKind.Primary) { MinWidth = 88, Margin = new Thickness(8, 0, 0, 0) };
@@ -66,9 +66,9 @@ namespace UEToVS.Host.Settings
             grid.Children.Add(actions);
 
             Child = grid;
-            Padding = new Thickness(16, 12, 16, 12);
-            Margin = new Thickness(0, 0, 0, SettingsPageLayout.CardGap);
+            Margin = new Thickness(0, 0, 0, SettingsPageLayout.GroupGap);
             MinHeight = SettingsCard.MinCardHeight;
+            Padding = new Thickness(16, 14, 16, 14);
             BorderThickness = new Thickness(1);
             SnapsToDevicePixels = true;
             this.Bind(CornerRadiusProperty, Tokens.CornerRadiusPopup);
