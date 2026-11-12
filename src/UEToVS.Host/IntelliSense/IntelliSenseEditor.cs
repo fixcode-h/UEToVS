@@ -23,11 +23,12 @@ namespace UEToVS.Host.IntelliSense
         public static Func<CaretRequest> CaptureAt(ITextBuffer buffer, SnapshotPoint point)
         {
             var doc = EditorServices.Document(buffer);
-            string path = doc?.FilePath;
+            // Code preview buffers have no ITextDocument: they show the file on disk unchanged (not dirty).
+            string path = doc?.FilePath ?? Search.EditorCodePreview.PathOf(buffer);
             if (string.IsNullOrEmpty(path)) return null;
             var snapshot = point.Snapshot;
             var line = point.GetContainingLine();
-            bool dirty = doc.IsDirty;
+            bool dirty = doc?.IsDirty ?? false;
             int lineNumber = line.LineNumber, lineStart = line.Start.Position, lineLength = line.Length, position = point.Position;
             return () => CaretRequestBuilder.Build(path, lineNumber, lineStart, lineLength, position, dirty, () => snapshot.GetText(), snapshot.Length,
                                                    snapshot.Version.VersionNumber);

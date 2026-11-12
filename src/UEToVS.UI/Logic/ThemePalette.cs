@@ -12,7 +12,11 @@ namespace UEToVS.UI.Logic
         public Rgba? PopupBackground { get; set; }
         public Rgba? Border { get; set; }
         public Rgba? GrayText { get; set; }
+        /// <summary>VS theme accent (EnvironmentColors.SystemHighlight).</summary>
         public Rgba? Accent { get; set; }
+        /// <summary>Windows system accent (DWM AccentColor), or null outside Windows / when unreadable. Fluent controls
+        /// (toggle switches, primary buttons) prefer it; see <see cref="AccentResolver"/>.</summary>
+        public Rgba? SystemAccent { get; set; }
         public Rgba? SelectionBackground { get; set; }
         public Rgba? SelectionText { get; set; }
         public Rgba? InputBackground { get; set; }
@@ -33,7 +37,7 @@ namespace UEToVS.UI.Logic
 
         public ThemePalette Clone() => (ThemePalette)MemberwiseClone();
 
-        /// <summary>Approximation of VS 2022 Dark, used when no VS resources are available (gallery, tests).</summary>
+        /// <summary>Approximation of VS 2026 Dark, used when no VS resources are available (gallery, tests).</summary>
         public static ThemePalette FallbackDark() => new ThemePalette
         {
             Name = "Dark",
@@ -42,15 +46,15 @@ namespace UEToVS.UI.Logic
             PopupBackground = Rgba.FromHex(0x2B2D30),
             Border = Rgba.FromHex(0x3F3F46),
             GrayText = Rgba.FromHex(0x9DA0A6),
-            Accent = Rgba.FromHex(0x3574F0),
+            // Accent left null: resolves to the Fluent default blue, dark-theme shade (AccentResolver).
             InputBackground = Rgba.FromHex(0x1E1F22),
             InputText = Rgba.FromHex(0xDFE1E5),
             InputBorder = Rgba.FromHex(0x43454A),
-            InputBorderFocused = Rgba.FromHex(0x3574F0),
+            InputBorderFocused = Rgba.FromHex(0x0078D4),
             Link = Rgba.FromHex(0x57A6FF),
         };
 
-        /// <summary>Approximation of VS 2022 Light.</summary>
+        /// <summary>Approximation of VS 2026 Light.</summary>
         public static ThemePalette FallbackLight() => new ThemePalette
         {
             Name = "Light",
@@ -59,11 +63,11 @@ namespace UEToVS.UI.Logic
             PopupBackground = Rgba.FromHex(0xFFFFFF),
             Border = Rgba.FromHex(0xCCCEDB),
             GrayText = Rgba.FromHex(0x6C707E),
-            Accent = Rgba.FromHex(0x3574F0),
+            // Accent left null: resolves to the Fluent default blue, light-theme shade (AccentResolver).
             InputBackground = Rgba.FromHex(0xFFFFFF),
             InputText = Rgba.FromHex(0x1E1E1E),
             InputBorder = Rgba.FromHex(0xC9CCD6),
-            InputBorderFocused = Rgba.FromHex(0x3574F0),
+            InputBorderFocused = Rgba.FromHex(0x0078D4),
             Link = Rgba.FromHex(0x2A64D6),
         };
 

@@ -151,6 +151,7 @@ namespace UEToVS.Host.Navigation
                 if (Filter.IncludeEngine && _lastCaret != null) await SearchAsync(_lastCaret, _last?.Symbol, _lastTitle);
                 else Apply();
             });
+            Diagnostics.Safe.Execute(L, "nav.references.preview.attach", () => Search.EditorCodePreview.Attach(_popup.Panel.Preview));
             // CodePreviewRequest.Line is 1-based; contract lines are 0-based.
             _popup.Panel.PreviewProvider = r =>
             {

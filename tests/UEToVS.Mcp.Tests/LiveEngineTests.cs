@@ -98,7 +98,7 @@ namespace UEToVS.Mcp.Tests
         }
 
         [Fact]
-        public void StaleDiscoveryFile_IsIgnored()
+        public async Task StaleDiscoveryFile_IsIgnored()
         {
             string dir = Path.Combine(Path.GetTempPath(), "uetovs-mcp-stale-" + Guid.NewGuid().ToString("N"));
             try
@@ -106,7 +106,7 @@ namespace UEToVS.Mcp.Tests
                 var paths = StoragePaths.ForSolution(dir);
                 new EngineDiscoveryFile { Pipe = "uetovs-dead", Pid = 999999, ProtocolVersion = 1, SolutionDir = dir, StartedUtc = DateTime.UtcNow }.Write(paths);
                 using var conn = new EngineConnection(dir);
-                Assert.Null(conn.GetAsync(CancellationToken.None).GetAwaiter().GetResult());
+                Assert.Null(await conn.GetAsync(CancellationToken.None));
                 Assert.Contains("stale", conn.LastError);
 
                 EngineDiscoveryFile.DeleteIfOwned(paths, 123); // not ours: kept

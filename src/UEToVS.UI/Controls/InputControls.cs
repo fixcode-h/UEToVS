@@ -28,6 +28,12 @@ namespace UEToVS.UI.Controls
         private readonly ContentControl _right = new ContentControl { Focusable = false, VerticalAlignment = VerticalAlignment.Center };
         private bool _suppress;
         private bool _embedded;
+        // Boxed mode: Fluent focus underline drawn by this control (the inner text box is chrome-less).
+        private readonly Border _underline = new Border
+        {
+            Height = 2, VerticalAlignment = VerticalAlignment.Bottom, IsHitTestVisible = false, Visibility = Visibility.Hidden,
+            CornerRadius = new CornerRadius(0, 0, 2, 2), SnapsToDevicePixels = true,
+        };
 
         public SearchInput(bool embedded = true)
         {
@@ -60,11 +66,19 @@ namespace UEToVS.UI.Controls
             grid.Children.Add(_box);
             grid.Children.Add(_clear);
             grid.Children.Add(_right);
-            Child = grid;
+            var root = new Grid();
+            root.Children.Add(grid);
+            root.Children.Add(_underline);
+            _underline.Bind(BackgroundProperty, Tokens.InputFocusUnderline);
+            Child = root;
+            IsKeyboardFocusWithinChanged += (s, e) => Ui.Safe("ui.search.focus", UpdateFocusVisual);
+            MouseEnter += (s, e) => Ui.Safe("ui.search.hover", UpdateFocusVisual);
+            MouseLeave += (s, e) => Ui.Safe("ui.search.hover", UpdateFocusVisual);
 
             _box.BorderThickness = new Thickness(0);
             _box.Background = Brushes.Transparent;
             _box.Padding = new Thickness(0, 2, 0, 2);
+            _box.MinHeight = 0; // the search box chrome (this Border) sets the height, not the inner text box
             _box.Bind(Control.FontSizeProperty, Tokens.FontSizeInput);
             _box.VerticalAlignment = VerticalAlignment.Center;
             Placeholder = Strings.SearchPlaceholder;
@@ -114,6 +128,12 @@ namespace UEToVS.UI.Controls
                     this.Bind(BackgroundProperty, Tokens.SurfacePopup);
                     Padding = new Thickness(12, 8, 8, 8);
                     CornerRadius = new CornerRadius(0);
+                    ClearValue(MinHeightProperty);
+                    _box.Style = Styles.TextInput;
+                    _box.BorderThickness = new Thickness(0);
+                    _box.Background = Brushes.Transparent;
+                    _box.Padding = new Thickness(0, 2, 0, 2);
+                    _box.MinHeight = 0;
                 }
                 else
                 {
@@ -121,9 +141,33 @@ namespace UEToVS.UI.Controls
                     this.Bind(BackgroundProperty, Tokens.InputBackground);
                     this.Bind(BorderBrushProperty, Tokens.InputBorder);
                     this.Bind(CornerRadiusProperty, Tokens.CornerRadiusControl);
-                    Padding = new Thickness(8, 2, 4, 2);
+                    // Fluent text box metrics: 10px text inset, text vertically centred in the control height, the
+                    // clear button inset 4px from the right edge. The inner box has no chrome of its own (no second
+                    // focus underline over the caret, no inner padding that clips the glyphs).
+                    Padding = new Thickness(10, 0, 4, 0);
+                    this.Bind(MinHeightProperty, Tokens.ControlHeight);
+                    _box.Style = Styles.BareTextInput;
+                    _box.ClearValue(Control.BorderThicknessProperty);
+                    _box.ClearValue(Control.BackgroundProperty);
+                    _box.ClearValue(Control.PaddingProperty);
+                    _box.ClearValue(FrameworkElement.MinHeightProperty);
+                    _underline.Margin = new Thickness(-Padding.Left, 0, -Padding.Right, 0); // full inner width, on the bottom border
                 }
             }
+        }
+
+        /// <summary>Boxed mode: hover border and the accent focus underline (Fluent TextBox states).</summary>
+        private void UpdateFocusVisual()
+        {
+            if (_embedded)
+            {
+                _underline.Visibility = Visibility.Hidden;
+                return;
+            }
+            bool focused = IsKeyboardFocusWithin;
+            _underline.Visibility = focused ? Visibility.Visible : Visibility.Hidden;
+            this.Bind(BackgroundProperty, focused ? Tokens.SurfacePopup : Tokens.InputBackground);
+            this.Bind(BorderBrushProperty, IsMouseOver && !focused ? Tokens.BorderStrong : Tokens.InputBorder);
         }
 
         public string Text
@@ -246,7 +290,8 @@ namespace UEToVS.UI.Controls
 
         public Dropdown()
         {
-            Style = Styles.ToggleButtonStyle(ButtonKind.Secondary);
+            // Plain secondary-button look (Fluent ComboBox): no accent tint while the list is open.
+            Style = Styles.Button(ButtonKind.Secondary);
             HorizontalContentAlignment = HorizontalAlignment.Stretch;
             MinWidth = 120;
             var grid = new Grid();
@@ -268,7 +313,7 @@ namespace UEToVS.UI.Controls
             };
             chrome.Bind(Border.BackgroundProperty, Tokens.SurfacePopup);
             chrome.Bind(Border.BorderBrushProperty, Tokens.BorderStrong);
-            chrome.Bind(Border.CornerRadiusProperty, Tokens.CornerRadiusControl);
+            chrome.Bind(Border.CornerRadiusProperty, Tokens.CornerRadiusPopup);
             ThemeManager.Instance.Attach(chrome);
             _popup.Child = chrome;
             _popup.PlacementTarget = this;
@@ -336,8 +381,9 @@ namespace UEToVS.UI.Controls
             {
                 int idx = i;
                 var t = new TextBlock { Text = _items[i], VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
-                var row = new Border { Child = t, Padding = new Thickness(8, 0, 8, 0), CornerRadius = new CornerRadius(3), Background = Brushes.Transparent };
+                var row = new Border { Child = t, Padding = new Thickness(10, 0, 10, 0), Background = Brushes.Transparent };
                 row.Bind(FrameworkElement.HeightProperty, Tokens.RowHeight);
+                row.Bind(Border.CornerRadiusProperty, Tokens.CornerRadiusControl);
                 AutomationProperties.SetName(row, _items[i]);
                 row.MouseEnter += (s, e) => Ui.Safe("ui.dropdown.hover", () => { _hot = idx; Paint(); });
                 row.MouseLeftButtonUp += (s, e) => Ui.Safe("ui.dropdown.pick", () => { SelectedIndex = idx; _popup.IsOpen = false; });
@@ -351,12 +397,15 @@ namespace UEToVS.UI.Controls
         {
             for (int i = 0; i < _rows.Count; i++)
             {
-                if (i == _hot) _rows[i].Bind(Border.BackgroundProperty, Tokens.SelectionBackground);
+                // Fluent list flyout: the selected item keeps the soft selection fill, the hot (hover / arrow-key) item
+                // gets the subtle hover fill.
+                if (i == _selected) _rows[i].Bind(Border.BackgroundProperty, i == _hot ? Tokens.SelectionBackground : Tokens.SelectionInactiveBackground);
+                else if (i == _hot) _rows[i].Bind(Border.BackgroundProperty, Tokens.SurfaceHover);
                 else _rows[i].Background = Brushes.Transparent;
                 if (_rows[i].Child is TextBlock tb)
                 {
-                    tb.FontWeight = i == _selected ? FontWeights.SemiBold : FontWeights.Normal;
-                    tb.Bind(TextBlock.ForegroundProperty, i == _hot ? Tokens.SelectionForeground : Tokens.TextPrimary);
+                    tb.FontWeight = FontWeights.Normal;
+                    tb.Bind(TextBlock.ForegroundProperty, i == _selected ? Tokens.SelectionForeground : Tokens.TextPrimary);
                 }
             }
         }
@@ -435,7 +484,7 @@ namespace UEToVS.UI.Controls
             var chrome = new Border { Child = grid, Padding = new Thickness(6), BorderThickness = new Thickness(1), Margin = new Thickness(0, 2, 0, 0) };
             chrome.Bind(Border.BackgroundProperty, Tokens.SurfacePopup);
             chrome.Bind(Border.BorderBrushProperty, Tokens.BorderStrong);
-            chrome.Bind(Border.CornerRadiusProperty, Tokens.CornerRadiusControl);
+            chrome.Bind(Border.CornerRadiusProperty, Tokens.CornerRadiusPopup);
             ThemeManager.Instance.Attach(chrome);
             _popup.Child = chrome;
             _popup.PlacementTarget = _swatch;

@@ -68,28 +68,8 @@ namespace UEToVS.Host.Keymap
         private static Dictionary<string, string> DetectScopes(DTE dte)
         {
             ThreadHelper.ThrowIfNotOnUIThread();
-            string Scope(string command, string keySuffix)
-            {
-                try
-                {
-                    if (dte.Commands.Item(command).Bindings is object[] b)
-                        foreach (var x in b.Select(o => o?.ToString()))
-                        {
-                            int i = x?.IndexOf("::", StringComparison.Ordinal) ?? -1;
-                            if (i > 0 && x.EndsWith(keySuffix, StringComparison.OrdinalIgnoreCase)) return x.Substring(0, i);
-                        }
-                }
-                catch (Exception)
-                {
-                    // command missing in this VS edition
-                }
-                return null;
-            }
-            return new Dictionary<string, string>
-            {
-                ["Global"] = Scope("File.SaveAll", "Ctrl+Shift+S") ?? Scope("Edit.Undo", "Ctrl+Z") ?? "Global",
-                ["Text Editor"] = Scope("Edit.LineDelete", "Ctrl+Shift+L") ?? Scope("Edit.CommentSelection", "Ctrl+K, Ctrl+C") ?? "Text Editor",
-            };
+            var s = DteKeymap.DetectScopes(dte);
+            return new Dictionary<string, string> { ["Global"] = s.LocalGlobal, ["Text Editor"] = s.LocalTextEditor };
         }
 
         private static Command FindCommand(DTE dte, KeyBindingEntry e)

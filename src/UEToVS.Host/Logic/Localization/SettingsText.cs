@@ -70,5 +70,19 @@ namespace UEToVS.Host.Logic.Localization
 
         // ---- windows
         public static string PerformanceWindowTitle => Loc.T("UEToVS 性能", "UEToVS Performance");
+
+        // ---- v0.3.1: page errors, index status card, auto numbers
+        public static string PageFailed(string error) => string.IsNullOrWhiteSpace(error)
+            ? Loc.T("这个页面加载失败。", "This page failed to load.")
+            : Loc.F("这个页面加载失败：{0}", "This page failed to load: {0}", error.Trim());
+        public static string Retry => Loc.T("重试", "Retry");
+        public static string ViewLog => Loc.T("查看日志", "View log");
+        public static string Rebuild => Loc.T("重建", "Rebuild");
+        public static string IndexFailedTitle => Loc.T("索引失败", "Indexing failed");
+        public static string IndexNoReason => Loc.T("引擎没有给出原因，请查看日志。", "The engine gave no reason; see the log.");
+        public static string IndexEngineUnavailable(string state) => Loc.F("引擎{0}，索引不可用", "Engine {0}; indexing is unavailable", state);
+        public static string IndexCounts(int parsed, int toParse, int symbols, int assets) =>
+            Loc.F("{0:N0} / {1:N0} 文件 · {2:N0} 符号 · {3:N0} 资产", "{0:N0} / {1:N0} files · {2:N0} symbols · {3:N0} assets", parsed, toParse, symbols, assets);
+        public static string Auto => Loc.T("自动", "Auto");
     }
 }

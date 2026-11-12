@@ -46,7 +46,9 @@ namespace UEToVS.Host
     /// </summary>
     [PackageRegistration(UseManagedResourcesOnly = true, AllowsBackgroundLoading = true)]
     [InstalledProductRegistration("UEToVS", "Unreal Engine aware C++ assistant", "0.1.0")]
-    [ProvideMenuResource("Menus.ctmenu", 1)]
+    // Menu resource version: bump whenever the VSCT changes (commands, placements, KeyBindings) so VS re-merges the
+    // command table and picks up new default key bindings on upgrade (2 = v0.3.1).
+    [ProvideMenuResource("Menus.ctmenu", 2)]
     // v0.3.0: all settings live in the UEToVS settings window; Tools > Options keeps one stub page that opens it.
     [ProvideOptionPage(typeof(GeneralOptionsPage), "UEToVS", "General", 0, 0, true, Sort = 0)]
     [ProvideToolWindow(typeof(Search.SearchResultsWindow), Style = VsDockStyle.Tabbed, Window = ToolWindowGuids.Outputwindow, MultiInstances = false)]
@@ -153,6 +155,8 @@ namespace UEToVS.Host
                 // 4b. Toolbar: shown on the first run (double Shift → Search Everywhere is M1's InputMonitor).
                 var dte = await GetServiceAsync(typeof(DTE)) as DTE;
                 Safe.Execute(L, "toolbar.firstRun", () => ToolbarController.ApplyOnFirstRun(dte, s.ShowToolbar));
+                // 4c. Default shortcuts: VSCT KeyBindings don't always reach VS after an install/upgrade; bind the ones still missing.
+                _ = Safe.RunAsync(L, "keymap.defaults", () => Keymap.DefaultKeyBindings.EnsureAsync(dte, DisposalToken));
 
                 // 5. VS build begin/end → engine pauses background indexing.
                 _build = new BuildMonitor(building =>

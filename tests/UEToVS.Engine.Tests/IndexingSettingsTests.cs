@@ -21,7 +21,6 @@ namespace UEToVS.Engine.Tests
         public readonly ConcurrentBag<string> Parsed = new ConcurrentBag<string>();
         public int Concurrent, MaxConcurrent;
         public int DelayMs;
-        public ManualResetEventSlim Gate;
 
         public string Name => _inner.Name;
         public string Version => _inner.Version;
@@ -34,7 +33,6 @@ namespace UEToVS.Engine.Tests
             while (c > (m = Volatile.Read(ref MaxConcurrent)) && Interlocked.CompareExchange(ref MaxConcurrent, c, m) != m) { }
             try
             {
-                Gate?.Wait(ct);
                 if (DelayMs > 0) Thread.Sleep(DelayMs);
                 Parsed.Add(file.Path);
                 return _inner.Parse(file, utf8, ct);
@@ -62,9 +60,24 @@ namespace UEToVS.Engine.Tests
             return new EngineHost(o, parser: parser);
         }
 
+        // Index run of each host: Ready() surfaces a run that faulted instead of timing out on a readiness that never comes.
+        private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<EngineHost, Task> Runs =
+            new System.Runtime.CompilerServices.ConditionalWeakTable<EngineHost, Task>();
+
+        private static void StartIndexing(EngineHost h)
+        {
+            Runs.AddOrUpdate(h, h.StartIndexing());
+        }
+
         private static async Task Ready(EngineHost h)
         {
-            Assert.True(await h.Index.WaitForReadyAsync(CancellationToken.None).WaitAsync(Timeout));
+            var ready = h.Index.WaitForReadyAsync(CancellationToken.None);
+            if (Runs.TryGetValue(h, out var run))
+            {
+                var first = await Task.WhenAny(ready, run).WaitAsync(Timeout);
+                if (first == run && run.IsFaulted) await run; // rethrows the run's exception
+            }
+            Assert.True(await ready.WaitAsync(Timeout));
         }
 
         private static async Task WaitUntil(Func<bool> condition)
@@ -233,7 +246,7 @@ namespace UEToVS.Engine.Tests
             using var t = new FakeUnrealTree();
             var parser = new CountingParser();
             using var h = Host(t.ProjectRoot, parser);
-            h.StartIndexing();
+            StartIndexing(h);
             await Ready(h);
             Assert.NotEmpty(parser.Parsed);
             Assert.DoesNotContain(parser.Parsed, p => !(p.EndsWith(".h") || p.EndsWith(".cpp") || p.EndsWith(".c")));
@@ -256,7 +269,7 @@ namespace UEToVS.Engine.Tests
         {
             using var t = new FakeUnrealTree();
             using var h = Host(t.ProjectRoot, new CountingParser());
-            h.StartIndexing();
+            StartIndexing(h);
             await Ready(h);
             h.ApplyIndexingSettings(new IndexingSettings { CppThreads = 3, AssetThreads = 2, DuringBuild = 0 });
             Assert.Equal(3, h.Index.CppThrottle.Configured);
@@ -288,7 +301,7 @@ namespace UEToVS.Engine.Tests
             using var logs = new CapturingLogSink();
             using var h = Host(t.ProjectRoot, parser, o => o.CppThreads = 4);
             h.Scheduler.SetBuildInProgress(true);
-            h.StartIndexing();
+            StartIndexing(h);
             await Ready(h); // finished although a build is running
             // throughput is logged per stage, with the thread count actually allowed
             Assert.Contains(logs.Events, e => e.Event == "index.done" && e.Data.Any(kv => kv.Key == "stage" && (string)kv.Value == "parse.engine"));
@@ -305,7 +318,7 @@ namespace UEToVS.Engine.Tests
             using var t = new FakeUnrealTree();
             var parser = new CountingParser();
             using var h = Host(t.ProjectRoot, parser);
-            h.StartIndexing();
+            StartIndexing(h);
             await Ready(h);
             string projectHeader = t.P("Game/Source/MyGame/Public/MyCharacter.h");
             string engineHeader = t.P("UE/Engine/Source/Runtime/Core/Public/Containers/UnrealString.h");
@@ -339,7 +352,7 @@ namespace UEToVS.Engine.Tests
 
             // A plain restart reuses everything.
             parser.Clear();
-            h.StartIndexing();
+            StartIndexing(h);
             await Ready(h);
             await h.Index.RunTask;
             Assert.Empty(parser.Parsed);
@@ -351,7 +364,7 @@ namespace UEToVS.Engine.Tests
             using var t = new FakeUnrealTree();
             var parser = new CountingParser();
             using var h = Host(t.ProjectRoot, parser);
-            h.StartIndexing();
+            StartIndexing(h);
             await Ready(h);
             parser.Clear();
             h.RebuildIndex(RebuildScope.Project);
@@ -368,7 +381,7 @@ namespace UEToVS.Engine.Tests
         {
             using var t = new FakeUnrealTree();
             using var h = Host(t.ProjectRoot, new CountingParser());
-            h.StartIndexing();
+            StartIndexing(h);
             await Ready(h);
             int before = h.Index.Assets.Count;
             File.Delete(t.P("Game/Content/Characters/BP_Hero.uasset"));
@@ -389,7 +402,7 @@ namespace UEToVS.Engine.Tests
         {
             using var t = new FakeUnrealTree();
             using var h = Host(t.ProjectRoot, new CountingParser());
-            h.StartIndexing();
+            StartIndexing(h);
             await Ready(h);
             string index = h.Paths.Index;
             Assert.NotEmpty(Directory.GetFiles(Path.Combine(index, "engine"), "*.seg"));
@@ -428,7 +441,7 @@ namespace UEToVS.Engine.Tests
             var p1 = new CountingParser();
             using (var h1 = Host(t.ProjectRoot, p1, Shared))
             {
-                h1.StartIndexing();
+                StartIndexing(h1);
                 await Ready(h1);
                 Assert.Contains(engineHeader, p1.Parsed);
                 h1.Index.SaveState();
@@ -442,7 +455,7 @@ namespace UEToVS.Engine.Tests
             var p2 = new CountingParser();
             using (var h2 = Host(t.P("Game2"), p2, Shared))
             {
-                h2.StartIndexing();
+                StartIndexing(h2);
                 await Ready(h2);
                 Assert.DoesNotContain(p2.Parsed, p => p.StartsWith(t.EngineRoot)); // hit: no engine file parsed
                 Assert.Contains(t.P("Game2/Source/Other/Public/OtherThing.h"), p2.Parsed);
@@ -457,7 +470,7 @@ namespace UEToVS.Engine.Tests
             var p3 = new CountingParser();
             using (var h3 = Host(t.P("Game2"), p3, Shared))
             {
-                h3.StartIndexing();
+                StartIndexing(h3);
                 await Ready(h3);
                 Assert.Equal(new[] { engineHeader }, p3.Parsed.Where(p => p.StartsWith(t.EngineRoot)).ToArray());
                 Assert.NotEmpty(h3.Index.Backend.FindSymbols("FNewEngineThing", null));
@@ -477,14 +490,14 @@ namespace UEToVS.Engine.Tests
             string cacheRoot = Path.Combine(t.Root, "shared-cache");
             using (var h1 = Host(t.ProjectRoot, new CountingParser(), o => { o.SharedEngineCache = true; o.EngineCacheDirectory = cacheRoot; }))
             {
-                h1.StartIndexing();
+                StartIndexing(h1);
                 await Ready(h1);
                 h1.Index.SaveState();
             }
             var p2 = new CountingParser();
             using (var h2 = Host(t.ProjectRoot, p2))
             {
-                h2.StartIndexing();
+                StartIndexing(h2);
                 await Ready(h2);
                 Assert.Empty(p2.Parsed); // nothing re-parsed
                 Assert.NotEmpty(Directory.GetFiles(Path.Combine(h2.Paths.Index, "engine"), "*.seg"));
