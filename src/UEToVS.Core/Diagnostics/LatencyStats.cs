@@ -63,6 +63,17 @@ namespace UEToVS.Core.Diagnostics
                 old = _buckets;
                 _buckets = new Dictionary<string, Bucket>(StringComparer.Ordinal);
             }
+            return Summarize(old);
+        }
+
+        /// <summary>Returns the current summaries without resetting.</summary>
+        public List<Summary> Snapshot()
+        {
+            lock (_gate) return Summarize(_buckets);
+        }
+
+        private static List<Summary> Summarize(Dictionary<string, Bucket> old)
+        {
             var result = new List<Summary>(old.Count);
             foreach (var kv in old.OrderBy(k => k.Key, StringComparer.Ordinal))
             {

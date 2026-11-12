@@ -27,6 +27,12 @@ namespace UEToVS.Contracts
         /// <summary>Change the engine's log level at runtime (Error/Warn/Info/Debug/Trace).</summary>
         Task SetLogLevelAsync(string level, CancellationToken ct);
 
+        /// <summary>
+        /// Data for the performance panel: current resources, a short resource history, index phase timings and
+        /// per-operation latency since the engine started. Cheap (served from counters), safe to poll every second.
+        /// </summary>
+        Task<PerformanceSnapshot> GetPerformanceSnapshotAsync(CancellationToken ct);
+
         Task ShutdownAsync(CancellationToken ct);
     }
 

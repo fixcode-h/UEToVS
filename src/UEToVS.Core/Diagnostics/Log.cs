@@ -57,6 +57,9 @@ namespace UEToVS.Core.Diagnostics
         /// <summary>Per-request latency aggregation; fed by <see cref="Logger.Time"/>.</summary>
         public static LatencyStats Latency { get; } = new LatencyStats();
 
+        /// <summary>Same data as <see cref="Latency"/> but never reset (performance panel: "since start").</summary>
+        public static LatencyStats LatencySinceStart { get; } = new LatencyStats();
+
         public static Logger For(string module) => new Logger(module);
 
         public static void AddSink(ILogSink sink)
@@ -217,7 +220,9 @@ namespace UEToVS.Core.Diagnostics
             if (_disposed) return;
             _disposed = true;
             double ms = ElapsedMs;
-            Log.Latency.Record(_logger.Module + "/" + _evt, ms, _failed);
+            string key = _logger.Module + "/" + _evt;
+            Log.Latency.Record(key, ms, _failed);
+            Log.LatencySinceStart.Record(key, ms, _failed);
             bool over = ms > _budgetMs;
             var level = over ? LogLevel.Warn : LogLevel.Debug;
             if (!Log.IsEnabled(level)) return;
