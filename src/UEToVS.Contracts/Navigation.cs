@@ -266,6 +266,18 @@ namespace UEToVS.Contracts
 
         /// <summary>Index engine sources (headers first, then .cpp).</summary>
         public bool IncludeEngine { get; set; } = true;
+
+        /// <summary>
+        /// Share the engine part of the index between projects using the same engine install
+        /// (%LocalAppData%\UEToVS\EngineIndex\&lt;engine id&gt;): the second project on an engine opens in seconds.
+        /// </summary>
+        public bool SharedEngineCache { get; set; } = true;
+
+        /// <summary>
+        /// Folder names never listed or indexed. Null or empty = defaults (Intermediate, Binaries, Saved, DerivedDataCache,
+        /// and dot-folders). Folder names, not paths; case-insensitive. Changing it takes effect on the next index run.
+        /// </summary>
+        public List<string> ExcludedFolders { get; set; }
     }
 
     public enum RebuildScope : byte

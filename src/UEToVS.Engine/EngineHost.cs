@@ -181,6 +181,7 @@ namespace UEToVS.Engine
                 BackgroundPaused = Scheduler.IsBackgroundPaused,
             };
             snap.Resources = snap.Status.Resources;
+            snap.Throughput.AddRange(Index.Throughput());
 
             snap.IndexParts.AddRange(Index.Backend.GetMemoryParts());
             long fileTable = Index.Files.Count * 360L; // ListedFile + entry + path string, estimated

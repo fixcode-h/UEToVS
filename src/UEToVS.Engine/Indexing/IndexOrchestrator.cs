@@ -280,6 +280,9 @@ namespace UEToVS.Engine.Indexing
             _activeStage = "index.parse." + stage;
             _activeStart = Stopwatch.GetTimestamp();
             var c = new Counters();
+            using var rec = new ThroughputRecorder("parse." + stage, files.Count, () => _scheduler.BackgroundLimit, () => _scheduler.BackgroundLimit);
+            _rec = rec;
+            AddThroughput(rec);
             var tasks = new List<Task>();
             for (int i = 0; i < files.Count; i += ChunkSize)
             {
@@ -292,6 +295,8 @@ namespace UEToVS.Engine.Indexing
             }
             finally
             {
+                rec.RecordWorker(0, (long)(rec.ToContract().ElapsedMs * System.Diagnostics.Stopwatch.Frequency / 1000 * _scheduler.BackgroundLimit), 0);
+                _rec = null;
                 p.Items = files.Count;
                 p.Add("parsed", c.Parsed);
                 p.Add("cacheHits", c.CacheHits + c.Unchanged);
@@ -319,7 +324,9 @@ namespace UEToVS.Engine.Indexing
                             Interlocked.Increment(ref c.Yields);
                             return current.GetRange(i, current.Count - i);
                         }
+                        long t0 = Stopwatch.GetTimestamp();
                         var outcome = ProcessFile(current[i], force, out int symbols, token);
+                        _rec?.RecordWorker(Stopwatch.GetTimestamp() - t0, 0, 0);
                         switch (outcome)
                         {
                             case Outcome.Parsed: Interlocked.Increment(ref c.Parsed); break;
@@ -338,6 +345,24 @@ namespace UEToVS.Engine.Indexing
         }
 
         private FileContext Context(ListedFile f) => new FileContext { Path = f.Path, Module = f.Module, Origin = f.Origin, Kind = f.Kind };
+
+        private ThroughputRecorder _rec;
+        private readonly List<ThroughputRecorder> _throughput = new List<ThroughputRecorder>();
+
+        private void AddThroughput(ThroughputRecorder r)
+        {
+            lock (_throughput)
+            {
+                _throughput.Insert(0, r);
+                if (_throughput.Count > 8) _throughput.RemoveAt(_throughput.Count - 1);
+            }
+        }
+
+        /// <summary>Recent pipeline stages, running first, then most recent first.</summary>
+        public List<IndexThroughput> Throughput()
+        {
+            lock (_throughput) return _throughput.Select(r => r.ToContract()).OrderByDescending(t => t.Running).ToList();
+        }
 
         private Outcome ProcessFile(ListedFile f, bool force, out int symbolCount, CancellationToken ct)
         {
@@ -361,6 +386,7 @@ namespace UEToVS.Engine.Indexing
             }
 
             byte[] bytes;
+            long r0 = Stopwatch.GetTimestamp();
             try
             {
                 bytes = File.ReadAllBytes(f.Path);
@@ -370,6 +396,7 @@ namespace UEToVS.Engine.Indexing
                 L.Debug("index.read_failed", ex.Message, ("path", f.Path));
                 return Outcome.Failed;
             }
+            long r1 = Stopwatch.GetTimestamp();
             ulong hash = ContentHasher.Hash(bytes);
             bool known = _backend.ContainsFile(f.Path);
             if (known && ((cached != null && cached.Hash == hash) || (entry.HashKnown && entry.Hash == hash)))
@@ -383,6 +410,7 @@ namespace UEToVS.Engine.Indexing
             try
             {
                 var result = _parser.Parse(ctx, bytes, ct);
+                long r2 = Stopwatch.GetTimestamp();
                 var symbols = result?.Symbols ?? new List<SymbolInfo>();
                 foreach (var s in symbols)
                 {
@@ -393,6 +421,7 @@ namespace UEToVS.Engine.Indexing
                 }
                 if (result != null) _backend.UpdateParsed(f.Path, result);
                 else _backend.UpdateFile(f.Path, symbols);
+                _rec?.RecordFile(f.Path, bytes.Length, r1 - r0, r2 - r1, Stopwatch.GetTimestamp() - r2, true);
                 entry.Hash = hash;
                 entry.HashKnown = true;
                 entry.SymbolCount = symbols.Count;
