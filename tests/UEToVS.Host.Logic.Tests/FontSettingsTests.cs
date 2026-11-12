@@ -167,9 +167,28 @@ namespace UEToVS.Host.Logic.Tests
             Assert.Equal("IBM Plex Sans（内置）", rows[0].Options.Single(o => o.Value == rows[0].Default).TitleZh);
             var manage = rows.Single(d => d.Key == FontSettingsSchema.ManageVsKey);
             Assert.Equal("true", manage.Default);
-            Assert.Equal(1 + 3 + 2 * VsFontCategories.All.Count, rows.Count);
+            Assert.Equal(1 + 1 + 3 + 2 * VsFontCategories.All.Count, rows.Count);
             Assert.All(rows.Where(d => d.Kind == SettingKind.Choice), d => Assert.True(d.AllowCustomValue));
             Assert.All(rows.Where(d => d.Kind == SettingKind.Int), d => Assert.False(string.IsNullOrEmpty(d.AutoLabelZh)));
+        }
+
+        [Fact]
+        public void VsFontRowsAreGroupedWithSizeOnTheFamilyRow()
+        {
+            var rows = Schema.Where(d => d.Key.StartsWith(FontSettingsSchema.VsPrefix, StringComparison.Ordinal) && d.Key != FontSettingsSchema.ManageVsKey && d.Key != FontSettingsSchema.VsStatusKey).ToList();
+            Assert.All(rows, d => Assert.Equal(FontSettingsSchema.ManageVsKey, d.EnabledWhenKey));
+            var own = SettingsModel.MergeInlineRows(rows, out var inline);
+            Assert.Equal(VsFontCategories.All.Count, own.Count);
+            Assert.All(own, d => Assert.Equal(SettingKind.Choice, d.Kind));
+            Assert.All(own, d => Assert.Equal(SettingKind.Int, Assert.Single(inline[d.Key]).Kind));
+            Assert.Equal("字号", inline["fonts.vs.textEditor.family"][0].InlineLabelZh);
+
+            // One card per kind of window: code windows first (contiguous), then interface windows.
+            var groups = own.Select(d => d.GroupZh).Distinct().ToArray();
+            Assert.Equal(new[] { "VS 字体 · 代码类窗口", "VS 字体 · 界面类窗口" }, groups);
+            Assert.Equal("文本编辑器", own[0].TitleZh);
+            Assert.Equal(new[] { "环境（对话框和工具窗口）", "语句完成", "编辑器工具提示" },
+                own.Where(d => d.GroupZh == groups[1]).Select(d => d.TitleZh).ToArray());
         }
 
         [Fact]

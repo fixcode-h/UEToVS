@@ -10,6 +10,7 @@ using UEToVS.Core.Diagnostics;
 using UEToVS.Core.Localization;
 using UEToVS.Host.Diagnostics;
 using UEToVS.Host.Logic.Localization;
+using UEToVS.Host.Logic.Fonts;
 using UEToVS.Host.Logic.Settings;
 using UEToVS.UI;
 using UEToVS.UI.Atoms;
@@ -37,6 +38,11 @@ namespace UEToVS.Host.Settings
         ISettingsCustomPage CreateCustomPage(string categoryId);
         /// <summary>Folder of the open .uproject (relative path settings resolve against it); null when none is open.</summary>
         string ProjectDirectory { get; }
+        /// <summary>
+        /// Shows the font settings in <paramref name="values"/> right away (UEToVS UI and VS's fonts) without saving them;
+        /// null puts the saved settings back (Cancel / close).
+        /// </summary>
+        void PreviewFonts(IReadOnlyDictionary<string, string> values);
     }
 
     /// <summary>A page with its own editor (appearance panel, keymap). Apply/Cancel/Reset follow the window's buttons.</summary>
@@ -79,6 +85,10 @@ namespace UEToVS.Host.Settings
         private string _category = HostSettingsSchema.General;
         private string _customError;
         private bool _closingByButton;
+        /// <summary>Font rows were previewed since the last Apply: Cancel / close has to put the saved fonts back.</summary>
+        private bool _fontsPreviewed;
+        /// <summary>Rows with <see cref="SettingDescriptor.EnabledWhenKey"/> on the visible page (re-evaluated when that setting changes).</summary>
+        private readonly List<(string Key, UIElement Row)> _dependentRows = new List<(string, UIElement)>();
         private bool English => Loc.IsEnglish;
 
         public SettingsWindow(ISettingsWindowHost host, string initialCategory = null)
@@ -379,9 +389,11 @@ namespace UEToVS.Host.Settings
         {
             string group = null;
             SettingsGroup card = null;
-            foreach (var d in rows)
+            _dependentRows.Clear();
+            var own = SettingsModel.MergeInlineRows(rows, out var inline);
+            foreach (var d in own)
             {
-                var row = BuildRow(d);
+                var row = BuildRow(d, inline.TryGetValue(d.Key, out var extra) ? extra : null);
                 if (row is IndexStatusCard)
                 {
                     card = null;
@@ -398,10 +410,23 @@ namespace UEToVS.Host.Settings
                     body.Children.Add(card);
                 }
                 card.Add(row);
+                if (!string.IsNullOrEmpty(d.EnabledWhenKey))
+                {
+                    _dependentRows.Add((d.EnabledWhenKey, row));
+                    UpdateDependentRow(d.EnabledWhenKey, row);
+                }
             }
         }
 
-        private UIElement BuildRow(SettingDescriptor d)
+        private void UpdateDependentRow(string key, UIElement row)
+        {
+            bool on = _working.TryGetValue(key, out var v) ? v == "true" : _schema.FirstOrDefault(x => x.Key == key)?.Default == "true";
+            row.IsEnabled = on;
+            row.Opacity = on ? 1.0 : 0.45;
+        }
+
+        /// <param name="inline">Settings drawn on this row (<see cref="SettingDescriptor.InlineWithKey"/>), right of its editor.</param>
+        private UIElement BuildRow(SettingDescriptor d, IReadOnlyList<SettingDescriptor> inline = null)
         {
             if (d.Kind == SettingKind.Info && d.ActionId == HostSettingsSchema.WindowActions.IndexStatus)
             {
@@ -428,6 +453,27 @@ namespace UEToVS.Host.Settings
                 row.Editor = list.AddButton;
                 row.Below = list;
             }
+            else if (inline != null && inline.Count > 0 && editor != null)
+            {
+                // e.g. 字体下拉框 + 字号（自动 / 数值）在同一行，少一半行数
+                var panel = new StackPanel { Orientation = Orientation.Horizontal };
+                panel.Children.Add(editor);
+                foreach (var x in inline)
+                {
+                    var e = BuildEditor(x, labels);
+                    if (e == null) continue;
+                    string label = x.InlineLabel(English);
+                    if (!string.IsNullOrEmpty(label))
+                        panel.Children.Add(new UiText(label, TextVariant.Secondary) { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(20, 0, 10, 0) });
+                    if (e is FrameworkElement fe)
+                    {
+                        fe.Margin = new Thickness(string.IsNullOrEmpty(label) ? 16 : 0, 0, 0, 0);
+                        fe.VerticalAlignment = VerticalAlignment.Center;
+                    }
+                    panel.Children.Add(e);
+                }
+                row.Editor = panel;
+            }
             else row.Editor = editor;
             return row;
         }
@@ -438,6 +484,9 @@ namespace UEToVS.Host.Settings
         {
             _working[d.Key] = SettingsModel.Normalize(d, value, out _);
             UpdateStatus();
+            foreach (var (key, row) in _dependentRows)
+                if (key == d.Key) UpdateDependentRow(key, row);
+            if (FontSettingsSchema.IsFontKey(d.Key)) PreviewFonts("edit");
         }
 
         private UIElement BuildEditor(SettingDescriptor d, Panel labels)
@@ -672,12 +721,21 @@ namespace UEToVS.Host.Settings
             _status.Text = pending > 0 ? SettingsText.PendingChanges(pending) : string.Empty;
         }
 
+        /// <summary>Font changes show while choosing (like the other appearance settings); saved only with Apply / OK.</summary>
+        private void PreviewFonts(string reason)
+        {
+            _fontsPreviewed = true;
+            L.Debug("settings.fonts.preview", null, ("reason", reason));
+            _host.PreviewFonts(_working);
+        }
+
         private void Apply()
         {
             var changed = SettingsModel.Diff(_schema, _committed, _working);
             if (changed.Count > 0) _host.SaveValues(_working);
             foreach (var p in _custom.Values) Safe.Execute(L, "settings.custom.apply", p.Apply);
             _committed = new Dictionary<string, string>(_working, StringComparer.Ordinal);
+            _fontsPreviewed = false;
             L.Info("settings.window.apply", null, ("changed", changed));
             _status.Text = SettingsText.Saved;
         }
@@ -685,6 +743,11 @@ namespace UEToVS.Host.Settings
         private void CancelCustomPages()
         {
             foreach (var p in _custom.Values) Safe.Execute(L, "settings.custom.cancel", p.Cancel);
+            if (_fontsPreviewed)
+            {
+                _fontsPreviewed = false;
+                Safe.Execute(L, "settings.fonts.revert", () => _host.PreviewFonts(null));
+            }
             L.Info("settings.window.cancel", null, ("pending", SettingsModel.Diff(_schema, _committed, _working)));
         }
 
@@ -696,7 +759,14 @@ namespace UEToVS.Host.Settings
                 ? _schema.Where(d => d.Category == _category && d.HasValue)
                 : _schema.Where(d => d.HasValue && SettingsModel.Matches(d, q));
             int n = 0;
-            foreach (var d in targets) { _working[d.Key] = d.Default; n++; }
+            bool fonts = false;
+            foreach (var d in targets)
+            {
+                _working[d.Key] = d.Default;
+                n++;
+                fonts |= FontSettingsSchema.IsFontKey(d.Key);
+            }
+            if (fonts) PreviewFonts("reset");
             if (string.IsNullOrWhiteSpace(q) && _custom.TryGetValue(_category, out var custom)) custom.ResetToDefaults();
             L.Info("settings.window.reset", null, ("category", _category), ("query", q), ("values", n));
             ShowPage();

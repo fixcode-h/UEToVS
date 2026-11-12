@@ -65,6 +65,18 @@ namespace UEToVS.Host.Settings
 
         public void SaveValues(IReadOnlyDictionary<string, string> values) => _package.Settings.ApplyUserValues(values, "settingsWindow");
 
+        public void PreviewFonts(IReadOnlyDictionary<string, string> values)
+        {
+            var fonts = _package.Fonts;
+            if (fonts == null) return;
+            // Saved settings with only the font rows taken from the window (the window shows just the user's values).
+            var s = _package.Settings.Effective.Clone();
+            if (values != null)
+                foreach (var kv in values)
+                    if (UEToVS.Host.Logic.Fonts.FontSettingsSchema.IsFontKey(kv.Key)) UEToVS.Host.Logic.Fonts.FontSettingsSchema.TrySet(s, kv.Key, kv.Value);
+            fonts.Preview(s, values == null ? "previewRevert" : "preview");
+        }
+
         public async Task<string> RunActionAsync(string actionId)
         {
             var engine = _package.Engine;
@@ -137,6 +149,8 @@ namespace UEToVS.Host.Settings
                 }
                 case HostSettingsSchema.WindowActions.IntelliSenseStatus:
                     return _package.IntelliSense?.BackupExists == true ? SettingsText.IntelliSenseTakenOver : SettingsText.IntelliSenseNotTakenOver;
+                case UEToVS.Host.Logic.Fonts.FontSettingsSchema.VsStatusInfoId:
+                    return _package.Fonts?.VsStatusText(_package.Settings.Effective) ?? SettingsText.ActionUnavailable;
                 case HostSettingsSchema.WindowActions.LogDirectory:
                     return SettingsText.LogDirectory(HostLog.LogDirectory);
                 case HostSettingsSchema.WindowActions.VsUnrealIntegration:

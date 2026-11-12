@@ -81,6 +81,21 @@ namespace UEToVS.UI.Logic
         public string Keywords { get; set; }
         /// <summary>Takes effect only after restarting VS (shown as a hint).</summary>
         public bool RequiresRestart { get; set; }
+        /// <summary>
+        /// Shown on the row of the setting with this key (its editor to the right of that row's editor) instead of a row
+        /// of its own, e.g. a font's size next to its family. Falls back to its own row when that setting is not on the
+        /// page (search hits). Null = own row.
+        /// </summary>
+        public string InlineWithKey { get; set; }
+        /// <summary>
+        /// Key of a Bool setting this row depends on: greyed out and not editable while that setting is off in the window
+        /// (e.g. the VS font rows while "由 UEToVS 管理 VS 字体" is off). Null = always editable.
+        /// </summary>
+        public string EnabledWhenKey { get; set; }
+        /// <summary>Short label in front of the editor when shown inline ("字号"); null = none.</summary>
+        public string InlineLabelZh { get; set; }
+        public string InlineLabelEn { get; set; }
+        public string InlineLabel(bool english) => english ? (InlineLabelEn ?? InlineLabelZh) : (InlineLabelZh ?? InlineLabelEn);
 
         public bool HasValue => Kind != SettingKind.Action && Kind != SettingKind.Info;
 
@@ -184,6 +199,29 @@ namespace UEToVS.UI.Logic
             foreach (var term in query.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries))
                 if (hay.IndexOf(term, StringComparison.OrdinalIgnoreCase) < 0) return false;
             return true;
+        }
+
+        /// <summary>
+        /// Splits page rows into the rows to draw and, per drawn row key, the settings shown inline on it
+        /// (<see cref="SettingDescriptor.InlineWithKey"/>). A setting whose host is not among <paramref name="rows"/> keeps
+        /// its own row, so a search that only hits "字号" still shows it.
+        /// </summary>
+        public static List<SettingDescriptor> MergeInlineRows(IList<SettingDescriptor> rows, out Dictionary<string, List<SettingDescriptor>> inline)
+        {
+            inline = new Dictionary<string, List<SettingDescriptor>>(StringComparer.Ordinal);
+            var keys = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var d in rows) keys.Add(d.Key);
+            var own = new List<SettingDescriptor>();
+            foreach (var d in rows)
+            {
+                if (!string.IsNullOrEmpty(d.InlineWithKey) && d.InlineWithKey != d.Key && keys.Contains(d.InlineWithKey))
+                {
+                    if (!inline.TryGetValue(d.InlineWithKey, out var list)) inline[d.InlineWithKey] = list = new List<SettingDescriptor>();
+                    list.Add(d);
+                }
+                else own.Add(d);
+            }
+            return own;
         }
 
         /// <summary>Keys whose normalized value differs between <paramref name="a"/> and <paramref name="b"/>.</summary>

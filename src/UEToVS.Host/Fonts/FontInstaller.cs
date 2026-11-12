@@ -23,6 +23,16 @@ namespace UEToVS.Host.Fonts
         private const int WM_FONTCHANGE = 0x001D;
         private static readonly IntPtr HWND_BROADCAST = new IntPtr(0xFFFF);
         private const uint SMTO_ABORTIFHUNG = 0x0002;
+        private static readonly HashSet<string> _installedThisSession = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Families copied or registered by this VS process. VS's WPF editor only sees the fonts present when VS started,
+        /// so these show in VS's own windows after a restart (UEToVS's UI loads them from the VSIX and is not affected).
+        /// </summary>
+        public static bool InstalledThisSession(string family)
+        {
+            lock (_installedThisSession) return _installedThisSession.Contains(family ?? string.Empty);
+        }
 
         public static string UserFontsDirectory
         {
@@ -92,6 +102,8 @@ namespace UEToVS.Host.Fonts
                 return false;
             }
             if (loaded > 0) Broadcast();
+            if (copied + registered > 0)
+                lock (_installedThisSession) _installedThisSession.Add(font.Family);
             L.Info("font.install", null, ("family", font.Family), ("result", copied + registered == 0 ? "alreadyInstalled" : "installed"),
                    ("copied", copied), ("registered", registered), ("loaded", loaded), ("errors", errors), ("dir", dir), ("ms", sw.ElapsedMilliseconds));
             return true;
