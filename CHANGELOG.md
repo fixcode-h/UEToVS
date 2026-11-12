@@ -15,6 +15,7 @@
 - **Generate：构造函数 / GetLifetimeReplicatedProps / RPC** — 三个新命令（编辑器右键 UEToVS 菜单、Find Action，默认键 Ctrl+Shift+Alt+U 再按 K / Y / W），在头文件的类里执行：生成构造函数声明和 .cpp 定义；按类里的 Replicated / ReplicatedUsing 属性生成 `GetLifetimeReplicatedProps`（已有定义时只补缺少的 `DOREPLIFETIME`，并补 `#include "Net/UnrealNetwork.h"` 和头文件里的 override 声明）；光标在 Server / Client / NetMulticast 声明上时补 `_Implementation` / `_Validate`，在普通函数上时生成一个转发到它的 `Server…` RPC 三件套。头文件和 .cpp 各一次撤销；日志 `generate.run`
 - **Smart Select（扩大 / 缩小选区）** — Shift+Alt+W 按语法逐级扩大选区：单词 → 字符串内容 → 字符串 → 参数 → 括号内容 → 括号 → 调用（含 `Obj->Func`）→ 语句 → 块内容 → 块 → 带 if / for / 函数签名的整块；Ctrl+Shift+Alt+W 按原路缩回。只在按键时计算（超大文件只看选区附近 200 KB）；日志 `edit.smartSelect`
 - **Natvis：补充 UE 常见类型** — VSIX 自带调试可视化（NativeVisualizer）：`FGameplayTag`、`FGameplayTagContainer`、`FTopLevelAssetPath`、`FSoftObjectPath`、`TSoftObjectPtr` / `TSoftClassPtr`、`FPrimaryAssetId` / `FPrimaryAssetType`、`FTimerHandle`、`FDataTableRowHandle`、`FGameplayAttributeData`、GAS 句柄。引擎 Unreal.natvis 已有的类型（TArray、FString、FName、TMap、UObject、TObjectPtr …）不重复定义
+- **着色器文件（.usf / .ush）着色与 #include 跳转** — HLSL 关键字、向量 / 矩阵 / 资源类型、内建函数、`SV_` 语义、注释、字符串、数字和预处理指令按 VS 标准颜色显示（只着色可见行，逐行词法分析）；在 `#include "/Engine/…"`、`"/Project/…"`、`"/Plugin/<名>/…"` 或相对路径上按 F12 打开对应文件（`/Plugin/` 只在按键时查找一次同名 .uplugin）。日志 `shader.include.goto`
 
 ## v0.4.1
 
