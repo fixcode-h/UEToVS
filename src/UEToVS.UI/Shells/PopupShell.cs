@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Interop;
+using System.Windows.Media;
 using System.Windows.Threading;
 using UEToVS.UI.Logic;
 using UEToVS.UI.Theming;
@@ -63,6 +65,10 @@ namespace UEToVS.UI.Shells
         private int _suppressAutoClose;
         private bool _dismissing;
         private bool _closingForReal;
+        private bool _cloaked;
+        private bool _revealPending;
+        private int _revealGen;
+        private DispatcherTimer _revealTimer;
 
         /// <summary>Process-wide default store (host replaces it at startup).</summary>
         public static IPopupStateStore DefaultStateStore { get; set; } = new InMemoryPopupStateStore();
@@ -94,6 +100,18 @@ namespace UEToVS.UI.Shells
         public bool CloseOnDeactivate { get; set; } = true;
 
         public bool CloseOnEscape { get; set; } = true;
+
+        /// <summary>
+        /// When true, <see cref="ShowAt"/> keeps a newly shown popup invisible until the content calls <see cref="Reveal"/>
+        /// (e.g. after the first query results are in), at most <see cref="RevealTimeoutMs"/>. Otherwise it is revealed
+        /// right away.
+        /// </summary>
+        public bool DeferReveal { get; set; }
+
+        public int RevealTimeoutMs { get; set; } = 100;
+
+        /// <summary>Slide the body up a few pixels while it fades in (false: fade only).</summary>
+        public bool SlideOnShow { get; set; } = true;
 
         /// <summary>Extra per-popup state (e.g. preview split) stored with the size.</summary>
         public PopupState State { get; private set; } = new PopupState();
@@ -137,11 +155,7 @@ namespace UEToVS.UI.Shells
             {
                 if (!IsVisible) RestoreState();
                 PlaceAt(anchor ?? PopupAnchor.Mouse());
-                if (!IsVisible)
-                {
-                    Show();
-                    if (Body is FrameworkElement body) Ui.SlideIn(body, 4);
-                }
+                if (!IsVisible) ShowCloaked();
                 Activate();
                 Shown?.Invoke(this, EventArgs.Empty);
             }
@@ -154,7 +168,9 @@ namespace UEToVS.UI.Shells
             try
             {
                 SaveState();
+                CancelReveal();
                 Hide();
+                SetCloak(false); // hidden now: nothing stale can show, and a plain Show() later must be visible
                 Dismissed?.Invoke(this, EventArgs.Empty);
             }
             finally
@@ -169,6 +185,108 @@ namespace UEToVS.UI.Shells
             _closingForReal = true;
             SaveState();
             Close();
+        }
+
+        /// <summary>
+        /// Makes a popup shown with <see cref="DeferReveal"/> visible (no-op when already revealed): starts the fade-in
+        /// and uncloaks once that frame has been rendered.
+        /// </summary>
+        public void Reveal()
+        {
+            if (!_revealPending) return;
+            _revealPending = false;
+            _revealTimer?.Stop();
+            if (Body is FrameworkElement body) Ui.SlideIn(body, SlideOnShow ? 4 : 0);
+            if (_cloaked) UncloakAfterRender(_revealGen);
+        }
+
+        /// <summary>
+        /// A hidden WPF window keeps its last frame: Show() puts that stale frame (old results, old preview, full opacity)
+        /// on screen until WPF renders again, and only then the fade-in starts from transparent — the popup visibly
+        /// flickers ("抽搐") on every open. So the window is shown cloaked (DWM keeps it out of composition, it still
+        /// activates and takes focus), the new content is laid out and rendered, and only then it is uncloaked.
+        /// </summary>
+        private void ShowCloaked()
+        {
+            SetCloak(true);
+            _revealPending = true;
+            _revealGen++;
+            Show();
+            if (!DeferReveal || !_cloaked)
+            {
+                Reveal();
+                return;
+            }
+            if (_revealTimer == null)
+            {
+                _revealTimer = new DispatcherTimer(DispatcherPriority.Normal, Dispatcher);
+                _revealTimer.Tick += (s, e) => Ui.Safe("ui.popup.reveal_timeout", () =>
+                {
+                    _revealTimer.Stop();
+                    if (_revealPending) Ui.Logger.Debug("ui.popup.reveal_timeout", "Popup revealed before its content was ready: " + Id);
+                    Reveal();
+                });
+            }
+            _revealTimer.Interval = TimeSpan.FromMilliseconds(Math.Max(0, RevealTimeoutMs));
+            _revealTimer.Stop();
+            _revealTimer.Start();
+        }
+
+        private void CancelReveal()
+        {
+            _revealGen++;
+            _revealPending = false;
+            _revealTimer?.Stop();
+        }
+
+        /// <summary>Uncloaks after WPF has rendered two frames, so the first composed frame is the new content.</summary>
+        private void UncloakAfterRender(int gen)
+        {
+            int frames = 0;
+            EventHandler onRendering = null;
+            onRendering = (s, e) => Ui.Safe("ui.popup.uncloak", () =>
+            {
+                if (gen != _revealGen || !IsVisible)
+                {
+                    CompositionTarget.Rendering -= onRendering;
+                    return;
+                }
+                if (++frames < 2) return;
+                CompositionTarget.Rendering -= onRendering;
+                SetCloak(false);
+            });
+            CompositionTarget.Rendering += onRendering;
+            InvalidateVisual(); // make sure a frame is rendered even when nothing else changes
+            // Safety net: never leave a shown popup invisible, even if no frame callback arrives.
+            var fallback = new DispatcherTimer(DispatcherPriority.Normal, Dispatcher) { Interval = TimeSpan.FromMilliseconds(250) };
+            fallback.Tick += (s, e) => Ui.Safe("ui.popup.uncloak_fallback", () =>
+            {
+                fallback.Stop();
+                CompositionTarget.Rendering -= onRendering;
+                if (gen == _revealGen && IsVisible) SetCloak(false);
+            });
+            fallback.Start();
+        }
+
+        private void SetCloak(bool cloak)
+        {
+            if (_cloaked == cloak) return;
+            var hwnd = new WindowInteropHelper(this).Handle;
+            if (hwnd == IntPtr.Zero) return;
+            try
+            {
+                int value = cloak ? 1 : 0;
+                int hr = NativeMethods.DwmSetWindowAttribute(hwnd, NativeMethods.DWMWA_CLOAK, ref value, sizeof(int));
+                if (hr == 0) _cloaked = cloak;
+                else if (cloak) Ui.Logger.Debug("ui.popup.cloak_unavailable", "DWM cloak failed: 0x" + hr.ToString("X8"));
+                else Ui.Logger.Warn("ui.popup.uncloak_failed", "DWM uncloak failed: 0x" + hr.ToString("X8"));
+            }
+            catch (Exception ex)
+            {
+                // Windows 7 / no DWM: show without cloaking (old behaviour).
+                Ui.Logger.Debug("ui.popup.cloak_unavailable", "DWM cloak unavailable: " + ex.GetType().Name);
+                if (!cloak) _cloaked = false;
+            }
         }
 
         private void OnDeactivatedCore()

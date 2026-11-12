@@ -32,6 +32,9 @@ namespace UEToVS.UI.Shells
         public const int MONITOR_DEFAULTTONEAREST = 2;
         public const uint SWP_NOSIZE = 0x0001, SWP_NOZORDER = 0x0004, SWP_NOACTIVATE = 0x0010;
         public const int DWMWA_WINDOW_CORNER_PREFERENCE = 33;
+
+        /// <summary>Hides the window from DWM composition while it stays shown, active and focusable (Windows 8+).</summary>
+        public const int DWMWA_CLOAK = 13;
         public const int DWMWCP_DONOTROUND = 1, DWMWCP_ROUND = 2, DWMWCP_ROUNDSMALL = 3;
         public const int GCL_STYLE = -26;
         public const int CS_DROPSHADOW = 0x00020000;
