@@ -19,7 +19,7 @@ namespace UEToVS.UI.Theming
     /// page is applied; theme changes are picked up from <c>VSColorTheme.ThemeChanged</c> automatically.
     /// Must be used on the UI thread.
     /// </summary>
-    public sealed class ThemeManager
+    public sealed partial class ThemeManager
     {
         private static readonly Logger L = Log.For("UI");
         private static ThemeManager _instance;
@@ -291,8 +291,9 @@ namespace UEToVS.UI.Theming
             v[Tokens.ThicknessRowPadding] = new Thickness(t.Number(TokenNames.PadRowX), 0, t.Number(TokenNames.PadRowX), 0);
             double pp = t.Number(TokenNames.PadPopup);
             v[Tokens.ThicknessPopupPadding] = new Thickness(pp);
-            v[Tokens.FontFamilyUi] = uiFont ?? SystemFonts.MessageFontFamily;
-            v[Tokens.FontFamilyCode] = _codeFont;
+            v[Tokens.FontFamilyUi] = UiFontFor(uiFont ?? SystemFonts.MessageFontFamily);
+            v[Tokens.FontFamilyCode] = CodeFontFor(_codeFont);
+            v[Tokens.FontFamilyDisplay] = DisplayFont;
             if (_codeFontSize.HasValue && _codeFontSize.Value > 6) v[Tokens.FontSizeCode] = _codeFontSize.Value;
             v[Tokens.MatchFontWeight] = t.Number(TokenNames.MatchBold) > 0 ? FontWeights.Bold : FontWeights.Normal;
             if (t.Number(TokenNames.MatchUnderline) > 0)
@@ -309,6 +310,8 @@ namespace UEToVS.UI.Theming
             }
             return v;
         }
+
+        private static readonly FontFamily DisplayFont = new FontFamily("Georgia, Microsoft YaHei UI, Segoe UI");
 
         private void Push(Dictionary<object, object> values)
         {

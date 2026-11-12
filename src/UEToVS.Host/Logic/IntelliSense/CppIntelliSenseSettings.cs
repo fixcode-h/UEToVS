@@ -82,6 +82,8 @@ namespace UEToVS.Host.Logic.IntelliSense
         public const string KeyIncludeAutoComplete = "includeAutoComplete";
         public const string KeyExternalDependencies = "externalDependencies";
         public const string KeyDatabase = "database";
+        public const string KeyDatabaseUpdates = "databaseUpdates";
+        public const string KeyAutomaticUpdates = "automaticUpdates";
         public const string KeyBackgroundCodeAnalysis = "backgroundCodeAnalysis";
 
         private static CppPropertyCandidate S(string name, bool value) => new CppPropertyCandidate(SpecificPage, name, value);
@@ -91,7 +93,9 @@ namespace UEToVS.Host.Logic.IntelliSense
             new CppSettingDefinition(KeyIntelliSense, "Disable IntelliSense (turns off the EDG front end)", CppSettingGate.Always,
                 S("DisableIntelliSense", true), S("IntelliSenseDisabled", true), S("DisableIntellisense", true)),
             new CppSettingDefinition(KeyAutoQuickInfo, "Disable Auto Quick Info", CppSettingGate.Always,
-                S("DisableAutoQuickInfo", true), S("AutoQuickInfo", false), S("EnableAutoQuickInfo", false)),
+                S("DisableAutoQuickInfo", true), S("AutoQuickInfo", false), S("EnableAutoQuickInfo", false),
+                // VS 18.x: the C/C++ page only has the tool-tip switch (UEToVS opens Quick Info on hover itself)
+                S("EnableQuickInfoToolTips", false)),
             new CppSettingDefinition(KeyMemberList, "Disable member list auto popup", CppSettingGate.Always,
                 S("DisableMemberList", true), S("DisableAutoMemberList", true), S("DisableMemberListAutoPopup", true)),
             new CppSettingDefinition(KeyErrorReporting, "Disable Error Reporting", CppSettingGate.Always,
@@ -99,13 +103,21 @@ namespace UEToVS.Host.Logic.IntelliSense
             new CppSettingDefinition(KeySquiggles, "Disable Squiggles", CppSettingGate.Always,
                 S("DisableSquiggles", true), S("DisableErrorSquiggles", true), S("EnableSquiggles", false)),
             new CppSettingDefinition(KeySemanticColorization, "Disable Semantic Colorization", CppSettingGate.Always,
-                S("DisableSemanticColorization", true), S("EnableSemanticColorization", false), S("SemanticColorization", false)),
+                S("DisableSemanticColorization", true), S("EnableSemanticColorization", false), S("SemanticColorization", false),
+                S("DisableSemanticColoring", true)), // VS 18.x name
             new CppSettingDefinition(KeyIncludeAutoComplete, "Disable #include Auto Complete", CppSettingGate.Always,
                 S("DisableIncludeAutoComplete", true), S("DisableIncludeAutocomplete", true), S("DisableAutoIncludeCompletion", true)),
             new CppSettingDefinition(KeyExternalDependencies, "Disable External Dependencies Folders", CppSettingGate.Always,
                 S("DisableExternalDependenciesFolders", true), S("DisableExternalDependencies", true), S("DisableExternalDependencyFolders", true)),
             new CppSettingDefinition(KeyDatabase, "Disable Database (browsing database .vc.db)", CppSettingGate.DisableDatabaseOption,
                 S("DisableDatabase", true), S("DisableBrowsingDatabase", true)),
+            // "正在更新 C/C++ IntelliSense 和浏览信息 / 正在分析包含文件": the browsing database scan. With only "Disable
+            // Database" some VS versions still rescan includes, so the update switches go too (same gate, same backup).
+            new CppSettingDefinition(KeyDatabaseUpdates, "Disable Database Updates", CppSettingGate.DisableDatabaseOption,
+                S("DisableDatabaseUpdates", true), S("DisableDatabaseUpdate", true), S("DisableBrowsingDatabaseUpdates", true)),
+            new CppSettingDefinition(KeyAutomaticUpdates, "Disable Automatic Updates", CppSettingGate.DisableDatabaseOption,
+                S("DisableAutomaticUpdates", true), S("DisableAutoUpdates", true), S("DisableAutoUpdate", true),
+                S("DisableDatabaseAutoUpdates", true)), // VS 18.x name
         };
 
         /// <summary>
@@ -117,7 +129,8 @@ namespace UEToVS.Host.Logic.IntelliSense
         public static IReadOnlyList<CppSettingDefinition> BackgroundCodeAnalysis { get; } = new[]
         {
             new CppSettingDefinition(KeyBackgroundCodeAnalysis, "Disable Background Code Analysis", CppSettingGate.Always,
-                S("DisableBackgroundCodeAnalysis", true), S("DisableBackgroundAnalysis", true), S("EnableBackgroundCodeAnalysis", false)),
+                S("DisableBackgroundCodeAnalysis", true), S("DisableBackgroundAnalysis", true), S("EnableBackgroundCodeAnalysis", false),
+                S("DisableCodeAnalysisInBackground", true)), // VS 18.x name (seen in a VS 18.6 diagnostics package)
         };
 
         /// <summary>Pages that must be read to evaluate the table.</summary>

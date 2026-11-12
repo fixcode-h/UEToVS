@@ -451,24 +451,63 @@ namespace UEToVS.UI.Controls
             "#D88B2E", "#E5484D", "#C94F8F", "#9C6AD6", "#6C707E", "#A8ADBD",
         };
 
-        private readonly Border _swatch = new Border { Width = 18, Height = 18, CornerRadius = new CornerRadius(4), BorderThickness = new Thickness(1), Cursor = Cursors.Hand, VerticalAlignment = VerticalAlignment.Center, Focusable = true, FocusVisualStyle = null };
-        private readonly TextInput _hex = new TextInput { Width = 84, Margin = new Thickness(6, 0, 0, 0) };
+        private readonly Border _swatch = new Border { Width = 18, Height = 18, CornerRadius = new CornerRadius(5), BorderThickness = new Thickness(1), Cursor = Cursors.Hand, VerticalAlignment = VerticalAlignment.Center, Focusable = true, FocusVisualStyle = null };
+        private readonly TextInput _hex = new TextInput { Style = Styles.BareTextInput, VerticalAlignment = VerticalAlignment.Center };
+        private readonly Border _frame = new Border { BorderThickness = new Thickness(1), SnapsToDevicePixels = true };
         private readonly IconButton _reset;
         private readonly Popup _popup = new Popup { StaysOpen = false, AllowsTransparency = true, Placement = PlacementMode.Bottom };
         private string _value;
         private Color _auto = Colors.Gray;
+        private bool _compact;
 
-        public ColorField(string accessibleName)
+        /// <summary>
+        /// Default: one framed input box (swatch + hex in the code font, 124px; warm-scheme mockup) with a small ✕ that
+        /// returns to auto. <paramref name="compact"/>: no frame, hex right-aligned then the swatch — for color grids.
+        /// </summary>
+        public ColorField(string accessibleName, bool compact = false)
         {
+            _compact = compact;
             Orientation = Orientation.Horizontal;
-            _swatch.Bind(Border.BorderBrushProperty, Tokens.BorderStrong);
+            VerticalAlignment = VerticalAlignment.Center;
+            _swatch.Bind(Border.BorderBrushProperty, Tokens.BorderSubtle);
+            _hex.Bind(TextBlock.FontFamilyProperty, Tokens.FontFamilyCode);
             _reset = new IconButton(Ui.CrossMark, () => Strings.CommonAuto, null, 8) { Margin = new Thickness(2, 0, 0, 0) };
             _hex.Placeholder = Strings.CommonAuto;
             Strings.Track(_hex, () => _hex.Placeholder = Strings.CommonAuto);
             AutomationProperties.SetName(_hex, accessibleName ?? string.Empty);
             AutomationProperties.SetName(_swatch, accessibleName ?? string.Empty);
-            Children.Add(_swatch);
-            Children.Add(_hex);
+            var inner = new DockPanel { LastChildFill = true };
+            if (compact)
+            {
+                _swatch.Width = _swatch.Height = 16;
+                _swatch.CornerRadius = new CornerRadius(4);
+                _swatch.Margin = new Thickness(8, 0, 0, 0);
+                DockPanel.SetDock(_swatch, Dock.Right);
+                inner.Children.Add(_swatch);
+                _hex.Width = 70;
+                _hex.TextAlignment = TextAlignment.Right;
+                _hex.Bind(TextBlock.ForegroundProperty, Tokens.TextSecondary);
+                inner.Children.Add(_hex);
+                _frame.Child = inner;
+                _frame.BorderThickness = new Thickness(0);
+                _frame.Background = Brushes.Transparent;
+                _reset.Width = _reset.Height = 20;
+            }
+            else
+            {
+                _swatch.Margin = new Thickness(6, 0, 8, 0);
+                DockPanel.SetDock(_swatch, Dock.Left);
+                inner.Children.Add(_swatch);
+                inner.Children.Add(_hex);
+                _frame.Child = inner;
+                _frame.Width = 124;
+                _frame.Bind(Border.BackgroundProperty, Tokens.InputBackground);
+                _frame.Bind(Border.BorderBrushProperty, Tokens.InputBorder);
+                _frame.Bind(Border.CornerRadiusProperty, Tokens.CornerRadiusControl);
+                _frame.Bind(HeightProperty, Tokens.ControlHeight);
+                _frame.IsKeyboardFocusWithinChanged += (s, e) => _frame.Bind(Border.BorderBrushProperty, _frame.IsKeyboardFocusWithin ? Tokens.BorderFocus : Tokens.InputBorder);
+            }
+            Children.Add(_frame);
             Children.Add(_reset);
 
             var grid = new UniformGrid { Columns = 6 };
@@ -487,7 +526,7 @@ namespace UEToVS.UI.Controls
             chrome.Bind(Border.CornerRadiusProperty, Tokens.CornerRadiusPopup);
             ThemeManager.Instance.Attach(chrome);
             _popup.Child = chrome;
-            _popup.PlacementTarget = _swatch;
+            _popup.PlacementTarget = compact ? (UIElement)_swatch : _frame;
 
             _swatch.MouseLeftButtonUp += (s, e) => Ui.Safe("ui.color.open", () => _popup.IsOpen = true);
             _swatch.KeyDown += (s, e) => Ui.Safe("ui.color.key", () => { if (e.Key == Key.Enter || e.Key == Key.Space) { _popup.IsOpen = true; e.Handled = true; } });
@@ -545,7 +584,7 @@ namespace UEToVS.UI.Controls
             if (_value != null && Rgba.TryParse(_value, out var r)) c = r.ToColor();
             _swatch.Background = Ui.Frozen(c);
             _hex.Text = _value ?? string.Empty;
-            _reset.Visibility = _value == null ? Visibility.Hidden : Visibility.Visible;
+            _reset.Visibility = _value == null ? (_compact ? Visibility.Collapsed : Visibility.Hidden) : Visibility.Visible;
         }
     }
 }

@@ -70,6 +70,109 @@ namespace UEToVS.Engine.Tests
             Assert.DoesNotContain("f7.h", backend.Files);
         }
 
+        /// <summary>Parallel-capable fake: slow, thread-safe prepare; publish records order and detects overlap.</summary>
+        private sealed class ParallelBackend : ISymbolIndexBackend, IParallelBulkBackend
+        {
+            public readonly List<string> Published = new List<string>();
+            public int Preparing, MaxPreparing, Publishing, OverlappingPublishes, Discarded;
+            public string FailOn;
+
+            private sealed class Prepared : IDisposable
+            {
+                public ParallelBackend Owner;
+                public string First;
+                public List<string> Files;
+                public bool Done;
+                public void Dispose() { if (!Done) Interlocked.Increment(ref Owner.Discarded); }
+            }
+
+            public IDisposable PrepareBatch(bool engine, IReadOnlyList<(string Path, ParseResult Result)> batch, CancellationToken ct)
+            {
+                int now = Interlocked.Increment(ref Preparing);
+                lock (Published) MaxPreparing = Math.Max(MaxPreparing, now);
+                try
+                {
+                    // later batches finish sooner, so out-of-order completion is likely
+                    Thread.Sleep(batch[0].Path == "f0.h" ? 60 : 15);
+                    if (FailOn != null && batch[0].Path == FailOn) throw new System.IO.IOException("disk full");
+                    var files = new List<string>();
+                    foreach (var (p, _) in batch) files.Add(p);
+                    return new Prepared { Owner = this, First = batch[0].Path, Files = files };
+                }
+                finally
+                {
+                    Interlocked.Decrement(ref Preparing);
+                }
+            }
+
+            public void PublishBatch(IDisposable prepared)
+            {
+                if (Interlocked.Increment(ref Publishing) > 1) Interlocked.Increment(ref OverlappingPublishes);
+                var p = (Prepared)prepared;
+                Thread.Sleep(2);
+                lock (Published) Published.AddRange(p.Files);
+                p.Done = true;
+                Interlocked.Decrement(ref Publishing);
+            }
+
+            public void AppendBatch(bool engine, IReadOnlyList<(string Path, ParseResult Result)> batch, CancellationToken ct) =>
+                throw new InvalidOperationException("parallel path expected");
+
+            public string Name => "parallel";
+            public string FormatVersion => "1";
+            public SymbolSearchResult Search(SymbolQuery query, CancellationToken ct) => new SymbolSearchResult();
+            public IReadOnlyList<SymbolInfo> GetFileSymbols(string filePath) => Array.Empty<SymbolInfo>();
+            public IReadOnlyList<SymbolInfo> FindSymbols(string name, string container) => Array.Empty<SymbolInfo>();
+            public void UpdateFile(string filePath, IReadOnlyList<SymbolInfo> symbols) { }
+            public void RemoveFile(string filePath) { }
+            public bool ContainsFile(string filePath) => false;
+            public IndexStats GetStats() => new IndexStats();
+            public IReadOnlyList<MemoryPart> GetMemoryParts() => Array.Empty<MemoryPart>();
+            public bool TryLoad(string indexDir, string key) => true;
+            public void Save(string indexDir, string key) { }
+            public void Dispose() { }
+        }
+
+        [Fact]
+        public void SegmentWrite_Parallel_WritesConcurrently_PublishesInBatchOrder()
+        {
+            var backend = new ParallelBackend();
+            using (var sink = new BulkSink(backend, CancellationToken.None, batchFiles: 10, writers: 4))
+            {
+                Assert.Equal(4, sink.Writers);
+                Feed(sink, 200); // 20 batches from one producer: queue order = file order
+                Assert.Equal(20, sink.SegmentsWritten);
+            }
+            Assert.Equal(200, backend.Published.Count);
+            for (int i = 0; i < 200; i++) Assert.Equal("f" + i + ".h", backend.Published[i]);
+            Assert.True(backend.MaxPreparing > 1, "batches should be written in parallel");
+            Assert.Equal(0, backend.OverlappingPublishes);
+            Assert.Equal(0, backend.Discarded);
+        }
+
+        [Fact]
+        public void SegmentWrite_Parallel_FailureStopsPublishing_AndFailsTheStage()
+        {
+            var backend = new ParallelBackend { FailOn = "f30.h" };
+            using (var sink = new BulkSink(backend, CancellationToken.None, batchFiles: 10, writers: 3))
+            {
+                Assert.Throws<SegmentWriteFailedException>(() => Feed(sink, 100));
+            }
+            // nothing at or after the failed batch is published; everything published is a prefix in order
+            Assert.DoesNotContain("f30.h", backend.Published);
+            for (int i = 0; i < backend.Published.Count; i++) Assert.Equal("f" + i + ".h", backend.Published[i]);
+            Assert.True(backend.Published.Count <= 30);
+        }
+
+        [Fact]
+        public void BulkSink_DefaultWriters_IsHalfTheParseThreads_Capped()
+        {
+            Assert.Equal(1, BulkSink.DefaultWriters(1));
+            Assert.Equal(1, BulkSink.DefaultWriters(2));
+            Assert.Equal(4, BulkSink.DefaultWriters(8));
+            Assert.Equal(BulkSink.MaxWriters, BulkSink.DefaultWriters(64));
+        }
+
         [Fact]
         public void AssetTable_KeepsCompactEntries_AndRebuildsObjectPathForHits()
         {

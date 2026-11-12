@@ -128,6 +128,7 @@ namespace UEToVS.UI.Controls
             s.Setters.Add(bg == null ? new Setter(Control.BackgroundProperty, Brushes.Transparent) : Ui.Dyn(Control.BackgroundProperty, bg));
             s.Setters.Add(border == null ? new Setter(Control.BorderBrushProperty, Brushes.Transparent) : Ui.Dyn(Control.BorderBrushProperty, border));
             s.Setters.Add(Ui.Dyn(Control.ForegroundProperty, fg));
+            if (kind == ButtonKind.Primary) s.Setters.Add(new Setter(Control.FontWeightProperty, FontWeights.SemiBold));
 
             var over = new Trigger { Property = UIElement.IsMouseOverProperty, Value = true };
             over.Setters.Add(Ui.Dyn(Control.BackgroundProperty, hover));
@@ -290,8 +291,8 @@ namespace UEToVS.UI.Controls
             s.Setters.Add(new Setter(Control.VerticalContentAlignmentProperty, VerticalAlignment.Center));
             s.Setters.Add(new Setter(Control.HorizontalContentAlignmentProperty, HorizontalAlignment.Center));
             s.Setters.Add(new Setter(FrameworkElement.FocusVisualStyleProperty, null));
-            s.Setters.Add(Ui.Dyn(Control.BackgroundProperty, Tokens.ButtonSecondaryBackground));
-            s.Setters.Add(Ui.Dyn(Control.BorderBrushProperty, Tokens.BorderSubtle));
+            s.Setters.Add(new Setter(Control.BackgroundProperty, Brushes.Transparent));
+            s.Setters.Add(Ui.Dyn(Control.BorderBrushProperty, Tokens.InputBorder));
             s.Setters.Add(Ui.Dyn(Control.ForegroundProperty, Tokens.TextSecondary));
             s.Setters.Add(Ui.Dyn(Control.FontSizeProperty, Tokens.FontSizeSmall));
             var over = new Trigger { Property = UIElement.IsMouseOverProperty, Value = true };
@@ -299,8 +300,8 @@ namespace UEToVS.UI.Controls
             s.Triggers.Add(over);
             var on = new Trigger { Property = ToggleButton.IsCheckedProperty, Value = true };
             on.Setters.Add(Ui.Dyn(Control.BackgroundProperty, Tokens.AccentSubtle));
-            on.Setters.Add(Ui.Dyn(Control.BorderBrushProperty, Tokens.Accent));
-            on.Setters.Add(Ui.Dyn(Control.ForegroundProperty, Tokens.TextPrimary));
+            on.Setters.Add(Ui.Dyn(Control.BorderBrushProperty, Tokens.AccentBorder));
+            on.Setters.Add(Ui.Dyn(Control.ForegroundProperty, Tokens.TextLink));
             s.Triggers.Add(on);
             var dis = new Trigger { Property = UIElement.IsEnabledProperty, Value = false };
             dis.Setters.Add(new Setter(UIElement.OpacityProperty, 0.45));
@@ -326,25 +327,145 @@ namespace UEToVS.UI.Controls
             s.Setters.Add(new Setter(FrameworkElement.FocusVisualStyleProperty, null));
             s.Setters.Add(new Setter(Control.BackgroundProperty, Brushes.Transparent));
             s.Setters.Add(new Setter(Control.BorderBrushProperty, Brushes.Transparent));
-            s.Setters.Add(Ui.Dyn(Control.ForegroundProperty, Tokens.TextPrimary));
             s.Setters.Add(Ui.Dyn(Control.FontSizeProperty, Tokens.FontSizeBody));
             var over = new Trigger { Property = UIElement.IsMouseOverProperty, Value = true };
             over.Setters.Add(Ui.Dyn(Control.BackgroundProperty, Tokens.SurfaceHover));
             s.Triggers.Add(over);
+            // Warm scheme: the selected segment is a raised neutral tile (not an accent fill); others are quieter text.
+            s.Setters.Add(Ui.Dyn(Control.ForegroundProperty, Tokens.TextSecondary));
             var on = new Trigger { Property = ToggleButton.IsCheckedProperty, Value = true };
-            on.Setters.Add(Ui.Dyn(Control.BackgroundProperty, Tokens.Accent));
-            on.Setters.Add(Ui.Dyn(Control.ForegroundProperty, Tokens.TextOnAccent));
+            on.Setters.Add(Ui.Dyn(Control.BackgroundProperty, Tokens.SegmentSelected));
+            on.Setters.Add(Ui.Dyn(Control.ForegroundProperty, Tokens.TextPrimary));
+            on.Setters.Add(new Setter(Control.FontWeightProperty, FontWeights.Medium));
             s.Triggers.Add(on);
-            var onOver = new MultiTrigger();
-            onOver.Conditions.Add(new Condition(ToggleButton.IsCheckedProperty, true));
-            onOver.Conditions.Add(new Condition(UIElement.IsMouseOverProperty, true));
-            onOver.Setters.Add(Ui.Dyn(Control.BackgroundProperty, Tokens.AccentHover));
-            s.Triggers.Add(onOver);
             var dis = new Trigger { Property = UIElement.IsEnabledProperty, Value = false };
             dis.Setters.Add(new Setter(UIElement.OpacityProperty, 0.45));
             s.Triggers.Add(dis);
             return s;
         }
+
+        /// <summary>
+        /// Placeholder text positioned exactly where the first typed character goes: the control's Padding (which the
+        /// text view also uses) plus the text view's 2px line inset.
+        /// </summary>
+        private static FrameworkElementFactory Placeholder()
+        {
+            var wrap = new FrameworkElementFactory(typeof(Border), "Placeholder");
+            wrap.SetValue(Border.PaddingProperty, new TemplateBindingExtension(Control.PaddingProperty));
+            wrap.SetValue(UIElement.IsHitTestVisibleProperty, false);
+            wrap.SetValue(UIElement.VisibilityProperty, Visibility.Collapsed);
+            var ph = new FrameworkElementFactory(typeof(TextBlock));
+            ph.SetValue(TextBlock.TextProperty, new TemplateBindingExtension(Controls.TextInput.PlaceholderProperty));
+            ph.SetValue(FrameworkElement.MarginProperty, new Thickness(2, 0, 2, 0));
+            ph.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
+            ph.SetValue(TextBlock.TextTrimmingProperty, TextTrimming.CharacterEllipsis);
+            ph.SetResourceReference(TextBlock.ForegroundProperty, Tokens.InputPlaceholder);
+            wrap.AppendChild(ph);
+            return wrap;
+        }
+
+        /// <summary>
+        /// PART_ContentHost with its own bare template: VS installs implicit ScrollViewer styles (themed scroll bars,
+        /// padding) that would otherwise apply to the text host and shift or clip the text.
+        /// </summary>
+        private static FrameworkElementFactory ContentHost()
+        {
+            var host = new FrameworkElementFactory(typeof(System.Windows.Controls.ScrollViewer), "PART_ContentHost");
+            host.SetValue(FrameworkElement.StyleProperty, BareHostStyle);
+            host.SetValue(System.Windows.Controls.ScrollViewer.HorizontalScrollBarVisibilityProperty, ScrollBarVisibility.Hidden);
+            host.SetValue(System.Windows.Controls.ScrollViewer.VerticalScrollBarVisibilityProperty, ScrollBarVisibility.Hidden);
+            host.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
+            host.SetValue(FrameworkElement.MarginProperty, new Thickness(0));
+            host.SetValue(Control.PaddingProperty, new Thickness(0));
+            host.SetValue(UIElement.FocusableProperty, false);
+            host.SetValue(Control.FocusVisualStyleProperty, null);
+            return host;
+        }
+
+        private static Style _bareHost;
+
+        private static Style BareHostStyle => _bareHost ?? (_bareHost = BuildBareHost());
+
+        private static Style BuildBareHost()
+        {
+            var presenter = new FrameworkElementFactory(typeof(ScrollContentPresenter), "PART_ScrollContentPresenter");
+            presenter.SetValue(ScrollContentPresenter.CanContentScrollProperty, new TemplateBindingExtension(System.Windows.Controls.ScrollViewer.CanContentScrollProperty));
+            var s = new Style(typeof(System.Windows.Controls.ScrollViewer));
+            s.Setters.Add(new Setter(Control.TemplateProperty, new ControlTemplate(typeof(System.Windows.Controls.ScrollViewer)) { VisualTree = presenter }));
+            return s;
+        }
+
+        /// <summary>Password box with the same chrome and metrics as <see cref="TextInput"/> (no placeholder).</summary>
+        public static Style PasswordInput => _password ?? (_password = BuildPassword());
+
+        private static Style _password;
+
+        private static Style BuildPassword()
+        {
+            var root = new FrameworkElementFactory(typeof(Grid));
+            var bd = new FrameworkElementFactory(typeof(Border), "Bd");
+            bd.SetValue(Border.BackgroundProperty, new TemplateBindingExtension(Control.BackgroundProperty));
+            bd.SetValue(Border.BorderBrushProperty, new TemplateBindingExtension(Control.BorderBrushProperty));
+            bd.SetValue(Border.BorderThicknessProperty, new TemplateBindingExtension(Control.BorderThicknessProperty));
+            bd.SetValue(UIElement.SnapsToDevicePixelsProperty, true);
+            bd.SetResourceReference(Border.CornerRadiusProperty, Tokens.CornerRadiusControl);
+            bd.AppendChild(ContentHost());
+            root.AppendChild(bd);
+            root.AppendChild(Underline());
+            var t = new ControlTemplate(typeof(PasswordBox)) { VisualTree = root };
+            AddInputTriggers(t);
+            var s = new Style(typeof(PasswordBox));
+            s.Setters.Add(new Setter(Control.TemplateProperty, t));
+            AddInputSetters(s);
+            s.Setters.Add(Ui.Dyn(PasswordBox.CaretBrushProperty, Tokens.InputForeground));
+            s.Setters.Add(Ui.Dyn(PasswordBox.SelectionBrushProperty, Tokens.Accent));
+            return s;
+        }
+
+        private static FrameworkElementFactory Underline()
+        {
+            var underline = new FrameworkElementFactory(typeof(Border), "Underline");
+            underline.SetValue(FrameworkElement.HeightProperty, 2.0);
+            underline.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Bottom);
+            underline.SetValue(FrameworkElement.MarginProperty, new Thickness(1, 0, 1, 0));
+            underline.SetValue(Border.CornerRadiusProperty, new CornerRadius(0, 0, 2, 2));
+            underline.SetValue(UIElement.IsHitTestVisibleProperty, false);
+            underline.SetValue(UIElement.VisibilityProperty, Visibility.Hidden);
+            underline.SetResourceReference(Border.BackgroundProperty, Tokens.InputFocusUnderline);
+            return underline;
+        }
+
+        private static void AddInputTriggers(ControlTemplate t)
+        {
+            var focus = new Trigger { Property = UIElement.IsKeyboardFocusWithinProperty, Value = true };
+            focus.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Visible, "Underline"));
+            focus.Setters.Add(Ui.Dyn(Border.BackgroundProperty, Tokens.SurfacePopup, "Bd"));
+            t.Triggers.Add(focus);
+            var hover = new Trigger { Property = UIElement.IsMouseOverProperty, Value = true };
+            hover.Setters.Add(Ui.Dyn(Border.BorderBrushProperty, Tokens.BorderStrong, "Bd"));
+            t.Triggers.Add(hover);
+        }
+
+        /// <summary>Shared text-field metrics: 10px text inset (Fluent), control height, input colors.</summary>
+        private static void AddInputSetters(Style s)
+        {
+            s.Setters.Add(new Setter(Control.BorderThicknessProperty, new Thickness(1)));
+            s.Setters.Add(new Setter(Control.PaddingProperty, InputPadding));
+            s.Setters.Add(new Setter(FrameworkElement.FocusVisualStyleProperty, null));
+            s.Setters.Add(new Setter(Control.VerticalContentAlignmentProperty, VerticalAlignment.Center));
+            s.Setters.Add(new Setter(Control.HorizontalContentAlignmentProperty, HorizontalAlignment.Left));
+            s.Setters.Add(Ui.Dyn(FrameworkElement.MinHeightProperty, Tokens.ControlHeight));
+            s.Setters.Add(Ui.Dyn(Control.BackgroundProperty, Tokens.InputBackground));
+            s.Setters.Add(Ui.Dyn(Control.ForegroundProperty, Tokens.InputForeground));
+            s.Setters.Add(Ui.Dyn(Control.BorderBrushProperty, Tokens.InputBorder));
+            s.Setters.Add(Ui.Dyn(Control.FontSizeProperty, Tokens.FontSizeBody));
+            var dis = new Trigger { Property = UIElement.IsEnabledProperty, Value = false };
+            dis.Setters.Add(new Setter(UIElement.OpacityProperty, 0.5));
+            s.Triggers.Add(dis);
+        }
+
+        /// <summary>Text inset of every boxed text field (left edge to the caret = 1px border + 8 + 2px line inset).</summary>
+        public static readonly Thickness InputPadding = new Thickness(8, 3, 8, 3);
 
         /// <summary>Text box: rounded border, focus ring, placeholder (via <see cref="TextInput.Placeholder"/>).</summary>
         public static Style TextInput => _input ?? (_input = BuildInput());
@@ -359,29 +480,13 @@ namespace UEToVS.UI.Controls
             bd.SetValue(Border.BorderThicknessProperty, new TemplateBindingExtension(Control.BorderThicknessProperty));
             bd.SetValue(UIElement.SnapsToDevicePixelsProperty, true);
             bd.SetResourceReference(Border.CornerRadiusProperty, Tokens.CornerRadiusControl);
-            var underline = new FrameworkElementFactory(typeof(Border), "Underline");
-            underline.SetValue(FrameworkElement.HeightProperty, 2.0);
-            underline.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Bottom);
-            underline.SetValue(FrameworkElement.MarginProperty, new Thickness(1, 0, 1, 0));
-            underline.SetValue(Border.CornerRadiusProperty, new CornerRadius(0, 0, 2, 2));
-            underline.SetValue(UIElement.IsHitTestVisibleProperty, false);
-            underline.SetValue(UIElement.VisibilityProperty, Visibility.Hidden);
-            underline.SetResourceReference(Border.BackgroundProperty, Tokens.InputFocusUnderline);
+            var underline = Underline();
+            // TextBoxBase already applies Padding to the text itself (the render scope inside PART_ContentHost gets it as a
+            // margin), so the template must NOT apply it again: doing so doubled the inset (caret/text ~20px from the left
+            // edge, numbers clipped in narrow boxes). Only the placeholder, which is outside the text view, uses it.
             var grid = new FrameworkElementFactory(typeof(Grid));
-            grid.SetValue(FrameworkElement.MarginProperty, new TemplateBindingExtension(Control.PaddingProperty));
-            var ph = new FrameworkElementFactory(typeof(TextBlock), "Placeholder");
-            ph.SetValue(TextBlock.TextProperty, new TemplateBindingExtension(Controls.TextInput.PlaceholderProperty));
-            ph.SetValue(FrameworkElement.MarginProperty, new Thickness(2, 0, 0, 0));
-            ph.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
-            ph.SetValue(UIElement.IsHitTestVisibleProperty, false);
-            ph.SetValue(UIElement.VisibilityProperty, Visibility.Collapsed);
-            ph.SetValue(TextBlock.TextTrimmingProperty, TextTrimming.CharacterEllipsis);
-            ph.SetResourceReference(TextBlock.ForegroundProperty, Tokens.InputPlaceholder);
-            var host = new FrameworkElementFactory(typeof(System.Windows.Controls.ScrollViewer), "PART_ContentHost");
-            host.SetValue(System.Windows.Controls.ScrollViewer.HorizontalScrollBarVisibilityProperty, ScrollBarVisibility.Hidden);
-            host.SetValue(System.Windows.Controls.ScrollViewer.VerticalScrollBarVisibilityProperty, ScrollBarVisibility.Hidden);
-            host.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
-            host.SetValue(Control.FocusVisualStyleProperty, null);
+            var ph = Placeholder();
+            var host = ContentHost();
             grid.AppendChild(ph);
             grid.AppendChild(host);
             bd.AppendChild(grid);
@@ -392,31 +497,13 @@ namespace UEToVS.UI.Controls
             var empty = new Trigger { Property = TextBox.TextProperty, Value = string.Empty };
             empty.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Visible, "Placeholder"));
             t.Triggers.Add(empty);
-            var focus = new Trigger { Property = UIElement.IsKeyboardFocusWithinProperty, Value = true };
-            focus.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Visible, "Underline"));
-            focus.Setters.Add(Ui.Dyn(Border.BackgroundProperty, Tokens.SurfacePopup, "Bd"));
-            t.Triggers.Add(focus);
-            var hover = new Trigger { Property = UIElement.IsMouseOverProperty, Value = true };
-            hover.Setters.Add(Ui.Dyn(Border.BorderBrushProperty, Tokens.BorderStrong, "Bd"));
-            t.Triggers.Add(hover);
+            AddInputTriggers(t);
 
             var s = new Style(typeof(Controls.TextInput));
             s.Setters.Add(new Setter(Control.TemplateProperty, t));
-            s.Setters.Add(new Setter(Control.BorderThicknessProperty, new Thickness(1)));
-            s.Setters.Add(new Setter(Control.PaddingProperty, new Thickness(10, 3, 8, 3)));
-            s.Setters.Add(new Setter(FrameworkElement.FocusVisualStyleProperty, null));
-            s.Setters.Add(new Setter(Control.VerticalContentAlignmentProperty, VerticalAlignment.Center));
-            // Same height as buttons / combo boxes next to it (Fluent: every standard control shares one height).
-            s.Setters.Add(Ui.Dyn(FrameworkElement.MinHeightProperty, Tokens.ControlHeight));
-            s.Setters.Add(Ui.Dyn(Control.BackgroundProperty, Tokens.InputBackground));
-            s.Setters.Add(Ui.Dyn(Control.ForegroundProperty, Tokens.InputForeground));
-            s.Setters.Add(Ui.Dyn(Control.BorderBrushProperty, Tokens.InputBorder));
+            AddInputSetters(s);
             s.Setters.Add(Ui.Dyn(TextBoxBase.CaretBrushProperty, Tokens.InputForeground));
             s.Setters.Add(Ui.Dyn(TextBoxBase.SelectionBrushProperty, Tokens.Accent));
-            s.Setters.Add(Ui.Dyn(Control.FontSizeProperty, Tokens.FontSizeBody));
-            var dis = new Trigger { Property = UIElement.IsEnabledProperty, Value = false };
-            dis.Setters.Add(new Setter(UIElement.OpacityProperty, 0.5));
-            s.Triggers.Add(dis);
             return s;
         }
 
@@ -430,21 +517,9 @@ namespace UEToVS.UI.Controls
         private static Style BuildBareInput()
         {
             var grid = new FrameworkElementFactory(typeof(Grid));
-            grid.SetValue(FrameworkElement.MarginProperty, new TemplateBindingExtension(Control.PaddingProperty));
             grid.SetValue(Panel.BackgroundProperty, Brushes.Transparent);
-            var ph = new FrameworkElementFactory(typeof(TextBlock), "Placeholder");
-            ph.SetValue(TextBlock.TextProperty, new TemplateBindingExtension(Controls.TextInput.PlaceholderProperty));
-            ph.SetValue(FrameworkElement.MarginProperty, new Thickness(2, 0, 0, 0));
-            ph.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
-            ph.SetValue(UIElement.IsHitTestVisibleProperty, false);
-            ph.SetValue(UIElement.VisibilityProperty, Visibility.Collapsed);
-            ph.SetValue(TextBlock.TextTrimmingProperty, TextTrimming.CharacterEllipsis);
-            ph.SetResourceReference(TextBlock.ForegroundProperty, Tokens.InputPlaceholder);
-            var host = new FrameworkElementFactory(typeof(System.Windows.Controls.ScrollViewer), "PART_ContentHost");
-            host.SetValue(System.Windows.Controls.ScrollViewer.HorizontalScrollBarVisibilityProperty, ScrollBarVisibility.Hidden);
-            host.SetValue(System.Windows.Controls.ScrollViewer.VerticalScrollBarVisibilityProperty, ScrollBarVisibility.Hidden);
-            host.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
-            host.SetValue(Control.FocusVisualStyleProperty, null);
+            var ph = Placeholder();
+            var host = ContentHost();
             grid.AppendChild(ph);
             grid.AppendChild(host);
             var t = new ControlTemplate(typeof(Controls.TextInput)) { VisualTree = grid };

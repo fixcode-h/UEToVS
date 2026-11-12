@@ -68,14 +68,25 @@ namespace UEToVS.Host.Logic.Agent
     /// </summary>
     public sealed class AgentApiConfig
     {
-        public const int DefaultPort = 47811;
-        public const int DefaultContextTokens = 128000;
+        /// <summary>Ollama's own port: VS's "add Ollama provider" dialog pre-fills http://localhost:11434, so the gateway sits there.</summary>
+        public const int DefaultPort = 11434;
+        /// <summary>Used when a real Ollama (or anything else) already listens on 11434; the default before v0.4.5.</summary>
+        public const int FallbackPort = 47811;
+        /// <summary>
+        /// File format: 2 = default port 11434 and default context 1M tokens (older files with the then-defaults 47811 /
+        /// 128K are moved to the new defaults; values the user changed stay).
+        /// </summary>
+        public const int CurrentFormat = 2;
+        public const int DefaultContextTokens = 1000000;
+        /// <summary>Default context before v0.4.5 (migrated to <see cref="DefaultContextTokens"/>).</summary>
+        public const int OldDefaultContextTokens = 128000;
         public const int DefaultMaxOutputTokens = 16384;
 
+        public int Format { get; set; } = CurrentFormat;
         public int GatewayPort { get; set; } = DefaultPort;
         public List<AgentApi> Apis { get; set; } = new List<AgentApi>();
 
-        public AgentApiConfig Clone() => new AgentApiConfig { GatewayPort = GatewayPort, Apis = (Apis ?? new List<AgentApi>()).Select(a => a.Clone()).ToList() };
+        public AgentApiConfig Clone() => new AgentApiConfig { Format = Format, GatewayPort = GatewayPort, Apis = (Apis ?? new List<AgentApi>()).Select(a => a.Clone()).ToList() };
 
         /// <summary>Base URL the gateway is reachable at (what VS gets as the Ollama endpoint).</summary>
         public string GatewayUrl => GatewayUrlFor(GatewayPort);
@@ -83,6 +94,22 @@ namespace UEToVS.Host.Logic.Agent
         public static string GatewayUrlFor(int port) => "http://127.0.0.1:" + port;
 
         public static bool IsValidPort(int port) => port >= 1024 && port <= 65535;
+
+        /// <summary>
+        /// Port the gateway actually uses: the configured one, except that the default 11434 moves to 47811 when another
+        /// program (a real Ollama) already listens there. <paramref name="takenByOther"/> answers "is this port in use by
+        /// someone else". A port the user picked is never changed.
+        /// </summary>
+        public static int ChoosePort(int configured, Func<int, bool> takenByOther, out bool fellBack)
+        {
+            fellBack = false;
+            if (configured == DefaultPort && takenByOther != null && takenByOther(DefaultPort))
+            {
+                fellBack = true;
+                return FallbackPort;
+            }
+            return configured;
+        }
 
         // ------------------------------------------------------------------ persistence
 
@@ -97,6 +124,8 @@ namespace UEToVS.Host.Logic.Agent
         {
             if (string.IsNullOrWhiteSpace(json)) return new AgentApiConfig();
             var c = JsonConvert.DeserializeObject<AgentApiConfig>(json, Json) ?? new AgentApiConfig();
+            // Files written before v0.4.5 have no Format: their port 47811 was the old default, not a user choice.
+            if (!System.Text.RegularExpressions.Regex.IsMatch(json, "\"Format\"\\s*:")) c.Format = 1;
             c.Normalize();
             return c;
         }
@@ -117,6 +146,9 @@ namespace UEToVS.Host.Logic.Agent
         /// <summary>Drops empty/duplicate models, fixes out-of-range numbers (hand-edited files, old versions).</summary>
         public void Normalize()
         {
+            if (Format < 2 && GatewayPort == FallbackPort) GatewayPort = DefaultPort; // old default → new default
+            bool oldContextDefault = Format < 2;
+            Format = CurrentFormat;
             if (!IsValidPort(GatewayPort)) GatewayPort = DefaultPort;
             Apis = (Apis ?? new List<AgentApi>()).Where(a => a != null).ToList();
             foreach (var a in Apis)
@@ -131,7 +163,7 @@ namespace UEToVS.Host.Logic.Agent
                     .ToList();
                 foreach (var m in a.Models)
                 {
-                    if (m.ContextTokens <= 0) m.ContextTokens = DefaultContextTokens;
+                    if (m.ContextTokens <= 0 || oldContextDefault && m.ContextTokens == OldDefaultContextTokens) m.ContextTokens = DefaultContextTokens;
                     if (m.MaxOutputTokens <= 0) m.MaxOutputTokens = DefaultMaxOutputTokens;
                 }
             }

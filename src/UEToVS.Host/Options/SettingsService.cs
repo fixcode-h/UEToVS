@@ -146,6 +146,7 @@ namespace UEToVS.Host.Options
                 ["editorLinkPort"] = s.EditorLinkPort,
                 ["enableMcpServer"] = s.EnableMcpServer,
             };
+            UEToVS.Host.Logic.Fonts.FontSettingsSchema.Describe(s, d);
             return Sanitizer.MaskSecrets(d);
         }
 
