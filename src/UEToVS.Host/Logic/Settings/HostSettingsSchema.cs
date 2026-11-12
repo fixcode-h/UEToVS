@@ -131,8 +131,8 @@ namespace UEToVS.Host.Logic.Settings
                 null, null, gCpp, gCppEn, SettingKind.Info));
 
             list.Add(A(General, "update.check", WindowActions.CheckForUpdates, "检查更新", "Check for updates",
-                "查询 GitHub 上的最新版本；有新版本时下载安装包并启动 VS 的扩展安装程序，关闭 VS 后完成安装。",
-                "Looks up the latest release on GitHub; when there is a newer one, downloads it and starts VS's extension installer, which finishes after VS closes.",
+                "查询 GitHub 上的最新版本；有新版本时显示版本号和安装包大小，点“下载并安装”后显示下载进度，下载完启动 VS 的扩展安装程序，关闭 VS 后完成安装。",
+                "Looks up the latest release on GitHub; when there is a newer one it shows the version and size, and “Download and install” downloads it with progress and starts VS's extension installer, which finishes after VS closes.",
                 "更新", "Updates"));
 
             const string gTb = "工具栏", gTbEn = "Toolbar";

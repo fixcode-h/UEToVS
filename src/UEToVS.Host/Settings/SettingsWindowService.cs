@@ -99,7 +99,7 @@ namespace UEToVS.Host.Settings
                     return await RebuildAsync(engine, RebuildScope.Lua);
                 }
                 case HostSettingsSchema.WindowActions.CheckForUpdates:
-                    return await Update.UpdateService.CheckAndInstallAsync(HostPackage.HostVersion).ConfigureAwait(true);
+                    return await Update.UpdateService.RunPrimaryAsync(HostPackage.HostVersion).ConfigureAwait(true);
                 case HostSettingsSchema.WindowActions.ToggleIntelliSense:
                 {
                     var svc = _package.IntelliSense;
