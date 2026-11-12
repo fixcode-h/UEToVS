@@ -48,7 +48,7 @@ namespace UEToVS.Mcp.Tests
 
             var host = Tree.StartEngine(t);
             var idxSw = Stopwatch.StartNew();
-            host.StartIndexing();
+            Task indexRun = host.StartIndexing(); // completion is observed through WaitForReadyAsync
             await host.Index.WaitForReadyAsync(CancellationToken.None).WaitAsync(TimeSpan.FromMinutes(20));
             idxSw.Stop();
             await host.StopAsync(TimeSpan.FromSeconds(30));
