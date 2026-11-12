@@ -64,6 +64,16 @@ namespace UEToVS.Engine.Rpc
             ["rpc.getPerformanceSnapshot"] = 50,
             ["rpc.shutdown"] = 2000,
             ["index.update"] = 500,        // single file saved → index updated: 100 / 500
+            ["rpc.navigate"] = 200,        // go to definition / declaration / implementation: 30 / 200
+            ["rpc.findReferences"] = 3000, // common project symbol < 300 ms; engine-wide searches are cancellable
+            ["rpc.getTypeHierarchy"] = 1000,
+            ["rpc.getHighlights"] = 50,    // per caret move: p95 < 20 ms
+            ["rpc.getCaretContext"] = 100,
+            ["rpc.getMembers"] = 300,
+            ["rpc.getCompletions"] = 50,   // M3: completion p95 < 50 ms
+            ["rpc.getQuickInfo"] = 100,
+            ["rpc.getSignatureHelp"] = 50,
+            ["rpc.classify"] = 30,         // viewport (~100 lines) p95 < 15 ms
         };
 
         public static double For(string evt) => ByEvent.TryGetValue(evt, out var b) ? b : double.MaxValue;

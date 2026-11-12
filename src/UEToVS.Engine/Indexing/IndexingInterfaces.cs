@@ -34,6 +34,11 @@ namespace UEToVS.Engine.Indexing
         /// segmented index). Backends that don't understand it ignore it.
         /// </summary>
         public object Payload { get; set; }
+
+        /// <summary>File state the result was parsed from (set by the indexer; stored by backends that keep it).</summary>
+        public long MtimeTicks { get; set; }
+        public long Length { get; set; }
+        public ulong ContentHash { get; set; }
     }
 
     /// <summary>Turns one file into declarations. Must be thread-safe; called in parallel on BelowNormal threads.</summary>
@@ -115,6 +120,25 @@ namespace UEToVS.Engine.Indexing
 
         void RemoveFile(string filePath);
 
+        /// <summary>
+        /// Bulk path for initial indexing / rebuilds: stores a batch of parsed files at once (the segmented backend
+        /// writes one segment instead of pushing every file through the delta). Default: <see cref="UpdateParsed"/> per file.
+        /// </summary>
+        void AppendBatch(bool engine, IReadOnlyList<(string Path, ParseResult Result)> batch, CancellationToken ct)
+        {
+            foreach (var (path, result) in batch) UpdateParsed(path, result);
+        }
+
+        /// <summary>End of a bulk stage: the backend may merge what <see cref="AppendBatch"/> produced.</summary>
+        void FinishBulk(bool engine, CancellationToken ct)
+        {
+        }
+
+        /// <summary>Drops the project part, the engine part or both (rebuild). Default: nothing (re-adding replaces files).</summary>
+        void Reset(bool project, bool engine)
+        {
+        }
+
         bool ContainsFile(string filePath);
 
         IndexStats GetStats();
@@ -126,5 +150,22 @@ namespace UEToVS.Engine.Indexing
         bool TryLoad(string indexDir, string key);
 
         void Save(string indexDir, string key);
+
+        // ---- M2 navigation (defaults keep simple backends working without inheritance / occurrence data) ----
+
+        /// <summary>Classes/structs/unions named <paramref name="name"/> with their base texts (container rule as <see cref="FindSymbols"/>).</summary>
+        IReadOnlyList<UEToVS.Engine.Index.TypeEntry> FindTypes(string name, string container)
+        {
+            var list = new List<UEToVS.Engine.Index.TypeEntry>();
+            foreach (var s in FindSymbols(name, container))
+                if (UEToVS.Engine.Index.IndexSnapshot.IsRecordKind(s.Kind)) list.Add(new UEToVS.Engine.Index.TypeEntry { Symbol = s });
+            return list;
+        }
+
+        /// <summary>Types listing a base whose simple name (<see cref="UEToVS.Engine.Index.BaseNames.Simple"/>) matches.</summary>
+        IReadOnlyList<UEToVS.Engine.Index.TypeEntry> FindDerivedTypes(string simpleBaseName) => Array.Empty<UEToVS.Engine.Index.TypeEntry>();
+
+        /// <summary>Distinct files that contain an occurrence of <paramref name="name"/> (streamed, may be large).</summary>
+        IEnumerable<string> FindOccurrenceFiles(string name, CancellationToken ct) => Array.Empty<string>();
     }
 }

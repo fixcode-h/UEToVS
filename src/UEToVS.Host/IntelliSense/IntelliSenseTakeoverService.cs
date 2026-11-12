@@ -141,6 +141,7 @@ namespace UEToVS.Host.IntelliSense
                 LastState = IntelliSenseTakeover.GetState(store, OptionsFrom(_settings.Effective));
             }
             LogReport("intellisense.takeover", trigger, report);
+            IntelliSenseContext.InvalidateTakeover();
 
             if (report.BackupError != null)
             {
@@ -161,9 +162,10 @@ namespace UEToVS.Host.IntelliSense
                 bool first = !_settings.General.TakeoverNoticeShown;
                 if (first || trigger == "command")
                 {
-                    Banners.Show(BannerId, Strings.BannerTakenOver, BannerKind.Info,
+                    // M3: on by default, so the automatic first takeover explains what replaces VS's IntelliSense.
+                    Banners.Show(BannerId, trigger == "auto" ? IntelliSenseStrings.TakeoverDefaultOnNotice : Strings.BannerTakenOver, BannerKind.Info,
                         (Strings.Restore, () => _ = RestoreAsync("banner")),
-                        (Strings.Settings, () => _package.ShowOptionPage(typeof(GeneralOptionsPage))));
+                        (Strings.Settings, () => HostPackage.Instance?.ExecuteAction(UEToVS.Host.Shell.ActionIds.Settings)));
                     await MarkNoticeShownAsync();
                 }
             }
@@ -210,6 +212,7 @@ namespace UEToVS.Host.IntelliSense
                 L.Error("intellisense.backup.update.failed", "Could not update the backup after restore", ex, ("path", _backupPath));
             }
             LogReport("intellisense.restore", trigger, report);
+            IntelliSenseContext.InvalidateTakeover();
             int failed = report.Count(SettingOutcomeStatus.Failed);
             if (trigger != "solutionClosed")
             {

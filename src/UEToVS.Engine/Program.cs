@@ -88,7 +88,9 @@ namespace UEToVS.Engine
                 {
                     _ = host.StartIndexing();
                     var server = new PipeServer(options.PipeName, host);
-                    await server.RunAsync(host.ShutdownToken).ConfigureAwait(false);
+                    var serving = server.RunAsync(host.ShutdownToken);
+                    _ = DiscoveryPublisher.PublishWhenListeningAsync(server, host); // .vs/UEToVS/engine.json for MCP / local tools
+                    await serving.ConfigureAwait(false);
                     exitCode = host.ExitCode;
                     reason = host.ShutdownReason ?? "pipe-closed";
                 }
@@ -102,6 +104,7 @@ namespace UEToVS.Engine
             }
             finally
             {
+                if (host != null && !options.IsCli) DiscoveryPublisher.Remove(host);
                 if (host != null)
                 {
                     try { await host.StopAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false); }

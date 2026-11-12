@@ -11,24 +11,66 @@
 
 ## 命令（扩展 > UEToVS）
 
+v0.3.0 起顶层菜单只保留 搜索组、导航组、性能面板 和 设置…；下表中 重启引擎 / IntelliSense / 日志 / 诊断包 / 组件画廊 没有菜单位置，在设置窗口里以按钮出现，Find Action 可搜，也可以绑快捷键。快捷键统一在 设置 > 快捷键 中管理。
+
 | 命令 | Action ID | 说明 |
 | --- | --- | --- |
-| 查找操作… | `uetovs.findAction` | 命令面板（UI 组件库的 `CommandPalette`），列出当前可用的全部操作；可在 工具 > 选项 > 环境 > 键盘 中为 `UEToVS.FindAction` 绑定快捷键 |
+| 查找操作… | `uetovs.findAction` | 命令面板（UI 组件库的 `CommandPalette`），列出当前可用的全部操作；默认 Ctrl+Shift+Alt+A |
 | 重启引擎 | `uetovs.engine.restart` | 手动重启，同时重置自动重启次数 |
 | 接管 VS C++ IntelliSense / 恢复 VS 自带 C++ IntelliSense | `uetovs.intellisense.takeOver` / `uetovs.intellisense.restore` | 菜单里只有一项，按当前状态切换：还没接管（没有备份）时显示“接管”，立即执行接管（会先备份）；已接管（存在备份）时显示“恢复”，按备份逐项还原。Find Action 里两个操作都在 |
 | 打开日志文件夹 / 打开当前日志 | `uetovs.diagnostics.openLogFolder` / `openCurrentLog` | |
 | 生成诊断包 | `uetovs.diagnostics.createPackage` | zip：日志、脱敏设置、索引 manifest、环境/引擎/IntelliSense/性能快照 |
-| 性能面板 | `uetovs.diagnostics.performancePanel` | 工具窗口“UEToVS 性能”，仅可见时每秒采样 |
+| 性能面板 | `uetovs.diagnostics.performancePanel` | 浮动窗口“UEToVS 性能”（记住位置和大小），仅打开时采样，间隔见 设置 > 性能 |
 | 组件画廊 | `uetovs.ui.componentGallery` | UI 组件库的 `ComponentGallery` 窗口（开发用），父窗口为 VS 主窗口 |
-| 设置… | `uetovs.settings.open` | 打开 工具 > 选项 > UEToVS |
+| 设置… | `uetovs.settings.open` | 打开 UEToVS 设置窗口（`Settings/SettingsWindow.cs`）；工具栏最左侧的 UEToVS 图标同样打开它。工具 > 选项 > UEToVS 只剩一个跳转按钮 |
+
+### 导航（M2，扩展 > UEToVS 与编辑器右键 > UEToVS）
+
+| 命令 | 默认快捷键 | Action ID | 说明 |
+| --- | --- | --- | --- |
+| 转到定义 / 声明 | Alt+G | `uetovs.navigation.goToDefinition` | Toggle：在声明处去定义，在定义处回声明，其他位置去定义。一个目标直接跳，多个弹选择器，没有结果时状态栏说明原因 |
+| 转到实现 | Alt+Shift+G | `uetovs.navigation.goToImplementation` | 重写、派生类型、UE 的 `_Implementation` / `_Validate` |
+| 查找引用 | Shift+Alt+F | `uetovs.navigation.findReferences` | 浮动弹窗：按文件分组、行号 + 行文本高亮、读/写等徽章、不确定的结果灰显；工具条：重新搜索、只看写入、包含引擎代码、显示不确定的结果 |
+| 类型层次 | Alt+Shift+H | `uetovs.navigation.typeHierarchy` | 浮动弹窗：基类 / 派生类两个标签，未在索引中的类型灰显 |
+| 文件成员列表 | Alt+M | `uetovs.navigation.listMembersInFile` | 当前文件的声明，输入即模糊过滤 |
+| 类型成员（含继承） | Alt+Shift+M | `uetovs.navigation.listTypeMembers` | 光标所在类型的成员，继承来的灰显并标注“继承自 X” |
+
+- **Ctrl+鼠标左键点击 = 转到定义**（不是搜索）。按住 Ctrl 悬停在标识符上会出现下划线和手形光标；Ctrl+Alt / Ctrl+Shift 点击仍是 VS 的多光标 / 扩展选择。设置 `CtrlClickNavigation`。
+- 已接管 VS C++ IntelliSense 时，F12 在 UE 解决方案的 C++ 编辑器里也走 UEToVS 的转到定义。
+- **引用高亮**：光标停留约 150 ms 后高亮当前符号在本文件的其他出现处，读 / 写两种颜色（字体和颜色里的 “UEToVS Reference Highlight (Read/Write)”，设置 `ReferenceHighlightReadColor` / `WriteColor` 覆盖，留空按深浅主题取默认）。设置 `ReferenceHighlighting`。
+- **导航栏**：C++ 编辑器顶部，左边当前类型、右边当前函数，点击弹出可模糊过滤的列表。设置 `NavigationBar`。
+- 所有跳转都经过 `Navigation/NavigationService.JumpToAsync(location, reason)`，统一写入导航历史（Alt+← / Alt+→）并记录日志 `nav.jump`。
+
+## IntelliSense（M3，§7.5–§7.7）
+
+都是 `IntelliSense/` 下的 MEF 组件，只对 `C/C++` 内容类型、UE 解决方案生效；状态与开关集中在 `IntelliSenseContext`（是否已接管、补全范围、会话级“最近使用”）。RPC 封装在 `Engine/EngineClient.IntelliSense.cs`（超时、取消、状态，日志 `is.*` + `rpc.*`）。
+
+| 功能 | 实现 | 说明 |
+| --- | --- | --- |
+| 补全 | `CompletionSource.cs`（`IAsyncCompletionSource`）、`CompletionManagers.cs`（条目管理器 + 提交管理器） | 触发判定 `Logic/IntelliSense/CompletionTriggers.cs`；本地重排 `CompletionRanking.cs`；提交时 `.`↔`->`（`AccessorFixes`）；`IsIncomplete` 时 VS 随输入重查。未接管时 `CompletionScope=Auto` 只提供 UE 增强项 |
+| Quick Info | `QuickInfoSource.cs`（`IAsyncQuickInfoSource`） | VS 原生 `ContainerElement` / `ClassifiedTextElement`，声明着色用语义分类（`DeclarationTokenizer`），宏展开可折叠；未接管时只追加 UE 部分 |
+| 参数信息 | `SignatureHelp.cs`（`ISignatureHelpSource` + 每视图控制器） | `(` `,` 触发，Ctrl+Shift+Space 手动；异步取数后再打开会话，当前参数随光标本地计算 |
+| 语义着色 | `SemanticClassifier.cs`、`SemanticClassificationFormats.cs`、`SemanticColors.cs` | 21 个 “UEToVS …” 分类；可见区 ± `SemanticColoringMarginLines` 行，`VisibleRangePlanner` / `SemanticLineStore`；主题切换只改仍是默认值的颜色 |
+| 键位接管 | `IntelliSenseCommandFilter.cs` | 已接管时 Ctrl+Space / Ctrl+J / Ctrl+Shift+Space / Ctrl+K,I 与悬停直接由 UEToVS 处理（F12 见 `Editor/GoToDefinitionCommandFilter.cs`） |
+| 命令 | `IntelliSenseFeature.cs`（0x0600–0x06FF，不进菜单） | 导入 VA 配色（`.vssettings` → 字体和颜色存储）、切换语义着色（会话级）、恢复默认语义配色 |
+
+新增设置（`HostSettings` 末尾）：`CompletionEnabled`、`CompletionScope`（Auto / UeOnly / All）、`CompletionOnIdentifier`、`CompletionAccessorFix`、`CompletionMaxResults`、`QuickInfoEnabled`、`SignatureHelpEnabled`、`SemanticColoring`、`SemanticColorOverrides`（如 `Field=#DAD085; Functions=#DCDCAA`）、`SemanticColoringMarginLines`。
 
 所有命令都注册为 `IAction`（`Logic/Actions`），菜单只是转发；Find Action / Alt+Enter 将列出同一批动作。菜单文字在 VSCT 中是英文默认值，运行时按语言替换（`TextChanges`）。
 
-## 设置（工具 > 选项 > UEToVS）
+## 设置（UEToVS 设置窗口）
 
-- **General（常规）**：日志级别（应用后立即对宿主和引擎生效）、引擎路径覆盖、UE 根目录、请求超时、是否接管 C++ IntelliSense、接管范围（Global / UnrealSolutionOnly）、是否同时禁用浏览数据库、是否关闭 VS C++ 后台代码分析（默认关）。
-- **Appearance（外观）**：UI 组件库的 `AppearanceSettingsPanel`，修改即实时预览；确定/应用时提交并以 `AppearanceSettings.ToStorageString()` 文本保存在 VS 用户设置存储（`UEToVS\Appearance`），取消时撤销预览。包加载时读取并应用到 `ThemeManager`。
-- **Logging（日志）**：保留天数（默认 7）、总大小上限（默认 200 MB）、打开日志文件夹。
+v0.3.0 起所有设置在独立的“UEToVS 设置”窗口（`Settings/SettingsWindow.cs`，扩展 > UEToVS > 设置… / 工具栏 UEToVS 图标 / Find Action），行由 `Logic/Settings/HostSettingsSchema.cs` 的声明式描述生成，值保存在 VS 用户设置存储 `UEToVS\Settings`（首次运行从旧的 工具 > 选项 页迁移）：
+
+- **常规**：引擎路径 / UE 根目录 / 请求超时 / 重启引擎；C++ IntelliSense 接管、范围、数据库、后台代码分析、立即接管 / 恢复；工具栏及每个按钮的显隐；双击 Shift（开关、间隔、只认左 Shift）；MCP（启用、写入 .mcp.json）；Unreal（保存时检查 include 依赖、编辑器联动端口）。
+- **外观**：UI 组件库的 `AppearanceSettingsPanel`（实时预览，应用 / 确定提交，取消撤销；保存在 `UEToVS\Appearance`）。
+- **索引**：C++ / 蓝图线程数（0 = 逻辑核心数 / 4）、编译期间策略、索引引擎源码、共享引擎索引（`ShareEngineIndex` / `EngineIndexPath`）、重建项目 / 引擎 / 蓝图索引、实时状态。
+- **快捷键**：`Settings/KeymapPage.cs`（预设、录制、冲突、备份 / 还原）。
+- **导航**：Ctrl+点击、引用高亮及颜色、导航栏、鼠标侧键、历史阈值和容量、Search Everywhere 每类结果数。
+- **日志与诊断**：日志级别、保留天数、总大小、日志目录、打开日志、诊断包、组件画廊。
+- **性能**：性能面板采样间隔、打开性能面板。
+
+工具 > 选项 > UEToVS 只剩一个跳转按钮。
 
 三层覆盖（§10.3）：内置默认 < 用户设置（VS 设置存储）< 解决方案设置 `<解决方案>\.uetovs\settings.json`（只读，团队共享）。示例：
 
@@ -88,8 +130,10 @@ VS 每次打开或保存 .cpp 都会在后台用编译器（/analyze）完整分
 | --- | --- |
 | `Logic/` | 纯逻辑（无 VS 类型），由 `tests/UEToVS.Host.Logic.Tests` 以链接文件方式编译和测试 |
 | `Diagnostics/` | 日志生命周期、输出窗格、`Safe` 包装与 UI 线程看门狗 |
-| `Engine/` | 引擎客户端 |
-| `IntelliSense/` | DTE 设置读写、接管服务、VA 检测 |
+| `Engine/` | 引擎客户端（`EngineClient.Navigation.cs`：导航 RPC 的超时、取消、降级与日志） |
+| `Editor/` | MEF 编辑器适配器：Ctrl+点击、引用高亮标签器、导航栏 margin、F12 拦截、活动视图 / CaretRequest / 弹窗锚点 |
+| `Navigation/` | 导航功能：转到定义、查找引用、类型层次、成员列表、`NavigationService`（统一跳转 + 历史）、动作与命令注册 |
+| `IntelliSense/` | DTE 设置读写、接管服务、VA 检测；M3 补全 / Quick Info / 参数信息 / 语义着色 / VA 配色导入 |
 | `Options/` | 选项页与设置合并 |
 | `Performance/` | 性能采样与工具窗口 |
 | `Shell/` | GUID/命令 ID、命令路由、InfoBar、状态栏、构建监视 |

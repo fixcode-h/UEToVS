@@ -163,6 +163,96 @@ namespace UEToVS.Engine.Rpc
                 return Task.CompletedTask;
             }, ct, ("paused", paused));
 
+        // ---- M2 navigation (NavigationService): navigation / highlights on the Interactive lane, references / hierarchy Visible + cancellable ----
+
+        public Task<NavigationResponse> NavigateAsync(NavigationRequest request, CancellationToken ct) =>
+            InvokeAsync("rpc.navigate", c =>
+            {
+                if (request?.Caret == null) throw Error(RpcErrorCodes.InvalidArgument, "Navigate needs a caret");
+                return _host.Scheduler.RunAsync(WorkPriority.Interactive, "rpc.navigate", t => _host.Navigation.Navigate(request, t), c);
+            }, ct, ("kind", request?.Kind.ToString()), ("file", request?.Caret?.FilePath), ("line", request?.Caret?.Line), ("col", request?.Caret?.Column),
+                ("buffer", request?.Caret?.Text != null));
+
+        public Task<ReferencesResponse> FindReferencesAsync(ReferencesRequest request, CancellationToken ct) =>
+            InvokeAsync("rpc.findReferences", c =>
+            {
+                if (request == null || (request.Caret == null && request.Symbol == null)) throw Error(RpcErrorCodes.InvalidArgument, "FindReferences needs a caret or a symbol");
+                return _host.Scheduler.RunAsync(WorkPriority.Visible, "rpc.findReferences", t => _host.Navigation.FindReferences(request, t), c);
+            }, ct, ("file", request?.Caret?.FilePath), ("line", request?.Caret?.Line), ("symbol", request?.Symbol?.Name), ("nonProject", request?.IncludeNonProject),
+                ("max", request?.MaxResults));
+
+        public Task<TypeHierarchyResponse> GetTypeHierarchyAsync(TypeHierarchyRequest request, CancellationToken ct) =>
+            InvokeAsync("rpc.getTypeHierarchy", c =>
+            {
+                if (request == null || (request.Caret == null && string.IsNullOrEmpty(request.TypeName)))
+                    throw Error(RpcErrorCodes.InvalidArgument, "GetTypeHierarchy needs a caret or a type name");
+                return _host.Scheduler.RunAsync(WorkPriority.Visible, "rpc.getTypeHierarchy", t => _host.Navigation.GetTypeHierarchy(request, t), c);
+            }, ct, ("type", request?.TypeName), ("file", request?.Caret?.FilePath), ("direction", request?.Direction.ToString()));
+
+        public Task<HighlightResponse> GetHighlightsAsync(CaretRequest caret, CancellationToken ct) =>
+            InvokeAsync("rpc.getHighlights", c => caret == null
+                    ? Task.FromResult(new HighlightResponse { Word = string.Empty })
+                    : _host.Scheduler.RunAsync(WorkPriority.Interactive, "rpc.getHighlights", t => _host.Navigation.GetHighlights(caret, t), c),
+                ct, ("file", caret?.FilePath), ("line", caret?.Line), ("version", caret?.TextVersion));
+
+        public Task<CaretContextResponse> GetCaretContextAsync(CaretRequest caret, CancellationToken ct) =>
+            InvokeAsync("rpc.getCaretContext", c => caret == null
+                    ? Task.FromResult(new CaretContextResponse())
+                    : _host.Scheduler.RunAsync(WorkPriority.Interactive, "rpc.getCaretContext", t => _host.Navigation.GetCaretContext(caret, t), c),
+                ct, ("file", caret?.FilePath), ("line", caret?.Line));
+
+        public Task<MembersResponse> GetMembersAsync(MembersRequest request, CancellationToken ct) =>
+            InvokeAsync("rpc.getMembers", c => string.IsNullOrEmpty(request?.TypeName)
+                    ? Task.FromResult(new MembersResponse())
+                    : _host.Scheduler.RunAsync(WorkPriority.Interactive, "rpc.getMembers", t => _host.Navigation.GetMembers(request, t), c),
+                ct, ("type", request?.TypeName), ("container", request?.Container), ("inherited", request?.IncludeInherited));
+
+        // ---- indexing settings: stubs, implemented by the indexing work ----
+
+        public Task SetIndexingSettingsAsync(IndexingSettings settings, CancellationToken ct) =>
+            InvokeAsync("rpc.setIndexingSettings", _ =>
+            {
+                if (settings == null) throw Error(RpcErrorCodes.InvalidArgument, "Indexing settings are missing");
+                _host.ApplyIndexingSettings(settings);
+                return Task.CompletedTask;
+            }, ct, ("cppThreads", settings?.CppThreads), ("assetThreads", settings?.AssetThreads), ("duringBuild", settings?.DuringBuild),
+                ("includeEngine", settings?.IncludeEngine), ("sharedEngineCache", settings?.SharedEngineCache));
+
+        public Task RebuildIndexAsync(RebuildScope scope, CancellationToken ct) =>
+            InvokeAsync("rpc.rebuildIndex", _ =>
+            {
+                _host.RebuildIndex(scope);
+                return Task.CompletedTask;
+            }, ct, ("scope", scope.ToString()));
+
+        // ---- M3 IntelliSense (IntelliSenseService): completion / Quick Info / parameter info Interactive, colouring Visible ----
+
+        public Task<CompletionResponse> GetCompletionsAsync(CompletionRequest request, CancellationToken ct) =>
+            InvokeAsync("rpc.getCompletions", c =>
+            {
+                if (request?.Caret == null) throw Error(RpcErrorCodes.InvalidArgument, "GetCompletions needs a caret");
+                return _host.Scheduler.RunAsync(WorkPriority.Interactive, "rpc.getCompletions", t => _host.IntelliSense.GetCompletions(request, t), c);
+            }, ct, ("file", request?.Caret?.FilePath), ("line", request?.Caret?.Line), ("col", request?.Caret?.Column), ("trigger", request?.TriggerChar.ToString()),
+                ("explicit", request?.Explicit), ("version", request?.Caret?.TextVersion));
+
+        public Task<QuickInfoResponse> GetQuickInfoAsync(CaretRequest caret, CancellationToken ct) =>
+            InvokeAsync("rpc.getQuickInfo", c => caret == null
+                    ? Task.FromResult(new QuickInfoResponse())
+                    : _host.Scheduler.RunAsync(WorkPriority.Interactive, "rpc.getQuickInfo", t => _host.IntelliSense.GetQuickInfo(caret, t), c),
+                ct, ("file", caret?.FilePath), ("line", caret?.Line), ("col", caret?.Column));
+
+        public Task<SignatureHelpResponse> GetSignatureHelpAsync(CaretRequest caret, CancellationToken ct) =>
+            InvokeAsync("rpc.getSignatureHelp", c => caret == null
+                    ? Task.FromResult(new SignatureHelpResponse())
+                    : _host.Scheduler.RunAsync(WorkPriority.Interactive, "rpc.getSignatureHelp", t => _host.IntelliSense.GetSignatureHelp(caret, t), c),
+                ct, ("file", caret?.FilePath), ("line", caret?.Line), ("col", caret?.Column));
+
+        public Task<ClassifyResponse> ClassifyAsync(ClassifyRequest request, CancellationToken ct) =>
+            InvokeAsync("rpc.classify", c => request?.Document == null
+                    ? Task.FromResult(new ClassifyResponse { TextVersion = request?.Document?.TextVersion ?? 0 })
+                    : _host.Scheduler.RunAsync(WorkPriority.Visible, "rpc.classify", t => _host.IntelliSense.Classify(request, t), c),
+                ct, ("file", request?.Document?.FilePath), ("from", request?.StartLine), ("to", request?.EndLine), ("version", request?.Document?.TextVersion));
+
         public Task ShutdownAsync(CancellationToken ct) =>
             InvokeAsync("rpc.shutdown", _ =>
             {

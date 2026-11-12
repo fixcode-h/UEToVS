@@ -67,6 +67,21 @@
     <None Include="UEToVSHostPackage.vsct" Condition="'$(IsWindows)' != 'true'" />
     <Content Include="Resources\Icon.png" IncludeInVSIX="true" />
     <Content Include="LICENSE.txt" IncludeInVSIX="true" />
+    <!-- v0.3.0 brand mark: source Resources\UEToVS.svg; UEToVS16.png is compiled into the VSCT (toolbar / menu bitmap). -->
+    <Content Include="Resources\PreviewImage.png" IncludeInVSIX="true" />
+    <None Include="Resources\UEToVS.svg" />
+    <None Include="Resources\UEToVS16.png" />
+    <None Include="Resources\UEToVS32.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- UEToVSLink editor plugin source, copied into <Project>/Plugins by the "install editor plugin" action (Link/UnrealTools.cs). -->
+    <Content Include="..\..\ue\UEToVSLink\**\*" Exclude="..\..\ue\UEToVSLink\Binaries\**;..\..\ue\UEToVSLink\Intermediate\**">
+      <Link>EditorPlugin\UEToVSLink\%(RecursiveDir)%(Filename)%(Extension)</Link>
+      <IncludeInVSIX>true</IncludeInVSIX>
+      <VSIXSubPath>EditorPlugin\UEToVSLink\%(RecursiveDir)</VSIXSubPath>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 
   <!--
@@ -84,6 +99,31 @@
         <Link>Engine\%(RecursiveDir)%(Filename)%(Extension)</Link>
         <IncludeInVSIX>true</IncludeInVSIX>
         <VSIXSubPath>Engine\%(RecursiveDir)</VSIXSubPath>
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </Content>
+    </ItemGroup>
+  </Target>
+
+  <!--
+    MCP server for AI agents: <ext>\Engine\Mcp\UEToVS.Mcp.exe (framework-dependent, .NET 8). Its own folder: it uses the
+    ModelContextProtocol SDK whose dependency versions (System.IO.Pipelines, Microsoft.Extensions.*) must not overwrite
+    the engine's. Registered for agents through .vs\mcp.json / .mcp.json (Mcp\McpRegistration.cs, docs/design/MCP.md).
+    Skip with /p:SkipMcpPublish=true.
+  -->
+  <PropertyGroup>
+    <McpProject>$(MSBuildThisFileDirectory)..\UEToVS.Mcp\UEToVS.Mcp.csproj</McpProject>
+  </PropertyGroup>
+  <Target Name="PublishMcp" BeforeTargets="GetVsixSourceItems;PrepareForBuild"
+          Condition="'$(IsWindows)' == 'true' And '$(SkipMcpPublish)' != 'true' And Exists('$(McpProject)')">
+    <MSBuild Projects="$(McpProject)" Targets="Restore" Properties="RuntimeIdentifier=$(EngineRuntimeIdentifier)" />
+    <MSBuild Projects="$(McpProject)" Targets="Publish"
+             Properties="Configuration=$(EngineConfiguration);RuntimeIdentifier=$(EngineRuntimeIdentifier);SelfContained=false;PublishDir=$(MSBuildProjectDirectory)\obj\McpPublish\" />
+    <ItemGroup>
+      <McpFiles Include="$(MSBuildProjectDirectory)\obj\McpPublish\**\*" />
+      <Content Include="@(McpFiles)">
+        <Link>Engine\Mcp\%(RecursiveDir)%(Filename)%(Extension)</Link>
+        <IncludeInVSIX>true</IncludeInVSIX>
+        <VSIXSubPath>Engine\Mcp\%(RecursiveDir)</VSIXSubPath>
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </Content>
     </ItemGroup>

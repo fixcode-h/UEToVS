@@ -26,6 +26,17 @@ namespace UEToVS.Engine.Index.Storage
         FileNameLowerData = 19,
         Includes = 20,
         NameLowerOrder = 21,
+
+        // ---- format 2: inheritance ----
+        /// <summary><see cref="BaseEntry"/> per symbol that has bases, sorted by symbol index.</summary>
+        BaseEntries = 22,
+        /// <summary>String ids of base texts as written, sliced by <see cref="BaseEntry"/>.</summary>
+        BaseTexts = 23,
+        /// <summary>Sorted string ids of simple base names (<see cref="UEToVS.Engine.Index.BaseNames.Simple"/>): the base → derived table keys.</summary>
+        DerivedKeys = 24,
+        DerivedOffsets = 25,
+        /// <summary>Symbol indices of derived types, sliced by <see cref="DerivedOffsets"/>, source order per key.</summary>
+        DerivedSymbols = 26,
     }
 
     /// <summary>
@@ -50,7 +61,8 @@ namespace UEToVS.Engine.Index.Storage
     /// </summary>
     internal static class SegmentFormat
     {
-        public const uint Version = 1;
+        /// <summary>2: base classes + base → derived table.</summary>
+        public const uint Version = 2;
         public const int PageSize = 4096;
         public const int HeaderSize = PageSize;
         public static readonly byte[] Magic = Encoding.ASCII.GetBytes("UETVSSEG");

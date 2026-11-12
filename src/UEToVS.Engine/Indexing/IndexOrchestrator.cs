@@ -7,16 +7,30 @@ using System.Threading;
 using System.Threading.Tasks;
 using UEToVS.Contracts;
 using UEToVS.Core.Diagnostics;
+using UEToVS.Engine.Index;
 using UEToVS.Engine.Scheduling;
 using UEToVS.Engine.Unreal;
 using UEToVS.Engine.Vfs;
 
 namespace UEToVS.Engine.Indexing
 {
+    /// <summary>Which C++ parts a run drops and re-parses.</summary>
+    [Flags]
+    public enum RebuildParts
+    {
+        None = 0,
+        Project = 1,
+        Engine = 2,
+        Cpp = Project | Engine,
+    }
+
     /// <summary>
-    /// Index lifecycle: discover → list files (project, then engine) → load cache → parse (project, then engine, in
-    /// background chunks that yield to interactive requests) → save → ready. Then applies file changes incrementally.
-    /// Every phase is timed (wall, CPU, items) through <see cref="PhaseRecorder"/>.
+    /// Index lifecycle: discover → list files (project, then engine) → load cache (+ shared engine cache) → parse
+    /// (project, then engine; engine Public/Classes headers before other headers before .cpp, ThirdParty last) on
+    /// dedicated worker threads (<see cref="CppThrottle"/>: configured count, build policy, user pause) → results are
+    /// batched into base segments by a writer thread (<see cref="BulkSink"/>) → save → ready. Then applies file
+    /// changes incrementally through the delta. Every phase is timed through <see cref="PhaseRecorder"/> and every
+    /// parse stage reports throughput (<see cref="ThroughputRecorder"/>: index.throughput / index.done).
     /// </summary>
     public sealed class IndexOrchestrator : IDisposable
     {
@@ -29,8 +43,11 @@ namespace UEToVS.Engine.Indexing
         private readonly ISymbolIndexBackend _backend;
         private readonly IFileParser _parser;
         private readonly object _gate = new object();
+        private readonly List<ThroughputRecorder> _throughput = new List<ThroughputRecorder>();
         private CancellationTokenSource _runCts;
         private Task _runTask = Task.CompletedTask;
+        private CancellationTokenSource _assetCts;
+        private Task _assetTask = Task.CompletedTask;
         private TaskCompletionSource<bool> _listed = NewTcs();
         private TaskCompletionSource<bool> _ready = NewTcs();
         private Dictionary<string, IndexStateStore.FileState> _cachedState;
@@ -41,13 +58,19 @@ namespace UEToVS.Engine.Indexing
         private int _filesToParse;
         private string _activeStage;
         private long _activeStart;
+        private IndexingConfig _config;
 
-        public IndexOrchestrator(string indexDir, RequestScheduler scheduler, ISymbolIndexBackend backend, IFileParser parser)
+        public IndexOrchestrator(string indexDir, RequestScheduler scheduler, ISymbolIndexBackend backend, IFileParser parser, IndexingConfig config = null)
         {
             _indexDir = indexDir;
             _scheduler = scheduler;
             _backend = backend;
             _parser = parser;
+            _config = config ?? IndexingConfig.From(null);
+            CppThrottle = new WorkerThrottle("cpp", _config.CppThreads);
+            AssetThrottle = new WorkerThrottle("assets", _config.AssetThreads);
+            CppThrottle.SetPolicy(_config.DuringBuild);
+            AssetThrottle.SetPolicy(_config.DuringBuild);
         }
 
         public WorkspaceOptions Options { get; private set; }
@@ -64,6 +87,24 @@ namespace UEToVS.Engine.Indexing
         public string LastError { get; private set; }
         public string CacheKey => $"{Workspace?.EngineBuildId ?? "none"}|{_parser.Name}:{_parser.Version}|{_backend.Name}:{_backend.FormatVersion}";
 
+        /// <summary>C++ parse workers: configured threads, build policy, user pause.</summary>
+        public WorkerThrottle CppThrottle { get; }
+
+        /// <summary>Asset (Blueprint) scan workers.</summary>
+        public WorkerThrottle AssetThrottle { get; }
+
+        public IndexingConfig Config => Volatile.Read(ref _config);
+
+        /// <summary>Shared engine index per the settings (null = off: the engine part stays in Index/engine).</summary>
+        public SharedEngineCache SharedCache
+        {
+            get
+            {
+                var c = Config;
+                return c.SharedEngineCache ? new SharedEngineCache(c.EngineCacheDirectory) : null;
+            }
+        }
+
         /// <summary>Raised on phase changes and parse progress (the broadcaster throttles it).</summary>
         public event Action StatusChanged;
 
@@ -72,8 +113,27 @@ namespace UEToVS.Engine.Indexing
 
         private static TaskCompletionSource<bool> NewTcs() => new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        /// <summary>Starts (or restarts, cancelling the previous run) a full index run.</summary>
-        public Task Start(WorkspaceOptions options, CancellationToken shutdown)
+        /// <summary>
+        /// Applies new settings: thread counts and the build policy at once (running workers adapt at their next file);
+        /// excluded folders for the next listing. Returns true when the change needs a new index run (engine on/off,
+        /// excluded folders) — the caller restarts.
+        /// </summary>
+        public bool ApplyConfig(IndexingConfig config)
+        {
+            var old = Interlocked.Exchange(ref _config, config);
+            CppThrottle.SetConfigured(config.CppThreads);
+            AssetThrottle.SetConfigured(config.AssetThreads);
+            CppThrottle.SetPolicy(config.DuringBuild);
+            AssetThrottle.SetPolicy(config.DuringBuild);
+            FileLister.SkippedDirectories = config.ExcludedFolders?.ToList();
+            bool restart = old.IncludeEngine != config.IncludeEngine || !old.SameExcludedFolders(config) ||
+                           old.SharedEngineCache != config.SharedEngineCache || !string.Equals(old.EngineCacheDirectory, config.EngineCacheDirectory, StringComparison.OrdinalIgnoreCase);
+            L.Info("index.settings.applied", null, ("settings", config.ToString()), ("previous", old.ToString()), ("restart", restart));
+            return restart;
+        }
+
+        /// <summary>Starts (or restarts, cancelling the previous run) a full index run. <paramref name="rebuild"/> drops those C++ parts first.</summary>
+        public Task Start(WorkspaceOptions options, CancellationToken shutdown, RebuildParts rebuild = RebuildParts.None)
         {
             lock (_gate)
             {
@@ -88,9 +148,79 @@ namespace UEToVS.Engine.Indexing
                 _runTask = Task.Run(async () =>
                 {
                     try { await previous.ConfigureAwait(false); } catch { /* logged by that run */ }
-                    await RunAsync(options, run, ct).ConfigureAwait(false);
+                    await RunAsync(options, run, rebuild, ct).ConfigureAwait(false);
                 });
                 return _runTask;
+            }
+        }
+
+        /// <summary>
+        /// Rebuild requested from the settings window. Project / Engine / Cpp (both) / All restart the run with those C++
+        /// parts dropped. A running run or rebuild is cancelled and parts it had not dropped yet are carried over, so
+        /// requests merge. Assets re-scans content folders (cancelling a previous asset rescan). Returns at once;
+        /// progress goes through the status.
+        /// </summary>
+        public void Rebuild(RebuildScope scope, CancellationToken shutdown)
+        {
+            L.Info("index.rebuild.requested", null, ("scope", scope.ToString()), ("phase", _phase.ToString()));
+            if (Options == null) return;
+            var parts = scope switch
+            {
+                RebuildScope.Assets => RebuildParts.None,
+                RebuildScope.Project => RebuildParts.Project,
+                RebuildScope.Engine => RebuildParts.Engine,
+                _ => RebuildParts.Cpp, // Cpp, All (every run re-lists assets too)
+            };
+            if (parts == RebuildParts.None)
+            {
+                RebuildAssets(shutdown);
+                return;
+            }
+            lock (_gate)
+            {
+                parts |= _pendingRebuild; // a previous rebuild that has not dropped its parts yet
+                _pendingRebuild = parts;
+            }
+            Start(Options, shutdown, parts);
+        }
+
+        private RebuildParts _pendingRebuild;
+
+        public Task RebuildAssets(CancellationToken shutdown)
+        {
+            lock (_gate)
+            {
+                _assetCts?.Cancel();
+                _assetCts = CancellationTokenSource.CreateLinkedTokenSource(shutdown);
+                var ct = _assetCts.Token;
+                var previous = _assetTask;
+                _assetTask = Task.Run(async () =>
+                {
+                    try { await previous.ConfigureAwait(false); } catch { }
+                    try
+                    {
+                        if (!await _listed.Task.WaitAsync(ct).ConfigureAwait(false)) return;
+                        var ws = Workspace;
+                        var roots = ws.ContentRoots.Where(r => r.IsProject || Options.IncludeEngine).ToList();
+                        var found = ScanAssets(roots, "rebuild", ct);
+                        var keep = new HashSet<string>(found.Select(a => a.FilePath), StringComparer.OrdinalIgnoreCase);
+                        int removed = 0;
+                        foreach (var a in Assets.Snapshot())
+                            if (!keep.Contains(a.FilePath) && Assets.Remove(a.FilePath)) removed++;
+                        foreach (var a in found) Assets.Upsert(a);
+                        L.Info("index.assets.rebuilt", null, ("assets", found.Count), ("removed", removed));
+                        RaiseStatus();
+                    }
+                    catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                    {
+                        L.Info("index.assets.rebuild_cancelled", null);
+                    }
+                    catch (Exception ex)
+                    {
+                        L.Error("index.assets.rebuild_failed", "Asset rescan failed", ex);
+                    }
+                });
+                return _assetTask;
             }
         }
 
@@ -101,6 +231,11 @@ namespace UEToVS.Engine.Indexing
         public Task RunTask
         {
             get { lock (_gate) return _runTask; }
+        }
+
+        public Task AssetTask
+        {
+            get { lock (_gate) return _assetTask; }
         }
 
         private void SetPhase(IndexPhase p)
@@ -116,13 +251,51 @@ namespace UEToVS.Engine.Indexing
             catch (Exception ex) { L.Warn("index.status.handler_failed", "Status handler failed", ex); }
         }
 
-        private async Task RunAsync(WorkspaceOptions options, int run, CancellationToken ct)
+        private void AddThroughput(ThroughputRecorder r)
+        {
+            lock (_throughput)
+            {
+                _throughput.Insert(0, r);
+                if (_throughput.Count > 8)
+                {
+                    _throughput[_throughput.Count - 1].Dispose();
+                    _throughput.RemoveAt(_throughput.Count - 1);
+                }
+            }
+        }
+
+        /// <summary>Recent pipeline stages: running ones first, then most recent first.</summary>
+        public List<IndexThroughput> Throughput()
+        {
+            lock (_throughput) return _throughput.Select(r => r.ToContract()).OrderByDescending(t => t.Running).ToList();
+        }
+
+        /// <summary>Asset scan with the asset thread count (waits while the asset throttle is paused).</summary>
+        private List<AssetItem> ScanAssets(IEnumerable<IndexRoot> roots, string stage, CancellationToken ct)
+        {
+            var rootList = roots.ToList();
+            if (rootList.Count == 0) return new List<AssetItem>();
+            using var rec = new ThroughputRecorder("assets." + stage, 0, () => AssetThrottle.Effective, () => AssetThrottle.Configured);
+            AddThroughput(rec);
+            rec.RecordThrottled(AssetThrottle.WaitForTurn(0, ct));
+            long t0 = Stopwatch.GetTimestamp();
+            var assets = AssetLister.List(rootList, Math.Max(1, AssetThrottle.Effective), ct);
+            long ticks = Stopwatch.GetTimestamp() - t0;
+            rec.AddTotal(assets.Count);
+            for (int i = 0; i < assets.Count; i++) rec.RecordCacheHit();
+            rec.RecordWorker(ticks, ticks, 0);
+            return assets;
+        }
+
+        private async Task RunAsync(WorkspaceOptions options, int run, RebuildParts rebuild, CancellationToken ct)
         {
             Log.RequestId = "index-" + run;
             var total = Stopwatch.StartNew();
             LastError = null;
             Interlocked.Exchange(ref _filesParsed, 0);
             Interlocked.Exchange(ref _filesToParse, 0);
+            var config = Config;
+            L.Info("index.run.start", null, ("run", run), ("rebuild", rebuild.ToString()), ("settings", config.ToString()), ("cores", Environment.ProcessorCount));
             try
             {
                 // 1. Discover
@@ -148,6 +321,7 @@ namespace UEToVS.Engine.Indexing
                 SetPhase(IndexPhase.ListingFiles);
                 var listed = new List<ListedFile>();
                 var buildFiles = new List<FoundBuildCs>();
+                var allAssets = new List<AssetItem>();
                 foreach (bool project in new[] { true, false })
                 {
                     if (!project && !options.IncludeEngine) break;
@@ -162,15 +336,19 @@ namespace UEToVS.Engine.Indexing
                         listed.Add(f);
                     }
                     buildFiles.AddRange(listing.BuildCsFiles);
-                    var assets = AssetLister.List(ws.ContentRoots.Where(r => r.IsProject == project), _scheduler.MaxParallelism, ct);
+                    var assets = ScanAssets(ws.ContentRoots.Where(r => r.IsProject == project), stage, ct);
                     foreach (var a in assets) Assets.Upsert(a);
+                    allAssets.AddRange(assets);
                     p.Items = listing.Files.Count;
                     p.Add("dirs", listing.Directories);
+                    p.Add("cpp", listing.Files.Count(f => f.IsCpp));
                     p.Add("assets", assets.Count);
                     p.Add("modules", listing.BuildCsFiles.Count);
+                    p.Timing.ItemsPerSecond = Rate(listing.Files.Count, listing.ElapsedMs);
                     RaiseStatus();
                 }
                 RemoveStale(listed);
+                RemoveStaleAssets(allAssets);
                 _buildFiles = buildFiles;
                 using (var p = Phases.Begin(IndexPhase.ListingFiles, "modules"))
                 {
@@ -184,6 +362,7 @@ namespace UEToVS.Engine.Indexing
                 // 3. Cache
                 SetPhase(IndexPhase.LoadingCache);
                 string key = CacheKey;
+                bool sharedHit = false;
                 using (var p = Phases.Begin(IndexPhase.LoadingCache))
                 {
                     bool backendLoaded = false;
@@ -191,9 +370,26 @@ namespace UEToVS.Engine.Indexing
                     {
                         // Always give the backend the key first: a persistent backend opens (or resets) its store here.
                         bool storeLoaded = _backend.TryLoad(_indexDir, key);
-                        _cachedState = IndexStateStore.TryLoad(_indexDir, key);
-                        backendLoaded = _cachedState != null && storeLoaded;
-                        if (!backendLoaded) _cachedState = null;
+                        _cachedState = storeLoaded ? IndexStateStore.TryLoad(_indexDir, key) : null;
+                        backendLoaded = storeLoaded;
+                        if (rebuild != RebuildParts.None)
+                        {
+                            bool project = (rebuild & RebuildParts.Project) != 0, engine = (rebuild & RebuildParts.Engine) != 0;
+                            _backend.Reset(project, engine);
+                            if (_cachedState != null)
+                            {
+                                foreach (var path in _cachedState.Keys.ToList())
+                                {
+                                    bool isProject = Files.TryGet(path, out var fe) && InMemorySymbolIndex.IsProject(fe.File.Origin);
+                                    if (isProject ? project : engine) _cachedState.Remove(path);
+                                }
+                            }
+                            L.Info("index.rebuild.cpp", "C++ index parts dropped; re-parsing them", ("project", project), ("engine", engine));
+                        }
+                        lock (_gate) _pendingRebuild &= ~rebuild;
+                        LocalizeEngineIfUnshared(config);
+                        sharedHit = TryImportSharedEngine(ws, options, config, key, rebuild);
+                        SeedStateFromSegments();
                     }
                     catch (Exception ex)
                     {
@@ -203,18 +399,25 @@ namespace UEToVS.Engine.Indexing
                     }
                     p.Items = _cachedState?.Count ?? 0;
                     p.Add("loaded", backendLoaded);
+                    p.Add("sharedEngine", sharedHit);
+                    p.Add("rebuild", rebuild.ToString());
                     p.Add("key", key);
                 }
 
-                // 4. Parse: project, then engine.
+                // 4. Parse: project, then engine; C++ files only (never .ini / .uplugin / .cs / shaders).
                 SetPhase(IndexPhase.Parsing);
-                var toParse = listed.Where(f => _parser.CanParse(Context(f))).ToList();
+                var toParse = Prioritize(listed.Where(f => f.IsCpp && _parser.CanParse(Context(f))));
                 Interlocked.Exchange(ref _filesToParse, toParse.Count);
-                foreach (bool project in new[] { true, false })
+                int engineParsed = 0;
+                using (var sink = new BulkSink(_backend, ct))
                 {
-                    var part = toParse.Where(f => InMemorySymbolIndex.IsProject(f.Origin) == project).ToList();
-                    if (part.Count == 0) continue;
-                    await ParseFilesAsync(part, project ? "project" : "engine", ct).ConfigureAwait(false);
+                    foreach (bool project in new[] { true, false })
+                    {
+                        var part = toParse.Where(f => InMemorySymbolIndex.IsProject(f.Origin) == project).ToList();
+                        if (part.Count == 0) continue;
+                        var c = await ParseStageAsync(part, project ? "project" : "engine", sink, ct).ConfigureAwait(false);
+                        if (!project) engineParsed = c.Parsed + c.Failed;
+                    }
                 }
                 if (_cachedState != null)
                 {
@@ -230,11 +433,13 @@ namespace UEToVS.Engine.Indexing
                     p.Items = _backend.GetStats().Files;
                     p.Add("diskBytes", IndexStateStore.DirectoryBytes(_indexDir));
                 }
+                if (options.IncludeEngine && config.SharedEngineCache) ExportSharedEngine(ws, key, engineParsed);
 
                 SetPhase(IndexPhase.Ready);
                 var stats = _backend.GetStats();
                 L.Info("index.ready", "Index ready", ("files", Files.Count), ("symbols", stats.Symbols), ("assets", Assets.Count),
-                    ("modules", Modules.Count), ("processed", FilesParsed), ("totalMs", Math.Round(total.Elapsed.TotalMilliseconds)));
+                    ("modules", Modules.Count), ("processed", FilesParsed), ("engineParsed", engineParsed), ("sharedEngine", sharedHit),
+                    ("totalMs", Math.Round(total.Elapsed.TotalMilliseconds)));
                 _ready.TrySetResult(true);
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
@@ -256,6 +461,107 @@ namespace UEToVS.Engine.Indexing
             }
         }
 
+        private static double Rate(int items, double ms) => ms > 0 ? Math.Round(items * 1000.0 / ms, 1) : 0;
+
+        private SymbolIndex Store => (_backend as SegmentedIndexBackend)?.Store;
+
+        /// <summary>The engine part was attached from the shared cache but sharing is now off: copy it into Index/engine.</summary>
+        private void LocalizeEngineIfUnshared(IndexingConfig config)
+        {
+            var store = Store;
+            if (config.SharedEngineCache || store == null || !store.AllBasesExternal(SegmentKind.Engine)) return;
+            string dir = store.Options.EngineDirectory ?? store.Options.Directory;
+            var sw = Stopwatch.StartNew();
+            try
+            {
+                Directory.CreateDirectory(dir);
+                var local = new List<string>();
+                store.WithBaseSegments(SegmentKind.Engine, paths =>
+                {
+                    foreach (var p in paths)
+                    {
+                        string dest = Path.Combine(dir, "engine-local-" + DateTime.UtcNow.Ticks + "-" + local.Count + ".seg");
+                        File.Copy(p, dest + ".tmp", true);
+                        File.Move(dest + ".tmp", dest, true);
+                        local.Add(dest);
+                    }
+                });
+                if (!store.AttachExternalSegments(SegmentKind.Engine, local, out string detail))
+                {
+                    L.Warn("index.engine.localize_failed", "Could not use the copied engine segments; re-indexing the engine", ("detail", detail));
+                    store.Reset(SegmentKind.Engine);
+                }
+                else L.Info("index.engine.localized", "Shared engine index copied into the solution (sharing is off)", ("segments", local.Count), ("ms", Math.Round(sw.Elapsed.TotalMilliseconds)));
+            }
+            catch (Exception ex)
+            {
+                L.Warn("index.engine.localize_failed", "Copying the shared engine index failed; re-indexing the engine", ex);
+                store.Reset(SegmentKind.Engine);
+            }
+        }
+
+        private bool TryImportSharedEngine(Workspace ws, WorkspaceOptions options, IndexingConfig config, string key, RebuildParts rebuild)
+        {
+            var shared = SharedCache;
+            var store = Store;
+            if ((rebuild & RebuildParts.Engine) != 0 || !options.IncludeEngine || shared == null || store == null || string.IsNullOrEmpty(ws.EngineRoot)) return false;
+            if (store.BaseSegmentCount(SegmentKind.Engine) > 0) return store.AllBasesExternal(SegmentKind.Engine); // already attached / built locally
+            return shared.TryImport(store, ws.EngineBuildId, ws.EngineRoot, key);
+        }
+
+        /// <summary>
+        /// Per-file state stored in the segments (size, mtime, hash at parse time): the engine part carries its own
+        /// state, so a shared or rebuilt engine part needs no project-side bookkeeping.
+        /// </summary>
+        private void SeedStateFromSegments()
+        {
+            var store = Store;
+            if (store == null) return;
+            int added = 0;
+            foreach (var kind in new[] { SegmentKind.Engine, SegmentKind.Project })
+            {
+                foreach (var f in store.BaseFileStates(kind, includeDead: false))
+                {
+                    if (f.ContentHash == 0 && f.Length == 0) continue; // written without metadata
+                    _cachedState ??= new Dictionary<string, IndexStateStore.FileState>(StringComparer.OrdinalIgnoreCase);
+                    if (_cachedState.TryAdd(f.Path, new IndexStateStore.FileState { Path = f.Path, Size = f.Length, Ticks = f.MtimeTicks, Hash = f.ContentHash })) added++;
+                }
+            }
+            if (added > 0) L.Debug("index.cache.seeded", null, ("files", added));
+        }
+
+        private void ExportSharedEngine(Workspace ws, string key, int engineParsed)
+        {
+            var shared = SharedCache;
+            var store = Store;
+            if (shared == null || store == null || string.IsNullOrEmpty(ws.EngineRoot)) return;
+            if (store.BaseSegmentCount(SegmentKind.Engine) == 0) return;
+            if (engineParsed == 0 && store.AllBasesExternal(SegmentKind.Engine)) return; // nothing new: the shared version is current
+            using (var p = Phases.Begin(IndexPhase.Merging, "shared-engine"))
+                p.Add("published", shared.Export(store, ws.EngineBuildId, ws.EngineRoot, key));
+        }
+
+        /// <summary>
+        /// Parse order: project before engine; within each, Public/Classes headers, then other headers, then sources;
+        /// ThirdParty after everything else of its side. Stable within a rank (path order = disk locality).
+        /// </summary>
+        public static List<ListedFile> Prioritize(IEnumerable<ListedFile> files) =>
+            files.Select((f, i) => (f, i)).OrderBy(x => Rank(x.f)).ThenBy(x => x.i).Select(x => x.f).ToList();
+
+        public static int Rank(ListedFile f)
+        {
+            int r = InMemorySymbolIndex.IsProject(f.Origin) ? 0 : 10;
+            if (f.Origin == ItemOrigin.ThirdParty) r += 5;
+            if (f.Kind == SourceFileKind.Header)
+            {
+                string p = f.Path ?? "";
+                bool api = p.IndexOf("/Public/", StringComparison.OrdinalIgnoreCase) >= 0 || p.IndexOf("\\Public\\", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                           p.IndexOf("/Classes/", StringComparison.OrdinalIgnoreCase) >= 0 || p.IndexOf("\\Classes\\", StringComparison.OrdinalIgnoreCase) >= 0;
+                return r + (api ? 0 : 1);
+            }
+            return r + 2;
+        }
+
         private void RemoveStale(List<ListedFile> listed)
         {
             var keep = new HashSet<string>(listed.Select(f => f.Path), StringComparer.OrdinalIgnoreCase);
@@ -267,6 +573,13 @@ namespace UEToVS.Engine.Indexing
             }
         }
 
+        private void RemoveStaleAssets(List<AssetItem> listed)
+        {
+            var keep = new HashSet<string>(listed.Select(a => a.FilePath), StringComparer.OrdinalIgnoreCase);
+            foreach (var a in Assets.Snapshot())
+                if (!keep.Contains(a.FilePath)) Assets.Remove(a.FilePath);
+        }
+
         private sealed class Counters
         {
             public int Parsed, CacheHits, Unchanged, Failed, Skipped, Symbols, Yields;
@@ -274,35 +587,67 @@ namespace UEToVS.Engine.Indexing
 
         private enum Outcome { Parsed, CacheHit, Unchanged, Failed, Skipped }
 
-        private async Task ParseFilesAsync(List<ListedFile> files, string stage, CancellationToken ct)
+        private void Count(Counters c, Outcome outcome, int symbols)
         {
+            switch (outcome)
+            {
+                case Outcome.Parsed: Interlocked.Increment(ref c.Parsed); break;
+                case Outcome.CacheHit: Interlocked.Increment(ref c.CacheHits); break;
+                case Outcome.Unchanged: Interlocked.Increment(ref c.Unchanged); break;
+                case Outcome.Failed: Interlocked.Increment(ref c.Failed); break;
+                default: Interlocked.Increment(ref c.Skipped); break;
+            }
+            Interlocked.Add(ref c.Symbols, symbols);
+        }
+
+        /// <summary>One bulk parse stage on the C++ worker threads; results go to <paramref name="sink"/> (segments).</summary>
+        private async Task<Counters> ParseStageAsync(List<ListedFile> files, string stage, BulkSink sink, CancellationToken ct)
+        {
+            bool engine = stage == "engine";
             using var p = Phases.Begin(IndexPhase.Parsing, stage);
             _activeStage = "index.parse." + stage;
             _activeStart = Stopwatch.GetTimestamp();
             var c = new Counters();
-            var tasks = new List<Task>();
-            for (int i = 0; i < files.Count; i += ChunkSize)
-            {
-                var chunk = files.GetRange(i, Math.Min(ChunkSize, files.Count - i));
-                tasks.Add(ProcessChunkAsync(chunk, "index.parse." + stage, WorkPriority.Background, c, force: false, ct));
-            }
+            var rec = new ThroughputRecorder("parse." + stage, files.Count, () => CppThrottle.Effective, () => CppThrottle.Configured);
+            AddThroughput(rec);
+            sink.Recorder = rec;
             try
             {
-                await Task.WhenAll(tasks).ConfigureAwait(false);
+                await ParsePipeline.RunAsync(files, CppThrottle, rec, (f, w, token) =>
+                {
+                    var outcome = ProcessFile(f, false, w, sink, rec, out int symbols, token);
+                    Count(c, outcome, symbols);
+                    if ((Interlocked.Increment(ref _filesParsed) & 63) == 0) RaiseStatus();
+                }, "UEToVS index " + stage, ct).ConfigureAwait(false);
+                using (Phases.Begin(IndexPhase.Merging, "segments." + stage))
+                {
+                    sink.Flush(engine);
+                    _backend.FinishBulk(engine, ct);
+                }
             }
             finally
             {
+                rec.Complete();
+                var t = rec.ToContract();
                 p.Items = files.Count;
                 p.Add("parsed", c.Parsed);
                 p.Add("cacheHits", c.CacheHits + c.Unchanged);
                 p.Add("parseFailed", c.Failed);
                 p.Add("skipped", c.Skipped);
                 p.Add("symbols", c.Symbols);
-                p.Add("yields", c.Yields);
+                p.Add("threads", t.ConfiguredThreads);
+                p.Add("filesPerSec", t.FilesPerSecond);
+                p.Add("mbPerSec", t.MegabytesPerSecond);
+                p.Add("segments", t.SegmentsWritten);
+                p.Timing.ItemsPerSecond = t.FilesPerSecond;
+                p.Timing.MegabytesPerSecond = t.MegabytesPerSecond;
                 if (ct.IsCancellationRequested) p.Complete(failed: true);
+                RaiseStatus();
             }
+            return c;
         }
 
+        /// <summary>Incremental path (watcher / host changes, rescans): scheduler chunks, results through the delta.</summary>
         private async Task ProcessChunkAsync(List<ListedFile> chunk, string name, WorkPriority priority, Counters c, bool force, CancellationToken ct)
         {
             List<ListedFile> remaining = chunk;
@@ -319,17 +664,8 @@ namespace UEToVS.Engine.Indexing
                             Interlocked.Increment(ref c.Yields);
                             return current.GetRange(i, current.Count - i);
                         }
-                        var outcome = ProcessFile(current[i], force, out int symbols, token);
-                        switch (outcome)
-                        {
-                            case Outcome.Parsed: Interlocked.Increment(ref c.Parsed); break;
-                            case Outcome.CacheHit: Interlocked.Increment(ref c.CacheHits); break;
-                            case Outcome.Unchanged: Interlocked.Increment(ref c.Unchanged); break;
-                            case Outcome.Failed: Interlocked.Increment(ref c.Failed); break;
-                            default: Interlocked.Increment(ref c.Skipped); break;
-                        }
-                        Interlocked.Add(ref c.Symbols, symbols);
-                        Interlocked.Increment(ref _filesParsed);
+                        var outcome = ProcessFile(current[i], force, null, null, null, out int symbols, token);
+                        Count(c, outcome, symbols);
                     }
                     return new List<ListedFile>();
                 }, ct).ConfigureAwait(false);
@@ -339,15 +675,27 @@ namespace UEToVS.Engine.Indexing
 
         private FileContext Context(ListedFile f) => new FileContext { Path = f.Path, Module = f.Module, Origin = f.Origin, Kind = f.Kind };
 
-        private Outcome ProcessFile(ListedFile f, bool force, out int symbolCount, CancellationToken ct)
+        private static bool IsEngineSide(ItemOrigin o) => !InMemorySymbolIndex.IsProject(o);
+
+        /// <summary>
+        /// One file: cache check (size + mtime), read (worker buffer when <paramref name="worker"/> is set), hash
+        /// (unchanged content skips parsing), parse, then hand the result to <paramref name="sink"/> (bulk) or the
+        /// backend's delta. Timings go to <paramref name="rec"/>.
+        /// </summary>
+        private Outcome ProcessFile(ListedFile f, bool force, WorkerState worker, BulkSink sink, ThroughputRecorder rec, out int symbolCount, CancellationToken ct)
         {
             symbolCount = 0;
             var entry = Files.TryGet(f.Path, out var e) ? e : Files.Upsert(f);
             var ctx = Context(f);
-            if (!_parser.CanParse(ctx)) return Outcome.Skipped;
+            if (!f.IsCpp || !_parser.CanParse(ctx))
+            {
+                rec?.RecordOther();
+                return Outcome.Skipped;
+            }
             if (f.Size > MaxParseBytes)
             {
                 L.Debug("index.parse.too_large", null, ("path", f.Path), ("size", f.Size));
+                rec?.RecordOther();
                 return Outcome.Skipped;
             }
 
@@ -357,32 +705,46 @@ namespace UEToVS.Engine.Indexing
             {
                 entry.Hash = cached.Hash;
                 entry.HashKnown = true;
+                rec?.RecordCacheHit();
                 return Outcome.CacheHit;
             }
 
-            byte[] bytes;
+            long t0 = Stopwatch.GetTimestamp();
+            ReadOnlyMemory<byte> content;
             try
             {
-                bytes = File.ReadAllBytes(f.Path);
+                if (worker != null)
+                {
+                    if (worker.ReadFile(f.Path, MaxParseBytes, out content) < 0)
+                    {
+                        rec?.RecordOther(Stopwatch.GetTimestamp() - t0);
+                        return Outcome.Skipped;
+                    }
+                }
+                else content = File.ReadAllBytes(f.Path);
             }
             catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
             {
                 L.Debug("index.read_failed", ex.Message, ("path", f.Path));
+                rec?.RecordOther(Stopwatch.GetTimestamp() - t0);
                 return Outcome.Failed;
             }
-            ulong hash = ContentHasher.Hash(bytes);
+            long t1 = Stopwatch.GetTimestamp();
+            ulong hash = ContentHasher.Hash(content.Span);
             bool known = _backend.ContainsFile(f.Path);
             if (known && ((cached != null && cached.Hash == hash) || (entry.HashKnown && entry.Hash == hash)))
             {
                 // Only the timestamp moved (branch switched back, touch): §9.4 skip.
                 entry.Hash = hash;
                 entry.HashKnown = true;
+                rec?.RecordFile(f.Path, content.Length, t1 - t0, Stopwatch.GetTimestamp() - t1, 0, parsed: false);
                 return force ? Outcome.Unchanged : Outcome.CacheHit;
             }
 
             try
             {
-                var result = _parser.Parse(ctx, bytes, ct);
+                var result = _parser.Parse(ctx, content, ct);
+                long t2 = Stopwatch.GetTimestamp();
                 var symbols = result?.Symbols ?? new List<SymbolInfo>();
                 foreach (var s in symbols)
                 {
@@ -391,13 +753,21 @@ namespace UEToVS.Engine.Indexing
                     s.Module ??= f.Module;
                     s.Origin = f.Origin;
                 }
-                if (result != null) _backend.UpdateParsed(f.Path, result);
+                if (result != null)
+                {
+                    result.MtimeTicks = f.LastWriteUtcTicks;
+                    result.Length = content.Length;
+                    result.ContentHash = hash;
+                    if (sink != null) sink.Add(IsEngineSide(f.Origin), f.Path, result, content.Length);
+                    else _backend.UpdateParsed(f.Path, result);
+                }
                 else _backend.UpdateFile(f.Path, symbols);
                 entry.Hash = hash;
                 entry.HashKnown = true;
                 entry.SymbolCount = symbols.Count;
                 symbolCount = symbols.Count;
                 if (result?.Warning != null) L.Debug("index.parse.warning", result.Warning, ("path", f.Path));
+                rec?.RecordFile(f.Path, content.Length, t1 - t0, t2 - t1, Stopwatch.GetTimestamp() - t2, parsed: true);
                 return Outcome.Parsed;
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
@@ -411,9 +781,11 @@ namespace UEToVS.Engine.Indexing
                 _backend.UpdateFile(f.Path, Array.Empty<SymbolInfo>());
                 entry.Hash = hash;
                 entry.HashKnown = true;
+                rec?.RecordOther();
                 return Outcome.Failed;
             }
         }
+
 
         // ---------------------------------------------------------------- incremental updates
 
@@ -469,7 +841,7 @@ namespace UEToVS.Engine.Indexing
                 if (listed != null)
                 {
                     Files.Upsert(listed);
-                    updates.Add(listed);
+                    if (listed.IsCpp) updates.Add(listed); // .ini / .uplugin / .cs / shaders: file search only, never parsed
                 }
             }
 
@@ -575,12 +947,12 @@ namespace UEToVS.Engine.Indexing
             var changed = new List<ListedFile>();
             foreach (var f in listing.Files)
             {
-                if (!Files.TryGet(f.Path, out var e) || e.File.Size != f.Size || e.File.LastWriteUtcTicks != f.LastWriteUtcTicks) changed.Add(f);
+                if (f.IsCpp && (!Files.TryGet(f.Path, out var e) || e.File.Size != f.Size || e.File.LastWriteUtcTicks != f.LastWriteUtcTicks)) changed.Add(f);
                 Files.Upsert(f);
             }
             int before = Files.Count;
             RemoveStale(listing.Files);
-            foreach (var a in AssetLister.List(ws.ContentRoots.Where(r => r.IsProject || Options.IncludeEngine), _scheduler.MaxParallelism, ct)) Assets.Upsert(a);
+            foreach (var a in ScanAssets(ws.ContentRoots.Where(r => r.IsProject || Options.IncludeEngine), "rescan", ct)) Assets.Upsert(a);
             var c = new Counters();
             var tasks = new List<Task>();
             for (int i = 0; i < changed.Count; i += ChunkSize)
@@ -677,7 +1049,11 @@ namespace UEToVS.Engine.Indexing
 
         public void Cancel()
         {
-            lock (_gate) _runCts?.Cancel();
+            lock (_gate)
+            {
+                _runCts?.Cancel();
+                _assetCts?.Cancel();
+            }
         }
 
         public void Dispose()

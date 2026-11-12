@@ -39,6 +39,47 @@ namespace UEToVS.Contracts
         /// <summary>User pause/resume of background indexing (performance panel button).</summary>
         Task SetBackgroundPausedAsync(bool paused, CancellationToken ct);
 
+        // ---- M2 core navigation (see Navigation.cs) ----
+
+        /// <summary>Go to definition / declaration / implementation for the identifier at the caret.</summary>
+        Task<NavigationResponse> NavigateAsync(NavigationRequest request, CancellationToken ct);
+
+        /// <summary>Find references of the caret's symbol (or of request.Symbol) across the index.</summary>
+        Task<ReferencesResponse> FindReferencesAsync(ReferencesRequest request, CancellationToken ct);
+
+        Task<TypeHierarchyResponse> GetTypeHierarchyAsync(TypeHierarchyRequest request, CancellationToken ct);
+
+        /// <summary>Occurrences of the caret's symbol in the same document (reference highlighting). Budget: p95 &lt; 20 ms.</summary>
+        Task<HighlightResponse> GetHighlightsAsync(CaretRequest caret, CancellationToken ct);
+
+        /// <summary>Enclosing scopes at the caret plus the document's declarations (navigation bar, Alt+M).</summary>
+        Task<CaretContextResponse> GetCaretContextAsync(CaretRequest caret, CancellationToken ct);
+
+        /// <summary>Members of a type, optionally including inherited ones (member list).</summary>
+        Task<MembersResponse> GetMembersAsync(MembersRequest request, CancellationToken ct);
+
+        // ---- indexing settings (settings window) ----
+
+        /// <summary>Apply indexing settings at runtime (thread counts, build behaviour). Takes effect without restarting the engine.</summary>
+        Task SetIndexingSettingsAsync(IndexingSettings settings, CancellationToken ct);
+
+        /// <summary>Drop and rebuild the C++ index, the asset (Blueprint) index, or both. Returns immediately; progress via status.</summary>
+        Task RebuildIndexAsync(RebuildScope scope, CancellationToken ct);
+
+        // ---- M3 UE-aware IntelliSense (see IntelliSense.cs) ----
+
+        /// <summary>Completion list at the caret. Budget: p95 &lt; 50 ms.</summary>
+        Task<CompletionResponse> GetCompletionsAsync(CompletionRequest request, CancellationToken ct);
+
+        /// <summary>Hover tooltip for the identifier at the caret (declaration, docs, UE reflection, macro expansion).</summary>
+        Task<QuickInfoResponse> GetQuickInfoAsync(CaretRequest caret, CancellationToken ct);
+
+        /// <summary>Parameter info for the call enclosing the caret.</summary>
+        Task<SignatureHelpResponse> GetSignatureHelpAsync(CaretRequest caret, CancellationToken ct);
+
+        /// <summary>Semantic colouring for a line range of a document (VA-style colours).</summary>
+        Task<ClassifyResponse> ClassifyAsync(ClassifyRequest request, CancellationToken ct);
+
         Task ShutdownAsync(CancellationToken ct);
     }
 

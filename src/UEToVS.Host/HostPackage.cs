@@ -26,6 +26,7 @@ using UEToVS.Host.Logic.Settings;
 using UEToVS.Host.Logic.Unreal;
 using UEToVS.Host.Options;
 using UEToVS.Host.Performance;
+using UEToVS.Host.Settings;
 using UEToVS.Host.Shell;
 using UEToVS.UI.Shells;
 using SolutionEvents = Microsoft.VisualStudio.Shell.Events.SolutionEvents;
@@ -46,10 +47,9 @@ namespace UEToVS.Host
     [PackageRegistration(UseManagedResourcesOnly = true, AllowsBackgroundLoading = true)]
     [InstalledProductRegistration("UEToVS", "Unreal Engine aware C++ assistant", "0.1.0")]
     [ProvideMenuResource("Menus.ctmenu", 1)]
+    // v0.3.0: all settings live in the UEToVS settings window; Tools > Options keeps one stub page that opens it.
     [ProvideOptionPage(typeof(GeneralOptionsPage), "UEToVS", "General", 0, 0, true, Sort = 0)]
-    [ProvideOptionPage(typeof(AppearanceOptionsPage), "UEToVS", "Appearance", 0, 0, true, Sort = 1)]
-    [ProvideOptionPage(typeof(LoggingOptionsPage), "UEToVS", "Logging", 0, 0, true, Sort = 2)]
-    [ProvideToolWindow(typeof(PerformanceToolWindow), Style = VsDockStyle.Tabbed, Window = ToolWindowGuids.Outputwindow, MultiInstances = false)]
+    [ProvideToolWindow(typeof(Search.SearchResultsWindow), Style = VsDockStyle.Tabbed, Window = ToolWindowGuids.Outputwindow, MultiInstances = false)]
     [ProvideUIContextRule(PackageGuids.CppSolutionContextString,
         name: "UEToVS C++ solution",
         expression: "SolutionReady & VisualCpp",
@@ -67,6 +67,8 @@ namespace UEToVS.Host
         private DiagnosticsReporter _reporter;
         private CommandRouter _commands;
         private BuildMonitor _build;
+        private SettingsWindowService _settingsWindow;
+        private PerformanceWindow _performanceWindow;
         private UnrealSolutionInfo _unreal = UnrealSolutionInfo.NotUnreal;
         private string _solutionFile;
         private string _solutionDir;
@@ -82,6 +84,9 @@ namespace UEToVS.Host
         internal PerformanceMonitor Performance { get; private set; }
 
         internal SettingsService Settings => _settings;
+
+        /// <summary>The UEToVS settings window (Extensions &gt; UEToVS &gt; 设置…, toolbar, Find Action, Options stub).</summary>
+        internal SettingsWindowService SettingsWindow => _settingsWindow;
 
         internal IntelliSenseTakeoverService IntelliSense => _intelliSense;
 
@@ -119,10 +124,11 @@ namespace UEToVS.Host
                 HostLog.AttachOutputPane(pane);
 
                 var general = (GeneralOptionsPage)GetDialogPage(typeof(GeneralOptionsPage));
-                var logging = (LoggingOptionsPage)GetDialogPage(typeof(LoggingOptionsPage));
-                logging.OpenLogFolder = () => ExecuteAction(ActionIds.OpenLogFolder);
+                var logging = (LoggingOptionsPage)GetDialogPage(typeof(LoggingOptionsPage)); // migration source only
                 _settings = new SettingsService(general, logging);
+                _settingsWindow = new SettingsWindowService(this);
                 var s = _settings.Effective;
+                Performance.Interval = TimeSpan.FromSeconds(Math.Max(1, s.PerformanceSampleSeconds));
                 HostLog.Use(StoragePaths.Fallback(), s.LogLevel, s.LogRetentionDays, s.LogMaxTotalMB);
                 L.Info("package.loaded", "UEToVS package loaded", ("version", HostVersion), ("uiLanguage", Loc.Language.ToString()), ("vsLcid", _vsLcid),
                        ("extensionDir", ExtensionDirectory));
@@ -137,6 +143,16 @@ namespace UEToVS.Host
                 _commands = new CommandRouter(this, Actions);
                 if (await GetServiceAsync(typeof(System.ComponentModel.Design.IMenuCommandService)) is OleMenuCommandService mcs) _commands.Register(mcs);
                 else L.Error("package.commands.unavailable", "IMenuCommandService unavailable; menu commands not registered", null);
+                // M1 prototype features (Search Everywhere, navigation history, bookmarks, related, Build.cs, UE link).
+                Safe.Execute(L, "m1.initialize", () => M1Feature.Initialize(this, Actions, _commands,
+                    GetService(typeof(System.ComponentModel.Design.IMenuCommandService)) as OleMenuCommandService));
+                // M3 IntelliSense commands (import VA colours, toggle / reset semantic colouring; 0x0600–0x06FF).
+                Safe.Execute(L, "is.initialize", () => UEToVS.Host.IntelliSense.IntelliSenseFeature.Initialize(this, Actions, _commands,
+                    GetService(typeof(System.ComponentModel.Design.IMenuCommandService)) as OleMenuCommandService));
+
+                // 4b. Toolbar: shown on the first run (double Shift → Search Everywhere is M1's InputMonitor).
+                var dte = await GetServiceAsync(typeof(DTE)) as DTE;
+                Safe.Execute(L, "toolbar.firstRun", () => ToolbarController.ApplyOnFirstRun(dte, s.ShowToolbar));
 
                 // 5. VS build begin/end → engine pauses background indexing.
                 _build = new BuildMonitor(building =>
@@ -193,6 +209,7 @@ namespace UEToVS.Host
             // Theme first: stored appearance settings → ThemeManager (creating it also hooks VS theme changes).
             Safe.Execute(L, "integration.theme", UiAppearancePage.ApplyStored);
             Safe.Execute(L, "integration.popupStore", () => PopupShell.DefaultStateStore = new VsPopupStateStore());
+            Safe.Execute(L, "integration.windowStore", () => UtilityWindow.DefaultPlacementStore = new VsWindowPlacementStore());
             Safe.Execute(L, "integration.slots", () =>
             {
                 if (HostIntegration.Appearance == null) HostIntegration.Appearance = new UiAppearancePage();
@@ -272,13 +289,18 @@ namespace UEToVS.Host
                 };
             }
             await SetUnrealContextAsync(true);
+            await JoinableTaskFactory.SwitchToMainThreadAsync(DisposalToken);
+            Safe.Execute(L, "m1.solutionOpened", () => M1Feature.OnUnrealSolutionOpened(dir));
+            await TaskScheduler.Default;
 
             await _intelliSense.OnUnrealSolutionOpenedAsync();
             await StartEngineAsync();
+            _ = Safe.RunInBackgroundAsync(L, "mcp.register", () => Mcp.McpRegistration.SyncAsync(dir, _settings.Effective)); // .vs\mcp.json for AI agents
         }
 
         private void OnSolutionClosing()
         {
+            Safe.Execute(L, "m1.solutionClosing", M1Feature.OnSolutionClosing);
             if (!_unreal.IsUnreal) return;
             L.Info("solution.closing", null, ("solution", _solutionFile));
             var engine = _engine;
@@ -394,6 +416,8 @@ namespace UEToVS.Host
             engine.StateChanged += (sender, e) =>
             {
                 OnEngineStateChanged(engine);
+                // Indexing settings (threads, build policy, engine sources) go to every (re)connected engine.
+                if (engine.State == EngineState.Connected) PushIndexingSettings(engine, "connected");
                 // A (re)connected engine must learn about a build that is already running.
                 if (engine.State == EngineState.Connected && _build?.IsBuilding == true)
                     _ = Safe.RunInBackgroundAsync(L, "engine.build.resync", () => engine.SetBuildInProgressAsync(true));
@@ -409,6 +433,15 @@ namespace UEToVS.Host
             _engine = engine;
             VsStatusBar.SetText(Strings.StatusEngineStarting);
             await engine.StartAsync();
+        }
+
+        private void PushIndexingSettings(EngineClient engine, string reason)
+        {
+            if (engine == null) return;
+            var indexing = HostSettingsSchema.Codec.ToIndexing(_settings.Effective);
+            _ = Safe.RunInBackgroundAsync(L, "engine.indexing.push", () => engine.SetIndexingSettingsAsync(indexing),
+                ("reason", reason), ("cppThreads", indexing.CppThreads), ("assetThreads", indexing.AssetThreads),
+                ("duringBuild", indexing.DuringBuild), ("includeEngine", indexing.IncludeEngine));
         }
 
         private static void OnEngineStateChanged(EngineClient engine)
@@ -461,7 +494,29 @@ namespace UEToVS.Host
                 L.Info("engine.settings.changed", "Engine path/root changed; restarting the engine", ("enginePath", now.EnginePathOverride), ("ueRoot", now.UnrealEngineRootOverride));
                 if (_unreal.IsUnreal) await StartEngineAsync();
             }
+            if (old.ShareEngineIndex != now.ShareEngineIndex || !string.Equals(old.EngineIndexPath, now.EngineIndexPath, StringComparison.OrdinalIgnoreCase) ||
+                old.CppIndexThreads != now.CppIndexThreads || old.BlueprintIndexThreads != now.BlueprintIndexThreads ||
+                old.IndexDuringBuild != now.IndexDuringBuild || old.IndexEngineSource != now.IndexEngineSource)
+                PushIndexingSettings(_engine, "settingsChanged");
+            if (old.PerformanceSampleSeconds != now.PerformanceSampleSeconds)
+                Performance.Interval = TimeSpan.FromSeconds(Math.Max(1, now.PerformanceSampleSeconds));
+            if (old.HiddenToolbarButtons != now.HiddenToolbarButtons || old.ShowToolbar != now.ShowToolbar)
+            {
+                await JoinableTaskFactory.SwitchToMainThreadAsync(DisposalToken);
+                if (old.ShowToolbar != now.ShowToolbar)
+                    ToolbarController.Apply(await GetServiceAsync(typeof(DTE)) as DTE, now.ShowToolbar, "settingsChanged");
+                Safe.Execute(L, "toolbar.refresh", RefreshCommandUi);
+            }
             await _intelliSense.OnSettingsChangedAsync(old, now, _unreal.IsUnreal);
+            if (old.EnableMcpServer != now.EnableMcpServer && _unreal.IsUnreal)
+                await Mcp.McpRegistration.SyncAsync(_solutionDir, now);
+        }
+
+        /// <summary>Makes VS re-query command status (toolbar button visibility) right away.</summary>
+        private void RefreshCommandUi()
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+            if (GetService(typeof(SVsUIShell)) is IVsUIShell shell) shell.UpdateCommandUI(0);
         }
 
         // ================================================================== actions
@@ -487,11 +542,25 @@ namespace UEToVS.Host
             }, ("id", id));
         }
 
+        /// <summary>Opens (or activates) the floating "UEToVS 性能" window; position and size are remembered.</summary>
         internal async Task ShowPerformanceWindowAsync()
         {
             await JoinableTaskFactory.SwitchToMainThreadAsync(DisposalToken);
-            var window = await ShowToolWindowAsync(typeof(PerformanceToolWindow), 0, true, DisposalToken);
-            if (window?.Frame == null) L.Error("perf.panel.create.failed", "Cannot create the performance tool window", null);
+            if (_performanceWindow == null)
+            {
+                var window = new PerformanceWindow(Performance);
+                window.Closed += (s, e) => { if (ReferenceEquals(_performanceWindow, window)) _performanceWindow = null; };
+                _performanceWindow = window;
+            }
+            using (UiThread.Measure(L, "perf.window.show"))
+                _performanceWindow.ShowOwned(VsMainWindow.Handle);
+        }
+
+        /// <summary>Opens the UEToVS settings window, optionally on a category (<see cref="HostSettingsSchema"/> ids).</summary>
+        internal async Task ShowSettingsWindowAsync(string category = null)
+        {
+            await JoinableTaskFactory.SwitchToMainThreadAsync(DisposalToken);
+            _settingsWindow?.Show(category);
         }
 
         private static long CurrentPrivateBytes()
@@ -518,6 +587,7 @@ namespace UEToVS.Host
                     _engine?.Dispose();
                     _engine = null;
                     _build?.Dispose();
+                    M1Feature.Dispose();
                     Performance?.Dispose();
                     _reporter?.Dispose();
                     _reporter = null;

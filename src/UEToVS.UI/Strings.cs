@@ -42,13 +42,14 @@ namespace UEToVS.UI
         public static string MenuFilter => Loc.T("输入以筛选操作", "Type to filter actions");
         public static string TreeExpandAll => Loc.T("全部展开", "Expand all");
         public static string TreeCollapseAll => Loc.T("全部折叠", "Collapse all");
+        public static string TreeSwitchTab => Loc.T("切换标签", "Switch tab");
         public static string ResultsCount(object a0) => Loc.F("{0} 个结果", "{0} results", a0);
         public static string DialogPreview => Loc.T("预览", "Preview");
         public static string BannerDismiss => Loc.T("关闭提示", "Dismiss");
         public static string SettingsTitle => Loc.T("外观", "Appearance");
         public static string SettingsSectionStyle => Loc.T("风格与密度", "Style and density");
         public static string SettingsPreset => Loc.T("界面风格", "Style");
-        public static string SettingsPresetRider => Loc.T("Rider 风格", "Rider");
+        public static string SettingsPresetVs2026 => Loc.T("VS 2026", "VS 2026");
         public static string SettingsPresetCompact => Loc.T("紧凑", "Compact");
         public static string SettingsPresetComfortable => Loc.T("宽松", "Comfortable");
         public static string SettingsFontScale => Loc.T("字号缩放 (%)", "Font scale (%)");
@@ -126,7 +127,7 @@ namespace UEToVS.UI
             {
                 case StylePreset.Compact: return SettingsPresetCompact;
                 case StylePreset.Comfortable: return SettingsPresetComfortable;
-                default: return SettingsPresetRider;
+                default: return SettingsPresetVs2026;
             }
         }
 

@@ -20,7 +20,10 @@ namespace UEToVS.UI.Logic
     /// </summary>
     public sealed class AppearanceSettings
     {
-        public const int CurrentVersion = 1;
+        public const int CurrentVersion = 2;
+
+        /// <summary>Fallback accent (Fluent / VS 2026 communication blue) when the VS theme gives none.</summary>
+        public const string DefaultAccent = "#0078D4";
 
         // ---- limits (also used by the settings panel steppers) ----
         public const double MinFontScale = 0.8, MaxFontScale = 1.6;
@@ -32,7 +35,7 @@ namespace UEToVS.UI.Logic
         public int Version { get; set; } = CurrentVersion;
 
         /// <summary>界面风格. Changing it through <see cref="ApplyPreset"/> rewrites density fields.</summary>
-        public StylePreset Preset { get; set; } = StylePreset.Rider;
+        public StylePreset Preset { get; set; } = StylePreset.Vs2026;
 
         /// <summary>字号缩放, relative to the VS environment font (1.0 = 100%).</summary>
         public double FontScale { get; set; } = 1.0;
@@ -40,17 +43,18 @@ namespace UEToVS.UI.Logic
         /// <summary>列表行高 in DIPs.</summary>
         public double RowHeight { get; set; } = 24;
 
-        public double PopupRadius { get; set; } = 6;
+        /// <summary>VS 2026 / Fluent: flyouts and dialogs 8px, controls 4px, badges 4px.</summary>
+        public double PopupRadius { get; set; } = 8;
         public double ControlRadius { get; set; } = 4;
-        public double BadgeRadius { get; set; } = 3;
+        public double BadgeRadius { get; set; } = 4;
 
-        /// <summary>Multiplies paddings (not the 4px grid itself). Preset-driven: Compact 0.75, Rider 1, Comfortable 1.25.</summary>
+        /// <summary>Multiplies paddings (not the 4px grid itself). Preset-driven: Compact 0.75, VS 2026 1, Comfortable 1.25.</summary>
         public double SpacingScale { get; set; } = 1.0;
 
         public AccentMode AccentMode { get; set; } = AccentMode.FollowVs;
 
         /// <summary>#RRGGBB used when <see cref="AccentMode"/> is Custom.</summary>
-        public string CustomAccent { get; set; } = "#3574F0";
+        public string CustomAccent { get; set; } = DefaultAccent;
 
         public MatchHighlightStyle MatchStyle { get; set; } = MatchHighlightStyle.Bold | MatchHighlightStyle.AccentColor;
 
@@ -85,13 +89,13 @@ namespace UEToVS.UI.Logic
             switch (preset)
             {
                 case StylePreset.Compact:
-                    RowHeight = 20; PopupRadius = 4; ControlRadius = 3; BadgeRadius = 2; SpacingScale = 0.75;
+                    RowHeight = 20; PopupRadius = 6; ControlRadius = 3; BadgeRadius = 3; SpacingScale = 0.75;
                     break;
                 case StylePreset.Comfortable:
                     RowHeight = 28; PopupRadius = 8; ControlRadius = 5; BadgeRadius = 4; SpacingScale = 1.25;
                     break;
                 default:
-                    RowHeight = 24; PopupRadius = 6; ControlRadius = 4; BadgeRadius = 3; SpacingScale = 1.0;
+                    RowHeight = 24; PopupRadius = 8; ControlRadius = 4; BadgeRadius = 4; SpacingScale = 1.0;
                     break;
             }
         }
@@ -119,7 +123,7 @@ namespace UEToVS.UI.Logic
         public IReadOnlyList<string> Normalize()
         {
             var notes = new List<string>();
-            if (!Enum.IsDefined(typeof(StylePreset), Preset)) { notes.Add("Preset invalid: " + Preset); Preset = StylePreset.Rider; }
+            if (!Enum.IsDefined(typeof(StylePreset), Preset)) { notes.Add("Preset invalid: " + Preset); Preset = StylePreset.Vs2026; }
             if (!Enum.IsDefined(typeof(AccentMode), AccentMode)) { notes.Add("AccentMode invalid"); AccentMode = AccentMode.FollowVs; }
             if (!Enum.IsDefined(typeof(PreviewPosition), PreviewPosition)) { notes.Add("PreviewPosition invalid"); PreviewPosition = PreviewPosition.Bottom; }
             if (!Enum.IsDefined(typeof(PopupChromeMode), PopupChrome)) { notes.Add("PopupChrome invalid"); PopupChrome = PopupChromeMode.Layered; }
@@ -128,9 +132,9 @@ namespace UEToVS.UI.Logic
 
             FontScale = Clamp(nameof(FontScale), FontScale, MinFontScale, MaxFontScale, 1.0, notes);
             RowHeight = Clamp(nameof(RowHeight), RowHeight, MinRowHeight, MaxRowHeight, 24, notes);
-            PopupRadius = Clamp(nameof(PopupRadius), PopupRadius, 0, MaxRadius, 6, notes);
+            PopupRadius = Clamp(nameof(PopupRadius), PopupRadius, 0, MaxRadius, 8, notes);
             ControlRadius = Clamp(nameof(ControlRadius), ControlRadius, 0, MaxRadius, 4, notes);
-            BadgeRadius = Clamp(nameof(BadgeRadius), BadgeRadius, 0, MaxRadius, 3, notes);
+            BadgeRadius = Clamp(nameof(BadgeRadius), BadgeRadius, 0, MaxRadius, 4, notes);
             SpacingScale = Clamp(nameof(SpacingScale), SpacingScale, MinSpacingScale, MaxSpacingScale, 1.0, notes);
             if (AnimationMs < 0 || AnimationMs > MaxAnimationMs)
             {
@@ -141,7 +145,7 @@ namespace UEToVS.UI.Logic
             if (string.IsNullOrWhiteSpace(CustomAccent) || !Rgba.TryParse(CustomAccent, out _))
             {
                 if (!string.IsNullOrEmpty(CustomAccent)) notes.Add("CustomAccent invalid: " + CustomAccent);
-                CustomAccent = "#3574F0";
+                CustomAccent = DefaultAccent;
             }
 
             if (BadgeColors == null) BadgeColors = new List<BadgeColorOverride>();
@@ -209,6 +213,8 @@ namespace UEToVS.UI.Logic
             problems = new List<string>();
             var s = new AppearanceSettings();
             if (string.IsNullOrWhiteSpace(text)) return s;
+            bool legacyRider = false;
+            s.Version = 1; // a missing "version" line means a v1 file
             foreach (var raw in text.Split('\n'))
             {
                 var line = raw.Trim();
@@ -217,7 +223,15 @@ namespace UEToVS.UI.Logic
                 if (eq <= 0) { problems.Add("Malformed line: " + line); continue; }
                 var key = line.Substring(0, eq).Trim();
                 var val = line.Substring(eq + 1).Trim();
+                if (key == "preset" && string.Equals(val, "Rider", StringComparison.OrdinalIgnoreCase)) { legacyRider = true; val = nameof(StylePreset.Vs2026); }
                 if (!s.TrySet(key, val)) problems.Add("Bad value: " + line);
+            }
+            // v1 → v2: the old "Rider" preset becomes "VS 2026". Density values that still equal the old Rider
+            // defaults are moved to the new defaults; anything the user tuned by hand is kept.
+            if (s.Version < 2)
+            {
+                if (legacyRider && s.PopupRadius == 6 && s.BadgeRadius == 3) { s.PopupRadius = 8; s.BadgeRadius = 4; problems.Add("Migrated Rider preset to VS 2026"); }
+                if (string.Equals(s.CustomAccent, "#3574F0", StringComparison.OrdinalIgnoreCase) && s.AccentMode == AccentMode.FollowVs) s.CustomAccent = DefaultAccent;
             }
             problems.AddRange(s.Normalize());
             return s;

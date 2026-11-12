@@ -33,6 +33,10 @@ namespace UEToVS.UI.Molecules
         public static readonly DependencyProperty HighlightBrushProperty = DependencyProperty.Register(
             nameof(HighlightBrush), typeof(Brush), typeof(ListRow), new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender));
 
+        /// <summary>Accent pill drawn at the left of the selected row (VS 2026 / Fluent selection indicator).</summary>
+        public static readonly DependencyProperty IndicatorBrushProperty = DependencyProperty.Register(
+            nameof(IndicatorBrush), typeof(Brush), typeof(ListRow), new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender));
+
         public static readonly DependencyProperty PadXProperty = DependencyProperty.Register(
             nameof(PadX), typeof(double), typeof(ListRow), new FrameworkPropertyMetadata(8.0, FrameworkPropertyMetadataOptions.AffectsMeasure | FrameworkPropertyMetadataOptions.AffectsArrange));
 
@@ -65,6 +69,7 @@ namespace UEToVS.UI.Molecules
             ClipToBounds = true;
             Background = Brushes.Transparent; // hit-testable
             this.Bind(PadXProperty, Tokens.PadRowX);
+            this.Bind(IndicatorBrushProperty, Tokens.SelectionIndicator);
             this.Bind(GapProperty, Tokens.GapInline);
             _chevron.Bind(Shape.StrokeProperty, Tokens.TextSecondary);
             _submenu.Bind(Shape.StrokeProperty, Tokens.TextSecondary);
@@ -84,6 +89,12 @@ namespace UEToVS.UI.Molecules
         {
             get => (Brush)GetValue(HighlightBrushProperty);
             set => SetValue(HighlightBrushProperty, value);
+        }
+
+        public Brush IndicatorBrush
+        {
+            get => (Brush)GetValue(IndicatorBrushProperty);
+            set => SetValue(IndicatorBrushProperty, value);
         }
 
         public double PadX
@@ -219,6 +230,13 @@ namespace UEToVS.UI.Molecules
             if (b == null) return;
             double r = Math.Min(4, ActualHeight / 2);
             dc.DrawRoundedRectangle(b, null, new Rect(Inset, 1, Math.Max(0, ActualWidth - 2 * Inset), Math.Max(0, ActualHeight - 2)), r, r);
+            // Fluent selection indicator: 3px accent pill, vertically centered, only on the active selection.
+            var ind = IndicatorBrush;
+            if (_selected && _active && !_header && ind != null && ActualHeight > 10)
+            {
+                double h = Math.Min(16, ActualHeight - 8);
+                dc.DrawRoundedRectangle(ind, null, new Rect(Inset, (ActualHeight - h) / 2, 3, h), 1.5, 1.5);
+            }
         }
 
         protected override Size MeasureOverride(Size available)

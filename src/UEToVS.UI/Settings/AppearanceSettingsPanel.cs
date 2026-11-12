@@ -237,7 +237,7 @@ namespace UEToVS.UI.Settings
             _loading = true;
             try
             {
-                _preset.SetOptions(new[] { Strings.Preset(StylePreset.Rider), Strings.Preset(StylePreset.Compact), Strings.Preset(StylePreset.Comfortable) });
+                _preset.SetOptions(new[] { Strings.Preset(StylePreset.Vs2026), Strings.Preset(StylePreset.Compact), Strings.Preset(StylePreset.Comfortable) });
                 _preset.SelectedIndex = Math.Max(0, keep);
                 keep = _accentMode.SelectedIndex;
                 _accentMode.SetOptions(new[] { Strings.SettingsAccentFollowVs, Strings.SettingsAccentCustom });

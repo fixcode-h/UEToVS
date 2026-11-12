@@ -235,15 +235,133 @@ namespace UEToVS.Engine.Tests
         }
 
         [Fact]
+        public async Task NavigateAndFindReferencesThroughTheRealPipeline()
+        {
+            using var c = await ConnectReadyAsync();
+            string header = _t.P("Game/Source/MyGame/Public/MyCharacter.h");
+            string source = _t.P("Game/Source/MyGame/Private/MyCharacter.cpp");
+            var headerLines = File.ReadAllLines(header);
+            int fireLine = Array.FindIndex(headerLines, l => l.Contains("void Fire("));
+            int fireCol = headerLines[fireLine].IndexOf("Fire", StringComparison.Ordinal) + 1;
+
+            // header declaration → out-of-line definition in the .cpp
+            var nav = await c.Engine.NavigateAsync(new NavigationRequest
+            {
+                Kind = NavigationKind.Definition,
+                Caret = new CaretRequest { FilePath = header, Line = fireLine, Column = fireCol },
+            }, CancellationToken.None);
+            Assert.Equal("Fire", nav.Word);
+            Assert.True(nav.IndexReady);
+            Assert.Equal(ResolutionConfidence.Exact, nav.Confidence);
+            var target = Assert.Single(nav.Targets);
+            Assert.Equal(NavigationTargetRole.Definition, target.Role);
+            Assert.Equal(source, target.Symbol.Location.FilePath);
+            Assert.Equal(1, target.Symbol.Location.Line);
+
+            // unsaved buffer of the .cpp adds a call; Find References sees it next to the indexed declaration / definition
+            string buffer = File.ReadAllText(source) + "void UseIt(AMyCharacter* C)\n{\n\tC->Fire(2.f);\n}\n";
+            var bufferLines = buffer.Split('\n');
+            int callLine = Array.FindIndex(bufferLines, l => l.Contains("C->Fire"));
+            var refs = await c.Engine.FindReferencesAsync(new ReferencesRequest
+            {
+                Caret = new CaretRequest { FilePath = source, Text = buffer, TextVersion = 3, Line = callLine, Column = bufferLines[callLine].IndexOf("Fire", StringComparison.Ordinal) + 1 },
+            }, CancellationToken.None);
+            Assert.Equal("Fire", refs.Symbol.Name);
+            Assert.Equal("AMyCharacter", refs.Symbol.Container);
+            Assert.Contains(refs.Hits, h => h.Location.FilePath == header && h.Location.Line == fireLine && h.Kind == ReferenceKind.Declaration);
+            Assert.Contains(refs.Hits, h => h.Location.FilePath == source && h.Location.Line == 1 && h.Kind == ReferenceKind.Definition);
+            var call = Assert.Single(refs.Hits, h => h.Location.FilePath == source && h.Location.Line == callLine);
+            Assert.True(call.Kind.HasFlag(ReferenceKind.Call));
+            Assert.Equal("C->Fire(2.f);", call.LineText);
+            Assert.Equal("Fire", call.LineText.Substring(call.LineTextColumn, call.Length));
+
+            // the other navigation RPCs answer over the pipe too
+            var hl = await c.Engine.GetHighlightsAsync(new CaretRequest { FilePath = header, Line = fireLine, Column = fireCol }, CancellationToken.None);
+            Assert.Equal("Fire", hl.Word);
+            Assert.Single(hl.Spans);
+            var ctx = await c.Engine.GetCaretContextAsync(new CaretRequest { FilePath = header, Line = fireLine, Column = fireCol }, CancellationToken.None);
+            Assert.Equal("AMyCharacter", Assert.Single(ctx.Scopes).Name);
+            var members = await c.Engine.GetMembersAsync(new MembersRequest { TypeName = "AMyCharacter" }, CancellationToken.None);
+            Assert.Contains(members.Members, m => m.Name == "Health");
+            Assert.Contains(members.Members, m => m.Name == "StaticClass");
+            var hierarchy = await c.Engine.GetTypeHierarchyAsync(new TypeHierarchyRequest { TypeName = "AMyCharacter" }, CancellationToken.None);
+            Assert.Equal("ACharacter", Assert.Single(hierarchy.Bases).DisplayName);
+
+            var bad = await Assert.ThrowsAsync<RemoteInvocationException>(() => c.Engine.NavigateAsync(new NavigationRequest(), CancellationToken.None));
+            Assert.Equal(RpcErrorCodes.InvalidArgument, bad.ErrorCode);
+        }
+
+        [Fact]
+        public async Task IntelliSenseThroughTheRealPipeline()
+        {
+            using var c = await ConnectReadyAsync();
+            string source = _t.P("Game/Source/MyGame/Private/MyCharacter.cpp");
+            // an unsaved buffer: member completion after 'this->', with AccessorFix for '.' on a pointer
+            string buffer = File.ReadAllText(source) + "void AMyCharacter::Tick(float DeltaSeconds)\n{\n\tthis->Fi\n\tthis.He\n\tFire(1.f, \n}\n";
+            var lines = buffer.Split('\n');
+            int arrow = Array.FindIndex(lines, l => l == "\tthis->Fi");
+            var comp = await c.Engine.GetCompletionsAsync(new CompletionRequest
+            {
+                Caret = new CaretRequest { FilePath = source, Text = buffer, TextVersion = 5, Line = arrow, Column = lines[arrow].Length },
+                TriggerChar = '>',
+            }, CancellationToken.None);
+            Assert.Equal(CompletionContextKind.Member, comp.Context);
+            Assert.Equal("AMyCharacter", comp.ResolvedType);
+            Assert.True(comp.IndexReady);
+            var fire = comp.Items[0];
+            Assert.Equal("Fire", fire.Label);
+            Assert.Equal(SymbolKind.Method, fire.Kind);
+            Assert.True(fire.Ue.HasFlag(UeFlags.UFunction));
+            Assert.Equal(lines[arrow].Length - 2, comp.ReplaceColumn);
+            Assert.Equal(2, comp.ReplaceLength);
+
+            int dot = arrow + 1;
+            var fix = await c.Engine.GetCompletionsAsync(new CompletionRequest
+            {
+                Caret = new CaretRequest { FilePath = source, Text = buffer, TextVersion = 5, Line = dot, Column = lines[dot].Length },
+            }, CancellationToken.None);
+            Assert.Equal("Health", fix.Items[0].Label);
+            Assert.Equal("->", fix.AccessorFix.Replacement);
+
+            // parameter info and Quick Info over the pipe
+            int call = arrow + 2;
+            var sig = await c.Engine.GetSignatureHelpAsync(new CaretRequest { FilePath = source, Text = buffer, TextVersion = 5, Line = call, Column = lines[call].Length }, CancellationToken.None);
+            Assert.Equal("void Fire(float Power)", Assert.Single(sig.Signatures).Label);
+            var qi = await c.Engine.GetQuickInfoAsync(new CaretRequest { FilePath = source, Text = buffer, TextVersion = 5, Line = call, Column = 2 }, CancellationToken.None);
+            Assert.Equal("void AMyCharacter::Fire(float Power)", qi.Declaration);
+            Assert.StartsWith("UFUNCTION(BlueprintCallable, Category = \"Combat\")", qi.Reflection);
+
+            // semantic colouring of the requested lines only
+            var cls = await c.Engine.ClassifyAsync(new ClassifyRequest
+            {
+                Document = new CaretRequest { FilePath = source, Text = buffer, TextVersion = 5 },
+                StartLine = 1,
+                EndLine = 1,
+            }, CancellationToken.None);
+            Assert.Equal(5, cls.TextVersion);
+            Assert.All(cls.Spans, s => Assert.Equal(1, s.Line));
+            Assert.Contains(cls.Spans, s => s.Kind == SemanticKind.UeType && s.Column == "void ".Length && s.Length == "AMyCharacter".Length);
+            Assert.Contains(cls.Spans, s => s.Kind == SemanticKind.Method && s.Modifiers.HasFlag(SemanticModifiers.Declaration));
+            Assert.Contains(cls.Spans, s => s.Kind == SemanticKind.Parameter && s.Modifiers.HasFlag(SemanticModifiers.Declaration));
+
+            var bad = await Assert.ThrowsAsync<RemoteInvocationException>(() => c.Engine.GetCompletionsAsync(new CompletionRequest(), CancellationToken.None));
+            Assert.Equal(RpcErrorCodes.InvalidArgument, bad.ErrorCode);
+        }
+
+        [Fact]
         public async Task PerformanceSnapshotOverRpc()
         {
             using var c = await ConnectReadyAsync();
             await c.Engine.SearchAsync(new SearchRequest { Pattern = "MyChar" }, CancellationToken.None);
             _host.Performance.Sample();
+            _host.Scheduler.BuildPolicy = UEToVS.Engine.Indexing.BuildPolicy.Pause; // default (single thread) keeps indexing during builds
             _host.Scheduler.SetBuildInProgress(true);
             try
             {
                 var p = await c.Engine.GetPerformanceSnapshotAsync(CancellationToken.None);
+                Assert.Contains(p.Throughput, t => t.Stage == "parse.project" && t.FilesTotal > 0 && !t.Running);
+                Assert.NotNull(p.IndexingSettings);
+                Assert.True(p.IndexingSettings.CppThreads >= 1);
                 Assert.Equal(Environment.ProcessId, p.ProcessId);
                 Assert.True(p.UptimeSeconds > 0);
                 Assert.InRange(p.CpuPercent, 0, 100);

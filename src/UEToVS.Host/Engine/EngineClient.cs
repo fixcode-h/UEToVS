@@ -69,7 +69,7 @@ namespace UEToVS.Host.Engine
     /// Everything runs on background threads; nothing here ever blocks the UI thread. When the engine is unavailable,
     /// <see cref="TryInvokeAsync{T}"/> returns (false, default) so features degrade instead of failing.
     /// </summary>
-    internal sealed class EngineClient : IEngineCallbacks, IDisposable
+    internal sealed partial class EngineClient : IEngineCallbacks, IDisposable
     {
         private static readonly Logger L = Log.For("Engine");
         private readonly EngineClientOptions _options;
@@ -540,6 +540,30 @@ namespace UEToVS.Host.Engine
             var (ok, _) = await TryInvokeAsync("setBackgroundPaused", async (s, ct) => { await s.SetBackgroundPausedAsync(paused, ct).ConfigureAwait(false); return true; },
                                                CancellationToken.None, TimeSpan.FromSeconds(5)).ConfigureAwait(false);
             L.Info("engine.backgroundPaused", null, ("paused", paused), ("applied", ok));
+            return ok;
+        }
+
+        /// <summary>Settings window → engine: indexing thread counts, build policy, engine sources (0 threads = engine default).</summary>
+        public async Task<bool> SetIndexingSettingsAsync(IndexingSettings settings)
+        {
+            if (settings == null) return false;
+            var (ok, _) = await TryInvokeAsync("setIndexingSettings", async (s, ct) => { await s.SetIndexingSettingsAsync(settings, ct).ConfigureAwait(false); return true; },
+                                               CancellationToken.None, TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            L.Info("engine.indexing.settings", null, ("cppThreads", settings.CppThreads), ("assetThreads", settings.AssetThreads),
+                   ("duringBuild", settings.DuringBuild), ("includeEngine", settings.IncludeEngine), ("applied", ok));
+            return ok;
+        }
+
+        /// <summary>Contract values of <see cref="RebuildScope"/> added by the engine side (Project = 3, Engine = 4); cast until the contract has them.</summary>
+        public const RebuildScope ScopeProject = RebuildScope.Project;
+        public const RebuildScope ScopeEngine = RebuildScope.Engine;
+
+        /// <summary>Settings window "重建项目索引 / 重建引擎索引 / 重建蓝图索引": the engine drops that index part and re-scans in the background.</summary>
+        public async Task<bool> RebuildIndexAsync(RebuildScope scope)
+        {
+            var (ok, _) = await TryInvokeAsync("rebuildIndex", async (s, ct) => { await s.RebuildIndexAsync(scope, ct).ConfigureAwait(false); return true; },
+                                               CancellationToken.None, TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            L.Info("engine.index.rebuild", null, ("scope", scope.ToString()), ("scopeValue", (int)scope), ("applied", ok));
             return ok;
         }
 

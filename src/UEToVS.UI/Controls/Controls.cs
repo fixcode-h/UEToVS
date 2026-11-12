@@ -237,7 +237,11 @@ namespace UEToVS.UI.Controls
         }
     }
 
-    /// <summary>Mutually exclusive options shown as connected chips (radio group). ←/→ change the selection.</summary>
+    /// <summary>
+    /// Mutually exclusive options (radio group), VS 2026 style: a rounded-rectangle track (Segment.Track, subtle
+    /// border, control radius, 2px inset) holding rounded-rectangle segments; the selected one is accent-filled.
+    /// ←/→ change the selection.
+    /// </summary>
     public class SegmentedControl : Border
     {
         private readonly StackPanel _panel = new StackPanel { Orientation = Orientation.Horizontal };
@@ -248,6 +252,14 @@ namespace UEToVS.UI.Controls
         public SegmentedControl(params string[] options)
         {
             Child = _panel;
+            Padding = new Thickness(2);
+            BorderThickness = new Thickness(1);
+            HorizontalAlignment = HorizontalAlignment.Left;
+            SnapsToDevicePixels = true;
+            this.Bind(BackgroundProperty, Tokens.SegmentTrack);
+            this.Bind(BorderBrushProperty, Tokens.BorderSubtle);
+            this.Bind(CornerRadiusProperty, Tokens.CornerRadiusControl);
+            this.Bind(MinHeightProperty, Tokens.ControlHeight);
             KeyboardNavigation.SetDirectionalNavigation(_panel, KeyboardNavigationMode.None);
             SetOptions(options);
             Focusable = false;
@@ -264,7 +276,7 @@ namespace UEToVS.UI.Controls
                 foreach (var o in options)
                 {
                     int idx = i++;
-                    var chip = new Chip(o) { Margin = new Thickness(0, 0, 4, 0) };
+                    var chip = new Chip(o) { Style = Styles.Segment, Margin = new Thickness(idx == 0 ? 0 : 2, 0, 0, 0) };
                     chip.Checked += (s, e) => Ui.Safe("ui.segmented.checked", () => { if (!_updating) SelectedIndex = idx; });
                     chip.Unchecked += (s, e) => Ui.Safe("ui.segmented.unchecked", () =>
                     {

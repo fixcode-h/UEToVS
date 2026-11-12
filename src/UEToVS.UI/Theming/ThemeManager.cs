@@ -262,6 +262,9 @@ namespace UEToVS.UI.Theming
             v[Tokens.CornerRadiusControl] = new CornerRadius(rc);
             v[Tokens.CornerRadiusBadge] = new CornerRadius(rb);
             v[Tokens.CornerRadiusPill] = new CornerRadius(t.IsHighContrast ? 0 : 999);
+            v[Tokens.CornerRadiusInner] = new CornerRadius(Math.Max(0, rc - 1));
+            v[Tokens.CornerRadiusFocus] = new CornerRadius(t.IsHighContrast ? 0 : rc + 3);
+            v[Tokens.ThicknessFocus] = new Thickness(t.Number(TokenNames.FocusThickness));
             double px = t.Number(TokenNames.PadControlX), py = t.Number(TokenNames.PadControlY);
             v[Tokens.ThicknessControlPadding] = new Thickness(px, py, px, py);
             v[Tokens.ThicknessRowPadding] = new Thickness(t.Number(TokenNames.PadRowX), 0, t.Number(TokenNames.PadRowX), 0);

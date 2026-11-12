@@ -25,7 +25,8 @@ namespace UEToVS.Engine.Scheduling
     /// Workers always take Interactive before Visible before Background. Background items:
     ///  - run at <see cref="ThreadPriority.BelowNormal"/>;
     ///  - use at most <see cref="BackgroundLimit"/> workers (one worker stays free for foreground work when there are ≥ 2);
-    ///  - are not started while <see cref="IsBuildInProgress"/> (a VS/UBT build) is set;
+    ///  - follow <see cref="BuildPolicy"/> while <see cref="IsBuildInProgress"/> (a VS/UBT build) is set: paused, one at a
+    ///    time (default) or unchanged, and run at <see cref="ThreadPriority.Lowest"/> meanwhile;
     ///  - should be small chunks that poll <see cref="ShouldYield"/> and re-schedule their remainder.
     /// Cancellation: an item whose token is cancelled before it starts is dropped (its task is cancelled); a running item
     /// receives the token. The caller's ExecutionContext (e.g. <see cref="Log.RequestId"/>) flows to the worker.
@@ -53,6 +54,7 @@ namespace UEToVS.Engine.Scheduling
         private readonly Thread[] _workers;
         private int _runningBackground;
         private bool _buildInProgress;
+        private Indexing.BuildPolicy _buildPolicy = Indexing.BuildPolicy.SingleThread;
         private bool _userPaused;
         private bool _disposed;
         private long _completed;
@@ -77,13 +79,57 @@ namespace UEToVS.Engine.Scheduling
             get { lock (_gate) return _buildInProgress; }
         }
 
-        /// <summary>True while foreground work waits, a build runs or the scheduler shuts down: background chunks should stop and re-queue.</summary>
+        /// <summary>
+        /// True while foreground work waits, background work is held (build policy, user pause) or over its build-time
+        /// limit, or the scheduler shuts down: background chunks should stop and re-queue.
+        /// </summary>
         public bool ShouldYield
         {
             get
             {
-                lock (_gate) return _queues[0].Count > 0 || _queues[1].Count > 0 || _buildInProgress || _userPaused || _disposed;
+                lock (_gate)
+                    return _queues[0].Count > 0 || _queues[1].Count > 0 || _userPaused || _disposed ||
+                           (_buildInProgress && _buildPolicy == Indexing.BuildPolicy.Pause) ||
+                           (_buildInProgress && _buildPolicy == Indexing.BuildPolicy.SingleThread && _runningBackground > 1);
             }
+        }
+
+        /// <summary>What the background lane does during a build (default: one item at a time).</summary>
+        public Indexing.BuildPolicy BuildPolicy
+        {
+            get { lock (_gate) return _buildPolicy; }
+            set
+            {
+                lock (_gate)
+                {
+                    if (_buildPolicy == value) return;
+                    _buildPolicy = value;
+                    Monitor.PulseAll(_gate);
+                }
+                RaiseStateChanged();
+            }
+        }
+
+        /// <summary>Raised after the build flag, the user pause or the build policy changed.</summary>
+        public event Action StateChanged;
+
+        private void RaiseStateChanged()
+        {
+            try { StateChanged?.Invoke(); }
+            catch (Exception ex) { L.Warn("scheduler.state_handler_failed", "State change handler failed", ex); }
+        }
+
+        /// <summary>Background items allowed to run at the same time right now.</summary>
+        private int BackgroundAllowedLocked()
+        {
+            if (_userPaused) return 0;
+            if (!_buildInProgress) return BackgroundLimit;
+            return _buildPolicy switch
+            {
+                Indexing.BuildPolicy.Pause => 0,
+                Indexing.BuildPolicy.SingleThread => 1,
+                _ => BackgroundLimit,
+            };
         }
 
         /// <summary>Host calls this when a VS / UBT build starts and ends; background lanes pause meanwhile.</summary>
@@ -95,14 +141,15 @@ namespace UEToVS.Engine.Scheduling
                 _buildInProgress = building;
                 Monitor.PulseAll(_gate);
             }
-            L.Info(building ? "scheduler.paused" : "scheduler.resumed", building ? "Build in progress: background work paused" : "Build finished: background work resumed",
-                ("queuedBackground", QueueLength(WorkPriority.Background)));
+            L.Info(building ? "scheduler.paused" : "scheduler.resumed", building ? "Build in progress: background work throttled by the build policy" : "Build finished: background work resumed",
+                ("queuedBackground", QueueLength(WorkPriority.Background)), ("policy", BuildPolicy.ToString()));
+            RaiseStateChanged();
         }
 
-        /// <summary>True when background work is held, by a build or by the user (performance panel).</summary>
+        /// <summary>True when background work is held, by a build (policy Pause) or by the user (performance panel).</summary>
         public bool IsBackgroundPaused
         {
-            get { lock (_gate) return _buildInProgress || _userPaused; }
+            get { lock (_gate) return BackgroundAllowedLocked() == 0; }
         }
 
         /// <summary>User pause from the performance panel ("暂停后台索引"); independent of builds.</summary>
@@ -116,6 +163,12 @@ namespace UEToVS.Engine.Scheduling
             }
             L.Info(paused ? "scheduler.user_paused" : "scheduler.user_resumed", null,
                 ("queuedBackground", QueueLength(WorkPriority.Background)));
+            RaiseStateChanged();
+        }
+
+        public bool IsUserPaused
+        {
+            get { lock (_gate) return _userPaused; }
         }
 
         public int QueueLength(WorkPriority p)
@@ -185,7 +238,7 @@ namespace UEToVS.Engine.Scheduling
             for (int p = 0; p < 3; p++)
             {
                 var q = _queues[p];
-                if (p == 2 && (_buildInProgress || _userPaused || _runningBackground >= BackgroundLimit)) break;
+                if (p == 2 && _runningBackground >= BackgroundAllowedLocked()) break;
                 while (q.Count > 0)
                 {
                     var item = q.Dequeue();
@@ -213,7 +266,9 @@ namespace UEToVS.Engine.Scheduling
                     _running.Add(item);
                 }
 
-                SetPriority(item.Priority == WorkPriority.Background ? ThreadPriority.BelowNormal : ThreadPriority.Normal);
+                bool building;
+                lock (_gate) building = _buildInProgress;
+                SetPriority(item.Priority != WorkPriority.Background ? ThreadPriority.Normal : building ? ThreadPriority.Lowest : ThreadPriority.BelowNormal);
                 try
                 {
                     if (item.Context != null) ExecutionContext.Run(item.Context, _ => item.Run(item.Token), null);

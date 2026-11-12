@@ -11,6 +11,10 @@
     <PackageReference Include="StreamJsonRpc" Version="2.19.27" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="Corpus\**\*" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="IntelliSenseCorpus\**\*" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\..\src\UEToVS.Contracts\UEToVS.Contracts.csproj" />
     <ProjectReference Include="..\..\src\UEToVS.Core\UEToVS.Core.csproj" />
     <ProjectReference Include="..\..\src\UEToVS.Engine.Unreal\UEToVS.Engine.Unreal.csproj" />

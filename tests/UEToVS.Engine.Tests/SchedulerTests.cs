@@ -88,7 +88,7 @@ namespace UEToVS.Engine.Tests
         [Fact]
         public async Task BuildInProgressPausesBackgroundOnly()
         {
-            using var s = new RequestScheduler(2);
+            using var s = new RequestScheduler(2) { BuildPolicy = BuildPolicy.Pause };
             s.SetBuildInProgress(true);
             Assert.True(s.IsBuildInProgress);
             Assert.True(s.ShouldYield);
@@ -99,6 +99,36 @@ namespace UEToVS.Engine.Tests
             Assert.False(bg.IsCompleted);
             s.SetBuildInProgress(false);
             Assert.Equal(1, await bg.WaitAsync(Timeout));
+        }
+
+        [Fact]
+        public async Task BuildPolicySingleThreadRunsOneBackgroundItemAtATime()
+        {
+            using var s = new RequestScheduler(4); // background limit 3
+            Assert.Equal(BuildPolicy.SingleThread, s.BuildPolicy);
+            s.SetBuildInProgress(true);
+            Assert.False(s.IsBackgroundPaused);
+            int running = 0, maxRunning = 0;
+            var tasks = Enumerable.Range(0, 6).Select(i => s.RunAsync(WorkPriority.Background, "bg" + i, _ =>
+            {
+                int r = Interlocked.Increment(ref running);
+                int m;
+                while (r > (m = Volatile.Read(ref maxRunning)) && Interlocked.CompareExchange(ref maxRunning, r, m) != m) { }
+                Thread.Sleep(30);
+                Interlocked.Decrement(ref running);
+            })).ToArray();
+            await Task.WhenAll(tasks).WaitAsync(Timeout);
+            Assert.Equal(1, maxRunning);
+        }
+
+        [Fact]
+        public async Task BuildPolicyFullSpeedKeepsBackgroundRunning()
+        {
+            using var s = new RequestScheduler(3) { BuildPolicy = BuildPolicy.FullSpeed };
+            s.SetBuildInProgress(true);
+            Assert.False(s.ShouldYield);
+            Assert.False(s.IsBackgroundPaused);
+            Assert.Equal(1, await s.RunAsync(WorkPriority.Background, "bg", _ => 1).WaitAsync(Timeout));
         }
 
         [Fact]

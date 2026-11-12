@@ -322,6 +322,44 @@ namespace UEToVS.Engine.Index.Storage
             return -1;
         }
 
+        /// <summary>Base texts (string ids) of a symbol; empty when it has none.</summary>
+        public ReadOnlySpan<uint> BasesOf(uint symbolIndex)
+        {
+            var entries = Get<BaseEntry>(SectionId.BaseEntries);
+            int lo = 0, hi = entries.Length - 1;
+            while (lo <= hi)
+            {
+                int mid = (lo + hi) >>> 1;
+                uint s = entries[mid].Symbol;
+                if (s == symbolIndex) return Get<uint>(SectionId.BaseTexts).Slice((int)entries[mid].First, (int)entries[mid].Count);
+                if (s < symbolIndex) lo = mid + 1;
+                else hi = mid - 1;
+            }
+            return default;
+        }
+
+        public string[] BaseStrings(uint symbolIndex)
+        {
+            var ids = BasesOf(symbolIndex);
+            if (ids.Length == 0) return Array.Empty<string>();
+            var result = new string[ids.Length];
+            for (int i = 0; i < ids.Length; i++) result[i] = GetString(ids[i]);
+            return result;
+        }
+
+        /// <summary>Symbol indices of types listing a base whose simple name (<see cref="BaseNames.Simple"/>) is <paramref name="simpleName"/>.</summary>
+        public ReadOnlySpan<uint> DerivedOf(string simpleName)
+        {
+            if (string.IsNullOrEmpty(simpleName)) return default;
+            uint id = Strings.Find(simpleName);
+            if (id == 0) return default;
+            var keys = Get<uint>(SectionId.DerivedKeys);
+            int i = keys.BinarySearch(id);
+            if (i < 0) return default;
+            var offs = Get<uint>(SectionId.DerivedOffsets);
+            return Get<uint>(SectionId.DerivedSymbols).Slice((int)offs[i], (int)(offs[i + 1] - offs[i]));
+        }
+
         /// <summary>Decodes the occurrence postings of one name in file order.</summary>
         public OccurrenceReader ReadOccurrences(int nameIndex)
         {
