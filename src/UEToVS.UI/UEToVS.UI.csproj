@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    UEToVS UI component library (design tokens, theme, atoms, controls, molecules, shells, patterns).
+    Pure C# WPF: no .xaml files, so it compiles on any OS via reference assemblies; runs only on Windows inside VS
+    (or the ComponentGallery window). Logic/*.cs has no WPF dependency and is unit-tested on net8.0.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <RootNamespace>UEToVS.UI</RootNamespace>
+    <AssemblyName>UEToVS.UI</AssemblyName>
+    <NoWarn>$(NoWarn);VSTHRD010;VSTHRD100;VSTHRD110;VSTHRD001;VSTHRD101;VSTHRD200;VSTHRD002;VSTHRD003;VSTHRD105</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.VisualStudio.SDK" Version="17.0.32112.339" ExcludeAssets="runtime" />
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="PresentationCore" />
+    <Reference Include="PresentationFramework" />
+    <Reference Include="WindowsBase" />
+    <Reference Include="System.Xaml" />
+    <Reference Include="UIAutomationProvider" />
+    <Reference Include="UIAutomationTypes" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\UEToVS.Core\UEToVS.Core.csproj" />
+  </ItemGroup>
+</Project>

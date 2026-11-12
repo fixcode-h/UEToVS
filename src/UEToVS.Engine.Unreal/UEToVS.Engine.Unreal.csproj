@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>UEToVS.Engine.Unreal</RootNamespace>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\UEToVS.Contracts\UEToVS.Contracts.csproj" />
+    <ProjectReference Include="..\UEToVS.Core\UEToVS.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="UEToVS.Engine.Tests" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,101 @@
+{
+  "schema": 1,
+  "version": "ue5.0-5.6/2026.11",
+  "notes": "Data-driven UE macro semantics for the syntax layer. 'match' is an exact name or a prefix ending in '*'; the first matching entry wins.",
+
+  "exportSuffix": "_API",
+
+  "reflection": [
+    { "name": "UCLASS",      "flag": "UClass" },
+    { "name": "USTRUCT",     "flag": "UStruct" },
+    { "name": "UENUM",       "flag": "UEnum" },
+    { "name": "UINTERFACE",  "flag": "UInterface" },
+    { "name": "UFUNCTION",   "flag": "UFunction" },
+    { "name": "UPROPERTY",   "flag": "UProperty" },
+    { "name": "UDELEGATE",   "flag": "UDelegate" },
+    { "name": "UMETA",       "flag": "UMeta" },
+    { "name": "UPARAM",      "flag": "None" }
+  ],
+
+  "generatedBody": [
+    { "name": "GENERATED_BODY",            "family": "Auto" },
+    { "name": "GENERATED_UCLASS_BODY",     "family": "UClass",     "legacy": true },
+    { "name": "GENERATED_USTRUCT_BODY",    "family": "UStruct" },
+    { "name": "GENERATED_UINTERFACE_BODY", "family": "UInterface", "legacy": true },
+    { "name": "GENERATED_IINTERFACE_BODY", "family": "IInterface" },
+    { "name": "GENERATED_BODY_LEGACY",     "family": "Auto",       "legacy": true }
+  ],
+
+  "injectedMembers": {
+    "UClass": [
+      { "name": "StaticClass", "kind": "Method",  "static": true, "signature": "static UClass* StaticClass()" },
+      { "name": "StaticPackage", "kind": "Method", "static": true, "signature": "static const TCHAR* StaticPackage()" },
+      { "name": "Super",       "kind": "Typedef", "requiresSuper": true, "signature": "typedef {Super} Super" },
+      { "name": "ThisClass",   "kind": "Typedef", "signature": "typedef {Class} ThisClass" }
+    ],
+    "UInterface": [
+      { "name": "StaticClass", "kind": "Method",  "static": true, "signature": "static UClass* StaticClass()" },
+      { "name": "Super",       "kind": "Typedef", "requiresSuper": true, "signature": "typedef {Super} Super" },
+      { "name": "ThisClass",   "kind": "Typedef", "signature": "typedef {Class} ThisClass" }
+    ],
+    "UStruct": [
+      { "name": "StaticStruct", "kind": "Method",  "static": true, "signature": "static UScriptStruct* StaticStruct()" },
+      { "name": "Super",        "kind": "Typedef", "requiresSuper": true, "signature": "typedef {Super} Super" }
+    ],
+    "IInterface": [
+      { "name": "ThisClass",   "kind": "Typedef", "signature": "typedef {Class} ThisClass" },
+      { "name": "UClassType",  "kind": "Typedef", "signature": "typedef U{ClassNoPrefix} UClassType" },
+      { "name": "_getUObject", "kind": "Method",  "signature": "virtual UObject* _getUObject() const" }
+    ]
+  },
+
+  "legacyConstructor": "{Class}(const FObjectInitializer& ObjectInitializer)",
+
+  "attributeMacros": [
+    "FORCEINLINE", "FORCENOINLINE", "FORCEINLINE_DEBUGGABLE", "FORCEINLINE_STATS", "UE_FORCEINLINE_HINT",
+    "UE_NODISCARD", "UE_NODISCARD_CTOR", "UE_NORETURN", "UE_LIFETIMEBOUND", "UE_NO_UNIQUE_ADDRESS", "UE_INTERNAL",
+    "CONSTEXPR", "UE_CONSTEVAL", "RESTRICT", "VARARGS", "CDECL", "STDCALL", "FASTCALL", "DLLEXPORT", "DLLIMPORT",
+    "UE_DEPRECATED_ALWAYS", "ABSTRACT", "UE_ALLOCATION_FUNCTION",
+    "__forceinline", "__inline", "__cdecl", "__stdcall", "__fastcall", "__vectorcall", "__thiscall", "__restrict",
+    "PRAGMA_DISABLE_DEPRECATION_WARNINGS", "PRAGMA_ENABLE_DEPRECATION_WARNINGS",
+    "PRAGMA_DISABLE_OPTIMIZATION", "PRAGMA_ENABLE_OPTIMIZATION", "UE_DISABLE_OPTIMIZATION", "UE_ENABLE_OPTIMIZATION",
+    "UE_DISABLE_OPTIMIZATION_SHIP", "UE_ENABLE_OPTIMIZATION_SHIP",
+    "PRAGMA_DISABLE_SHADOW_VARIABLE_WARNINGS", "PRAGMA_ENABLE_SHADOW_VARIABLE_WARNINGS",
+    "PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS", "PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS",
+    "THIRD_PARTY_INCLUDES_START", "THIRD_PARTY_INCLUDES_END",
+    "BEGIN_FUNCTION_BUILD_OPTIMIZATION", "END_FUNCTION_BUILD_OPTIMIZATION"
+  ],
+
+  "attributeCallMacros": [
+    "UE_DEPRECATED", "UE_DEPRECATED_FORGAME", "UE_DEPRECATED_FORENGINE", "UE_EXPERIMENTAL", "DEPRECATED",
+    "MS_ALIGN", "GCC_ALIGN", "GCC_PACK", "__declspec", "__attribute__", "UE_DEPRECATED_MACRO", "UE_DEPRECATED_INLINE"
+  ],
+
+  "stringMacros": [ "TEXT", "TEXTVIEW", "ANSITEXTVIEW", "WIDETEXTVIEW", "UTF8TEXTVIEW", "UTF8TEXT", "WIDETEXT", "LOCTEXT", "NSLOCTEXT", "INVTEXT" ],
+
+  "pureVirtualMacros": [ "PURE_VIRTUAL" ],
+
+  "symbolMacros": [
+    { "match": "DECLARE_DYNAMIC_MULTICAST_SPARSE_DELEGATE*", "kind": "Delegate", "nameArg": 0, "ue": "UDelegate", "traits": [ "Dynamic", "Multicast" ] },
+    { "match": "DECLARE_DYNAMIC_MULTICAST_DELEGATE*",        "kind": "Delegate", "nameArg": 0, "ue": "UDelegate", "traits": [ "Dynamic", "Multicast" ] },
+    { "match": "DECLARE_DYNAMIC_DELEGATE_RetVal*",           "kind": "Delegate", "nameArg": 1, "ue": "UDelegate", "traits": [ "Dynamic" ], "returnArg": 0 },
+    { "match": "DECLARE_DYNAMIC_DELEGATE*",                  "kind": "Delegate", "nameArg": 0, "ue": "UDelegate", "traits": [ "Dynamic" ] },
+    { "match": "DECLARE_TS_MULTICAST_DELEGATE*",             "kind": "Delegate", "nameArg": 0, "traits": [ "Multicast" ] },
+    { "match": "DECLARE_MULTICAST_DELEGATE*",                "kind": "Delegate", "nameArg": 0, "traits": [ "Multicast" ] },
+    { "match": "DECLARE_DELEGATE_RetVal*",                   "kind": "Delegate", "nameArg": 1, "returnArg": 0 },
+    { "match": "DECLARE_DELEGATE*",                          "kind": "Delegate", "nameArg": 0 },
+    { "match": "DECLARE_DERIVED_EVENT*",                     "kind": "Delegate", "nameArg": 2, "traits": [ "Event", "Multicast" ] },
+    { "match": "DECLARE_EVENT*",                             "kind": "Delegate", "nameArg": 1, "traits": [ "Event", "Multicast" ] },
+
+    { "match": "DECLARE_LOG_CATEGORY_EXTERN",   "kind": "Variable", "nameArg": 0, "definition": false },
+    { "match": "DECLARE_LOG_CATEGORY_CLASS",    "kind": "Variable", "nameArg": 0, "definition": false },
+    { "match": "DEFINE_LOG_CATEGORY_STATIC",    "kind": "Variable", "nameArg": 0, "definition": true },
+    { "match": "DEFINE_LOG_CATEGORY_CLASS",     "kind": "Variable", "nameArg": 1, "definition": true },
+    { "match": "DEFINE_LOG_CATEGORY",           "kind": "Variable", "nameArg": 0, "definition": true },
+    { "match": "DECLARE_STATS_GROUP*",          "kind": "Variable", "nameArg": 1, "definition": true },
+    { "match": "DECLARE_CYCLE_STAT_EXTERN",     "kind": "Variable", "nameArg": 1, "definition": false },
+    { "match": "DECLARE_CYCLE_STAT",            "kind": "Variable", "nameArg": 1, "definition": true },
+    { "match": "UE_DECLARE_GAMEPLAY_TAG_EXTERN","kind": "Variable", "nameArg": 0, "definition": false },
+    { "match": "UE_DEFINE_GAMEPLAY_TAG*",       "kind": "Variable", "nameArg": 0, "definition": true }
+  ]
+}
