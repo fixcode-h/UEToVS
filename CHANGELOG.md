@@ -4,12 +4,13 @@
 
 - 每个版本一节，标题为 `## vX.Y.Z`，最新的在最上面。合并到 main 时，CI 读取最上面一节：如果这个版本还没有发布，就自动打包并发布 Release，发布说明由这一节生成。
 - 节内用 `### 新功能`、`### 改进`、`### Bug 修复`、`### 注意` 等小标题，条目写成 `- **短标题** — 说明`。
+- **每次启动都“正在从 X.uproject 中扫描 Blueprint”** — 这是 VS 自带的 Unreal Engine 集成，不是 UEToVS。设置 > 常规里的说明改成准确的关闭方法：项目 > Configure Tools for Unreal Engine，关掉 Blueprint Support 后重启 VS
 - 改了 `src/` 的 PR 必须在最上面加一个新版本节（PR 检查会验证），这样每次合并都会出一个带更新日志的包。
 
 ## v0.4.2
 
 ### Bug 修复
-- 转到定义对 `GENERATED_BODY`、`UENUM`、`UCLASS` 等 UE 反射宏不再报“找不到定义（ue-macro）”：跳到宏的 `#define`（如 ObjectMacros.h）；`GENERATED_BODY` 这类宏还会列出 UHT 在 `.generated.h` 里为这一行生成的展开。
+- **UE 反射宏转到定义报“找不到定义（ue-macro）”** — `GENERATED_BODY`、`UENUM`、`UCLASS` 等现在跳到宏的 `#define`（如 ObjectMacros.h）；`GENERATED_BODY` 这类宏还会列出 UHT 在 `.generated.h` 里为这一行生成的展开。
 - **在 UEToVS 窗口里粘贴，内容却进了代码** — 设置窗口、Search Everywhere 等 UEToVS 弹窗是独立的浮动窗口，VS 会先把 Ctrl+V / Ctrl+C / Ctrl+X / Ctrl+Z / Ctrl+Y / Ctrl+A / Delete 当成自己的编辑命令，发给最后一个代码编辑器（例如在“Agent / API”页粘贴密钥，结果粘到了代码里）。现在 UEToVS 窗口处于激活状态时，这些命令只作用于窗口里当前的输入框，不会再进入代码编辑器（日志 `shell.editRouter.exec`）
 - **在解决方案资源管理器中定位后文件不居中** — VS 只把定位到的文件滚到刚好可见（常在列表最底部）。现在展开并选中后，会把它滚到视图中间；本来就在中间三分之一以内时不跳动（日志 `solutionExplorer.center`）
 
