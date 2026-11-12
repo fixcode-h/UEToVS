@@ -67,33 +67,43 @@ namespace UEToVS.Host.Refactoring
             registry.Register(new DelegateAction(RefactorActionIds.Rename, RefactorStrings.CmdRename, ActionCategory.Refactoring,
                 RenameFeature.ExecuteAsync, Editing, null, RefactorStrings.KwRename));
             if (mcs != null && router != null) router.RegisterMap(mcs, Commands);
+            // ---- v0.4.5 refactoring batch 2 (Change Signature, Move Implementation, Forward Declaration, Introduce Variable, Extract Method, Encapsulate Field)
+            Batch2.RefactoringBatch2.Initialize(registry, Hub, router, mcs);
             L.Info("refactor.registered", null, ("actions", 6), ("providers", Hub.Count), ("commands", Commands.Count));
         }
 
         // ---------------------------------------------------------------- context
 
         /// <summary>Engine context for the caret of <paramref name="view"/> (null when the view is not a C++ editor or the engine is down).</summary>
-        public static async Task<RefactorContext> BuildContextAsync(IWpfTextView view, bool checkIncludes, CancellationToken ct)
+        public static async Task<RefactorContext> BuildContextAsync(IWpfTextView view, bool checkIncludes, CancellationToken ct,
+                                                                    Action<RefactoringContextRequest> configure = null)
         {
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync(ct);
             if (view == null || view.IsClosed || !EditorServices.IsCpp(view.TextBuffer)) return null;
             var loc = EditorServices.Location(view);
             if (loc == null) return null;
-            long version = view.TextBuffer.CurrentSnapshot.Version.VersionNumber;
+            var snapshot = view.TextBuffer.CurrentSnapshot;
+            long version = snapshot.Version.VersionNumber;
+            var selection = Batch2.RefactoringBatch2.Selection(view, snapshot); // v0.4.5 batch 2
             var caret = await EditorServices.CaretRequestAsync(view);
             if (caret == null) return null;
             var engine = IntelliSenseContext.Engine;
             RefactoringContextResponse resp = null;
             if (engine != null && engine.IsConnected)
             {
-                var r = await engine.GetRefactoringContextAsync(new RefactoringContextRequest { Caret = caret, CheckIncludes = checkIncludes }, ct);
+                var request = new RefactoringContextRequest { Caret = caret, CheckIncludes = checkIncludes };
+                Batch2.RefactoringBatch2.Prepare(request, snapshot, selection);
+                configure?.Invoke(request);
+                var r = await engine.GetRefactoringContextAsync(request, ct);
                 if (r.Ok) resp = r.Value;
             }
-            return new RefactorContext
+            var context = new RefactorContext
             {
                 FilePath = loc.FilePath, Line = loc.Line, Column = loc.Column, Version = version, Engine = resp,
                 IsProjectFile = IsProjectPath(loc.FilePath),
             };
+            Batch2.RefactoringBatch2.Attach(context, view, snapshot, selection);
+            return context;
         }
 
         /// <summary>Editable = inside the solution / project folder and not under the engine root.</summary>

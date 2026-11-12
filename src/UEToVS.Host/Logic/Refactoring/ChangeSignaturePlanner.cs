@@ -168,7 +168,7 @@ namespace UEToVS.Host.Logic.Refactoring
         private static bool Balanced(string s)
         {
             if (string.IsNullOrEmpty(s)) return true;
-            int paren = 0, angle = 0, bracket = 0;
+            int paren = 0, bracket = 0;
             bool inString = false;
             char quote = '\0';
             for (int i = 0; i < s.Length; i++)
@@ -185,10 +185,18 @@ namespace UEToVS.Host.Logic.Refactoring
                 else if (c == ')') { if (--paren < 0) return false; }
                 else if (c == '[') bracket++;
                 else if (c == ']') { if (--bracket < 0) return false; }
-                else if (c == ',' && paren == 0 && bracket == 0 && angle == 0) return false;
                 else if (c == ';') return false;
             }
-            return !inString && paren == 0 && bracket == 0;
+            return !inString && paren == 0 && bracket == 0 && SingleItem(s);
+        }
+
+        /// <summary>One list item: no top-level comma (template arguments such as <c>TMap&lt;int32, float&gt;</c> are fine).</summary>
+        private static bool SingleItem(string s)
+        {
+            string wrapped = "(" + s + ")";
+            var t = CppTextScan.Tokenize(wrapped);
+            if (t.Count < 2 || !t[0].Is("(") || CppTextScan.MatchClose(t, 0) != t.Count - 1) return false;
+            return Items(wrapped, t, 0, t.Count - 1).Count == 1;
         }
 
         /// <summary>Whether the edited list equals the original (nothing to do).</summary>

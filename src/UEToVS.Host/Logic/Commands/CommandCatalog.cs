@@ -150,6 +150,14 @@ namespace UEToVS.Host.Logic.Commands
         public const int QuickActions = 0x0700;
         public const int Rename = 0x0701;
         public const int ImplementVirtual = 0x0702;
+        // ---- v0.4.5 refactoring batch 2 (0x0710–0x073F): Refactoring/Batch2/*
+        public const int ChangeSignature = 0x0710;
+        public const int MoveImplementation = 0x0711;
+        public const int AddForwardDeclaration = 0x0712;
+        public const int IntroduceVariable = 0x0713;
+        public const int ExtractMethod = 0x0714;
+        public const int EncapsulateField = 0x0715;
+        public const int GenerateGetterSetter = 0x0716;
 
         /// <summary>Action ids of the M1/M2 commands (mirrors NavigationActionIds / M1ActionIds, which are host-internal).</summary>
         public static class ActionIds
@@ -192,6 +200,14 @@ namespace UEToVS.Host.Logic.Commands
             public const string QuickActions = "uetovs.refactor.quickActions";
             public const string Rename = "uetovs.refactor.rename";
             public const string ImplementVirtual = "uetovs.refactor.implementVirtual";
+            // ---- v0.4.5 refactoring batch 2 (mirror of RefactorActionIds)
+            public const string ChangeSignature = "uetovs.refactor.changeSignature";
+            public const string MoveImplementation = "uetovs.refactor.moveImplementation";
+            public const string AddForwardDeclaration = "uetovs.refactor.addForwardDeclaration";
+            public const string IntroduceVariable = "uetovs.refactor.introduceVariable";
+            public const string ExtractMethod = "uetovs.refactor.extractMethod";
+            public const string EncapsulateField = "uetovs.refactor.encapsulateField";
+            public const string GenerateGetterSetter = "uetovs.generate.getterSetter";
         }
 
         private static CommandInfo C(CommandOwner owner, int id, string name, string action, string zh, string en, string group, CommandScope scope,
@@ -263,6 +279,14 @@ namespace UEToVS.Host.Logic.Commands
             C(M4, QuickActions, "QuickActions", ActionIds.QuickActions, "上下文操作（Alt+Enter）", "Context Actions (Alt+Enter)", "refactor", Ed, "Alt+Enter", "Alt+Enter", "Alt+Enter"),
             C(M4, Rename, "Rename", ActionIds.Rename, "重命名…", "Rename...", "refactor", Ed, "Ctrl+R, Ctrl+R", "Shift+F6", "Ctrl+R, Ctrl+R"),
             C(M4, ImplementVirtual, "ImplementVirtual", ActionIds.ImplementVirtual, "实现虚函数 / 重写…", "Implement Virtual Methods / Override...", "refactor", Ed, "Ctrl+Shift+Alt+U, V", "Ctrl+O", null),
+            // ---- v0.4.5 refactoring batch 2 (Ctrl+R chords; UEToVS wins over VS's own Refactor.* bindings and falls back to them outside UE C++)
+            C(M4, ChangeSignature, "ChangeSignature", ActionIds.ChangeSignature, "更改签名…", "Change Signature...", "refactor", Ed, "Ctrl+R, Ctrl+O", "Ctrl+F6", null),
+            C(M4, MoveImplementation, "MoveImplementation", ActionIds.MoveImplementation, "移动实现（头文件 ↔ 源文件）", "Move Implementation (Header ↔ Source)", "refactor", Ed, "Ctrl+R, Ctrl+I", "F6", null),
+            C(M4, AddForwardDeclaration, "AddForwardDeclaration", ActionIds.AddForwardDeclaration, "添加前置声明", "Add Forward Declaration", "refactor", Ed, "Ctrl+R, Ctrl+F", null, null),
+            C(M4, IntroduceVariable, "IntroduceVariable", ActionIds.IntroduceVariable, "引入变量…", "Introduce Variable...", "refactor", Ed, "Ctrl+R, Ctrl+V", "Ctrl+Alt+V", null),
+            C(M4, ExtractMethod, "ExtractMethod", ActionIds.ExtractMethod, "提取方法…", "Extract Method...", "refactor", Ed, "Ctrl+R, Ctrl+M", "Ctrl+Alt+M", null),
+            C(M4, EncapsulateField, "EncapsulateField", ActionIds.EncapsulateField, "封装字段…", "Encapsulate Field...", "refactor", Ed, "Ctrl+R, Ctrl+E", null, null),
+            C(M4, GenerateGetterSetter, "GenerateGetterSetter", ActionIds.GenerateGetterSetter, "生成 Getter / Setter…", "Generate Getter / Setter...", "refactor", Ed, "Ctrl+R, Ctrl+P", null, null),
             // generate (v0.4.2, host; later also offered by the Alt+Enter hub through the same action ids)
             C(H, GenerateConstructor, "GenerateConstructor", "uetovs.generate.constructor", "生成构造函数", "Generate Constructor", "unreal", Gl, "Ctrl+Shift+Alt+U, K", null, null),
             C(H, GenerateReplication, "GenerateReplication", "uetovs.generate.replication", "生成 GetLifetimeReplicatedProps", "Generate GetLifetimeReplicatedProps", "unreal", Gl, "Ctrl+Shift+Alt+U, Y", null, null),

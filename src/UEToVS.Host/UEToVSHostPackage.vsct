@@ -778,6 +778,72 @@
           <LocCanonicalName>UEToVS.ImplementVirtual</LocCanonicalName>
         </Strings>
       </Button>
+      <!-- ===== v0.4.5 refactoring batch 2 (0x0710-0x073F; Refactoring/Batch2/*): reachable from Alt+Enter, Find Action and the
+           Ctrl+R chords; Generate Getter / Setter is also in the editor right-click > UEToVS > Generate group. ===== -->
+      <Button guid="guidUEToVSHostCmdSet" id="cmdChangeSignature" priority="0x0120" type="Button">
+        <CommandFlag>CommandWellOnly</CommandFlag>
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Change Signature...</ButtonText>
+          <CanonicalName>UEToVS.ChangeSignature</CanonicalName>
+          <LocCanonicalName>UEToVS.ChangeSignature</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdMoveImplementation" priority="0x0121" type="Button">
+        <CommandFlag>CommandWellOnly</CommandFlag>
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Move Implementation (Header / Source)</ButtonText>
+          <CanonicalName>UEToVS.MoveImplementation</CanonicalName>
+          <LocCanonicalName>UEToVS.MoveImplementation</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdAddForwardDeclaration" priority="0x0122" type="Button">
+        <CommandFlag>CommandWellOnly</CommandFlag>
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Add Forward Declaration</ButtonText>
+          <CanonicalName>UEToVS.AddForwardDeclaration</CanonicalName>
+          <LocCanonicalName>UEToVS.AddForwardDeclaration</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdIntroduceVariable" priority="0x0123" type="Button">
+        <CommandFlag>CommandWellOnly</CommandFlag>
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Introduce Variable...</ButtonText>
+          <CanonicalName>UEToVS.IntroduceVariable</CanonicalName>
+          <LocCanonicalName>UEToVS.IntroduceVariable</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdExtractMethod" priority="0x0124" type="Button">
+        <CommandFlag>CommandWellOnly</CommandFlag>
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Extract Method...</ButtonText>
+          <CanonicalName>UEToVS.ExtractMethod</CanonicalName>
+          <LocCanonicalName>UEToVS.ExtractMethod</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdEncapsulateField" priority="0x0125" type="Button">
+        <CommandFlag>CommandWellOnly</CommandFlag>
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Encapsulate Field...</ButtonText>
+          <CanonicalName>UEToVS.EncapsulateField</CanonicalName>
+          <LocCanonicalName>UEToVS.EncapsulateField</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdGenerateGetterSetter" priority="0x0103" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpContextGenerate" />
+        <CommandFlag>DefaultDisabled</CommandFlag>
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Generate Getter / Setter...</ButtonText>
+          <CanonicalName>UEToVS.GenerateGetterSetter</CanonicalName>
+          <LocCanonicalName>UEToVS.GenerateGetterSetter</LocCanonicalName>
+        </Strings>
+      </Button>
       <!-- ===== v0.4.2 Generate (0x0160-0x016F) ===== -->
       <Button guid="guidUEToVSHostCmdSet" id="cmdGenerateConstructor" priority="0x0100" type="Button">
         <Parent guid="guidUEToVSHostCmdSet" id="grpContextGenerate" />
@@ -912,6 +978,14 @@
     <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdQuickActions" editor="guidTextEditorFactory" key1="VK_RETURN" mod1="Alt" />
     <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdRename" editor="guidTextEditorFactory" key1="R" mod1="Control" key2="R" mod2="Control" />
     <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdImplementVirtual" editor="guidTextEditorFactory" key1="U" mod1="Control Shift Alt" key2="V" />
+    <!-- v0.4.5 refactoring batch 2: Ctrl+R chords (VS's own Refactor.* chords are replaced; outside UE C++ the commands fall back to them). -->
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdChangeSignature" editor="guidTextEditorFactory" key1="R" mod1="Control" key2="O" mod2="Control" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdMoveImplementation" editor="guidTextEditorFactory" key1="R" mod1="Control" key2="I" mod2="Control" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdAddForwardDeclaration" editor="guidTextEditorFactory" key1="R" mod1="Control" key2="F" mod2="Control" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdIntroduceVariable" editor="guidTextEditorFactory" key1="R" mod1="Control" key2="V" mod2="Control" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdExtractMethod" editor="guidTextEditorFactory" key1="R" mod1="Control" key2="M" mod2="Control" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdEncapsulateField" editor="guidTextEditorFactory" key1="R" mod1="Control" key2="E" mod2="Control" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdGenerateGetterSetter" editor="guidTextEditorFactory" key1="R" mod1="Control" key2="P" mod2="Control" />
     <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdGenerateConstructor" editor="guidVSStd97" key1="U" mod1="Control Shift Alt" key2="K" />
     <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdGenerateReplication" editor="guidVSStd97" key1="U" mod1="Control Shift Alt" key2="Y" />
     <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdGenerateRpc" editor="guidVSStd97" key1="U" mod1="Control Shift Alt" key2="W" />
@@ -1027,6 +1101,14 @@
       <IDSymbol name="cmdQuickActions" value="0x0700" />
       <IDSymbol name="cmdRename" value="0x0701" />
       <IDSymbol name="cmdImplementVirtual" value="0x0702" />
+      <!-- v0.4.5 refactoring batch 2 (Refactoring/Batch2/*) -->
+      <IDSymbol name="cmdChangeSignature" value="0x0710" />
+      <IDSymbol name="cmdMoveImplementation" value="0x0711" />
+      <IDSymbol name="cmdAddForwardDeclaration" value="0x0712" />
+      <IDSymbol name="cmdIntroduceVariable" value="0x0713" />
+      <IDSymbol name="cmdExtractMethod" value="0x0714" />
+      <IDSymbol name="cmdEncapsulateField" value="0x0715" />
+      <IDSymbol name="cmdGenerateGetterSetter" value="0x0716" />
       <!-- v0.4.2 Generate (Generate/GenerateActions.cs) -->
       <IDSymbol name="grpContextGenerate" value="0x1060" />
       <IDSymbol name="cmdGenerateConstructor" value="0x0160" />

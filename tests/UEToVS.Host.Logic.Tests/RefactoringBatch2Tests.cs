@@ -2,6 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using UEToVS.Contracts;
+using UEToVS.Core.Localization;
+using UEToVS.Host.Logic.Commands;
+using UEToVS.Host.Logic.Localization;
 using UEToVS.Host.Logic.Refactoring;
 using Xunit;
 
@@ -871,5 +874,204 @@ protected:
             Assert.Equal(BodyKind.Lambda, body.Kind);
             Assert.Null(CodeScan.EnclosingBody(t, text.IndexOf("A = 1", StringComparison.Ordinal)));
         }
+
+        // ================================================================ providers (Alt+Enter / light bulb)
+
+        private static RefactorContext Ctx(string file, string text, string caretMarker, RefactoringContextResponse engine, int occurrence = 0, string selected = null)
+        {
+            var c = new RefactorContext { FilePath = file, Engine = engine, TextSource = () => text };
+            if (caretMarker != null)
+            {
+                int at = -1;
+                for (int i = 0; i <= occurrence; i++) at = text.IndexOf(caretMarker, at + 1, StringComparison.Ordinal);
+                c.CaretOffset = at;
+            }
+            if (selected != null)
+            {
+                var (s, e) = Span(text, selected);
+                c.SelectionStart = s;
+                c.SelectionEnd = e;
+            }
+            return c;
+        }
+
+        private static List<string> Ids(RefactorContext c)
+        {
+            var hub = new ContextActionHub();
+            foreach (var p in RefactorProviders2.All) hub.Register(p);
+            return hub.Collect(c).Select(i => i.ActionId).ToList();
+        }
+
+        [Fact]
+        public void ChangeSignatureIsOfferedOnProjectFunctionNames()
+        {
+            var f = new FunctionSignature { Name = "Fire", Kind = SymbolKind.Method, Parameters = "const FVector& Dir, int32 Count = 1", Container = "AMyActor" };
+            var c = Ctx("/p/MyActor.h", SigHeader, "Fire", new RefactoringContextResponse { Word = "Fire", Function = f });
+            Assert.Contains(RefactorActionIds.ChangeSignature, Ids(c));
+            Assert.True(RefactorProviders2.CanChangeSignature(c, out _));
+            // caret on another word of the line, engine code, templates, variadics, UE generated names: not offered
+            c.Engine.Word = "FVector";
+            Assert.DoesNotContain(RefactorActionIds.ChangeSignature, Ids(c));
+            c.Engine.Word = "Fire";
+            f.Origin = ItemOrigin.Engine;
+            Assert.False(RefactorProviders2.CanChangeSignature(c, out string why));
+            Assert.Equal("engine-base", why);
+            f.Origin = ItemOrigin.Project;
+            f.TemplateParameters = "typename T";
+            Assert.False(RefactorProviders2.CanChangeSignature(c, out why));
+            Assert.Equal("template", why);
+            f.TemplateParameters = null;
+            f.Parameters = "int32 A, ...";
+            Assert.False(RefactorProviders2.CanChangeSignature(c, out why));
+            Assert.Equal("unparsable", why);
+            f.Parameters = "int32 A";
+            f.Name = "Fire_Implementation";
+            c.Engine.Word = "Fire_Implementation";
+            Assert.False(RefactorProviders2.CanChangeSignature(c, out _));
+        }
+
+        [Fact]
+        public void MoveImplementationIsOfferedForInlineBodiesAndOutOfLineDefinitions()
+        {
+            var cls = new ClassAtCaret { Symbol = new SymbolInfo { Name = "AMyActor", Kind = SymbolKind.Class }, BodyStartLine = 5 };
+            var get = new FunctionSignature { Name = "GetHealth", Kind = SymbolKind.Method, IsDefinition = true, Container = "AMyActor" };
+            var c = Ctx("/p/MyActor.h", InlineHeader, "GetHealth", new RefactoringContextResponse { Word = "GetHealth", Function = get, Class = cls });
+            var ids = Ids(c);
+            Assert.Contains(RefactorActionIds.MoveImplementation, ids);
+            Assert.Contains(RefactorActionIds.MoveImplementationClass, ids);
+            // on the class name: only the whole-class item
+            var onClass = Ctx("/p/MyActor.h", InlineHeader, "AMyActor :", new RefactoringContextResponse
+            {
+                Word = "AMyActor", Symbol = cls.Symbol, OnDeclaration = true, Class = cls,
+            });
+            ids = Ids(onClass);
+            Assert.DoesNotContain(RefactorActionIds.MoveImplementation, ids);
+            Assert.Contains(RefactorActionIds.MoveImplementationClass, ids);
+            // engine file: nothing
+            c.IsProjectFile = false;
+            Assert.Empty(Ids(c));
+            // source: an out-of-line definition goes back to the header
+            var def = new FunctionSignature { Name = "Declared", Kind = SymbolKind.Method, IsDefinition = true, Container = "AMyActor" };
+            var cpp = Ctx("/p/MyActor.cpp", InlineCpp, "Declared", new RefactoringContextResponse { Word = "Declared", Function = def });
+            Assert.Contains(RefactorActionIds.MoveImplementation, Ids(cpp));
+        }
+
+        private static TypeAtCaret TypeOf(string name, SymbolKind kind, IncludeState include = IncludeState.Missing, string signature = null) => new TypeAtCaret
+        {
+            Symbol = new SymbolInfo { Name = name, Kind = kind, Signature = signature }, HeaderPath = "/p/" + name + ".h", Include = include, FilesVisited = 3,
+        };
+
+        private static bool Forward(string file, string text, TypeAtCaret type) =>
+            RefactorProviders2.NeedsForwardDeclaration(Ctx(file, text, type.Symbol.Name, new RefactoringContextResponse { Word = type.Symbol.Name, Type = type }), out _);
+
+        [Fact]
+        public void ForwardDeclarationIsOfferedBeforeAddInclude()
+        {
+            var c = Ctx("/p/MyActor.h", FwdHeader, "UHealthComponent", new RefactoringContextResponse { Word = "UHealthComponent", Type = TypeOf("UHealthComponent", SymbolKind.Class) });
+            Assert.True(RefactorProviders2.NeedsForwardDeclaration(c, out string decl));
+            Assert.Equal("class UHealthComponent;", decl);
+            var hub = new ContextActionHub();
+            foreach (var p in RefactorProviders.All.Concat(RefactorProviders2.All)) hub.Register(p);
+            var items = hub.Collect(c);
+            Assert.Equal(RefactorActionIds.AddForwardDeclaration, items[0].ActionId);
+            Assert.Contains(items, i => i.ActionId == RefactorActionIds.AddInclude);
+            // by value / members used inline / already included / in a .cpp / nested: not offered
+            Assert.False(Forward("/p/MyActor.h", FwdHeader, TypeOf("FVector", SymbolKind.Struct)));
+            Assert.False(Forward("/p/MyActor.h", FwdHeader, TypeOf("UWeapon", SymbolKind.Class)));
+            Assert.False(Forward("/p/MyActor.h", FwdHeader, TypeOf("UHealthComponent", SymbolKind.Class, IncludeState.Direct)));
+            Assert.False(Forward("/p/MyActor.cpp", FwdHeader, TypeOf("UHealthComponent", SymbolKind.Class)));
+            var nested = TypeOf("UHealthComponent", SymbolKind.Class);
+            nested.Symbol.Container = "UOuter";
+            Assert.False(Forward("/p/MyActor.h", FwdHeader, nested));
+            // enums: only with a fixed underlying type
+            string enumHeader = "#pragma once\nclass AMyActor\n{\n\tEMode* Mode;\n};\n";
+            Assert.False(Forward("/p/A.h", enumHeader, TypeOf("EMode", SymbolKind.Enum, signature: "enum EMode")));
+            Assert.True(Forward("/p/A.h", enumHeader, TypeOf("EMode", SymbolKind.Enum, signature: "enum class EMode : uint8")));
+        }
+
+        [Fact]
+        public void SelectionActionsNeedAValidSelection()
+        {
+            var engine = new RefactoringContextResponse();
+            var c = Ctx("/p/MyActor.cpp", IvCpp, null, engine, selected: "GetOwner()->GetActorLocation()");
+            Assert.Contains(RefactorActionIds.IntroduceVariable, Ids(c));
+            Assert.DoesNotContain(RefactorActionIds.ExtractMethod, Ids(c)); // no enclosing function from the engine
+            Assert.DoesNotContain(RefactorActionIds.IntroduceVariable, Ids(Ctx("/p/MyActor.cpp", IvCpp, null, engine, selected: "Items[I] * 2")));
+            Assert.DoesNotContain(RefactorActionIds.IntroduceVariable, Ids(Ctx("/p/MyActor.cpp", IvCpp, "GetOwner", engine)));
+        }
+
+        [Fact]
+        public void LocalsAreConvertedToOffsets()
+        {
+            string text = "void F()\n{\n\tint32 A = 1;\n}\n";
+            var locals = RefactorProviders2.LocalsOf(text, new[]
+            {
+                new LocalSymbol { Name = "A", Type = "int32", Line = 2, Column = 7, ScopeEndLine = 3, ScopeEndColumn = 0 },
+                new LocalSymbol { Name = "Gone", Type = "int32", Line = 40, Column = 0 },
+            });
+            Assert.Single(locals);
+            Assert.Equal(text.IndexOf("A =", StringComparison.Ordinal), locals[0].Offset);
+            Assert.Equal(text.LastIndexOf('}'), locals[0].ScopeEnd);
+        }
+
+        [Fact]
+        public void EncapsulateIsOfferedOnFieldDeclarations()
+        {
+            var cls = new ClassAtCaret { Symbol = new SymbolInfo { Name = "AMyActor", Kind = SymbolKind.Class } };
+            var field = new SymbolInfo { Name = "Health", Kind = SymbolKind.Field };
+            var c = Ctx("/p/MyActor.h", FieldHeader, "Health =", new RefactoringContextResponse { Word = "Health", Symbol = field, OnDeclaration = true, Class = cls });
+            Assert.Contains(RefactorActionIds.EncapsulateField, Ids(c));
+            c.Engine.OnDeclaration = false; // a use, not the declaration
+            Assert.DoesNotContain(RefactorActionIds.EncapsulateField, Ids(c));
+        }
+
+        [Fact]
+        public void Batch2CommandsUseTheirIdRangeAndCtrlRChords()
+        {
+            var cmds = CommandCatalog.All.Where(c => c.Id >= 0x0710 && c.Id <= 0x073F).ToList();
+            Assert.Equal(7, cmds.Count);
+            Assert.All(cmds, c => Assert.Equal(CommandOwner.Refactoring, c.Owner));
+            Assert.All(cmds, c => Assert.StartsWith("Ctrl+R, Ctrl+", c.VaKeys));
+            Assert.Equal("Ctrl+R, Ctrl+O", CommandCatalog.ById(CommandCatalog.ChangeSignature).VaKeys);
+            Assert.Equal("Ctrl+R, Ctrl+M", CommandCatalog.ById(CommandCatalog.ExtractMethod).VaKeys);
+            Assert.Equal("Ctrl+R, Ctrl+E", CommandCatalog.ById(CommandCatalog.EncapsulateField).VaKeys);
+            Assert.Equal("Ctrl+R, Ctrl+V", CommandCatalog.ById(CommandCatalog.IntroduceVariable).VaKeys);
+            Assert.Equal("Ctrl+R, Ctrl+I", CommandCatalog.ById(CommandCatalog.MoveImplementation).VaKeys);
+            Assert.Equal("Ctrl+R, Ctrl+F", CommandCatalog.ById(CommandCatalog.AddForwardDeclaration).VaKeys);
+            Assert.Equal("Ctrl+F6", CommandCatalog.ById(CommandCatalog.ChangeSignature).RiderKeys);
+            Assert.Equal(RefactorActionIds.ChangeSignature, CommandCatalog.ActionIds.ChangeSignature);
+            Assert.Equal(RefactorActionIds.GenerateGetterSetter, CommandCatalog.ActionIds.GenerateGetterSetter);
+        }
+
+        [Fact]
+        public void Batch2StringsAreBilingual()
+        {
+            var saved = Loc.Language;
+            try
+            {
+                Loc.Language = UiLanguage.Chinese;
+                string zh = Refactor2Strings.ChangeSignatureOf("Fire") + Refactor2Strings.Problem("by-value") + Refactor2Strings.ValidationError("default-order");
+                Loc.Language = UiLanguage.English;
+                string en = Refactor2Strings.ChangeSignatureOf("Fire") + Refactor2Strings.Problem("by-value") + Refactor2Strings.ValidationError("default-order");
+                Assert.Contains("签名", zh);
+                Assert.Contains("signature", en);
+                Assert.Contains("unknown-code", Refactor2Strings.Problem("unknown-code"));
+            }
+            finally
+            {
+                Loc.Language = saved;
+            }
+        }
+
+        [Fact]
+        public void TemplateCommasInParameterTextAreValid()
+        {
+            var list = ChangeSignaturePlanner.Parse("int32 A");
+            list.Add(new EditableParameter { Type = "const TMap<FName, int32>&", Name = "Map", CallValue = "TMap<FName, int32>()" });
+            Assert.Null(ChangeSignaturePlanner.Validate(list));
+            list[1].CallValue = "1, 2";
+            Assert.Equal("unbalanced", ChangeSignaturePlanner.Validate(list));
+        }
     }
 }
+
