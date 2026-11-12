@@ -17,6 +17,9 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CHANGELOG = os.path.join(ROOT, "CHANGELOG.md")
 PROPS = os.path.join(ROOT, "Directory.Build.props")
 MANIFEST = os.path.join(ROOT, "src", "UEToVS.Host", "source.extension.vsixmanifest")
+# The VSIX Identity Id must never change: VS treats a different Id as a different extension and
+# installs it side by side instead of upgrading. This is the Id every release since v0.1.x has used.
+IDENTITY_ID = "UEToVS.fixcode.2429fbec-2964-4be5-9718-2b426f542e29"
 VERSION_RE = re.compile(r"^## v(\d+\.\d+\.\d+)\s*$", re.M)
 
 
@@ -55,6 +58,10 @@ def cmd_stamp(_):
     props = re.sub(r"<Version>[^<]*</Version>", f"<Version>{version}</Version>", props)
     write(PROPS, props)
     man = read(MANIFEST)
+    m = re.search(r'<Identity\b[^>]*\bId="([^"]*)"', man)
+    if not m or m.group(1) != IDENTITY_ID:
+        sys.exit(f"VSIX Identity Id must stay {IDENTITY_ID} (found {m.group(1) if m else 'none'}); "
+                 "changing it makes VS install a second copy instead of upgrading")
     man, n = re.subn(r'(<Identity\b[^>]*\bVersion=")[^"]*(")', rf"\g<1>{version}\g<2>", man)
     if n != 1:
         sys.exit("could not stamp the VSIX manifest version")
