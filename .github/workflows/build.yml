@@ -44,10 +44,13 @@ jobs:
       - name: Test
         shell: pwsh
         run: |
+          # Run every test project, then fail once with the list (one CI run shows all broken projects).
+          $failed = @()
           Get-ChildItem tests -Filter *.csproj -Recurse | ForEach-Object {
             dotnet test $_.FullName -c Release
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            if ($LASTEXITCODE -ne 0) { $failed += $_.BaseName }
           }
+          if ($failed.Count -gt 0) { Write-Host "Failed test projects: $($failed -join ', ')"; exit 1 }
 
       - name: Build VSIX
         run: msbuild src\UEToVS.Host\UEToVS.Host.csproj /restore /p:Configuration=Release /p:DeployExtension=false /v:minimal
