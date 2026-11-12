@@ -44,7 +44,7 @@ namespace UEToVS.Host.Logic.Tests
                 DoubleShiftEnabled = false, DoubleShiftIntervalMs = 450, DoubleShiftLeftOnly = true, SearchMaxResultsPerCategory = 80,
                 MouseButtonsNavigate = false, NavigationLineThreshold = 30, NavigationHistoryCapacity = 200, CheckIncludesOnSave = false,
                 EditorLinkPort = 4567, CtrlClickNavigation = false, ReferenceHighlighting = false, ReferenceHighlightReadColor = "#336699",
-                ReferenceHighlightWriteColor = "#80FF0000", NavigationBar = false, EnableMcpServer = false,
+                ReferenceHighlightWriteColor = "#80FF0000", NavigationBar = false, SyncSolutionExplorer = false, EnableMcpServer = false,
             };
             var back = HostSettingsSchema.Codec.FromValues(HostSettingsSchema.Codec.ToValues(s), Schema, new HostSettings());
             Assert.Equal(HostSettingsSchema.Codec.ToValues(s), HostSettingsSchema.Codec.ToValues(back));
@@ -53,6 +53,7 @@ namespace UEToVS.Host.Logic.Tests
             Assert.Equal(4567, back.EditorLinkPort);
             Assert.Equal("#80FF0000", back.ReferenceHighlightWriteColor);
             Assert.False(back.NavigationBar);
+            Assert.False(back.SyncSolutionExplorer);
         }
 
         /// <summary>Every public settable HostSettings property is either in the settings window or deliberately left out.</summary>

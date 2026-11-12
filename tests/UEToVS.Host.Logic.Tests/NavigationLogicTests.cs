@@ -517,3 +517,34 @@ namespace UEToVS.Host.Logic.Tests
         }
     }
 }
+
+namespace UEToVS.Host.Logic.Tests
+{
+    public class SolutionExplorerSyncTests
+    {
+        [Theory]
+        [InlineData(@"C:\P\Source\Game\MyActor.h", true)]
+        [InlineData(@"C:\P\Source\Game\MyActor.CPP", true)]
+        [InlineData(@"C:\P\Source\Game\Inline.inl", true)]
+        [InlineData(@"C:\P\Source\Game\Mod.ixx", true)]
+        [InlineData(@"C:\P\Source\Game\Game.Build.cs", false)]
+        [InlineData(@"C:\P\Content\Script\Main.lua", false)]
+        [InlineData(@"C:\P\Game.uproject", false)]
+        [InlineData(@"C:\P\README", false)]
+        [InlineData("", false)]
+        [InlineData(null, false)]
+        public void RecognizesCppFiles(string path, bool expected) => Assert.Equal(expected, SolutionExplorerSync.IsCppFile(path));
+
+        [Fact]
+        public void RevealsOnlyCppFilesInUnrealSolutionsWhenEnabled()
+        {
+            Assert.True(SolutionExplorerSync.ShouldReveal(true, true, @"C:\P\A.cpp"));
+            Assert.False(SolutionExplorerSync.ShouldReveal(false, true, @"C:\P\A.cpp"));
+            Assert.False(SolutionExplorerSync.ShouldReveal(true, false, @"C:\P\A.cpp"));
+            Assert.False(SolutionExplorerSync.ShouldReveal(true, true, @"C:\P\A.cs"));
+        }
+
+        [Fact]
+        public void SettingIsOnByDefault() => Assert.True(new UEToVS.Host.Logic.Settings.HostSettings().SyncSolutionExplorer);
+    }
+}
