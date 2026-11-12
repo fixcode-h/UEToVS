@@ -1,0 +1,98 @@
+<Project>
+  <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
+  <!--
+    UEToVS.Host: the VSIX (in-proc, net48) for Visual Studio 2022 (17.x) and 2026 (18.x).
+    On Windows: build with Visual Studio or "msbuild /restore" to produce bin\<Config>\UEToVS.vsix.
+    On other OSes the C# code compiles (CI check) but VSCT compilation, pkgdef and VSIX packaging are skipped.
+    Pure logic lives in Logic\ (no VS types) and is compiled into tests\UEToVS.Host.Logic.Tests as linked files.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <RootNamespace>UEToVS.Host</RootNamespace>
+    <AssemblyName>UEToVS.Host</AssemblyName>
+    <LangVersion>latest</LangVersion>
+    <UseCodeBase>true</UseCodeBase>
+    <GeneratePkgDefFile>true</GeneratePkgDefFile>
+    <IncludeAssemblyInVSIXContainer>true</IncludeAssemblyInVSIXContainer>
+    <IncludeDebugSymbolsInVSIXContainer>true</IncludeDebugSymbolsInVSIXContainer>
+    <IncludeDebugSymbolsInLocalVSIXDeployment>true</IncludeDebugSymbolsInLocalVSIXDeployment>
+    <CopyBuildOutputToOutputDirectory>true</CopyBuildOutputToOutputDirectory>
+    <CopyOutputSymbolsToOutputDirectory>true</CopyOutputSymbolsToOutputDirectory>
+    <StartAction>Program</StartAction>
+    <StartProgram Condition="'$(DevEnvDir)' != ''">$(DevEnvDir)devenv.exe</StartProgram>
+    <StartArguments>/rootsuffix Exp</StartArguments>
+    <IsWindows Condition="'$(OS)' == 'Windows_NT'">true</IsWindows>
+    <!-- VSTHRD010: main-thread asserts are done explicitly (ThreadHelper.ThrowIfNotOnUIThread) where needed. -->
+    <NoWarn>$(NoWarn);VSTHRD010;VSTHRD100;VSTHRD110;VSSDK006</NoWarn>
+    <EngineProject>$(MSBuildThisFileDirectory)..\UEToVS.Engine\UEToVS.Engine.csproj</EngineProject>
+    <EngineConfiguration Condition="'$(EngineConfiguration)' == ''">Release</EngineConfiguration>
+    <EngineRuntimeIdentifier Condition="'$(EngineRuntimeIdentifier)' == ''">win-x64</EngineRuntimeIdentifier>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- StreamJsonRpc, MessagePack, Newtonsoft.Json and Microsoft.VisualStudio.Threading come from VS itself (runtime excluded). -->
+    <PackageReference Include="Microsoft.VisualStudio.SDK" Version="17.0.32112.339" ExcludeAssets="runtime" />
+    <PackageReference Include="Microsoft.VSSDK.BuildTools" Version="17.0.5232" Condition="'$(IsWindows)' == 'true'">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="PresentationCore" />
+    <Reference Include="PresentationFramework" />
+    <Reference Include="WindowsBase" />
+    <Reference Include="System.Xaml" />
+    <Reference Include="System.Design" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.ComponentModel.Composition" />
+    <Reference Include="System.IO.Compression" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\UEToVS.Contracts\UEToVS.Contracts.csproj" />
+    <ProjectReference Include="..\UEToVS.Core\UEToVS.Core.csproj" />
+    <!-- TODO(integration/UI): add ..\UEToVS.UI\UEToVS.UI.csproj here and wire HostIntegration (see Integration\). -->
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="source.extension.vsixmanifest" SubType="Designer" />
+    <None Include="README.md" />
+    <VSCTCompile Include="UEToVSHostPackage.vsct" Condition="'$(IsWindows)' == 'true'">
+      <ResourceName>Menus.ctmenu</ResourceName>
+    </VSCTCompile>
+    <None Include="UEToVSHostPackage.vsct" Condition="'$(IsWindows)' != 'true'" />
+    <Content Include="Resources\Icon.png" IncludeInVSIX="true" />
+    <Content Include="LICENSE.txt" IncludeInVSIX="true" />
+  </ItemGroup>
+
+  <!--
+    Publish the engine next to the extension: <ext>\Engine\UEToVS.Engine.exe (framework-dependent, .NET 8).
+    Guarded with Exists(): the host builds before src\UEToVS.Engine lands. Skip with /p:SkipEnginePublish=true.
+  -->
+  <Target Name="PublishEngine" BeforeTargets="GetVsixSourceItems;PrepareForBuild"
+          Condition="'$(IsWindows)' == 'true' And '$(SkipEnginePublish)' != 'true' And Exists('$(EngineProject)')">
+    <MSBuild Projects="$(EngineProject)" Targets="Restore" Properties="RuntimeIdentifier=$(EngineRuntimeIdentifier)" />
+    <MSBuild Projects="$(EngineProject)" Targets="Publish"
+             Properties="Configuration=$(EngineConfiguration);RuntimeIdentifier=$(EngineRuntimeIdentifier);SelfContained=false;PublishDir=$(MSBuildProjectDirectory)\obj\EnginePublish\" />
+    <ItemGroup>
+      <EngineFiles Include="$(MSBuildProjectDirectory)\obj\EnginePublish\**\*" />
+      <Content Include="@(EngineFiles)">
+        <Link>Engine\%(RecursiveDir)%(Filename)%(Extension)</Link>
+        <IncludeInVSIX>true</IncludeInVSIX>
+        <VSIXSubPath>Engine\%(RecursiveDir)</VSIXSubPath>
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </Content>
+    </ItemGroup>
+  </Target>
+
+  <Target Name="WarnMissingEngine" BeforeTargets="PrepareForBuild"
+          Condition="'$(IsWindows)' == 'true' And !Exists('$(EngineProject)')">
+    <Message Importance="high" Text="UEToVS.Host: src\UEToVS.Engine not found; the VSIX is built without Engine\ (host degrades gracefully)." />
+  </Target>
+
+  <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
+  <!-- SDK-style projects do not import the VSSDK targets on their own: VSCT compilation, pkgdef and the .vsix come from here. -->
+  <Import Project="$(VSToolsPath)\VSSDK\Microsoft.VsSDK.targets" Condition="'$(IsWindows)' == 'true' And Exists('$(VSToolsPath)\VSSDK\Microsoft.VsSDK.targets')" />
+</Project>

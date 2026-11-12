@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="utf-8"?>
+<CommandTable xmlns="http://schemas.microsoft.com/VisualStudio/2005-10-18/CommandTable" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <!--
+    Command ids must match Shell/PackageIds.cs (CommandIds). Every command is also registered as an IAction
+    (Actions/HostActions.cs) so Find Action / Alt+Enter list it; the menu handler only dispatches to the action.
+    Texts: the English default is here; the host sets the localized text (Chinese unless VS is English) at runtime in
+    BeforeQueryStatus, which is why every button has the TextChanges flag (Shell/CommandRouter.cs, Logic/Localization/Strings.cs).
+    The menu lives under Extensions > UEToVS and is always visible (restore IntelliSense must stay reachable
+    even for non-UE solutions); availability is decided in BeforeQueryStatus.
+  -->
+  <Extern href="stdidcmd.h" />
+  <Extern href="vsshlids.h" />
+
+  <Commands package="guidUEToVSHostPackage">
+    <Menus>
+      <Menu guid="guidUEToVSHostCmdSet" id="menuUEToVS" priority="0x0100" type="Menu">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpTopLevel" />
+        <Strings>
+          <ButtonText>UEToVS</ButtonText>
+        </Strings>
+      </Menu>
+    </Menus>
+
+    <Groups>
+      <Group guid="guidUEToVSHostCmdSet" id="grpTopLevel" priority="0x0100">
+        <Parent guid="guidVsExtensionsMenu" id="IDM_VS_MENU_EXTENSIONS" />
+      </Group>
+      <Group guid="guidUEToVSHostCmdSet" id="grpEngine" priority="0x0100">
+        <Parent guid="guidUEToVSHostCmdSet" id="menuUEToVS" />
+      </Group>
+      <Group guid="guidUEToVSHostCmdSet" id="grpIntelliSense" priority="0x0200">
+        <Parent guid="guidUEToVSHostCmdSet" id="menuUEToVS" />
+      </Group>
+      <Group guid="guidUEToVSHostCmdSet" id="grpDiagnostics" priority="0x0300">
+        <Parent guid="guidUEToVSHostCmdSet" id="menuUEToVS" />
+      </Group>
+      <Group guid="guidUEToVSHostCmdSet" id="grpSettings" priority="0x0400">
+        <Parent guid="guidUEToVSHostCmdSet" id="menuUEToVS" />
+      </Group>
+    </Groups>
+
+    <Buttons>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdRestartEngine" priority="0x0100" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpEngine" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <CommandFlag>DefaultDisabled</CommandFlag>
+        <Strings>
+          <ButtonText>Restart Engine</ButtonText>
+          <CanonicalName>UEToVS.RestartEngine</CanonicalName>
+          <LocCanonicalName>UEToVS.RestartEngine</LocCanonicalName>
+        </Strings>
+      </Button>
+
+      <Button guid="guidUEToVSHostCmdSet" id="cmdTakeOverIntelliSense" priority="0x0100" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpIntelliSense" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Take Over C++ IntelliSense</ButtonText>
+          <CanonicalName>UEToVS.TakeOverIntelliSense</CanonicalName>
+          <LocCanonicalName>UEToVS.TakeOverIntelliSense</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdRestoreIntelliSense" priority="0x0101" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpIntelliSense" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Restore Visual Studio C++ IntelliSense</ButtonText>
+          <CanonicalName>UEToVS.RestoreIntelliSense</CanonicalName>
+          <LocCanonicalName>UEToVS.RestoreIntelliSense</LocCanonicalName>
+        </Strings>
+      </Button>
+
+      <Button guid="guidUEToVSHostCmdSet" id="cmdOpenLogFolder" priority="0x0100" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpDiagnostics" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Open Log Folder</ButtonText>
+          <CanonicalName>UEToVS.OpenLogFolder</CanonicalName>
+          <LocCanonicalName>UEToVS.OpenLogFolder</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdOpenCurrentLog" priority="0x0101" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpDiagnostics" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Open Current Log</ButtonText>
+          <CanonicalName>UEToVS.OpenCurrentLog</CanonicalName>
+          <LocCanonicalName>UEToVS.OpenCurrentLog</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdCreateDiagnostics" priority="0x0102" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpDiagnostics" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Create Diagnostics Package</ButtonText>
+          <CanonicalName>UEToVS.CreateDiagnosticsPackage</CanonicalName>
+          <LocCanonicalName>UEToVS.CreateDiagnosticsPackage</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdShowPerformancePanel" priority="0x0103" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpDiagnostics" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Performance Panel</ButtonText>
+          <CanonicalName>UEToVS.PerformancePanel</CanonicalName>
+          <LocCanonicalName>UEToVS.PerformancePanel</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdShowComponentGallery" priority="0x0104" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpDiagnostics" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Component Gallery</ButtonText>
+          <CanonicalName>UEToVS.ShowComponentGallery</CanonicalName>
+          <LocCanonicalName>UEToVS.ShowComponentGallery</LocCanonicalName>
+        </Strings>
+      </Button>
+
+      <Button guid="guidUEToVSHostCmdSet" id="cmdSettings" priority="0x0100" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpSettings" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Settings...</ButtonText>
+          <CanonicalName>UEToVS.Settings</CanonicalName>
+          <LocCanonicalName>UEToVS.Settings</LocCanonicalName>
+        </Strings>
+      </Button>
+    </Buttons>
+  </Commands>
+
+  <Symbols>
+    <!-- Extensions menu, declared locally (not every VSSDK version exposes it in vsshlids.h). -->
+    <GuidSymbol name="guidVsExtensionsMenu" value="{d309f791-903f-11d0-9efc-00a0c911004f}">
+      <IDSymbol name="IDM_VS_MENU_EXTENSIONS" value="0x0091" />
+    </GuidSymbol>
+    <GuidSymbol name="guidUEToVSHostPackage" value="{b77c0841-5e27-4061-b4ec-364fc5d594a6}" />
+    <GuidSymbol name="guidUEToVSHostCmdSet" value="{aacea68e-71c0-4b88-baf0-43e34d9fa8a7}">
+      <IDSymbol name="menuUEToVS" value="0x1000" />
+      <IDSymbol name="grpTopLevel" value="0x1010" />
+      <IDSymbol name="grpEngine" value="0x1011" />
+      <IDSymbol name="grpIntelliSense" value="0x1012" />
+      <IDSymbol name="grpDiagnostics" value="0x1013" />
+      <IDSymbol name="grpSettings" value="0x1014" />
+      <IDSymbol name="cmdOpenLogFolder" value="0x0100" />
+      <IDSymbol name="cmdOpenCurrentLog" value="0x0101" />
+      <IDSymbol name="cmdCreateDiagnostics" value="0x0102" />
+      <IDSymbol name="cmdShowPerformancePanel" value="0x0104" />
+      <IDSymbol name="cmdRestartEngine" value="0x0110" />
+      <IDSymbol name="cmdTakeOverIntelliSense" value="0x0120" />
+      <IDSymbol name="cmdRestoreIntelliSense" value="0x0121" />
+      <IDSymbol name="cmdShowComponentGallery" value="0x0130" />
+      <IDSymbol name="cmdSettings" value="0x0140" />
+    </GuidSymbol>
+  </Symbols>
+</CommandTable>
