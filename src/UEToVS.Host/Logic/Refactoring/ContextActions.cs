@@ -17,6 +17,16 @@ namespace UEToVS.Host.Logic.Refactoring
         public const string ImplementVirtual = "uetovs.refactor.implementVirtual";
         public const string AddInclude = "uetovs.refactor.addInclude";
         public const string Rename = "uetovs.refactor.rename";
+
+        // ---- v0.4.5 refactoring batch 2 (Refactoring/Batch2/*, RefactorProviders2)
+        public const string ChangeSignature = "uetovs.refactor.changeSignature";
+        public const string MoveImplementation = "uetovs.refactor.moveImplementation";
+        public const string MoveImplementationClass = "uetovs.refactor.moveImplementationClass";
+        public const string AddForwardDeclaration = "uetovs.refactor.addForwardDeclaration";
+        public const string IntroduceVariable = "uetovs.refactor.introduceVariable";
+        public const string ExtractMethod = "uetovs.refactor.extractMethod";
+        public const string EncapsulateField = "uetovs.refactor.encapsulateField";
+        public const string GenerateGetterSetter = "uetovs.generate.getterSetter";
     }
 
     /// <summary>ActionContext.Properties keys used by the refactoring actions.</summary>
@@ -58,6 +68,25 @@ namespace UEToVS.Host.Logic.Refactoring
 
         /// <summary>v0.4.5: squiggles (UE0011 deprecated API, UE0012 naming, spelling) under the caret, for the Alt+Enter fixes.</summary>
         public List<CodeDiagnostic> Diagnostics { get; set; } = new List<CodeDiagnostic>();
+        // ---- v0.4.5 refactoring batch 2: selection and (lazy) text of the snapshot the context was computed for
+
+        /// <summary>Caret offset in <see cref="Text"/> (-1 when unknown).</summary>
+        public int CaretOffset { get; set; } = -1;
+
+        /// <summary>Selection offsets in <see cref="Text"/> (-1 when there is no selection).</summary>
+        public int SelectionStart { get; set; } = -1;
+
+        public int SelectionEnd { get; set; } = -1;
+
+        public bool HasSelection => SelectionStart >= 0 && SelectionEnd > SelectionStart;
+
+        /// <summary>Supplies the snapshot text on first use (providers that only need the engine answer never pay for it).</summary>
+        public Func<string> TextSource { get; set; }
+
+        private string _text;
+
+        /// <summary>Text of the snapshot (<see cref="Version"/>); null when unknown.</summary>
+        public string Text => _text ?? (_text = TextSource?.Invoke());
     }
 
     /// <summary>One entry of the Alt+Enter menu / light bulb: runs <see cref="ActionId"/> through the action hub with <see cref="Argument"/>.</summary>

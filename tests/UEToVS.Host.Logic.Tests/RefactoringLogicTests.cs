@@ -420,7 +420,7 @@ namespace UEToVS.Host.Logic.Tests
         public void RefactoringCommandsUseTheirIdRange()
         {
             var cmds = CommandCatalog.All.Where(c => c.Owner == CommandOwner.Refactoring).ToList();
-            Assert.Equal(3, cmds.Count);
+            Assert.Equal(3, cmds.Count(c => c.Id < 0x0710)); // v0.4.5 batch 2 lives in 0x0710-0x073F (RefactoringBatch2Tests)
             foreach (var c in cmds) Assert.InRange(c.Id, 0x0700, 0x07FF);
             Assert.Contains(cmds, c => c.VaKeys == "Alt+Enter");
         }
