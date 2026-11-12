@@ -41,7 +41,7 @@ namespace UEToVS.Host.Options
         [UiCategory(nameof(Strings.CatCppInsight))]
         [UiDisplayName(nameof(Strings.OptTakeover))]
         [UiDescription(nameof(Strings.OptTakeoverDesc))]
-        public bool IntelliSenseTakeover { get; set; } = false; // ADR-08: default on only once our own IntelliSense (M3) is complete
+        public bool IntelliSenseTakeover { get; set; } = true; // ADR-08: on by default since M3 (UEToVS provides completion, Quick Info, parameter info, colouring)
 
         [UiCategory(nameof(Strings.CatCppInsight))]
         [UiDisplayName(nameof(Strings.OptTakeoverMode))]
