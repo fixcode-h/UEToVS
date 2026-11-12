@@ -23,6 +23,27 @@ namespace UEToVS.Host.Logic.IntelliSense
                                  "'{0}' belongs to module {1}, which is not a dependency in {2}.Build.cs (include / link will fail)", A(0), A(1), A(2));
                 case CodeDiagnosticCodes.MissingGeneratedBody:
                     return Loc.F("{0} 类型 “{1}” 缺少 GENERATED_BODY()（UHT 会报错）", "{0} type '{1}' is missing GENERATED_BODY() (UHT will fail)", A(0), A(1));
+                case CodeDiagnosticCodes.GeneratedFunctionBody:
+                    return Loc.F("“{0}” 是 {1} UFUNCTION，函数体由 UHT 生成；请改为实现 “{0}_Implementation”（否则链接时重复定义）",
+                                 "'{0}' is a {1} UFUNCTION: UHT generates its body, implement '{0}_Implementation' instead (duplicate symbol at link time)", A(0), A(1));
+                case CodeDiagnosticCodes.MissingRepNotify:
+                    return A(3) == "not-ufunction"
+                        ? Loc.F("ReplicatedUsing 指定的 “{1}” 不是 UFUNCTION()（UHT 会报错）", "ReplicatedUsing function '{1}' must be a UFUNCTION() (UHT will fail)", A(0), A(1))
+                        : Loc.F("ReplicatedUsing 指定的 “{1}” 在 {2} 及其基类中不存在（UHT 会报错）", "ReplicatedUsing function '{1}' does not exist in {2} or its bases (UHT will fail)", A(0), A(1), A(2));
+                case CodeDiagnosticCodes.UnregisteredReplicatedProperty:
+                    return Loc.F("复制属性 “{0}” 没有在 {1}::GetLifetimeReplicatedProps 里用 DOREPLIFETIME 注册（运行时不会复制）",
+                                 "Replicated property '{0}' is not registered with DOREPLIFETIME in {1}::GetLifetimeReplicatedProps (it will not replicate)", A(0), A(1));
+                case CodeDiagnosticCodes.UnknownGameplayTag:
+                    return Loc.F("GameplayTag “{0}” 未定义（不在 DefaultGameplayTags.ini / Config/Tags / UE_DEFINE_GAMEPLAY_TAG 中）",
+                                 "Gameplay tag '{0}' is not defined (not in DefaultGameplayTags.ini, Config/Tags or UE_DEFINE_GAMEPLAY_TAG)", A(0));
+                case CodeDiagnosticCodes.UnknownAssetPath:
+                    return Loc.F("资产 “{0}” 不存在", "Asset '{0}' does not exist", A(0));
+                case CodeDiagnosticCodes.UnsupportedPropertyType:
+                    return Loc.F("UPROPERTY “{0}” 的类型 {1} 不被 UHT 支持", "UPROPERTY '{0}' has type {1}, which UHT does not support", A(0), A(1));
+                case CodeDiagnosticCodes.UnsupportedParameterType:
+                    return A(3) == "blueprint"
+                        ? Loc.F("参数 “{0}” 的类型 {1} 不能用于蓝图函数 {2}（UHT 会报错）", "Parameter '{0}' of type {1} is not supported by Blueprint in {2} (UHT will fail)", A(0), A(1), A(2))
+                        : Loc.F("参数 “{0}” 的类型 {1} 不能用于 UFUNCTION {2}（UHT 会报错）", "Parameter '{0}' of type {1} cannot be used in UFUNCTION {2} (UHT will fail)", A(0), A(1), A(2));
                 default:
                     return d.Message ?? d.Code ?? string.Empty;
             }

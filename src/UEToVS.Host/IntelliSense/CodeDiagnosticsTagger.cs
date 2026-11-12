@@ -308,6 +308,8 @@ namespace UEToVS.Host.IntelliSense
                 ("UE0001", items.Count(d => d.Code == CodeDiagnosticCodes.UnknownMember)),
                 ("UE0002", items.Count(d => d.Code == CodeDiagnosticCodes.MissingModuleDependency)),
                 ("UE0003", items.Count(d => d.Code == CodeDiagnosticCodes.MissingGeneratedBody)),
+                ("ueRules", string.Join(",", items.Where(d => string.CompareOrdinal(d.Code, CodeDiagnosticCodes.GeneratedFunctionBody) >= 0)
+                                                 .GroupBy(d => d.Code).OrderBy(g => g.Key).Select(g => g.Key + "=" + g.Count()))),
                 ("checked", v.Checked), ("uncertain", v.Uncertain), ("includeUncertain", _includeUncertain), ("includeCheckRan", includeRan),
                 ("engineMs", v.ElapsedMs), ("roundTripMs", r.ElapsedMs), ("totalMs", Math.Round(totalMs, 2)),
             };
