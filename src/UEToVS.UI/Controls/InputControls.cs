@@ -151,7 +151,7 @@ namespace UEToVS.UI.Controls
                     _box.ClearValue(Control.BackgroundProperty);
                     _box.ClearValue(Control.PaddingProperty);
                     _box.ClearValue(FrameworkElement.MinHeightProperty);
-                    _underline.Margin = new Thickness(-Padding.Left + 1, 0, -Padding.Right + 1, 0);
+                    _underline.Margin = new Thickness(-Padding.Left, 0, -Padding.Right, 0); // full inner width, on the bottom border
                 }
             }
         }
