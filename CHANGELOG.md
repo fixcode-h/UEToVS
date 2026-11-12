@@ -28,6 +28,9 @@
 - **UE 规则** — `UFUNCTION(BlueprintNativeEvent / Server / Client / NetMulticast)` 的 Foo 与 `Foo_Implementation` / `Foo_Validate`（WithValidation）互相跳转；转到实现列出派生类里的 override（类型则列出派生类型）
 - **查找引用** — 按名字查索引里的出现位置并合并未保存的缓冲区，再逐个按作用域过滤（不同类的同名成员不会混在一起），标出声明 / 定义 / 读 / 写 / 调用 / 类型使用，带行文本和所在函数；支持结果上限、取消、是否包含引擎代码
 - **类型层次、引用高亮、导航栏上下文、成员列表** — 基类 / 派生树（防环、深度与节点上限，未索引的基类按原文显示）；高亮只看当前文档、按文本版本缓存；导航栏给出外→内作用域和全文件声明；成员列表含继承成员与 GENERATED_BODY 注入成员，派生类 override 只保留最派生的
+- **UE 感知补全（Engine 端）** — 通用补全按 局部变量/参数 → 当前类及基类 → 外围命名空间 → 全局类型/函数/宏 → 关键字与 UE 代码片段 排序，前缀 + 驼峰匹配，近作用域、项目代码、UE 反射成员优先；`.` / `->` 成员补全会推断链式表达式、函数返回值、`TArray` / `TMap` 下标与元素、`TSharedPtr` / `TObjectPtr` / `TWeakObjectPtr` / `TUniquePtr`、`GetOwner()` / `GetWorld()`、委托的 `AddDynamic` / `Broadcast`；`X::` / `Super::` / 枚举值；`UCLASS / UPROPERTY / UFUNCTION / USTRUCT / UENUM / UINTERFACE(...)` 与 `meta=(...)` 里补说明符（已用的和互斥的不再出现）；`#include` 补模块 Public 下的相对路径；类体内 `virtual ` 后补可重写的基类虚函数并插入完整签名（含 BlueprintNativeEvent 的 `_Implementation`）；指针用了 `.` 或值用了 `->` 时给出 AccessorFix。每次补全写 `is.completion` 日志，超过 50 ms 记 Warn
+- **Quick Info / 参数信息 / 语义着色（Engine 端）** — Quick Info 显示格式化声明、`/** */` `///` `//` 文档注释、UE 反射摘要（含 meta）、宏的一层与完全展开、重载数；参数信息能正确定位嵌套括号、模板尖括号、字符串和 lambda 中的实参序号，列出全部重载并按实参个数选中、保留默认值；语义着色只算请求的行，按文本版本缓存，编辑后复用名字判定，区分 UE 类型 / UE 宏 / 说明符 / 虚函数 / 静态成员 / 参数 / 局部变量等，声明处带 Declaration
+- **UE 宏知识库补齐说明符表** — UCLASS / UINTERFACE / USTRUCT / UENUM / UMETA / UPARAM / UPROPERTY / UFUNCTION / UDELEGATE 的说明符与 meta 键，含说明、取值提示和互斥关系
 
 ### 改进
 - **索引记录继承关系** — 类的基类（含模板实参原文）和“基类 → 派生类”倒排表写入索引段；项目文件额外索引声明里出现的类型名（字段 / 参数 / 基类），查找引用能找到头文件里的用法
