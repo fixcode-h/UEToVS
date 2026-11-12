@@ -13,11 +13,9 @@ namespace UEToVS.Host.Logic.Localization
         /// <summary>Alt+Enter fixes (context actions; argument = the replacement / word).</summary>
         public const string ReplaceDeprecated = "uetovs.edit.replaceDeprecated";
         public const string FixNaming = "uetovs.edit.fixNaming";
-        public const string SpellingReplace = "uetovs.edit.spellingReplace";
-        public const string SpellingAddWord = "uetovs.edit.spellingAddWord";
     }
 
-    /// <summary>Texts of the v0.4.5 编辑体验 features (Surround With, inlay hints, deprecated API, naming, step filter, inline rename, clipboard history, spell check, #tags).</summary>
+    /// <summary>Texts of the v0.4.5 编辑体验 features (Surround With, inlay hints, deprecated API, naming, step filter, inline rename, clipboard history, #tags).</summary>
     public static class EditorFeatureStrings
     {
         // ---- commands
@@ -92,17 +90,6 @@ namespace UEToVS.Host.Logic.Localization
         public static string ClipboardEmpty => Loc.T("剪贴板历史是空的（在编辑器里复制或剪切后会记录在这里）", "The clipboard history is empty (text copied or cut in editors shows up here)");
         public static string ClipboardDisabled => Loc.T("多重剪贴板已在设置中关闭", "Clipboard history is turned off in the settings");
         public static string ClipboardEntry(int lines, int chars) => Loc.F("{0} 行 · {1} 字符", "{0} line(s) · {1} chars", lines, chars);
-
-        // ---- spell check
-        public static string Misspelled(string word, string suggestions) =>
-            string.IsNullOrEmpty(suggestions)
-                ? Loc.F("拼写：“{0}”可能拼错了", "Spelling: '{0}' may be misspelled", word)
-                : Loc.F("拼写：“{0}”可能拼错了，是否是：{1}", "Spelling: '{0}' may be misspelled; did you mean: {1}", word, suggestions);
-
-        public static string SpellingReplace(string word, string suggestion) => Loc.F("改为 {1}", "Change to {1}", word, suggestion);
-        public static string SpellingAddWord(string word) => Loc.F("把“{0}”加入用户词典", "Add '{0}' to the user dictionary", word);
-        public static string SpellingAdded(string word) => Loc.F("已加入用户词典：{0}", "Added to the user dictionary: {0}", word);
-        public static string GroupSpelling => Loc.T("拼写", "Spelling");
 
         // ---- #tags
         public static string HashtagsEmpty => Loc.T("已打开的文件的注释里没有 #tag（例如 // #todo 修复）", "No #tags in the comments of the open files (e.g. // #todo fix)");

@@ -27,13 +27,18 @@ namespace UEToVS.Host.Editing
                 ctx => SurroundWithFeature.ExecuteAsync(), ctx => ctx.ActiveDocumentPath != null, null, EditorFeatureStrings.KwSurround));
             registry.Register(new DelegateAction(EditorFeatureIds.ToggleInlayHints, EditorFeatureStrings.CmdToggleInlayHints, ActionCategory.Settings,
                 ctx => ToggleInlayHintsAsync(), null, null, EditorFeatureStrings.KwInlay));
+            registry.Register(new DelegateAction(EditorFeatureIds.ShowHashtags, EditorFeatureStrings.CmdShowHashtags, ActionCategory.Navigation,
+                ctx => HashtagsFeature.ShowAsync(), null, null, EditorFeatureStrings.KwHashtags));
+            registry.Register(new DelegateAction(EditorFeatureIds.PasteFromHistory, EditorFeatureStrings.CmdPasteFromHistory, ActionCategory.Refactoring,
+                ctx => ClipboardHistoryFeature.PasteAsync(), ctx => ctx.ActiveDocumentPath != null, null, EditorFeatureStrings.KwClipboard));
+            UEToVS.Host.Diagnostics.Safe.Execute(L, "editor.clipboard.init", ClipboardHistoryFeature.Initialize);
             // Alt+Enter fixes (offered by EditorFixProvider from the squiggles under the caret)
             registry.Register(new DelegateAction(EditorFeatureIds.ReplaceDeprecated, EditorFeatureStrings.GroupFix, ActionCategory.Fix,
                 ReplaceDeprecatedAsync, ctx => ctx.Get<DiagnosticFix>(RefactorKeys.Argument) != null, null));
             registry.Register(new DelegateAction(EditorFeatureIds.FixNaming, EditorFeatureStrings.GroupFix, ActionCategory.Fix,
                 FixNamingAsync, ctx => ctx.Get<DiagnosticFix>(RefactorKeys.Argument) != null, null));
             RefactoringFeature.Hub.Register(new EditorFixProvider());
-            L.Debug("editor.actions.registered", null, ("count", 4));
+            L.Debug("editor.actions.registered", null, ("count", 6));
         }
 
         private static Task ToggleInlayHintsAsync()

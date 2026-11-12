@@ -222,12 +222,6 @@ namespace UEToVS.Host.Logic.Settings
         /// <summary>Entries kept in the clipboard history.</summary>
         public int ClipboardHistorySize { get; set; } = 16;
 
-        /// <summary>Spell check English words in comments and string literals.</summary>
-        public bool SpellCheckEnabled { get; set; } = false;
-
-        /// <summary>User dictionary: words separated by spaces, commas or semicolons.</summary>
-        public string SpellCheckUserWords { get; set; } = string.Empty;
-
         /// <summary>#tag bookmarks: collect #tags written in comments of the open files.</summary>
         public bool HashtagsEnabled { get; set; } = true;
 

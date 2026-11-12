@@ -18,8 +18,6 @@ namespace UEToVS.Host.Logic.Settings
         public const string ClipboardSizeKey = "editor.clipboardHistorySize";
         public const string DeprecationKey = "diagnostics.deprecated";
         public const string NamingKey = "diagnostics.naming";
-        public const string SpellingKey = "spelling.enabled";
-        public const string SpellingWordsKey = "spelling.userWords";
         public const string HashtagsKey = "editor.hashtags";
         public const string StepFilterKey = "debug.stepFilter";
 
@@ -73,14 +71,6 @@ namespace UEToVS.Host.Logic.Settings
                 "检查当前文件声明的类型和 bool 成员的前缀（A / U / F / E / T / I / b），以“建议”提示，Alt+Enter 一键改名。只检查项目代码。",
                 "Checks the prefixes (A / U / F / E / T / I / b) of types and bool members declared in the current file and suggests a fix; Alt+Enter renames. Project code only.",
                 "false", gCheck, gCheckEn, "naming convention prefix 命名 规范 前缀"));
-            list.Add(D(category, SpellingKey, SettingKind.Bool, "注释拼写检查", "Comment spell check",
-                "只检查注释和字符串里的英文单词；当前文件里出现的标识符自动忽略。",
-                "Checks English words in comments and strings only; identifiers used in the file are ignored.",
-                "false", gCheck, gCheckEn, "spell spelling typo 拼写"));
-            list.Add(D(category, SpellingWordsKey, SettingKind.Text, "用户词典", "User dictionary",
-                "不当作拼写错误的单词，用空格或逗号分隔（Alt+Enter“加入词典”也会写到这里）。",
-                "Words never reported, separated by spaces or commas (Alt+Enter \"Add to dictionary\" writes here too).",
-                "", gCheck, gCheckEn, "spell dictionary 词典"));
 
             const string gDebug = "调试", gDebugEn = "Debugging";
             list.Add(D(category, StepFilterKey, SettingKind.Bool, "调试时跳过引擎小函数（Step Filter）", "Skip small engine functions when stepping",
@@ -98,8 +88,6 @@ namespace UEToVS.Host.Logic.Settings
             d[HashtagsKey] = B(s.HashtagsEnabled);
             d[DeprecationKey] = B(s.DeprecationHints);
             d[NamingKey] = B(s.NamingConventionCheck);
-            d[SpellingKey] = B(s.SpellCheckEnabled);
-            d[SpellingWordsKey] = s.SpellCheckUserWords ?? string.Empty;
             d[StepFilterKey] = B(s.DebugStepFilter);
         }
 
@@ -117,8 +105,6 @@ namespace UEToVS.Host.Logic.Settings
                 case HashtagsKey: s.HashtagsEnabled = PB(v); return true;
                 case DeprecationKey: s.DeprecationHints = PB(v); return true;
                 case NamingKey: s.NamingConventionCheck = PB(v); return true;
-                case SpellingKey: s.SpellCheckEnabled = PB(v); return true;
-                case SpellingWordsKey: s.SpellCheckUserWords = v ?? string.Empty; return true;
                 case StepFilterKey: s.DebugStepFilter = PB(v); return true;
                 default: return false;
             }
@@ -134,8 +120,6 @@ namespace UEToVS.Host.Logic.Settings
             d["hashtags"] = s.HashtagsEnabled;
             d["deprecationHints"] = s.DeprecationHints;
             d["namingConventionCheck"] = s.NamingConventionCheck;
-            d["spellCheck"] = s.SpellCheckEnabled;
-            d["spellCheckUserWords"] = (s.SpellCheckUserWords ?? string.Empty).Length;
             d["debugStepFilter"] = s.DebugStepFilter;
             d["inlayParameterNames"] = s.InlayParameterNames;
             d["inlayAutoTypes"] = s.InlayAutoTypes;
