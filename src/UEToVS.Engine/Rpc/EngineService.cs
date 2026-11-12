@@ -300,6 +300,13 @@ namespace UEToVS.Engine.Rpc
                     ? Task.FromResult(new InlayHintsResponse { TextVersion = request?.Document?.TextVersion ?? 0 })
                     : _host.Scheduler.RunAsync(WorkPriority.Visible, "rpc.getInlayHints", t => _host.IntelliSense.GetInlayHints(request, t), c),
                 ct, ("file", request?.Document?.FilePath), ("from", request?.StartLine), ("to", request?.EndLine), ("version", request?.Document?.TextVersion));
+        // ---- v0.4.5 UE editor link (UeCodeService): the user is waiting (test runner, double-clicked log line) ----
+
+        public Task<AutomationTestsResponse> FindAutomationTestsAsync(AutomationTestsRequest request, CancellationToken ct) =>
+            InvokeAsync("rpc.findAutomationTests", c => _host.UeCode.FindAutomationTestsAsync(request, c), ct, ("includeEngine", request?.IncludeEngine));
+
+        public Task<LogSitesResponse> FindLogSitesAsync(LogSitesRequest request, CancellationToken ct) =>
+            InvokeAsync("rpc.findLogSites", c => _host.UeCode.FindLogSitesAsync(request, c), ct, ("category", request?.Category), ("includeEngine", request?.IncludeEngine));
 
         private static LocalRpcException Error(int code, string message) => new LocalRpcException(message) { ErrorCode = code };
 

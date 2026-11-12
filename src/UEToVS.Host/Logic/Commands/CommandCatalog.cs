@@ -148,6 +148,9 @@ namespace UEToVS.Host.Logic.Commands
         public const int LiveCoding = 0x0360;
         public const int GenerateProjectFiles = 0x0361;
         public const int InstallEditorPlugin = 0x0362;
+        // ---- v0.4.5 UE editor link (0x0370–0x037F): Link/LinkFeature.cs
+        public const int UeLogWindow = 0x0370;
+        public const int UeTestRunner = 0x0371;
 
         // ---- settings / windows / toolbar (0x0400–0x04FF)
         public const int Toolbar = 0x0400;
@@ -200,6 +203,9 @@ namespace UEToVS.Host.Logic.Commands
             public const string LiveCoding = "uetovs.unreal.liveCoding";
             public const string GenerateProjectFiles = "uetovs.unreal.generateProjectFiles";
             public const string InstallEditorPlugin = "uetovs.unreal.installEditorPlugin";
+            // ---- v0.4.5 UE editor link
+            public const string UeLogWindow = "uetovs.unreal.logWindow";
+            public const string UeTestRunner = "uetovs.unreal.testRunner";
 
             // host (mirror of Shell/ActionIds)
             public const string FindAction = "uetovs.findAction";
@@ -272,6 +278,9 @@ namespace UEToVS.Host.Logic.Commands
             C(M1, LiveCoding, "LiveCoding", ActionIds.LiveCoding, "Live Coding（UE 编辑器）", "Live Coding (Unreal Editor)", "unreal", Gl, "Ctrl+Alt+F11", "Ctrl+Alt+F11", "Ctrl+Alt+F11"),
             C(M1, GenerateProjectFiles, "GenerateProjectFiles", ActionIds.GenerateProjectFiles, "生成 Visual Studio 项目文件", "Generate Visual Studio Project Files", "unreal", Gl, "Ctrl+Shift+Alt+U, G", null, null),
             C(M1, InstallEditorPlugin, "InstallEditorPlugin", ActionIds.InstallEditorPlugin, "安装 UEToVSLink 编辑器插件", "Install UEToVSLink Editor Plugin", "unreal", Gl, "Ctrl+Shift+Alt+U, E", null, null),
+            // ---- v0.4.5 UE editor link (Link/LinkFeature.cs binds them)
+            C(M1, UeLogWindow, "UeLogWindow", ActionIds.UeLogWindow, "UE 日志窗口", "Unreal Log Window", "unreal", Gl, "Ctrl+Shift+Alt+U, J", null, null),
+            C(M1, UeTestRunner, "UeTestRunner", ActionIds.UeTestRunner, "UE 自动化测试", "Unreal Automation Tests", "unreal", Gl, "Ctrl+Shift+Alt+U, Z", null, null),
 
             // tools / settings / diagnostics (host)
             C(H, ShowPerformancePanel, "PerformancePanel", ActionIds.ShowPerformancePanel, "性能面板", "Performance Panel", "tools", Gl, "Ctrl+Shift+Alt+U, P", null, null),

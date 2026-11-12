@@ -101,6 +101,13 @@ namespace UEToVS.Contracts
 
         /// <summary>Inlay hints (parameter names before literal arguments, deduced auto types) for a line range of a document.</summary>
         Task<InlayHintsResponse> GetInlayHintsAsync(InlayHintsRequest request, CancellationToken ct);
+        // ---- v0.4.5 UE editor link (see UeCode.cs): on-demand scans of the project sources ----
+
+        /// <summary>Automation tests declared in the project (IMPLEMENT_*_AUTOMATION_TEST, BEGIN_DEFINE_SPEC / DEFINE_SPEC).</summary>
+        Task<AutomationTestsResponse> FindAutomationTestsAsync(AutomationTestsRequest request, CancellationToken ct);
+
+        /// <summary>Declarations, definitions and UE_LOG / UE_CLOG / UE_LOGFMT uses of one log category (with decoded formats).</summary>
+        Task<LogSitesResponse> FindLogSitesAsync(LogSitesRequest request, CancellationToken ct);
     }
 
     /// <summary>Notifications engine → host.</summary>

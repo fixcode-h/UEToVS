@@ -600,6 +600,25 @@
           <LocCanonicalName>UEToVS.InstallEditorPlugin</LocCanonicalName>
         </Strings>
       </Button>
+      <!-- ===== v0.4.5 UE editor link (0x0370-0x037F; Link/LinkFeature.cs) ===== -->
+      <Button guid="guidUEToVSHostCmdSet" id="cmdUeLogWindow" priority="0x0110" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpM1Unreal" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Unreal Log Window</ButtonText>
+          <CanonicalName>UEToVS.UeLogWindow</CanonicalName>
+          <LocCanonicalName>UEToVS.UeLogWindow</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdUeTestRunner" priority="0x0111" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpM1Unreal" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Unreal Automation Tests</ButtonText>
+          <CanonicalName>UEToVS.UeTestRunner</CanonicalName>
+          <LocCanonicalName>UEToVS.UeTestRunner</LocCanonicalName>
+        </Strings>
+      </Button>
 
       <!-- M2 navigation (ids 0x0200-0x02FF; Navigation/NavigationActions.cs). Also placed in the editor context submenu. -->
       <Button guid="guidUEToVSHostCmdSet" id="cmdGoToDefinition" priority="0x0100" type="Button">
@@ -1059,6 +1078,9 @@
     <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdShowBookmarks" editor="guidVSStd97" key1="VK_F2" mod1="Control Shift" />
     <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdGenerateProjectFiles" editor="guidVSStd97" key1="U" mod1="Control Shift Alt" key2="G" />
     <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdInstallEditorPlugin" editor="guidVSStd97" key1="U" mod1="Control Shift Alt" key2="E" />
+    <!-- v0.4.5 UE editor link -->
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdUeLogWindow" editor="guidVSStd97" key1="U" mod1="Control Shift Alt" key2="J" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdUeTestRunner" editor="guidVSStd97" key1="U" mod1="Control Shift Alt" key2="Z" />
     <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdShowPerformancePanel" editor="guidVSStd97" key1="U" mod1="Control Shift Alt" key2="P" />
     <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdSettings" editor="guidVSStd97" key1="U" mod1="Control Shift Alt" key2="S" />
     <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdRestartEngine" editor="guidVSStd97" key1="U" mod1="Control Shift Alt" key2="R" />
@@ -1169,6 +1191,9 @@
       <IDSymbol name="cmdLiveCoding" value="0x0360" />
       <IDSymbol name="cmdGenerateProjectFiles" value="0x0361" />
       <IDSymbol name="cmdInstallEditorPlugin" value="0x0362" />
+      <!-- v0.4.5 UE editor link (Link/LinkFeature.cs) -->
+      <IDSymbol name="cmdUeLogWindow" value="0x0370" />
+      <IDSymbol name="cmdUeTestRunner" value="0x0371" />
       <IDSymbol name="menuUEToVSContext" value="0x1001" />
       <IDSymbol name="grpNavigation" value="0x1020" />
       <IDSymbol name="grpCodeWinUEToVS" value="0x1021" />

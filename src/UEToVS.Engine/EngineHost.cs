@@ -51,6 +51,7 @@ namespace UEToVS.Engine
             IntelliSense = new IntelliSense.IntelliSenseService(Index.Backend, Index.Files, () => Index.Phase == IndexPhase.Ready, Navigation.Documents,
                 assets: Index.Assets);
             Refactoring = new Refactoring.RefactoringService(Index.Backend, Index.Files, Navigation.Documents, () => Index.Phase == IndexPhase.Ready);
+            UeCode = new UeCode.UeCodeService(Index); // v0.4.5 editor link: tests / log sites, scanned on demand
             Changes = new FileChangeTracker(batch => Index.ApplyChangesAsync(batch, _shutdown.Token));
             Watchdog = new Watchdog { Context = () => QueueContext() };
             Performance = new PerformanceMonitor();
@@ -72,6 +73,9 @@ namespace UEToVS.Engine
 
         /// <summary>M4 refactoring queries (read-only; the host edits).</summary>
         public Refactoring.RefactoringService Refactoring { get; }
+
+        /// <summary>v0.4.5: automation tests and log categories in the project sources (on demand, cached per file).</summary>
+        public UeCode.UeCodeService UeCode { get; }
         public FileChangeTracker Changes { get; }
         public Watchdog Watchdog { get; }
         public PerformanceMonitor Performance { get; }
