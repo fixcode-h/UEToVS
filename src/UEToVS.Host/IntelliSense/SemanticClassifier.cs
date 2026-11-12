@@ -23,6 +23,7 @@ namespace UEToVS.Host.IntelliSense
     [ContentType(EditorContentTypes.Cpp)]
     [TagType(typeof(IClassificationTag))]
     [TextViewRole(PredefinedTextViewRoles.Document)]
+    [TextViewRole(Search.EditorCodePreview.Role)] // Search Everywhere / results code preview
     internal sealed class SemanticClassificationTaggerProvider : IViewTaggerProvider
     {
         [Import]
@@ -144,7 +145,8 @@ namespace UEToVS.Host.IntelliSense
 
         private void OnBufferChanged(object sender, TextContentChangedEventArgs e)
         {
-            if (Enabled) Schedule(EditDelay);
+            // A preview buffer only changes when it shows another file: colour it as soon as it is laid out.
+            if (Enabled) Schedule(Search.EditorCodePreview.IsPreviewBuffer(_view.TextBuffer) ? ScrollDelay : EditDelay);
         }
 
         private void Schedule(TimeSpan delay)

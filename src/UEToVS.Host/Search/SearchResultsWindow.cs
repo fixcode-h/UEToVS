@@ -37,6 +37,7 @@ namespace UEToVS.Host.Search
                     Column = r.Line >= 0 ? r.Column : 0,
                 },
             };
+            Safe.Execute(L, "search.results.preview.attach", () => EditorCodePreview.Attach(_panel.Preview));
             _panel.ItemInvoked += (s, e) => Safe.Execute(L, "search.results.invoke", () =>
             {
                 var row = e.Item;

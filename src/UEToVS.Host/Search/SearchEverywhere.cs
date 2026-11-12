@@ -77,6 +77,8 @@ namespace UEToVS.Host.Search
             if (_palette != null) return;
             _source = new SearchEverywhereSource(_package, this);
             _palette = new CommandPalette<SearchRow>("uetovs.searchEverywhere", _source, new Size(820, 520));
+            // Real editor view for the preview (VS + UEToVS colouring); the built-in plain preview stays the fallback.
+            Safe.Execute(L, "search.preview.attach", () => EditorCodePreview.Attach(_palette.Preview));
         }
 
         internal void SelectTab(SearchTab tab) => _palette?.SelectTab(SearchEverywhereModel.TabId(tab));
