@@ -34,7 +34,7 @@
 - **关闭解决方案时保存未落盘的索引改动** — Engine 正常退出时先把内存里尚未压实的增量（最近编辑过的文件）写成一个小的附加段（只写增量，不重写整个工程段，上限 5 秒），离线 MCP 立即能查到最新结果；宿主停止 Engine 时最多等 7 秒（后台进行，不阻塞 VS 关闭）。日志 `index.shutdown.flush`（文件数、耗时）/ `index.shutdown.flush.timeout`、`index.delta.persisted`
 
 ### Bug 修复
-- **每次启动都“正在从 X.uproject 中扫描 Blueprint”** — 这是 VS 自带的 Unreal Engine 集成，不是 UEToVS。设置 > 常规里的说明改成准确的关闭方法：项目 > Configure Tools for Unreal Engine，关掉 Blueprint Support 后重启 VS
+- **每次启动都“正在从 X.uproject 中扫描 Blueprint”** — 这是 VS 自带的 Unreal Engine 集成（Blueprint Support），不是 UEToVS。设置 > 常规新增“启用 VS 自带的蓝图扫描”，默认关闭：打开 UE 解决方案时 UEToVS 找到 VS 的这个开关并关掉（修改前备份，打开设置即恢复），下次启动 VS 生效。找到哪些开关记在日志 `vsBlueprint.discovered`；没找到时设置页会提示手动在 项目 > Configure Tools for Unreal Engine 里关闭
 - **UE 反射宏转到定义报“找不到定义（ue-macro）”** — `GENERATED_BODY`、`UENUM`、`UCLASS` 等现在跳到宏的 `#define`（如 ObjectMacros.h）；`GENERATED_BODY` 这类宏还会列出 UHT 在 `.generated.h` 里为这一行生成的展开。
 - **在 UEToVS 窗口里粘贴，内容却进了代码** — 设置窗口、Search Everywhere 等 UEToVS 弹窗是独立的浮动窗口，VS 会先把 Ctrl+V / Ctrl+C / Ctrl+X / Ctrl+Z / Ctrl+Y / Ctrl+A / Delete 当成自己的编辑命令，发给最后一个代码编辑器（例如在“Agent / API”页粘贴密钥，结果粘到了代码里）。现在 UEToVS 窗口处于激活状态时，这些命令只作用于窗口里当前的输入框，不会再进入代码编辑器（日志 `shell.editRouter.exec`）
 - **在解决方案资源管理器中定位后文件不居中** — VS 只把定位到的文件滚到刚好可见（常在列表最底部）。现在展开并选中后，会把它滚到视图中间；本来就在中间三分之一以内时不跳动（日志 `solutionExplorer.center`）

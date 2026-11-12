@@ -46,6 +46,9 @@ namespace UEToVS.Host.Logic.Settings
         /// <summary>Turn off VS's C++ background code analysis while a UE solution is open (off by default; independent of the takeover).</summary>
         public bool DisableBackgroundCodeAnalysis { get; set; } = false;
 
+        /// <summary>VS's own Unreal Engine "Blueprint Support" (scans every Blueprint on each solution load). Off by default: UEToVS switches it off (backed up).</summary>
+        public bool VsBlueprintSupport { get; set; } = false;
+
         // ---- 日志 ----
         public int LogRetentionDays { get; set; } = 7;
 

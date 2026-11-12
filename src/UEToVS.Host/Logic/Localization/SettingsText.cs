@@ -48,12 +48,14 @@ namespace UEToVS.Host.Logic.Localization
         public static string IntelliSenseNotTakenOver => Loc.T("未接管（VS 自带 C++ IntelliSense 正常工作）", "Not taken over (VS C++ IntelliSense active)");
         public static string LogDirectory(string dir) => dir ?? Loc.T("（尚未打开 UE 解决方案）", "(no UE solution open yet)");
         public static string VsUnrealIntegration => Loc.T(
-            "每次打开解决方案时状态栏的“正在从 X.uproject 中扫描 Blueprint”来自 VS 自带的 Unreal Engine 集成，不是 UEToVS（UEToVS 只列出资产文件名，不读取 .uasset 内容）。" +
-            "关闭方法：VS 菜单 项目 > Configure Tools for Unreal Engine，在打开的页面里关掉“Blueprint Support”，然后重启 VS。" +
-            "关掉后 VS 的 Code Lens 蓝图引用也会停用；资产搜索、跳转到资产仍由 UEToVS 提供。微软没有公开这个开关的存储位置，所以 UEToVS 不自动修改它。",
-            "The status bar message “Scanning Blueprints from X.uproject” on every solution load comes from VS's own Unreal Engine integration, not from UEToVS (UEToVS only lists asset file names and never reads .uasset contents). " +
-            "To turn it off: in VS choose Project > Configure Tools for Unreal Engine, switch off “Blueprint Support” on that page, then restart VS. " +
-            "This also turns off VS's Code Lens Blueprint references; asset search and go-to-asset keep working through UEToVS. Microsoft does not document where this switch is stored, so UEToVS does not change it for you.");
+            "状态栏的“正在从 X.uproject 中扫描 Blueprint”来自 VS 自带的 Unreal Engine 集成（项目 > Configure Tools for Unreal Engine 里的 Blueprint Support），不是 UEToVS；UEToVS 只列出资产文件名，不读取 .uasset。" +
+            "上面的“启用 VS 自带的蓝图扫描”关闭时，UEToVS 会找到这个开关并关掉（修改前备份），下次启动 VS 生效；关掉后 VS 自己的 Code Lens 蓝图引用也会停用。",
+            "The status bar message “Scanning Blueprints from X.uproject” comes from VS's own Unreal Engine integration (Blueprint Support under Project > Configure Tools for Unreal Engine), not from UEToVS; UEToVS only lists asset file names and never reads .uasset files. " +
+            "With “Enable VS's own Blueprint scan” above turned off, UEToVS finds that switch and turns it off (backed up first); it takes effect from the next VS start and also turns off VS's Code Lens Blueprint references.");
+        public static string VsBlueprintOptionsFound(string list) => Loc.F("本机找到的 VS 蓝图开关：{0}", "VS Blueprint options found on this machine: {0}", list);
+        public static string VsBlueprintOptionsNone => Loc.T(
+            "本机没有找到 VS 蓝图开关，UEToVS 无法自动关闭。请在 项目 > Configure Tools for Unreal Engine 里手动关掉 Blueprint Support。",
+            "No VS Blueprint option was found on this machine, so UEToVS cannot turn it off. Turn off Blueprint Support under Project > Configure Tools for Unreal Engine.");
 
         // ---- keymap page
         public static string KeymapIntro => Loc.T(

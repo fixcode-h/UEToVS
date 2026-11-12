@@ -128,7 +128,11 @@ namespace UEToVS.Host.Settings
                 case HostSettingsSchema.WindowActions.LogDirectory:
                     return SettingsText.LogDirectory(HostLog.LogDirectory);
                 case HostSettingsSchema.WindowActions.VsUnrealIntegration:
-                    return SettingsText.VsUnrealIntegration;
+                {
+                    var found = _package.IntelliSense?.VsBlueprintOptions;
+                    if (found == null) return SettingsText.VsUnrealIntegration;
+                    return SettingsText.VsUnrealIntegration + "\n" + (found.Count == 0 ? SettingsText.VsBlueprintOptionsNone : SettingsText.VsBlueprintOptionsFound(string.Join(", ", found)));
+                }
                 default:
                     return null;
             }

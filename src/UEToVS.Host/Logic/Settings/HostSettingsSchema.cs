@@ -121,6 +121,10 @@ namespace UEToVS.Host.Logic.Settings
                 "打开 UE 解决方案时关闭 VS 的 C++ 后台代码分析（修改前备份，可恢复）。", "Turns VS's C++ background code analysis off for UE solutions (backed up, restorable).", "false", gCpp, gCppEn));
             list.Add(A(General, "intelliSense.toggle", WindowActions.ToggleIntelliSense, "立即接管 / 恢复", "Take over / restore now",
                 "根据当前状态接管或恢复 VS 自带的 C++ IntelliSense。", "Takes over or restores VS's own C++ IntelliSense, depending on the current state.", gCpp, gCppEn));
+            list.Add(D(General, "vs.blueprintSupport", SettingKind.Bool, "启用 VS 自带的蓝图扫描", "Enable VS's own Blueprint scan",
+                "VS 自带的 Unreal Engine 集成每次打开解决方案都会“从 X.uproject 中扫描 Blueprint”。关闭时 UEToVS 会把它关掉（修改前备份，重新打开即恢复），下次启动 VS 生效。",
+                "VS's own Unreal Engine integration scans every Blueprint (\"Scanning Blueprints from X.uproject\") on each solution load. When off, UEToVS switches it off (backed up; turning this on restores it); takes effect from the next VS start.",
+                "false", gCpp, gCppEn));
             list.Add(A(General, "vs.unrealIntegration", WindowActions.VsUnrealIntegration, "VS 自带的 Unreal Engine 集成", "VS's built-in Unreal Engine integration",
                 null, null, gCpp, gCppEn, SettingKind.Info));
 
@@ -392,6 +396,7 @@ namespace UEToVS.Host.Logic.Settings
                     ["intelliSense.mode"] = s.IntelliSenseTakeoverMode.ToString(),
                     ["intelliSense.disableDatabase"] = B(s.DisableDatabase),
                     ["intelliSense.disableBackgroundCodeAnalysis"] = B(s.DisableBackgroundCodeAnalysis),
+                    ["vs.blueprintSupport"] = B(s.VsBlueprintSupport),
                     ["toolbar.show"] = B(s.ShowToolbar),
                     ["keyboard.doubleShift"] = B(s.DoubleShiftEnabled),
                     ["keyboard.doubleShiftIntervalMs"] = I(s.DoubleShiftIntervalMs),
@@ -490,6 +495,7 @@ namespace UEToVS.Host.Logic.Settings
                         case "intelliSense.mode": s.IntelliSenseTakeoverMode = PE(v, IntelliSenseTakeoverMode.UnrealSolutionOnly); break;
                         case "intelliSense.disableDatabase": s.DisableDatabase = PB(v); break;
                         case "intelliSense.disableBackgroundCodeAnalysis": s.DisableBackgroundCodeAnalysis = PB(v); break;
+                        case "vs.blueprintSupport": s.VsBlueprintSupport = PB(v); break;
                         case "toolbar.show": s.ShowToolbar = PB(v); break;
                         case "keyboard.doubleShift": s.DoubleShiftEnabled = PB(v); break;
                         case "keyboard.doubleShiftIntervalMs": s.DoubleShiftIntervalMs = PI(v, 300); break;
