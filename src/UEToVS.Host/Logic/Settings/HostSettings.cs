@@ -29,7 +29,7 @@ namespace UEToVS.Host.Logic.Settings
 
         public int EngineRequestTimeoutSeconds { get; set; } = 30;
 
-        public bool IntelliSenseTakeover { get; set; } = true;
+        public bool IntelliSenseTakeover { get; set; } = false; // ADR-08: default on only once our own IntelliSense (M3) is complete
 
         public IntelliSenseTakeoverMode IntelliSenseTakeoverMode { get; set; } = IntelliSenseTakeoverMode.Global;
 
