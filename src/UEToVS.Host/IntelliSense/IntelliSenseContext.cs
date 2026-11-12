@@ -62,6 +62,26 @@ namespace UEToVS.Host.IntelliSense
         /// <summary>Parameter info: VS's own lists the same signatures until the takeover, so ours starts with it (or scope All).</summary>
         public static bool SignatureHelpActive => IsUnrealSolution && Settings.SignatureHelpEnabled && ProvidesAllCompletions;
 
-        public static bool ColoringActive => IsUnrealSolution && Settings.SemanticColoring;
+        public static bool ColoringActive => IsUnrealSolution && Settings.SemanticColoring && !ColoringSuspended;
+
+        /// <summary>
+        /// Session toggle of the "toggle semantic coloring" command (the persistent switch is HostSettings.SemanticColoring,
+        /// edited in the settings dialog). Raises <see cref="ColoringToggled"/> so open editors repaint.
+        /// </summary>
+        public static bool ColoringSuspended
+        {
+            get => _coloringSuspended;
+            set
+            {
+                if (_coloringSuspended == value) return;
+                _coloringSuspended = value;
+                ColoringToggled?.Invoke(null, EventArgs.Empty);
+            }
+        }
+
+        private static bool _coloringSuspended;
+
+        /// <summary>Raised on the UI thread when <see cref="ColoringSuspended"/> changes.</summary>
+        public static event EventHandler ColoringToggled;
     }
 }
