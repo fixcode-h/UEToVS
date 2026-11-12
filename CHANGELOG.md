@@ -6,6 +6,11 @@
 - 节内用 `### 新功能`、`### 改进`、`### Bug 修复`、`### 注意` 等小标题，条目写成 `- **短标题** — 说明`。
 - 改了 `src/` 的 PR 必须在最上面加一个新版本节（PR 检查会验证），这样每次合并都会出一个带更新日志的包。
 
+## v0.3.6
+
+### 改进
+- **Agent 优先用 UEToVS 搜代码和资源** — 重写 MCP 服务器的 instructions：明确要求在 Grep/Glob/读整个文件之前先用 UEToVS，按“要找什么 → 用哪个工具”列出全部工具（包括 `search_lua` / `search_lua_files` / `get_lua_outline`），并写清楚哪些情况仍该用 grep（字符串、注释、日志文本、.ini/.uplugin/.Build.cs 内容、Lua 函数的调用处）以及结果为空时先看 `index_status`。各工具描述开头加上“什么时候用它代替 grep/Glob”，方便 Claude Code 等按描述挑工具。instructions 控制在 2 KB 内，避免被客户端截断
+
 ## v0.3.5
 
 ### 新功能

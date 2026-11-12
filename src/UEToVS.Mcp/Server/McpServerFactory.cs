@@ -25,15 +25,22 @@ namespace UEToVS.Mcp.Server
 
         private static readonly Logger L = Log.For("Mcp.Server");
 
+        // Kept under ~2000 chars: some clients (Claude Code) truncate server instructions beyond 2 KB.
         public const string Instructions =
-            "UEToVS indexes this Unreal Engine C++ solution (project, plugins, engine source) and its assets. " +
-            "Prefer these tools over grep/glob/reading whole files when looking for C++ symbols, files or Blueprint/assets: they answer from a " +
-            "prebuilt index in milliseconds and return exact file:line locations. search_symbols (fuzzy/exact, kinds, UE markers) → " +
-            "go_to_definition / get_file_outline / get_members / get_type_hierarchy / find_references for details; search_files for file names; " +
-            "search_assets for Blueprints, maps, materials; search_lua / search_lua_files / get_lua_outline for the project's Lua scripts " +
-            "(UnLua etc., when Lua script folders are set in the UEToVS settings). Lines and columns are 1-based. Lists are paged (limit/offset, hasMore/nextOffset); " +
-            "scope='all' includes engine code. Read the source with your file tools around the returned line when you need the body. " +
-            "Keep using grep for string literals, comments and config (.ini) contents: those are not indexed.";
+            "UEToVS indexes this Unreal Engine project: its C++ (project, plugins, engine source), its assets (.uasset/.umap) and, when " +
+            "configured, its Lua scripts (UnLua/slua). USE THESE TOOLS FIRST, before Grep/Glob/find or reading whole files, whenever you look for " +
+            "code or assets in this project: they answer from a prebuilt index in milliseconds, return exact file:line, and skip the millions of " +
+            "engine lines that make grep slow and noisy.\n" +
+            "Which tool: C++ class/function/property/macro by (part of) its name -> search_symbols; where is X defined -> go_to_definition; " +
+            "who uses/calls X -> find_references; base/derived classes -> get_type_hierarchy; fields/UFUNCTIONs/UPROPERTYs of a type -> get_members; " +
+            "structure of a .h/.cpp -> get_file_outline; a source file by name -> search_files (instead of Glob); Blueprints, widgets, maps, " +
+            "materials, data tables -> search_assets; Lua function/method/class/module table -> search_lua; a Lua script by name or require path " +
+            "-> search_lua_files; structure of a Lua script -> get_lua_outline.\n" +
+            "Then read only the lines you need around the returned line. Lines/columns are 1-based; lists are paged (limit/offset, hasMore/nextOffset); " +
+            "scope='all' adds engine code and content.\n" +
+            "Use grep only for what is not indexed: string literals, comments, log text, .ini/config/.uplugin/.Build.cs contents, and usages of " +
+            "Lua functions (Lua references are not indexed). If results look empty or stale, call index_status (indexing may still be running, or " +
+            "no Lua folder is set) and fall back to grep.";
 
         public static McpServerOptions CreateOptions(ToolInvoker invoker)
         {
@@ -135,6 +142,9 @@ Lua scripts are indexed separately when Lua script folders are set (UEToVS setti
 | A Lua script by name or require path | `search_lua_files` (`UI.MainPanel`) |
 | Structure of a Lua script | `get_lua_outline` (path or module name) |
 | Is the index complete? | `index_status` |
+
+Use these before Grep/Glob or reading whole files. Grep is still the tool for what is not indexed: string literals, comments,
+log text, `.ini`/config/`.uplugin`/`.Build.cs` contents, and usages of Lua functions (Lua references are not indexed).
 
 Conventions: 1-based `line`/`col`; absolute paths; omitted fields mean default (no `container` = global scope,
 `origin` absent = project code); `def: true` marks definitions (bodies); paged lists return `hasMore`/`nextOffset`.
