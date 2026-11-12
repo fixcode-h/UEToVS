@@ -20,6 +20,19 @@ namespace UEToVS.UI
         public static string CommonAuto => Loc.T("自动", "Auto");
         public static string CommonLoading => Loc.T("正在加载…", "Loading…");
         public static string CommonMore => Loc.T("更多", "More");
+        // ---- path list / path input (settings: Lua script folders, engine paths)
+        public static string PathAddFolder => Loc.T("添加文件夹…", "Add folder…");
+        public static string PathBrowse => Loc.T("浏览…", "Browse…");
+        public static string PathBrowseRow => Loc.T("选择其他文件夹…", "Pick another folder…");
+        public static string PathRemove => Loc.T("删除", "Remove");
+        public static string PathEditName => Loc.T("路径", "Path");
+        public static string PathEditing => Loc.T("编辑中 · 回车确认", "Editing · Enter to confirm");
+        public static string PathRelativeTag(object baseName) => Loc.F("相对 {0}", "Relative to {0}", baseName);
+        public static string PathAbsoluteTag => Loc.T("绝对路径", "Absolute");
+        public static string PathMissing => Loc.T("⚠ 文件夹不存在", "⚠ Folder not found");
+        public static string PathPickTitle => Loc.T("选择文件夹", "Select folder");
+        public static string PathListEmpty => Loc.T("还没有文件夹，点击右上角的“添加文件夹…”添加。", "No folders yet; use “Add folder…” at the top right.");
+        public static string PathListHint => Loc.T("双击一行可直接编辑；旧配置里用 ; 分隔的路径会自动拆成多行。", "Double-click a row to edit it; paths separated by ';' in older settings are split into rows.");
         public static string SearchPlaceholder => Loc.T("输入以搜索", "Type to search");
         public static string SearchHistory => Loc.T("历史记录 (Alt+↑/↓)", "History (Alt+↑/↓)");
         public static string ListEmpty => Loc.T("没有结果", "No results");
@@ -49,39 +62,57 @@ namespace UEToVS.UI
         public static string SettingsTitle => Loc.T("外观", "Appearance");
         public static string SettingsSectionStyle => Loc.T("风格与密度", "Style and density");
         public static string SettingsPreset => Loc.T("界面风格", "Style");
-        public static string SettingsPresetVs2026 => Loc.T("VS 2026", "VS 2026");
+        public static string SettingsPresetVs2026 => Loc.T("标准", "Standard");
         public static string SettingsPresetCompact => Loc.T("紧凑", "Compact");
         public static string SettingsPresetComfortable => Loc.T("宽松", "Comfortable");
-        public static string SettingsFontScale => Loc.T("字号缩放 (%)", "Font scale (%)");
-        public static string SettingsRowHeight => Loc.T("列表行高 (px)", "Row height (px)");
+        public static string SettingsFontScale => Loc.T("字号缩放", "Font scale");
+        public static string SettingsRowHeight => Loc.T("列表行高", "Row height");
         public static string SettingsRadiusPopup => Loc.T("弹窗圆角", "Popup radius");
         public static string SettingsRadiusControl => Loc.T("按钮圆角", "Button radius");
         public static string SettingsRadiusBadge => Loc.T("徽章圆角", "Badge radius");
-        public static string SettingsSpacing => Loc.T("间距缩放 (%)", "Spacing (%)");
+        public static string SettingsSpacing => Loc.T("间距缩放", "Spacing");
         public static string SettingsSectionColor => Loc.T("颜色", "Colors");
         public static string SettingsAccent => Loc.T("强调色", "Accent color");
         public static string SettingsAccentFollowVs => Loc.T("跟随 VS", "Follow VS");
         public static string SettingsAccentCustom => Loc.T("自定义", "Custom");
-        public static string SettingsMatch => Loc.T("匹配高亮样式", "Match highlight");
+        public static string SettingsMatch => Loc.T("匹配高亮", "Match highlight");
         public static string SettingsMatchBold => Loc.T("加粗", "Bold");
         public static string SettingsMatchBackground => Loc.T("底色", "Background");
         public static string SettingsMatchUnderline => Loc.T("下划线", "Underline");
         public static string SettingsMatchAccent => Loc.T("强调色文字", "Accent text");
-        public static string SettingsBadges => Loc.T("徽章颜色（留空 = 按主题派生）", "Badge colors (empty = derived from theme)");
+        public static string SettingsBadges => Loc.T("徽章颜色", "Badge colors");
         public static string SettingsSectionMotion => Loc.T("弹窗与动画", "Popups and animation");
         public static string SettingsShadow => Loc.T("弹窗阴影", "Popup shadow");
         public static string SettingsChrome => Loc.T("弹窗外框", "Popup frame");
         public static string SettingsChromeLayered => Loc.T("精确圆角", "Exact corners");
         public static string SettingsChromeNative => Loc.T("系统 (DWM)", "System (DWM)");
         public static string SettingsAnimations => Loc.T("动画", "Animations");
-        public static string SettingsAnimationMs => Loc.T("动画时长 (ms)", "Animation duration (ms)");
+        public static string SettingsAnimationMs => Loc.T("动画时长", "Animation duration");
         public static string SettingsSectionPreview => Loc.T("预览面板", "Preview pane");
         public static string SettingsPreviewVisible => Loc.T("默认显示预览", "Show preview by default");
         public static string SettingsPreviewPosition => Loc.T("预览位置", "Preview position");
         public static string SettingsPreviewPositionBottom => Loc.T("下方", "Bottom");
         public static string SettingsPreviewPositionRight => Loc.T("右侧", "Right");
+        public static string SettingsRadius => Loc.T("圆角", "Corners");
+        public static string SettingsRadiusPopupShort => Loc.T("弹窗", "Popup");
+        public static string SettingsRadiusControlShort => Loc.T("按钮", "Button");
+        public static string SettingsRadiusBadgeShort => Loc.T("徽章", "Badge");
+        public static string SettingsPresetDesc => Loc.T("控件高度和间距的整体预设", "Preset for control heights and spacing");
+        public static string SettingsFontScaleDesc => Loc.T("相对 VS 环境字号", "Relative to the VS environment font size");
+        public static string SettingsRowHeightDesc => Loc.T("搜索结果等列表的行高", "Height of list rows such as search results");
+        public static string SettingsSpacingDesc => Loc.T("行间距、内边距统一放大或缩小", "Scales row gaps and padding together");
+        public static string SettingsRadiusDesc => Loc.T("弹窗 / 按钮 / 徽章，单位 px", "Popup / button / badge, in px");
+        public static string SettingsAccentDesc => Loc.T("选中项、主按钮、焦点下划线", "Selection, primary buttons, focus underline");
+        public static string SettingsMatchDesc => Loc.T("搜索结果里命中的字符", "Matched characters in search results");
+        public static string SettingsBadgesDesc => Loc.T("留空 = 按主题自动派生", "Empty = derived from the theme");
+        public static string SettingsShadowDesc => Loc.T("弹窗下方的柔和阴影", "Soft shadow under popups");
+        public static string SettingsChromeDesc => Loc.T("精确圆角需要分层窗口；系统外框由 DWM 绘制", "Exact corners use a layered window; the system frame is drawn by DWM");
+        public static string SettingsPreviewVisibleDesc => Loc.T("Search Everywhere 打开时是否显示预览", "Whether Search Everywhere opens with the preview");
+        public static string SampleButtonPrimary => Loc.T("主按钮", "Primary");
+        public static string SampleButtonSecondary => Loc.T("次按钮", "Secondary");
+        public static string SampleButtonText => Loc.T("文字按钮", "Text");
         public static string SettingsLivePreview => Loc.T("实时预览", "Live preview");
-        public static string SettingsSampleTitle => Loc.T("示例", "Sample");
+        public static string SettingsSampleTitle => Loc.T("预览", "Preview");
         public static string PerfEngineMemory => Loc.T("Engine 内存", "Engine memory");
         public static string PerfHostMemory => Loc.T("VS 内扩展内存", "In-VS memory");
         public static string PerfCpu => Loc.T("CPU", "CPU");
@@ -154,11 +185,18 @@ namespace UEToVS.UI
         /// Calls <paramref name="apply"/> now and whenever the UI language changes while <paramref name="owner"/> is
         /// loaded (subscribed on Loaded, unsubscribed on Unloaded, so no leak through the static event).
         /// Language changes while unloaded are picked up on the next Loaded.
+        /// With <paramref name="onlyWhenChanged"/> the Loaded pass is skipped when the language is still the one last
+        /// applied (for expensive relabels such as the settings window, which otherwise built its page twice per open).
         /// </summary>
-        public static void Track(FrameworkElement owner, Action apply)
+        public static void Track(FrameworkElement owner, Action apply, bool onlyWhenChanged = false)
         {
             if (owner == null || apply == null) return;
-            void Run() => Theming.Ui.Safe("ui.loc.apply", apply);
+            UiLanguage applied = Loc.Language;
+            void Run()
+            {
+                applied = Loc.Language;
+                Theming.Ui.Safe("ui.loc.apply", apply);
+            }
             void OnChanged()
             {
                 var d = owner.Dispatcher;
@@ -169,7 +207,7 @@ namespace UEToVS.UI
             bool subscribed = false;
             owner.Loaded += (s, e) =>
             {
-                Run();
+                if (!onlyWhenChanged || applied != Loc.Language) Run();
                 if (!subscribed) { Loc.LanguageChanged += OnChanged; subscribed = true; }
             };
             owner.Unloaded += (s, e) =>

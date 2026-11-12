@@ -65,6 +65,7 @@ namespace UEToVS.UI.Theming
         public static readonly ComponentResourceKey AccentHover = Key(TokenNames.AccentHover);
         public static readonly ComponentResourceKey AccentPressed = Key(TokenNames.AccentPressed);
         public static readonly ComponentResourceKey AccentSubtle = Key(TokenNames.AccentSubtle);
+        public static readonly ComponentResourceKey AccentBorder = Key(TokenNames.AccentBorder);
         public static readonly ComponentResourceKey SelectionBackground = Key(TokenNames.SelectionBackground);
         public static readonly ComponentResourceKey SelectionForeground = Key(TokenNames.SelectionForeground);
         public static readonly ComponentResourceKey SelectionSecondary = Key(TokenNames.SelectionSecondary);
@@ -103,6 +104,10 @@ namespace UEToVS.UI.Theming
         public static readonly ComponentResourceKey SegmentTrack = Key(TokenNames.SegmentTrack);
         public static readonly ComponentResourceKey SelectionIndicator = Key(TokenNames.SelectionIndicator);
         public static readonly ComponentResourceKey SurfaceNav = Key(TokenNames.SurfaceNav);
+        public static readonly ComponentResourceKey TextTertiary = Key(TokenNames.TextTertiary);
+        public static readonly ComponentResourceKey Divider = Key(TokenNames.Divider);
+        public static readonly ComponentResourceKey SegmentSelected = Key(TokenNames.SegmentSelected);
+        public static readonly ComponentResourceKey NavSelected = Key(TokenNames.NavSelected);
 
         // ---- numbers (double)
         public static readonly ComponentResourceKey FontSizeBody = Key(TokenNames.FontSizeBody);
@@ -113,6 +118,7 @@ namespace UEToVS.UI.Theming
         public static readonly ComponentResourceKey FontSizeDisplay = Key(TokenNames.FontSizeDisplay);
         public static readonly ComponentResourceKey FontSizeInput = Key(TokenNames.FontSizeInput);
         public static readonly ComponentResourceKey FontSizeCode = Key(TokenNames.FontSizeCode);
+        public static readonly ComponentResourceKey FontSizePageTitle = Key(TokenNames.FontSizePageTitle);
         public static readonly ComponentResourceKey RowHeight = Key(TokenNames.RowHeight);
         public static readonly ComponentResourceKey RowHeaderHeight = Key(TokenNames.RowHeaderHeight);
         public static readonly ComponentResourceKey IconSize = Key(TokenNames.IconSize);
@@ -143,6 +149,8 @@ namespace UEToVS.UI.Theming
         public static readonly ComponentResourceKey ThicknessPopupPadding = Key("Thickness.PopupPadding");
         public static readonly ComponentResourceKey FontFamilyUi = Key("FontFamily.Ui");
         public static readonly ComponentResourceKey FontFamilyCode = Key("FontFamily.Code");
+        /// <summary>Serif display face for page titles (Georgia, CJK falls back to the UI face).</summary>
+        public static readonly ComponentResourceKey FontFamilyDisplay = Key("FontFamily.Display");
         public static readonly ComponentResourceKey MatchFontWeight = Key("Match.FontWeight");
         public static readonly ComponentResourceKey MatchDecorations = Key("Match.Decorations");
 

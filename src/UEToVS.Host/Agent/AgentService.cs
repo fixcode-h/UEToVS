@@ -52,6 +52,12 @@ namespace UEToVS.Host.Agent
         public string LastVsError { get; private set; }
         public int RegisteredCount { get; private set; }
 
+        /// <summary>Port the gateway runs on (the configured one, or 47811 when Ollama already has 11434).</summary>
+        public int ActivePort { get; private set; } = AgentApiConfig.DefaultPort;
+
+        /// <summary>True when the default port 11434 was taken by another program and the gateway moved to 47811.</summary>
+        public bool PortFellBack { get; private set; }
+
         /// <summary>Package load: read the files, start the gateway when models are enabled, refresh VS's registration.</summary>
         public Task InitializeAsync() => Task.Run(() =>
         {
@@ -89,10 +95,29 @@ namespace UEToVS.Host.Agent
         {
             var routes = config.Routes();
             _gateway.Update(config);
-            if (routes.Count > 0) _gateway.Start(config.GatewayPort);
+            int port = config.GatewayPort;
+            bool fellBack = false;
+            if (routes.Count > 0)
+            {
+                // 11434 is Ollama's port: if a real Ollama already listens there, move to 47811 instead of failing.
+                port = AgentApiConfig.ChoosePort(config.GatewayPort, p => !(_gateway.IsRunning && _gateway.Port == p) && PortInUse(p), out fellBack);
+                if (!_gateway.Start(port) && port == AgentApiConfig.DefaultPort)
+                {
+                    fellBack = true;
+                    port = AgentApiConfig.FallbackPort;
+                    _gateway.Start(port);
+                }
+            }
             else _gateway.Stop();
-            var previous = previousGatewayUrl == null ? Array.Empty<string>() : new[] { previousGatewayUrl };
-            LastVsOutcome = VsByokConfig.Apply(VsConfigPath, config.GatewayUrl, routes, previous, out string error);
+            if (fellBack) L.Warn("agent.port.fallback", "Port 11434 is used by another program (probably Ollama); the gateway uses 47811", ("port", port));
+            ActivePort = port;
+            PortFellBack = fellBack;
+            // Every URL our models may have been registered under before (port change, fallback) is cleaned up.
+            var previous = new List<string> { AgentApiConfig.GatewayUrlFor(AgentApiConfig.DefaultPort), AgentApiConfig.GatewayUrlFor(AgentApiConfig.FallbackPort) };
+            if (previousGatewayUrl != null) previous.Add(previousGatewayUrl);
+            string url = AgentApiConfig.GatewayUrlFor(port);
+            previous.RemoveAll(u => string.Equals(u, url, StringComparison.OrdinalIgnoreCase));
+            LastVsOutcome = VsByokConfig.Apply(VsConfigPath, url, routes, previous, out string error);
             LastVsError = error;
             RegisteredCount = routes.Count;
             if (LastVsOutcome == VsByokOutcome.Failed) L.Warn("agent.vs.register.failed", error, ("file", VsConfigPath));
@@ -105,6 +130,20 @@ namespace UEToVS.Host.Agent
         {
             string key = string.IsNullOrEmpty(typedKey) ? _secrets.Get(api.Id) : typedKey;
             return AgentApiClient.ListModelsAsync(_probe, api, key, ct);
+        }
+
+        private static bool PortInUse(int port)
+        {
+            try
+            {
+                foreach (var ep in System.Net.NetworkInformation.IPGlobalProperties.GetIPGlobalProperties().GetActiveTcpListeners())
+                    if (ep.Port == port) return true;
+            }
+            catch (System.Net.NetworkInformation.NetworkInformationException ex)
+            {
+                L.Debug("agent.port.probe.failed", ex.Message, ("port", port));
+            }
+            return false;
         }
 
         public void Dispose()

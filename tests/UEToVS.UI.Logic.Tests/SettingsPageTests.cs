@@ -68,7 +68,7 @@ namespace UEToVS.UI.Logic.Tests
     public class SettingsPageLayoutTests
     {
         [Fact]
-        public void GroupsAre24ApartAndCards4Apart()
+        public void GroupsAre22ApartAndCards4Apart()
         {
             Assert.Equal(4, SettingsPageLayout.CardGap);
             // the visible gap between the last card of a group and the next header = card margin + header top margin

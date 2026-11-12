@@ -12,6 +12,23 @@ namespace UEToVS.Host.Logic.Localization
         public static string Cancel => Loc.T("取消", "Cancel");
         public static string ResetDefaults => Loc.T("恢复默认", "Restore defaults");
         public static string ResetConfirm => Loc.T("已把本页恢复为默认值（点击“应用”或“确定”后生效）。", "This page was reset to defaults (takes effect on Apply / OK).");
+        public static string ResetPage => Loc.T("恢复本页默认", "Reset this page");
+        public static string PendingChanges(int n) => Loc.F("● {0} 项未应用", "● {0} unapplied", n);
+
+        /// <summary>One-line description under each settings page title.</summary>
+        public static string PageDescription(string categoryId) => categoryId switch
+        {
+            "general" => Loc.T("引擎、IntelliSense 接管、工具栏、快捷操作和更新。", "Engine, IntelliSense takeover, toolbar, shortcuts and updates."),
+            "appearance" => Loc.T("颜色、圆角、密度和字体。修改即时预览，点击“应用”后保存。", "Colors, corners, density and fonts. Changes preview live and are saved on Apply."),
+            "indexing" => Loc.T("C++、蓝图和 Lua 索引的范围、线程数和存放位置。", "Scope, threads and location of the C++, Blueprint and Lua indexes."),
+            "keymap" => Loc.T("UEToVS 命令的快捷键；和 VS 冲突时 UEToVS 优先（原绑定已备份）。", "Shortcuts of UEToVS commands; UEToVS wins conflicts with VS (originals backed up)."),
+            "navigation" => Loc.T("跳转、搜索和引用高亮。", "Go to, search and reference highlighting."),
+            "intellisense" => Loc.T("补全、悬停信息和语义着色。", "Completion, Quick Info and semantic coloring."),
+            "agent" => Loc.T("配置 OpenAI 兼容（Chat Completions）的 API 和密钥，从接口获取模型；勾选的模型会出现在 VS 自带的 Copilot 聊天里。另有给 AI Agent 用的 MCP 服务。", "OpenAI-compatible (Chat Completions) APIs and keys; enabled models show up in Visual Studio's Copilot Chat. Also the MCP server for AI agents."),
+            "logging" => Loc.T("日志级别、保留时间和位置（JSON 行格式，方便分析问题）。", "Log level, retention and location (JSON lines, easy to analyse)."),
+            "performance" => Loc.T("性能面板和采样。", "Performance panel and sampling."),
+            _ => null,
+        };
         public static string NoMatches(string q) => Loc.F("没有与“{0}”匹配的设置", "No settings match “{0}”", q);
         public static string Unsaved => Loc.T("有未应用的修改", "Unapplied changes");
         public static string Saved => Loc.T("已应用", "Applied");
@@ -52,6 +69,12 @@ namespace UEToVS.Host.Logic.Localization
             "上面的“启用 VS 自带的蓝图扫描”关闭时，UEToVS 会找到这个开关并关掉（修改前备份），下次启动 VS 生效；关掉后 VS 自己的 Code Lens 蓝图引用也会停用。",
             "The status bar message “Scanning Blueprints from X.uproject” comes from VS's own Unreal Engine integration (Blueprint Support under Project > Configure Tools for Unreal Engine), not from UEToVS; UEToVS only lists asset file names and never reads .uasset files. " +
             "With “Enable VS's own Blueprint scan” above turned off, UEToVS finds that switch and turns it off (backed up first); it takes effect from the next VS start and also turns off VS's Code Lens Blueprint references.");
+        public static string UpdateBusy => Loc.T("正在检查更新…", "Checking for updates…");
+        public static string UpdateUpToDate(string v) => Loc.F("已是最新版本（v{0}）", "You have the latest version (v{0})", v);
+        public static string UpdateCheckFailed(string why) => Loc.F("检查更新失败：{0}", "Update check failed: {0}", why);
+        public static string UpdateDownloadFailed => Loc.T("下载的安装包不完整，请重试。", "The downloaded package is incomplete; please try again.");
+        public static string UpdateInstallerStarted(string v) => Loc.F(
+            "已下载 v{0} 并启动安装程序：请关闭 Visual Studio，安装完成后重新打开。", "Downloaded v{0} and started the installer: close Visual Studio, then reopen it after the install finishes.", v);
         public static string VsBlueprintOptionsFound(string list) => Loc.F("本机找到的 VS 蓝图开关：{0}", "VS Blueprint options found on this machine: {0}", list);
         public static string VsBlueprintOptionsNone => Loc.T(
             "本机没有找到 VS 蓝图开关，UEToVS 无法自动关闭。请在 项目 > Configure Tools for Unreal Engine 里手动关掉 Blueprint Support。",

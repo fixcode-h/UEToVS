@@ -85,11 +85,25 @@ namespace UEToVS.Host.Logic.Tests
             Assert.True((bool)store.Values["DisableDatabase"]);
             Assert.True(r.BackupWritten);
             Assert.Equal(7, r.Count(SettingOutcomeStatus.Changed));
-            Assert.Equal(2, r.Count(SettingOutcomeStatus.Missing)); // memberList, includeAutoComplete not on this "VS"
+            Assert.Equal(4, r.Count(SettingOutcomeStatus.Missing)); // memberList, includeAutoComplete, databaseUpdates, automaticUpdates not on this "VS"
             Assert.True(r.FullyTakenOver);
             Assert.Equal(TakeoverState.TakenOver, IntelliSenseTakeover.GetState(store, new TakeoverOptions()));
             var missing = r.Outcomes.Single(o => o.Key == CppIntelliSenseSettings.KeyMemberList);
             Assert.Equal(3, missing.MissingCandidates.Count);
+        }
+
+        [Fact]
+        public void BrowsingDatabaseUpdatesAreSwitchedOffWithTheDatabaseAndRestored()
+        {
+            var store = FakeStore.Vs2022().With("DisableDatabaseUpdates", false).With("DisableAutomaticUpdates", false);
+            var backup = new IntelliSenseBackup();
+            var r = Apply(store, backup);
+            Assert.True((bool)store.Values["DisableDatabaseUpdates"]);
+            Assert.True((bool)store.Values["DisableAutomaticUpdates"]);
+            Assert.Equal(9, r.Count(SettingOutcomeStatus.Changed));
+            IntelliSenseTakeover.Restore(store, backup);
+            Assert.False((bool)store.Values["DisableDatabaseUpdates"]);
+            Assert.False((bool)store.Values["DisableAutomaticUpdates"]);
         }
 
         [Fact]

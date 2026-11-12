@@ -35,6 +35,8 @@ namespace UEToVS.Host.Settings
         IndexStatusInput IndexStatus();
         /// <summary>Custom page content (外观, 快捷键), or null.</summary>
         ISettingsCustomPage CreateCustomPage(string categoryId);
+        /// <summary>Folder of the open .uproject (relative path settings resolve against it); null when none is open.</summary>
+        string ProjectDirectory { get; }
     }
 
     /// <summary>A page with its own editor (appearance panel, keymap). Apply/Cancel/Reset follow the window's buttons.</summary>
@@ -66,7 +68,7 @@ namespace UEToVS.Host.Settings
         private readonly IReadOnlyList<SettingDescriptor> _schema;
         private Dictionary<string, string> _committed;
         private Dictionary<string, string> _working;
-        private readonly StackPanel _nav = new StackPanel { Margin = new Thickness(8, 0, 8, 8) };
+        private readonly StackPanel _nav = new StackPanel { Margin = new Thickness(10, 0, 10, 8) };
         private readonly ContentControl _page = new ContentControl { Focusable = false };
         private readonly SearchInput _search = new SearchInput(false);
         private readonly UiText _status = new UiText((string)null, TextVariant.Secondary) { VerticalAlignment = VerticalAlignment.Center };
@@ -93,14 +95,15 @@ namespace UEToVS.Host.Settings
             _search.InputBox.Placeholder = SettingsText.SearchPlaceholder;
             _search.TextChanged += (s, q) => Safe.Execute(L, "settings.search", () => { ShowPage(); RebuildNav(); });
 
-            var left = new DockPanel { Width = 232 };
-            var searchHost = new Border { Child = _search, Padding = new Thickness(12, 12, 12, 10) };
+            _search.RightContent = new Kbd("Ctrl+F") { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0), IsHitTestVisible = false };
+            var left = new DockPanel { Width = SettingsPageLayout.NavWidth };
+            var searchHost = new Border { Child = _search, Padding = new Thickness(10, 12, 10, 10) };
             DockPanel.SetDock(searchHost, Dock.Top);
             left.Children.Add(searchHost);
             left.Children.Add(new UiScrollViewer { Content = _nav, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled });
             var leftHost = new Border { Child = left, BorderThickness = new Thickness(0, 0, 1, 0) };
             leftHost.Bind(Border.BackgroundProperty, Tokens.SurfaceNav);
-            leftHost.Bind(Border.BorderBrushProperty, Tokens.BorderSubtle);
+            leftHost.Bind(Border.BorderBrushProperty, Tokens.Divider);
 
             var footer = BuildFooter();
             var right = new DockPanel { LastChildFill = true };
@@ -124,7 +127,7 @@ namespace UEToVS.Host.Settings
                 ShowPage();
                 RebuildNav();
                 UpdateStatus();
-            }));
+            }), onlyWhenChanged: true);
             _infoTimer.Tick += (s, e) => Safe.Execute(L, "settings.info.refresh", RefreshInfo);
             Loaded += (s, e) => Safe.Execute(L, "settings.loaded", () => { _infoTimer.Start(); _search.InputBox.Focus(); });
             Closing += (s, e) => Safe.Execute(L, "settings.closing", () =>
@@ -163,6 +166,23 @@ namespace UEToVS.Host.Settings
             string.IsNullOrWhiteSpace(q) || c.TitleZh.IndexOf(q, StringComparison.OrdinalIgnoreCase) >= 0 || c.TitleEn.IndexOf(q, StringComparison.OrdinalIgnoreCase) >= 0
             || _schema.Any(d => d.Category == c.Id && SettingsModel.Matches(d, q));
 
+        private static System.Windows.Media.Geometry IconFor(string id)
+        {
+            switch (id)
+            {
+                case HostSettingsSchema.General: return SettingsIcons.General;
+                case HostSettingsSchema.Appearance: return SettingsIcons.Appearance;
+                case HostSettingsSchema.Indexing: return SettingsIcons.Index;
+                case HostSettingsSchema.Keymap: return SettingsIcons.Keymap;
+                case HostSettingsSchema.Navigation: return SettingsIcons.Navigation;
+                case HostSettingsSchema.IntelliSense: return SettingsIcons.Code;
+                case HostSettingsSchema.Agent: return SettingsIcons.Agent;
+                case HostSettingsSchema.Logging: return SettingsIcons.Logs;
+                case HostSettingsSchema.Performance: return SettingsIcons.Performance;
+                default: return SettingsIcons.General;
+            }
+        }
+
         private void RebuildNav()
         {
             _nav.Children.Clear();
@@ -170,41 +190,10 @@ namespace UEToVS.Host.Settings
             foreach (var c in HostSettingsSchema.Categories)
             {
                 var cat = c;
-                bool match = CategoryMatches(c, q);
                 bool selected = string.IsNullOrWhiteSpace(q) && c.Id == _category;
-                var text = new UiText(c.Title(English), selected ? TextVariant.Strong : TextVariant.Body) { VerticalAlignment = VerticalAlignment.Center };
-                // Fluent NavigationView: 3x16 accent pill + selection fill on the selected item; hover = subtle fill only
-                // (kept distinct so a hovered item never looks selected).
-                var indicator = new Border { Width = 3, Height = 16, CornerRadius = new CornerRadius(1.5), Margin = new Thickness(0, 0, 10, 0), VerticalAlignment = VerticalAlignment.Center };
-                indicator.Bind(Border.BackgroundProperty, Tokens.SelectionIndicator);
-                indicator.Visibility = selected ? Visibility.Visible : Visibility.Hidden;
-                var row = new StackPanel { Orientation = Orientation.Horizontal };
-                row.Children.Add(indicator);
-                row.Children.Add(text);
-                var item = new Border { Child = row, Padding = new Thickness(2, 0, 8, 0), Margin = new Thickness(0, 1, 0, 1), Cursor = Cursors.Hand, Focusable = true, FocusVisualStyle = null };
-                item.MinHeight = 32;
-                item.Bind(Border.CornerRadiusProperty, Tokens.CornerRadiusControl);
-                if (selected) item.Bind(Border.BackgroundProperty, Tokens.SelectionBackground);
-                else item.Background = Brushes.Transparent;
-                item.Opacity = match ? 1 : 0.45;
-                System.Windows.Automation.AutomationProperties.SetName(item, c.Title(English));
-                System.Windows.Automation.AutomationProperties.SetItemStatus(item, selected ? "selected" : string.Empty);
-                item.MouseEnter += (s, e) => { if (!selected) item.Bind(Border.BackgroundProperty, Tokens.SurfaceHover); };
-                item.MouseLeave += (s, e) => { if (!selected) item.Background = Brushes.Transparent; };
-                item.MouseLeftButtonUp += (s, e) => Safe.Execute(L, "settings.nav.click", () => ShowCategory(cat.Id), ("category", cat.Id));
-                // Fluent focus visual: a ring only when the item was reached with the keyboard.
-                // The 2px border is always there (transparent) so focusing never shifts the text.
-                item.BorderThickness = new Thickness(2);
-                item.BorderBrush = Brushes.Transparent;
-                item.GotKeyboardFocus += (s, e) =>
-                {
-                    if (InputManager.Current.MostRecentInputDevice is KeyboardDevice) item.Bind(Border.BorderBrushProperty, Tokens.FocusStroke);
-                };
-                item.LostKeyboardFocus += (s, e) => item.BorderBrush = Brushes.Transparent;
-                item.KeyDown += (s, e) => Safe.Execute(L, "settings.nav.key", () =>
-                {
-                    if (e.Key == Key.Enter || e.Key == Key.Space) { ShowCategory(cat.Id); e.Handled = true; }
-                });
+                // Warm-scheme rail: icon + label, neutral fill and a thin accent bar on the selected item.
+                var item = new SettingsNavItem(c.Title(English), IconFor(c.Id)) { IsSelected = selected, Dimmed = !CategoryMatches(c, q) };
+                item.Activated += (s, e) => Safe.Execute(L, "settings.nav.click", () => ShowCategory(cat.Id), ("category", cat.Id));
                 _nav.Children.Add(item);
             }
         }
@@ -214,8 +203,7 @@ namespace UEToVS.Host.Settings
         private static Thickness PageMargin => new Thickness(SettingsPageLayout.PagePaddingX, SettingsPageLayout.PagePaddingTop,
                                                              SettingsPageLayout.PagePaddingX, SettingsPageLayout.PagePaddingBottom);
 
-        private static UiText PageTitle(string text) =>
-            new UiText(text, TextVariant.Display) { Margin = new Thickness(0, 0, 0, SettingsPageLayout.TitleGapBelow) };
+        private static UIElement PageTitle(string text, string description = null) => new SettingsPageHeader(text, description);
 
         private static StackPanel PageBody() => new StackPanel
         {
@@ -319,7 +307,7 @@ namespace UEToVS.Host.Settings
             }
 
             var cat = HostSettingsSchema.Categories.First(c => c.Id == _category);
-            body.Children.Add(PageTitle(cat.Title(English)));
+            body.Children.Add(PageTitle(cat.Title(English), SettingsText.PageDescription(cat.Id)));
             var custom = GetCustomPage(_category);
             if (custom == null && IsCustomCategory(_category))
                 throw new InvalidOperationException(_customError ?? "custom page unavailable: " + _category);
@@ -327,6 +315,17 @@ namespace UEToVS.Host.Settings
             {
                 if (custom.Element == null) throw new InvalidOperationException("custom page has no content: " + _category);
                 DetachFromParent(custom.Element);
+                var pageRows = _schema.Where(d => d.Category == _category).ToList();
+                if (pageRows.Count > MaxRowsAboveCustomPage)
+                {
+                    // Many generated rows (外观 > 字体) + the custom editor: one scrolling page, the editor (with its
+                    // preview column) first, then the generated groups.
+                    body.Children.Add(custom.Element);
+                    AddRows(body, pageRows, false);
+                    _page.Content = new UiScrollViewer { Content = body, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
+                    RefreshInfo();
+                    return;
+                }
                 // Custom pages fill the remaining height (they scroll themselves); the page padding is shared.
                 var m = PageMargin;
                 var dock = new DockPanel { Margin = new Thickness(m.Left, m.Top, m.Right, 0), LastChildFill = true };
@@ -345,6 +344,9 @@ namespace UEToVS.Host.Settings
             _page.Content = new UiScrollViewer { Content = body, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
             RefreshInfo();
         }
+
+        /// <summary>Above this many generated rows a custom page scrolls together with them instead of filling the rest.</summary>
+        private const int MaxRowsAboveCustomPage = 4;
 
         private static bool IsCustomCategory(string id) => id == HostSettingsSchema.Appearance || id == HostSettingsSchema.Keymap || id == HostSettingsSchema.Agent;
 
@@ -369,25 +371,33 @@ namespace UEToVS.Host.Settings
             return p;
         }
 
-        /// <summary>Cards grouped under semibold group headers: more space above a header than below it.</summary>
+        /// <summary>
+        /// Settings of one group share one card (<see cref="SettingsGroup"/>): rows separated by hairlines, 22px between
+        /// groups. Full-card rows (the index status card) stand on their own.
+        /// </summary>
         private void AddRows(Panel body, IList<SettingDescriptor> rows, bool searchResults)
         {
             string group = null;
-            bool firstGroup = true;
+            SettingsGroup card = null;
             foreach (var d in rows)
             {
-                var g = d.Group(English);
-                if (!string.IsNullOrEmpty(g) && g != group)
+                var row = BuildRow(d);
+                if (row is IndexStatusCard)
+                {
+                    card = null;
+                    group = null;
+                    if (row is FrameworkElement fe) fe.Margin = new Thickness(0, 0, 0, SettingsPageLayout.GroupGap);
+                    body.Children.Add(row);
+                    continue;
+                }
+                var g = d.Group(English) ?? string.Empty;
+                if (card == null || g != group)
                 {
                     group = g;
-                    var header = new UiText(g, searchResults ? TextVariant.Strong : TextVariant.Subtitle)
-                    {
-                        Margin = new Thickness(0, SettingsPageLayout.GroupHeaderTop(firstGroup), 0, SettingsPageLayout.GroupHeaderGapBelow),
-                    };
-                    body.Children.Add(header);
-                    firstGroup = false;
+                    card = new SettingsGroup(g) { Margin = new Thickness(0, 0, 0, SettingsPageLayout.GroupGap) };
+                    body.Children.Add(card);
                 }
-                body.Children.Add(BuildRow(d));
+                card.Add(row);
             }
         }
 
@@ -407,15 +417,19 @@ namespace UEToVS.Host.Settings
                 return card;
             }
 
-            var labels = new StackPanel();
-            labels.Children.Add(new UiText(d.Title(English), TextVariant.Body) { TextWrapping = TextWrapping.Wrap, TextTrimming = TextTrimming.None });
-            var desc = d.Description(English);
-            if (!string.IsNullOrEmpty(desc))
-                labels.Children.Add(new UiText(desc, TextVariant.Secondary) { TextWrapping = TextWrapping.Wrap, TextTrimming = TextTrimming.None, Margin = new Thickness(0, 2, 0, 0) });
+            var row = new SettingsRow(d.Title(English), d.Description(English));
+            var labels = row.Labels;
             if (d.RequiresRestart)
-                labels.Children.Add(new UiText(SettingsText.RestartHint, TextVariant.Caption) { Margin = new Thickness(0, 2, 0, 0) });
-            // VS 2026 settings card: 8px corners, editor right-aligned and vertically centred at its natural size.
-            return new SettingsCard(labels, BuildEditor(d, labels));
+                labels.Children.Add(new UiText(SettingsText.RestartHint, TextVariant.Description) { Margin = new Thickness(0, 2, 0, 0) });
+            var editor = BuildEditor(d, labels);
+            // Path lists span the row under the title; everything else sits on the right.
+            if (editor is PathListEditor list)
+            {
+                row.Editor = list.AddButton;
+                row.Below = list;
+            }
+            else row.Editor = editor;
+            return row;
         }
 
         private string Value(SettingDescriptor d) => _working.TryGetValue(d.Key, out var v) && v != null ? v : d.Default;
@@ -442,9 +456,9 @@ namespace UEToVS.Host.Settings
                     return AutoNumberModel.SupportsAuto(d) ? BuildAutoNumber(d) : BuildNumber(d);
                 case SettingKind.Choice:
                 {
-                    var options = d.Options ?? Array.Empty<SettingOption>();
+                    var options = d.ResolveOptions(Value(d));
                     int index = Math.Max(0, options.ToList().FindIndex(o => string.Equals(o.Value, Value(d), StringComparison.OrdinalIgnoreCase)));
-                    if (options.Count <= 4)
+                    if (options.Count <= 4 && d.OptionsSource == null)
                     {
                         var seg = new SegmentedControl(options.Select(o => English ? o.TitleEn : o.TitleZh).ToArray());
                         seg.SelectedIndex = index;
@@ -458,12 +472,28 @@ namespace UEToVS.Host.Settings
                     return dd;
                 }
                 case SettingKind.Text:
-                case SettingKind.Path:
                 {
-                    var box = new TextInput { Text = Value(d), Width = 320, Placeholder = d.Kind == SettingKind.Path ? (English ? "(default)" : "（默认）") : string.Empty };
+                    var box = new TextInput { Text = Value(d), Width = 320 };
                     System.Windows.Automation.AutomationProperties.SetName(box, d.Title(English));
                     box.TextChanged += (s, e) => Safe.Execute(L, "settings.edit", () => Set(d, box.Text));
                     return box;
+                }
+                case SettingKind.Path:
+                {
+                    var path = new PathInput(English ? "Default" : "默认") { Text = Value(d), Width = 380, AccessibleName = d.Title(English), PickerTitle = d.Title(English) };
+                    path.TextChanged += (s, e) => Safe.Execute(L, "settings.edit", () => Set(d, path.Text));
+                    return path;
+                }
+                case SettingKind.PathList:
+                {
+                    var list = new PathListEditor(_host.ProjectDirectory) { Value = Value(d), PickerTitle = d.Title(English) };
+                    System.Windows.Automation.AutomationProperties.SetName(list, d.Title(English));
+                    list.ValueChanged += (s, e) => Safe.Execute(L, "settings.edit", () =>
+                    {
+                        L.Info("settings.pathList.changed", null, ("key", d.Key), ("count", list.Paths.Count));
+                        Set(d, list.Value);
+                    });
+                    return list;
                 }
                 case SettingKind.Action:
                 {
@@ -588,17 +618,19 @@ namespace UEToVS.Host.Settings
         private UIElement BuildFooter()
         {
             double w = SettingsPageLayout.FooterButtonMinWidth, gap = SettingsPageLayout.FooterButtonGap;
-            var reset = new UiButton(() => SettingsText.ResetDefaults, ButtonKind.Ghost) { MinWidth = w };
-            var cancel = new UiButton(() => SettingsText.Cancel) { MinWidth = w, Margin = new Thickness(gap, 0, 0, 0) };
+            var reset = new UiButton(() => SettingsText.ResetPage, ButtonKind.Ghost) { Margin = new Thickness(-12, 0, 0, 0) };
+            reset.Content = IconLabel(SettingsIcons.Reset, SettingsText.ResetPage);
+            UEToVS.UI.Strings.Track(reset, () => reset.Content = IconLabel(SettingsIcons.Reset, SettingsText.ResetPage));
+            var cancel = new UiButton(() => SettingsText.Cancel) { MinWidth = w };
             var apply = new UiButton(() => SettingsText.Apply) { MinWidth = w, Margin = new Thickness(gap, 0, 0, 0) };
             var ok = new UiButton(() => SettingsText.Ok, ButtonKind.Primary) { MinWidth = w, Margin = new Thickness(gap, 0, 0, 0) };
+            foreach (var b in new[] { reset, cancel, apply, ok }) b.Height = 32;
             reset.Click += (s, e) => Safe.Execute(L, "settings.reset", ResetPage);
             cancel.Click += (s, e) => Safe.Execute(L, "settings.cancel", () => { CancelCustomPages(); _closingByButton = true; Close(); });
             apply.Click += (s, e) => Safe.Execute(L, "settings.apply", Apply);
             ok.Click += (s, e) => Safe.Execute(L, "settings.ok", () => { Apply(); _closingByButton = true; Close(); });
 
             var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
-            cancel.Margin = new Thickness(0);
             buttons.Children.Add(cancel);
             buttons.Children.Add(apply);
             buttons.Children.Add(ok);
@@ -607,27 +639,37 @@ namespace UEToVS.Host.Settings
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             Grid.SetColumn(_status, 1);
-            _status.Margin = new Thickness(12, 0, 12, 0);
+            _status.Margin = new Thickness(8, 0, 12, 0);
+            _status.Variant = TextVariant.Description;
             _status.TextTrimming = TextTrimming.CharacterEllipsis;
             Grid.SetColumn(buttons, 2);
             grid.Children.Add(reset);
             grid.Children.Add(_status);
             grid.Children.Add(buttons);
-            // Separated from the scrolling page: own background (the rail's surface) and a 1px top divider.
             var host = new Border
             {
-                Child = grid, BorderThickness = new Thickness(0, 1, 0, 0),
-                Padding = new Thickness(SettingsPageLayout.PagePaddingX - 8, SettingsPageLayout.FooterPaddingY, 16, SettingsPageLayout.FooterPaddingY),
+                Child = grid, BorderThickness = new Thickness(0, 1, 0, 0), Height = SettingsPageLayout.FooterHeight,
+                Padding = new Thickness(SettingsPageLayout.PagePaddingX, 0, 20, 0),
             };
-            host.Bind(Border.BorderBrushProperty, Tokens.BorderSubtle);
-            host.Bind(Border.BackgroundProperty, Tokens.SurfaceNav);
+            host.Bind(Border.BorderBrushProperty, Tokens.Divider);
+            host.Bind(Border.BackgroundProperty, Tokens.SurfaceSunken);
             return host;
+        }
+
+        private static UIElement IconLabel(System.Windows.Media.Geometry icon, string text)
+        {
+            var path = new System.Windows.Shapes.Path { Data = icon, Width = 14, Height = 14, Stretch = Stretch.None, StrokeThickness = 1.3, Margin = new Thickness(0, 0, 6, 0), VerticalAlignment = VerticalAlignment.Center };
+            path.Bind(System.Windows.Shapes.Shape.StrokeProperty, Tokens.TextSecondary);
+            var sp = new StackPanel { Orientation = Orientation.Horizontal };
+            sp.Children.Add(path);
+            sp.Children.Add(new UiText(text, TextVariant.Secondary));
+            return sp;
         }
 
         private void UpdateStatus()
         {
-            bool dirty = SettingsModel.Diff(_schema, _committed, _working).Count > 0;
-            _status.Text = dirty ? SettingsText.Unsaved : string.Empty;
+            int pending = SettingsModel.Diff(_schema, _committed, _working).Count;
+            _status.Text = pending > 0 ? SettingsText.PendingChanges(pending) : string.Empty;
         }
 
         private void Apply()

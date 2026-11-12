@@ -43,6 +43,8 @@ namespace UEToVS.Host.Logic.Settings
             public const string IntelliSenseStatus = "settings.intelliSense.status";
             public const string LogDirectory = "settings.logging.directory";
             public const string VsUnrealIntegration = "settings.general.vsUnrealIntegration";
+            /// <summary>"检查更新": latest GitHub release → download VSIX → start VSIXInstaller.</summary>
+            public const string CheckForUpdates = "settings.general.checkForUpdates";
         }
 
         public static IReadOnlyList<SettingCategory> Categories { get; } = new[]
@@ -118,7 +120,7 @@ namespace UEToVS.Host.Logic.Settings
             list.Add(D(General, "intelliSense.disableDatabase", SettingKind.Bool, "同时关闭 VS 的 C++ 数据库", "Also disable VS's C++ database",
                 "接管时关闭浏览数据库（.vc.db），节省大量磁盘和 CPU。", "Disables the browse database (.vc.db) while taken over; saves lots of disk and CPU.", "true", gCpp, gCppEn));
             list.Add(D(General, "intelliSense.disableBackgroundCodeAnalysis", SettingKind.Bool, "关闭 VS 后台代码分析", "Turn off VS background code analysis",
-                "打开 UE 解决方案时关闭 VS 的 C++ 后台代码分析（修改前备份，可恢复）。", "Turns VS's C++ background code analysis off for UE solutions (backed up, restorable).", "false", gCpp, gCppEn));
+                "打开 UE 解决方案时关闭 VS 的 C++ 后台代码分析（修改前备份，可恢复）。", "Turns VS's C++ background code analysis off for UE solutions (backed up, restorable).", "true", gCpp, gCppEn));
             list.Add(A(General, "intelliSense.toggle", WindowActions.ToggleIntelliSense, "立即接管 / 恢复", "Take over / restore now",
                 "根据当前状态接管或恢复 VS 自带的 C++ IntelliSense。", "Takes over or restores VS's own C++ IntelliSense, depending on the current state.", gCpp, gCppEn));
             list.Add(D(General, "vs.blueprintSupport", SettingKind.Bool, "启用 VS 自带的蓝图扫描", "Enable VS's own Blueprint scan",
@@ -127,6 +129,11 @@ namespace UEToVS.Host.Logic.Settings
                 "false", gCpp, gCppEn));
             list.Add(A(General, "vs.unrealIntegration", WindowActions.VsUnrealIntegration, "VS 自带的 Unreal Engine 集成", "VS's built-in Unreal Engine integration",
                 null, null, gCpp, gCppEn, SettingKind.Info));
+
+            list.Add(A(General, "update.check", WindowActions.CheckForUpdates, "检查更新", "Check for updates",
+                "查询 GitHub 上的最新版本；有新版本时下载安装包并启动 VS 的扩展安装程序，关闭 VS 后完成安装。",
+                "Looks up the latest release on GitHub; when there is a newer one, downloads it and starts VS's extension installer, which finishes after VS closes.",
+                "更新", "Updates"));
 
             const string gTb = "工具栏", gTbEn = "Toolbar";
             list.Add(D(General, "toolbar.show", SettingKind.Bool, "显示 UEToVS 工具栏", "Show the UEToVS toolbar",
@@ -148,11 +155,11 @@ namespace UEToVS.Host.Logic.Settings
                 "只有左侧 Shift 键的双击才会触发。", "Only a double press of the left Shift key triggers it.", "false", gKb, gKbEn));
 
             const string gMcp = "MCP（AI Agent）", gMcpEn = "MCP (AI agents)";
-            list.Add(D(General, "mcp.enable", SettingKind.Bool, "启用 MCP 服务（给 AI Agent 用）", "Enable MCP server (for AI agents)",
+            list.Add(D(Agent, "mcp.enable", SettingKind.Bool, "启用 MCP 服务（给 AI Agent 用）", "Enable MCP server (for AI agents)",
                 "打开 UE 解决方案时在 .vs\\mcp.json 注册 uetovs MCP 服务器，VS Copilot Agent 模式自动发现；关闭则移除该注册。",
                 "Registers the uetovs MCP server in .vs\\mcp.json when a UE solution opens (Copilot agent mode discovers it); off removes the registration.",
                 "true", gMcp, gMcpEn));
-            list.Add(A(General, "mcp.writeConfig", "uetovs.mcp.writeConfig", "写入 .mcp.json 到项目根目录", "Write .mcp.json to the project root",
+            list.Add(A(Agent, "mcp.writeConfig", "uetovs.mcp.writeConfig", "写入 .mcp.json 到项目根目录", "Write .mcp.json to the project root",
                 "给 Claude Code 用：有版本管理（Git / SVN / Perforce 等）时写到版本库根目录，否则写到 UE 项目根目录；已有文件会合并，不覆盖其他服务器。",
                 "For Claude Code: written to the version-control root (Git / SVN / Perforce, ...) if there is one, else to the UE project root; an existing file is merged, other servers are kept.", gMcp, gMcpEn));
 
@@ -195,11 +202,11 @@ namespace UEToVS.Host.Logic.Settings
             list.Add(D(Indexing, "indexing.engineIndexPath", SettingKind.Path, "共享引擎索引位置", "Shared engine index location",
                 "仅在共享时使用；留空 = %LocalAppData%\\UEToVS\\EngineIndex\\<引擎版本>。", "Used only when sharing; empty = %LocalAppData%\\UEToVS\\EngineIndex\\<engine version>.", "", gEi, gEiEn));
             const string gLua = "Lua 脚本", gLuaEn = "Lua scripts";
-            var lua = D(Indexing, "indexing.luaScriptPaths", SettingKind.Text, "Lua 脚本路径", "Lua script folders",
-                "要索引的 Lua 脚本文件夹（UnLua / sluaunreal 等），多个用 ; 分隔；相对路径相对于 .uproject 所在目录，如 Content/Script。留空不索引 Lua。" +
+            var lua = D(Indexing, "indexing.luaScriptPaths", SettingKind.PathList, "Lua 脚本路径", "Lua script folders",
+                "要索引的 Lua 脚本文件夹（UnLua / sluaunreal 等）。项目内的文件夹自动存成相对 .uproject 的路径，如 Content/Script。没有文件夹就不索引 Lua。" +
                 "索引后 MCP 的 search_lua / search_lua_files / get_lua_outline 可以直接查找 Lua，脚本保存、新增、删除时自动增量更新。",
-                "Lua script folders to index (UnLua, sluaunreal…), separated by ';'; relative paths are relative to the .uproject folder, e.g. Content/Script. " +
-                "Empty = no Lua index. Lets the MCP tools search_lua / search_lua_files / get_lua_outline find Lua code; saved, added and deleted scripts update incrementally.",
+                "Lua script folders to index (UnLua, sluaunreal…). Folders inside the project are stored relative to the .uproject folder, e.g. Content/Script. " +
+                "No folders = no Lua index. Lets the MCP tools search_lua / search_lua_files / get_lua_outline find Lua code; saved, added and deleted scripts update incrementally.",
                 "", gLua, gLuaEn);
             lua.Keywords = "lua unlua slua script 脚本 mcp";
             list.Add(lua);
@@ -347,6 +354,9 @@ namespace UEToVS.Host.Logic.Settings
             list.Add(sample);
             list.Add(A(Performance, "perf.open", "uetovs.diagnostics.performancePanel", "打开性能面板", "Open performance panel", null, null, gPerf, gPerfEn));
 
+            // ================= 外观 > 字体（the rest of the page is the custom appearance panel）
+            UEToVS.Host.Logic.Fonts.FontSettingsSchema.AddDescriptors(list, Appearance);
+
             // Short button verbs (the card already shows the full title on the left).
             foreach (var d in list)
             {
@@ -361,6 +371,7 @@ namespace UEToVS.Host.Logic.Settings
         {
             ["engine.restart"] = ("重启", "Restart"),
             ["intelliSense.toggle"] = ("执行", "Run"),
+            ["update.check"] = ("检查", "Check"),
             ["mcp.writeConfig"] = ("写入", "Write"),
             ["indexing.rebuildProject"] = ("重建", "Rebuild"),
             ["indexing.rebuildEngine"] = ("重建", "Rebuild"),
@@ -443,6 +454,7 @@ namespace UEToVS.Host.Logic.Settings
                 };
                 foreach (var b in ToolbarButtons.All)
                     if (b.Key != "settings") d["toolbar.button." + b.Key] = B(!hidden.Contains(b.Key));
+                UEToVS.Host.Logic.Fonts.FontSettingsSchema.ToValues(s, d);
                 return d;
             }
 
@@ -540,6 +552,7 @@ namespace UEToVS.Host.Logic.Settings
                         case "inlay.parameterNames": s.InlayParameterNames = PB(v); break;
                         case "inlay.autoTypes": s.InlayAutoTypes = PB(v); break;
                         default:
+                            if (UEToVS.Host.Logic.Fonts.FontSettingsSchema.TrySet(s, d.Key, v)) break;
                             if (d.Key.StartsWith("toolbar.button.", StringComparison.Ordinal))
                             {
                                 string key = d.Key.Substring("toolbar.button.".Length);

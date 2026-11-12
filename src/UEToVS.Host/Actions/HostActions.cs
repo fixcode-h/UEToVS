@@ -179,7 +179,8 @@ namespace UEToVS.Host.Actions
                 L.Warn("diagnostics.package.perf.failed", "Performance sample for the package failed", ex);
             }
 
-            var result = await Task.Run(() => DiagnosticsPackageBuilder.Create(paths.Root, Path.Combine(paths.Root, "Diagnostics"), settingsJson, extras))
+            var result = await Task.Run(() => DiagnosticsPackageBuilder.Create(paths.Root, Path.Combine(paths.Root, "Diagnostics"), settingsJson, extras,
+                                                                           sanitizeLine: Sanitizer.CreateLineSanitizer(user, profile)))
                                    .ConfigureAwait(false);
             L.Info("diagnostics.package.created", null, ("zip", result.ZipPath), ("logFiles", result.LogFiles), ("logMB", Math.Round(result.LogBytes / 1048576.0, 1)),
                    ("indexManifest", result.IndexManifestIncluded), ("skipped", result.Skipped));

@@ -255,6 +255,9 @@ namespace UEToVS.Host.Logic.IntelliSense
 
         public bool MacroExpansionTruncated { get; set; }
 
+        /// <summary>Readable expansion steps (one level, fully expanded, constants computed), see <see cref="MacroExpansionFormatter"/>.</summary>
+        public List<MacroStep> MacroSteps { get; } = new List<MacroStep>();
+
         /// <summary>"Module · File.h:120" or null.</summary>
         public string Location { get; set; }
 
@@ -280,28 +283,41 @@ namespace UEToVS.Host.Logic.IntelliSense
             m.Documentation = Trim(CleanDocumentation(r.Documentation), MaxDocumentationChars);
             m.Reflection = string.IsNullOrWhiteSpace(r.Reflection) ? null : r.Reflection.Trim();
             m.ReflectionTags.AddRange(ReflectionTagsOf(r.Reflection ?? r.Symbol?.Specifiers));
-            if (!string.IsNullOrWhiteSpace(r.MacroExpansion))
+            if (!string.IsNullOrWhiteSpace(r.MacroExpansion) || !string.IsNullOrWhiteSpace(r.MacroExpansionOneLevel))
             {
-                string text = r.MacroExpansion.Replace("\r\n", "\n").TrimEnd();
+                string one = r.MacroExpansionOneLevel, full = r.MacroExpansionFull;
+                if (one == null)
+                {
+                    // older engines: "one level\n\nfull"
+                    string raw = r.MacroExpansion.Replace("\r\n", "\n");
+                    int split = raw.IndexOf("\n\n", StringComparison.Ordinal);
+                    one = split < 0 ? raw : raw.Substring(0, split);
+                    full = split < 0 ? raw : raw.Substring(split + 2);
+                }
+                int budget = MaxMacroChars, lineBudget = MaxMacroLines, total = 0;
                 bool truncated = false;
-                if (text.Length > MaxMacroChars)
+                foreach (var step in MacroExpansionFormatter.Steps(Cap(one), Cap(full)))
                 {
-                    text = text.Substring(0, MaxMacroChars);
-                    truncated = true;
+                    if (budget <= 0 || lineBudget <= 0) { truncated = true; break; }
+                    string text = step.Text.Replace("\r\n", "\n").TrimEnd();
+                    if (text.Length > budget) { text = text.Substring(0, budget); truncated = true; }
+                    var lines = text.Split('\n');
+                    if (lines.Length > lineBudget) { text = string.Join("\n", lines.Take(lineBudget)); truncated = true; }
+                    int n = Math.Min(lines.Length, lineBudget);
+                    budget -= text.Length;
+                    lineBudget -= n;
+                    total += n;
+                    m.MacroSteps.Add(new MacroStep(step.Kind, text));
                 }
-                var lines = text.Split('\n');
-                if (lines.Length > MaxMacroLines)
-                {
-                    text = string.Join("\n", lines.Take(MaxMacroLines));
-                    truncated = true;
-                }
-                m.MacroExpansion = text;
-                m.MacroExpansionLines = Math.Min(lines.Length, MaxMacroLines);
+                m.MacroExpansion = string.Join("\n\n", m.MacroSteps.Select(x => x.Text));
+                m.MacroExpansionLines = total;
                 m.MacroExpansionTruncated = truncated;
             }
             if (r.Confidence == ResolutionConfidence.NameOnly) m.ConfidenceNote = IntelliSenseStrings.HeuristicNote;
             return m;
         }
+
+        private static string Cap(string s) => s == null || s.Length <= MaxMacroChars * 2 ? s : s.Substring(0, MaxMacroChars * 2);
 
         public static string LocationText(SymbolInfo s)
         {

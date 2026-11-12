@@ -11,8 +11,8 @@ namespace UEToVS.UI.Logic.Tests
         {
             var s = new AppearanceSettings();
             Assert.Equal(StylePreset.Vs2026, s.Preset);
-            Assert.Equal(8, s.PopupRadius);
-            Assert.Equal(4, s.ControlRadius);
+            Assert.Equal(12, s.PopupRadius);
+            Assert.Equal(8, s.ControlRadius);
             var fresh = new AppearanceSettings();
             fresh.ApplyPreset(StylePreset.Vs2026);
             Assert.Equal(s.ToStorageString(), fresh.ToStorageString());
@@ -23,7 +23,7 @@ namespace UEToVS.UI.Logic.Tests
         {
             var s = AppearanceSettings.Parse("version=1\npreset=Rider\nradius.popup=6\nradius.control=4\nradius.badge=3\naccent=#3574F0\n", out var problems);
             Assert.Equal(StylePreset.Vs2026, s.Preset);
-            Assert.Equal(8, s.PopupRadius);
+            Assert.Equal(12, s.PopupRadius); // Rider 6 → VS 2026 8 → warm 12
             Assert.Equal(4, s.BadgeRadius);
             Assert.Equal(AppearanceSettings.DefaultAccent, s.CustomAccent);
             Assert.Equal(AppearanceSettings.CurrentVersion, s.Version);

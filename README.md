@@ -67,6 +67,7 @@ msbuild src\UEToVS.Host\UEToVS.Host.csproj /restore /p:Configuration=Release
 
 - 接管 VS 自带 C++ IntelliSense（UEToVS 设置 > 常规 > C++ IntelliSense）开启后，打开 UE 解决方案时自动关闭 VS 自带的 C++ IntelliSense（修改前备份到 `%LocalAppData%\UEToVS\intellisense-backup.json`），可在 UEToVS 设置 > 常规 > “立即接管 / 恢复” 一键还原（Find Action 中也有）；卸载扩展前请先执行恢复。自 M3 起该选项**默认开启**（UEToVS 已提供补全、Quick Info、参数信息、语义着色与跳转），首次接管时信息栏会说明并提供“恢复”。
 - 界面语言跟随 VS：英文 VS 显示英文，其他语言显示中文。
+- 字体（UEToVS 设置 > 外观 > 字体）：扩展自带 IBM Plex Sans（英文）、思源黑体 Noto Sans SC（中文，GB2312 子集）、Maple Mono NL（代码，无连字，自带中文，汉字正好两个字符宽，代码里的中文注释和字符串能对齐），默认用于 UEToVS 界面和代码预览。“由 UEToVS 管理 VS 字体”（默认开）代替 VS 的“字体和颜色”设置文本编辑器、输出、查找结果、环境等类别的字体：内置字体先为当前用户安装（无需管理员），修改前把原字体备份到 `%LocalAppData%\UEToVS\vs-fonts-backup.json`，关闭该选项或把类别设为“不修改”即恢复。字体由 `scripts/build_fonts.py` 生成，许可证（SIL OFL 1.1）在 VSIX 的 `Fonts\<字体>\OFL.txt`。
 
 ## 在 VS 自带聊天里用自定义 API 的模型（Agent / API）
 

@@ -83,9 +83,24 @@ namespace UEToVS.Host.Integration
         {
             window = null;
             var focused = Keyboard.FocusedElement as DependencyObject;
-            if (focused == null) return null;
-            window = Window.GetWindow(focused);
-            return window is ChromeWindow && window.IsActive ? (IInputElement)focused : null;
+            if (focused != null)
+            {
+                window = Window.GetWindow(focused);
+                if (window is ChromeWindow && window.IsActive) return (IInputElement)focused;
+                if (window != null) return null; // focus is in another (VS) window
+            }
+            // No WPF focus (e.g. it was just cleared) while one of our windows is the active one: still ours, never the editor.
+            var app = Application.Current;
+            if (app == null) return null;
+            foreach (Window w in app.Windows)
+            {
+                if (w is ChromeWindow && w.IsActive)
+                {
+                    window = w;
+                    return w;
+                }
+            }
+            return null;
         }
 
         private static RoutedUICommand Wpf(WindowEditCommand c)

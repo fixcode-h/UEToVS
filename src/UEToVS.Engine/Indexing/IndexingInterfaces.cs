@@ -174,4 +174,18 @@ namespace UEToVS.Engine.Indexing
         /// <summary>Distinct files that contain an occurrence of <paramref name="name"/> (streamed, may be large).</summary>
         IEnumerable<string> FindOccurrenceFiles(string name, CancellationToken ct) => Array.Empty<string>();
     }
+    /// <summary>
+    /// Optional bulk capability: <see cref="ISymbolIndexBackend.AppendBatch"/> split into an expensive, thread-safe
+    /// prepare step (encode + write the segment file) and a cheap publish step that must run in batch order. Lets
+    /// <see cref="BulkSink"/> write several segments in parallel while the published result stays the same as with
+    /// one writer.
+    /// </summary>
+    public interface IParallelBulkBackend
+    {
+        /// <summary>Thread-safe. Returns null when there is nothing to publish. Disposing an unpublished result discards it.</summary>
+        IDisposable PrepareBatch(bool engine, IReadOnlyList<(string Path, ParseResult Result)> batch, CancellationToken ct);
+
+        /// <summary>Publishes a result of <see cref="PrepareBatch"/>; callers serialize calls and keep batch order.</summary>
+        void PublishBatch(IDisposable prepared);
+    }
 }

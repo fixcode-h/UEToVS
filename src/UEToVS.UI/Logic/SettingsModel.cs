@@ -18,6 +18,8 @@ namespace UEToVS.UI.Logic
         Action = 5,
         /// <summary>Read-only line whose text comes from the host at render time (e.g. current index status).</summary>
         Info = 6,
+        /// <summary>Several folders (<see cref="PathListModel"/>): stored ';'-separated, edited as a list with a folder picker.</summary>
+        PathList = 7,
     }
 
     /// <summary>One choice of a <see cref="SettingKind.Choice"/> setting.</summary>
@@ -63,6 +65,13 @@ namespace UEToVS.UI.Logic
         /// <summary>What "auto" (stored 0) resolves to on this machine, shown greyed in the disabled number box; null = unknown.</summary>
         public int? AutoValue { get; set; }
         public IReadOnlyList<SettingOption> Options { get; set; } = Array.Empty<SettingOption>();
+        /// <summary>
+        /// Choice: options computed when the editor is built (e.g. installed fonts), replacing <see cref="Options"/> in the
+        /// dropdown. <see cref="Options"/> stays the fixed part used for validation. Null = static options only.
+        /// </summary>
+        public Func<IReadOnlyList<SettingOption>> OptionsSource { get; set; }
+        /// <summary>Choice: any non-empty value is accepted (the options are suggestions), e.g. a font family name.</summary>
+        public bool AllowCustomValue { get; set; }
         /// <summary>Action: short button text ("重建", "打开"); null = the title is used.</summary>
         public string ActionLabelZh { get; set; }
         public string ActionLabelEn { get; set; }
@@ -74,6 +83,26 @@ namespace UEToVS.UI.Logic
         public bool RequiresRestart { get; set; }
 
         public bool HasValue => Kind != SettingKind.Action && Kind != SettingKind.Info;
+
+        /// <summary>
+        /// Options for the editor: <see cref="OptionsSource"/> when set (falls back to <see cref="Options"/> when it throws
+        /// or returns nothing), plus the current value when <see cref="AllowCustomValue"/> and it is not listed.
+        /// </summary>
+        public IReadOnlyList<SettingOption> ResolveOptions(string current = null)
+        {
+            IReadOnlyList<SettingOption> options = null;
+            if (OptionsSource != null)
+            {
+                try { options = OptionsSource(); }
+                catch (Exception) { options = null; } // a broken provider must not break the page; static options remain
+            }
+            if (options == null || options.Count == 0) options = Options ?? Array.Empty<SettingOption>();
+            if (!AllowCustomValue || string.IsNullOrWhiteSpace(current)) return options;
+            foreach (var o in options)
+                if (string.Equals(o.Value, current.Trim(), StringComparison.OrdinalIgnoreCase)) return options;
+            var list = new List<SettingOption>(options) { new SettingOption(current.Trim(), current.Trim(), current.Trim()) };
+            return list;
+        }
 
         public string Title(bool english) => english ? (TitleEn ?? TitleZh) : (TitleZh ?? TitleEn);
         public string Description(bool english) => english ? (DescriptionEn ?? DescriptionZh) : (DescriptionZh ?? DescriptionEn);
@@ -130,11 +159,14 @@ namespace UEToVS.UI.Logic
                     if (d.Options != null)
                         foreach (var o in d.Options)
                             if (string.Equals(o.Value, value?.Trim(), StringComparison.OrdinalIgnoreCase)) return o.Value;
+                    if (d.AllowCustomValue && !string.IsNullOrWhiteSpace(value)) return value.Trim();
                     ok = false;
                     return d.Default;
                 case SettingKind.Text:
                 case SettingKind.Path:
                     return (value ?? string.Empty).Trim();
+                case SettingKind.PathList:
+                    return PathListModel.Join(PathListModel.Parse(value));
                 default:
                     return null;
             }
@@ -192,7 +224,7 @@ namespace UEToVS.UI.Logic
                 if (string.IsNullOrEmpty(d.TitleZh) || string.IsNullOrEmpty(d.TitleEn)) problems.Add(d.Key + ": missing title");
                 if (d.Kind == SettingKind.Choice && (d.Options == null || d.Options.Count == 0)) problems.Add(d.Key + ": choice without options");
                 if ((d.Kind == SettingKind.Action || d.Kind == SettingKind.Info) && string.IsNullOrEmpty(d.ActionId)) problems.Add(d.Key + ": missing action id");
-                if (d.HasValue && d.Kind != SettingKind.Text && d.Kind != SettingKind.Path)
+                if (d.HasValue && d.Kind != SettingKind.Text && d.Kind != SettingKind.Path && d.Kind != SettingKind.PathList)
                 {
                     Normalize(d, d.Default, out bool ok);
                     if (!ok) problems.Add(d.Key + ": invalid default " + d.Default);
