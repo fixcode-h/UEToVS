@@ -12,6 +12,11 @@
 - **Agent / API：自定义 API 的模型接入 VS 自带聊天** — UEToVS 设置新增“Agent / API”页（布局参考 AgentPanel）：每个 API 填名称、地址、密钥、密钥的发送方式（Authorization: Bearer / x-api-key）、并发上限，可“测试连接”“从接口获取”模型，在模型列表里勾选要用的模型，并设置是否支持工具调用、图片和上下文大小，也可以手动输入模型名添加。勾选的模型会自动写入 VS Copilot 聊天的自定义模型，重新打开聊天窗口后就能在模型选择器里选到
 - **本地转发服务** — UEToVS 在本机 127.0.0.1（默认端口 47811，可改）起一个转发服务，VS 聊天把它当 Ollama 提供商来用；请求按模型转到你配置的 API，换上真实模型名和密钥后流式转发，API 返回的错误原样显示在聊天里。只接受本机非浏览器的请求，可按 API 限制并发
 
+### 改进
+- **每个命令都有默认快捷键** — 之前很多命令（最近位置、上/下一个编辑位置、文件结构、Search Everywhere、转到类型/文件等）没有默认键。现在全部补齐：Search Everywhere Ctrl+T，转到类型 Shift+Alt+T，最近文件/位置 Shift+Alt+E / Shift+Alt+L，上/下一个编辑位置 Ctrl+Shift+Backspace / Ctrl+Shift+Alt+Backspace，文件结构 Ctrl+Shift+Alt+M，导航到 Shift+Alt+N，转到资产 Shift+Alt+B，相关项 Shift+Alt+R，书签 Ctrl+F2 / Ctrl+Shift+F2；设置、日志、诊断、生成工程文件等工具命令统一为 Ctrl+Shift+Alt+U 再按一个字母（如 U, S 打开设置）。Rider / VS 预设里没有对应键的命令沿用这套默认
+- **快捷键冲突时 UEToVS 优先** — 默认键、套用预设和在快捷键页修改时，如果 VS 自带命令占用了同一按键（含和弦前缀、编辑器范围遮挡全局范围的情况），会把该按键从 VS 命令上移除，让 UEToVS 生效；改动前自动备份，“还原上次备份”可一键恢复。用户自己给 UEToVS 命令设置的键不会被覆盖
+- **老用户重新应用默认键** — v0.3.1 / v0.3.2 因按键被 VS 占用而跳过的默认键，升级后启动时会重新应用一次（日志 `keymap.apply` 记录移除了哪些 VS 绑定）
+
 ### 注意
 - **密钥只存在本机** — 密钥用 Windows DPAPI 按当前用户加密保存在 `%LocalAppData%\UEToVS\agent-keys.dat`，不写进 VS 的配置、日志或解决方案；VS 只知道本地转发地址
 - **VS 侧依赖内部格式** — VS 没有给扩展注册聊天模型的公开接口，UEToVS 写的是 VS 自己的自定义模型文件（第一次写入前备份为 `.uetovs-backup`）。目前只支持 OpenAI Chat Completions 兼容的 API。如果应用后模型选择器里没有这些模型，在 管理模型 > 添加模型提供程序 里选 Ollama、地址填转发地址添加一次。详见 docs/design/Agent-API.md

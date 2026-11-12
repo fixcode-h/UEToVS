@@ -256,10 +256,11 @@ namespace UEToVS.Host.Settings
         /// Backs up the current (raw) bindings of every command in <paramref name="target"/>, then writes the new ones
         /// (canonical or raw; scopes are localized on write). Keys are catalog names or DTE command names.
         /// </summary>
-        private async Task SetBindingsAsync(Dictionary<string, string[]> target, string reason)
+        private async Task SetBindingsAsync(Dictionary<string, string[]> target, string reason, bool uetovsWins = true)
         {
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
             if (_dte == null || target.Count == 0) { RenderRows(); return; }
+            if (uetovsWins) await AddVsRemovalsAsync(target);
             var backup = new KeymapPlanner.Backup { CreatedUtc = DateTime.UtcNow, Reason = reason };
             foreach (var name in target.Keys) backup.Bindings[name] = RawBindings(name) ?? Array.Empty<string>();
             string file = KeymapBackups.Write(backup);
@@ -291,6 +292,30 @@ namespace UEToVS.Host.Settings
             _status.Text = SettingsText.KeymapApplied(changed, Path.GetFileName(file)) + "  " + _status.Text;
         }
 
+        /// <summary>
+        /// UEToVS shortcuts take priority: every other command's binding that collides with a UEToVS binding being written
+        /// is removed in the same change (and therefore in the same backup).
+        /// </summary>
+        private async Task AddVsRemovalsAsync(Dictionary<string, string[]> target)
+        {
+            var mine = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
+            foreach (var kv in target)
+                if (CommandCatalog.ByName(kv.Key) != null && kv.Value.Length > 0)
+                    mine[kv.Key] = kv.Value.Select(b => _scopes.Canonical(b) ?? b).ToArray();
+            if (mine.Count == 0) return;
+            if (_all == null) _all = await DteKeymap.ReadAllAsync(_dte, _scopes);
+            var removals = DefaultKeymapPlanner.Removals(mine, _all);
+            foreach (var kv in removals)
+            {
+                if (target.ContainsKey(kv.Key)) continue;
+                var current = RawBindings(kv.Key) ?? Array.Empty<string>();
+                target[kv.Key] = current.Where(b => !(_scopes.Canonical(b) is string canon && kv.Value.Contains(canon))).ToArray();
+            }
+            if (removals.Count > 0)
+                L.Info("keymap.override", "UEToVS shortcuts win: removing the same keys from other commands",
+                       ("removals", removals.Select(kv => kv.Key + " -[" + string.Join(" | ", kv.Value) + "]").ToList()));
+        }
+
         private async Task RestoreLastBackupAsync()
         {
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
@@ -298,7 +323,7 @@ namespace UEToVS.Host.Settings
             var backup = latest == null ? null : KeymapPlanner.ParseBackup(File.ReadAllText(latest));
             if (backup == null) { _status.Text = SettingsText.KeymapNoBackup; return; }
             L.Info("keymap.restore", null, ("file", latest), ("commands", backup.Bindings.Count));
-            await SetBindingsAsync(backup.Bindings, "restore:" + Path.GetFileName(latest));
+            await SetBindingsAsync(backup.Bindings, "restore:" + Path.GetFileName(latest), uetovsWins: false);
             // The restore itself made a new backup; drop the one we just restored so "restore" walks back in time.
             try { File.Delete(latest); } catch (IOException) { } catch (UnauthorizedAccessException) { }
         }
@@ -340,7 +365,7 @@ namespace UEToVS.Host.Settings
                 var remove = new HashSet<string>(group.Select(c => c.OtherScope + "::" + c.OtherKeys), StringComparer.OrdinalIgnoreCase);
                 target[group.Key] = current.Where(b => !(_scopes.Canonical(b) is string canon && remove.Contains(canon))).ToArray();
             }
-            await SetBindingsAsync(target, "resolveConflicts");
+            await SetBindingsAsync(target, "resolveConflicts", uetovsWins: false);
         }
     }
 }
