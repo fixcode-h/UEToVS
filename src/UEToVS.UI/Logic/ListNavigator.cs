@@ -33,6 +33,9 @@ namespace UEToVS.UI.Logic
 
         public bool WrapAround { get; set; } = true;
 
+        /// <summary>When true (default), a count update with no selection selects the first selectable row.</summary>
+        public bool AutoSelectFirst { get; set; } = true;
+
         public event Action SelectionChanged;
 
         public Func<int, bool> IsSelectable
@@ -66,7 +69,7 @@ namespace UEToVS.UI.Logic
                 if (i < 0) { SelectedIndex = -1; SelectionChanged?.Invoke(); }
                 else Select(i);
             }
-            else if (SelectedIndex < 0 && Count > 0)
+            else if (SelectedIndex < 0 && Count > 0 && AutoSelectFirst)
             {
                 int i = FindSelectable(0, +1);
                 if (i >= 0) Select(i);

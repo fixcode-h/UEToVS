@@ -115,6 +115,9 @@ namespace UEToVS.UI
         public static string PerfSeriesMemory => Loc.T("内存", "Memory");
         public static string GalleryTitle => Loc.T("UEToVS 组件画廊", "UEToVS Component Gallery");
 
+        public static string PerfNow => Loc.T("现在", "now");
+        public static string PerfBudgetOf(object a0) => Loc.F("预算 {0}", "budget {0}", a0);
+
         public static string Preset(StylePreset p)
         {
             switch (p)

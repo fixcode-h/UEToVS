@@ -47,6 +47,27 @@ namespace UEToVS.UI.Theming
 
         public static Logger Logger => L;
 
+        /// <summary>
+        /// Runs <paramref name="apply"/> whenever tokens are rebuilt while <paramref name="owner"/> is loaded
+        /// (for code that reads token values directly, e.g. OnRender). Subscribes on Loaded / unsubscribes on
+        /// Unloaded so the static event never keeps elements alive.
+        /// </summary>
+        public static void TrackTheme(FrameworkElement owner, Action apply)
+        {
+            if (owner == null || apply == null) return;
+            EventHandler h = (s, e) => Safe("ui.theme.track", apply);
+            bool on = false;
+            owner.Loaded += (s, e) =>
+            {
+                if (!on) { ThemeManager.Instance.Changed += h; on = true; }
+                Safe("ui.theme.track", apply);
+            };
+            owner.Unloaded += (s, e) =>
+            {
+                if (on) { ThemeManager.Instance.Changed -= h; on = false; }
+            };
+        }
+
         public static SolidColorBrush Frozen(Color c)
         {
             var b = new SolidColorBrush(c);
