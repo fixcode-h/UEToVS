@@ -696,14 +696,14 @@ IAction
 
 ### 8.2.1 设置页微调（用户决定）
 
-所有令牌都可以在“工具 > 选项 > UEToVS > 外观”中微调，修改即时生效（组件只引用令牌，令牌变化时统一刷新资源字典）：
+所有令牌都可以在“UEToVS 设置 > 外观”（v0.3.0 起为独立设置窗口，见 8.9）中微调，修改即时生效（组件只引用令牌，令牌变化时统一刷新资源字典）：
 
 | 设置项 | 说明 | 默认 |
 | --- | --- | --- |
-| 界面风格 | Rider 风格（默认）/ 紧凑 / 宽松 | Rider 风格 |
+| 界面风格 | VS 2026（默认）/ 紧凑 / 宽松 | VS 2026 |
 | 字号缩放 | 相对 VS 环境字体 | 100% |
 | 行高 / 列表密度 | 列表每行高度 | 24 px |
-| 圆角 | 弹窗、按钮、徽章圆角 | 6 / 4 / 3 px |
+| 圆角 | 弹窗、按钮、徽章圆角 | 8 / 4 / 4 px |
 | 强调色 | 跟随 VS / 自定义 | 跟随 VS |
 | 匹配高亮样式 | 加粗 / 底色 / 下划线 | 加粗 + 强调色 |
 | 徽章颜色 | UCLASS、UFUNCTION、UPROPERTY 等徽章各自颜色 | 按主题派生 |
@@ -711,7 +711,7 @@ IAction
 | 预览面板 | 默认显示、位置（下方 / 右侧） | 下方 |
 | 恢复默认 | 一键还原全部外观设置 | |
 
-视觉风格默认参考 Rider：弹窗大圆角、柔和阴影、输入框顶部通栏、标签页文字式（选中项下划线）、列表行左侧图标 + 主名称 + 灰色位置信息 + 右侧徽章/快捷键、键帽样式的快捷键提示、底部状态栏显示提示和计数。
+视觉风格 v0.3.0 起改为 VS 2026（Fluent），细节见 8.8；以下 Rider 元素仍保留：弹窗大圆角、柔和阴影、输入框顶部通栏、标签页文字式（选中项下划线）、列表行左侧图标 + 主名称 + 灰色位置信息 + 右侧徽章/快捷键、键帽样式的快捷键提示、底部状态栏显示提示和计数。
 
 ### 8.3 组件分层
 
@@ -782,6 +782,56 @@ IAction
 - 开发用工具窗口“UEToVS 组件画廊”：列出所有组件与模式，可切换主题、DPI、数据量（空 / 10 / 10 万条）。
 - 截图回归：在 CI（Windows）中用 WPF 离屏渲染组件的典型状态到 PNG，与基线比较。
 - 交互测试：基于 UI Automation 驱动组件的键盘行为。
+
+
+### 8.8 VS 2026 视觉规范（v0.3.0）
+
+**调研结论**：VS 2026（18.x）把 IDE 界面整体迁移到 Fluent 设计语言——新的主题系统（深色 / 浅色 / Cool Breeze 等多套主题，18.7 起可编辑 Fluent 颜色令牌）、更大的圆角、更轻的边框、细滚动条、仅键盘焦点时出现的焦点环，强调色默认是 Windows/Fluent 蓝 `#0078D4`。微软没有公开像素级的控件规格，所以下面的数值取自 Fluent 2（WinUI 3）控件度量，在 VS 的环境字体（9 pt Segoe UI）下核对过；颜色依然全部从 VS 主题派生（`ThemeManager`），只有在主题不提供时才用默认强调色。
+
+| 令牌 / 部位 | VS 2026 预设 | 说明 |
+| --- | --- | --- |
+| `CornerRadiusPopup` | 8 px | 弹窗、浮动窗口、卡片（Fluent “overlay”） |
+| `CornerRadiusControl` | 4 px | 按钮、输入框、分段控件、筛选芯片、下拉框 |
+| `CornerRadiusBadge` | 4 px | 徽章、键帽 |
+| `CornerRadiusInner` / `CornerRadiusFocus` | 控件圆角 − 1 / + 3 | 内层填充 / 焦点环 |
+| `ControlHeight` | 26 px（按字号缩放） | 按钮、输入框最小高度 |
+| `PadControlX` / `Gap` | 12 / 8 px | 控件水平内边距 / 控件间距（4 px 网格） |
+| `FontSizeTitle` | 正文 + 3 pt | 窗口标题、设置分类标题 |
+| 焦点环 `FocusStroke` + `ThicknessFocus` | 2 px，外扩 3 px | 只在键盘焦点（`IsKeyboardFocused`）时显示，鼠标点击不出现 |
+| 输入框聚焦 `InputFocusUnderline` | 底部 2 px 强调色 | Fluent TextBox 样式；未聚焦时底边 `ControlStrokeBottom` 略深 |
+| 选中指示 `SelectionIndicator` | 3 px 圆角竖条 | 列表行、设置分类导航左侧 |
+| 分段控件 `SegmentTrack` | 轨道底色 + 2 px 内边距 | 选中段填充 `Accent`、文字 `TextOnAccent`，圆角 4 |
+| 筛选芯片（Chip） | 圆角 4 的矩形 | 选中填充强调色（不再是胶囊形） |
+| 开关（Toggle） | 36×18 轨道，10 px 圆点 | 开：强调色填充，圆点白色 |
+| 复选框 | 16 px，圆角 4 | 选中强调色填充 |
+| 标签页（TabStrip） | 3 px 下划线，选中半粗体 | 悬停有圆角浅底 |
+| 滚动条（ScrollRail） | 3 px，悬停 6 px | 拇指半透明，按主题派生 |
+| 阴影 | 模糊 24（深色主题）/ 20（浅色主题），偏移 4 | 用 DWM / 预渲染边距，不用 `DropShadowEffect` |
+| `SurfaceNav` | 比窗口底色略深 / 略亮 | 设置窗口左侧分类栏、浮窗标题栏 |
+
+预设：**VS 2026**（默认，行高 24、圆角 8/4/4、间距 ×1.0）、**紧凑**（行高 20、圆角 6/3/3、间距 ×0.75）、**宽松**（行高 28、圆角 8/5/4、间距 ×1.25）。旧版本保存的 “Rider 风格” 自动迁移为 VS 2026；旧默认圆角 6/3 与旧默认强调色 `#3574F0` 迁移为新默认值，用户改过的值保留（`AppearanceSettings.CurrentVersion = 2`）。
+
+浮动窗口统一用 `UtilityWindow`（`UEToVS.UI.Shells`）：40 px 标题栏（品牌图标 + 标题 + 标题栏操作 + 关闭）、可拖动、可调整大小、Esc 关闭、由 VS 主窗口拥有；位置和大小按窗口 id 记在 VS 用户设置 `UEToVS\Windows`，恢复时夹回可见显示器；双击标题栏恢复默认大小并居中。设置窗口（`settings`）、性能面板（`performance`）、组件画廊（`componentGallery`）都用它。
+
+### 8.9 设置窗口、快捷键与工具栏（v0.3.0）
+
+**设置窗口**（`Host/Settings/SettingsWindow.cs`）取代 工具 > 选项 下的 UEToVS 页面：左侧分类（常规 / 外观 / 索引 / 快捷键 / 导航 / 日志与诊断 / 性能），顶部搜索（标题、说明、关键字、分组名都能搜，Ctrl+F 聚焦），底部 恢复默认（当前页）/ 取消 / 应用 / 确定。行由声明式描述生成：
+
+- `UEToVS.UI.Logic.SettingsModel`（无 WPF 依赖，有单元测试）：`SettingDescriptor`（Key、分类、分组、类型 Bool/Int/Choice/Text/Path/Action/Info、默认值、范围、选项、“自动”标签、关键字）与 `Normalize / Matches / Diff / Defaults / Validate`。
+- `UEToVS.Host.Logic.Settings.HostSettingsSchema`：所有描述（键如 `indexing.cppThreads`、`nav.ctrlClick`）和 `Codec`（`HostSettings` ⇄ 字符串值，`ToIndexing` 生成推给引擎的 `IndexingSettings`）。单元测试保证每个 `HostSettings` 属性都能在窗口里改到。
+- 持久化：VS 用户设置 `UEToVS\Settings`（`SettingsStore`）。首次运行从旧的 选项页（General / Logging DialogPage）迁移一次并记日志 `settings.migrated`；解决方案级覆盖（`.vs/UEToVS/settings.json`）不变。“应用 / 确定”调用 `SettingsService.ApplyUserValues`，引发 `Changed`，各服务实时生效（日志级别、索引线程推给引擎、工具栏显隐、导航 / M1 设置等）。
+- 工具 > 选项 > UEToVS 只剩一个说明页和“打开 UEToVS 设置”按钮。所有原来打开选项页的入口（菜单、Find Action、IntelliSense 提示条的“设置”链接）都打开新窗口。
+- 自定义页：外观（沿用 `AppearanceSettingsPanel`，应用 / 取消与窗口一致）和快捷键（`KeymapPage`）。
+
+索引页：C++ / 蓝图线程数（0 = 自动 = max(1, 逻辑核心数 / 4)）、编译期间（暂停 / 单线程 / 全速）、索引引擎源码、引擎索引位置、三个重建按钮（项目 / 引擎 / 蓝图，分别对应 `RebuildScope` 3 / 4 / 1）、实时索引状态。引擎索引默认放在本解决方案的 `.vs\UEToVS\Index`；打开“在多个工程间共享引擎索引”（`ShareEngineIndex`，默认关）后放到 `EngineIndexPath`，留空为 `%LocalAppData%\UEToVS\EngineIndex\<引擎版本>`。
+
+**命令 ID 段**：0x01xx 宿主命令，0x0200–0x02FF M2 导航，0x0300–0x03FF M1 功能，0x0400–0x04FF 设置 / 窗口 / 工具栏。`Logic/Commands/CommandCatalog.cs` 是快捷键页和测试使用的命令目录（id、规范名、动作 id、三套预设键位、实现模块），单元测试检查它与 VSCT 的 id、规范名、默认键位一致且默认键位无重复。
+
+**默认快捷键（Visual Assist 风格，VSCT KeyBindings）**：Alt+G 转到定义、Alt+Shift+G 转到实现、Shift+Alt+F 查找引用、Shift+Alt+H 类型层次、Alt+M 文件成员、Shift+Alt+M 类型成员、Alt+O 头/源切换、Shift+Alt+O 转到文件、Shift+Alt+S 转到符号、Alt+← / Alt+→ 后退 / 前进、Ctrl+Alt+F11 Live Coding、Ctrl+Shift+Alt+A Find Action；Search Everywhere 为双击 Shift（M1 的输入钩子，VSCT 无法表达）。
+
+**快捷键页**：列出目录中的命令和 VS 当前绑定（DTE `Command.Bindings`，在 UI 线程分块读取），点击后录制新快捷键（Esc 取消、Backspace 清除）；一键套用 Visual Assist / Rider / VS 默认 预设；与 VS 全部命令做冲突检测，可一键移除其他命令上的冲突键；每次修改前把受影响命令的原绑定备份到 `%LocalAppData%\UEToVS\KeymapBackups\keymap-backup-*.json`，可逐次还原。M1 的“完整 Rider 键位方案”（Find Action 中）继续独立存在。
+
+**菜单与工具栏**：扩展 > UEToVS 顶层只保留 搜索组（Find Action、Search Everywhere 等）、导航组（M1 / M2）、性能面板、设置…；重启引擎、接管 / 恢复 IntelliSense、打开日志文件夹、打开当前日志、生成诊断包、组件画廊移到设置窗口（仍是注册命令，Find Action 可搜、可绑快捷键）。UEToVS 工具栏（`tbUEToVS`）首次运行默认显示：品牌图标（打开设置）、Search Everywhere、后退、前进、转到定义、查找引用、性能面板，图标用 KnownMonikers；整个工具栏和每个按钮（品牌按钮除外）都可在 常规 > 工具栏 中隐藏。品牌图标源文件 `Host/Resources/UEToVS.svg`，WPF 版本 `UI/Atoms/BrandMark.cs`。
 
 ---
 
