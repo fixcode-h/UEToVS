@@ -38,6 +38,39 @@ namespace UEToVS.Host.Build
 
         public static BuildErrorService Instance { get; private set; }
 
+        /// <summary>
+        /// Live Coding output (UE editor link) goes through the same parser and marks as a VS build. Registered by
+        /// LinkFeature on the Live Coding collector; works whenever <see cref="Instance"/> exists.
+        /// </summary>
+        public static readonly LiveCodingBuildCollector LiveCodingSink = CreateLiveCodingSink();
+
+        private static LiveCodingBuildCollector CreateLiveCodingSink()
+        {
+            var c = new LiveCodingBuildCollector();
+            c.Completed += r => Instance?.PublishExternal(r);
+            return c;
+        }
+
+        /// <summary>A record produced outside VS builds (Live Coding): persist, log and show it like a build's. Any thread.</summary>
+        private void PublishExternal(BuildRecord record)
+        {
+            if (record == null) return;
+            string solutionDir = _package.SolutionDirectory;
+            Safe.RunAsync(L, "build.errors.external", async () =>
+            {
+                string written = await Task.Run(() => string.IsNullOrEmpty(solutionDir)
+                    ? "no solution" : BuildRecordStore.TryWrite(BuildRecordStore.PathFor(solutionDir), record)).ConfigureAwait(false);
+                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                L.Info("build.errors", null, ("source", record.Source), ("result", record.Result), ("errors", record.Errors),
+                       ("warnings", record.Warnings), ("items", record.Items.Count), ("lines", record.LinesParsed),
+                       ("unparsedSamples", record.UnparsedSamples), ("persisted", written == null), ("persistError", written));
+                if (_building) return; // a VS build is running; its result wins
+                _generation++;
+                Set(new BuildErrorSet(record));
+                if (record.Errors + record.Warnings > 0) VsStatusBar.SetText(BuildStrings.BuildErrorsFound(record.Errors, record.Warnings));
+            }, ("source", record.Source));
+        }
+
         /// <summary>Errors of the last build in this session (UI thread). Empty until a build ends.</summary>
         public BuildErrorSet Current { get; private set; } = BuildErrorSet.Empty;
 

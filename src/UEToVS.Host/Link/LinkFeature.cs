@@ -61,6 +61,7 @@ namespace UEToVS.Host.Link
             LogStore = new UeLogStore(package.Settings?.Effective?.LinkLogMaxLines ?? UeLogBuffer.DefaultCapacity);
             LiveCoding = new LiveCodingOutputCollector(() => EditorLinkService.Instance?.ProjectRoot);
             LiveCoding.BuildCompleted += OnLiveCodingCompleted;
+            LiveCoding.AddSink(Build.BuildErrorService.LiveCodingSink); // compile errors → squiggles / Error List / last-build.json
 
             bool Unreal(ActionContext c) => c.IsUnrealSolution;
             registry.Register(new DelegateAction(CommandCatalog.ActionIds.UeLogWindow, LinkStrings.CmdLogWindow, ActionCategory.Unreal,
