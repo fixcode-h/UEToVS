@@ -94,6 +94,11 @@ namespace UEToVS.Host.Options
                 ["disableBackgroundCodeAnalysis"] = s.DisableBackgroundCodeAnalysis,
                 ["logRetentionDays"] = s.LogRetentionDays,
                 ["logMaxTotalMB"] = s.LogMaxTotalMB,
+                ["ctrlClickNavigation"] = s.CtrlClickNavigation,
+                ["referenceHighlighting"] = s.ReferenceHighlighting,
+                ["referenceHighlightReadColor"] = s.ReferenceHighlightReadColor ?? "",
+                ["referenceHighlightWriteColor"] = s.ReferenceHighlightWriteColor ?? "",
+                ["navigationBar"] = s.NavigationBar,
             };
             return Sanitizer.MaskSecrets(d);
         }

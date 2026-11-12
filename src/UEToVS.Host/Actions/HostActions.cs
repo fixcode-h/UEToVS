@@ -56,6 +56,7 @@ namespace UEToVS.Host.Actions
                 }, null, null, Strings.KwSettings));
             registry.Register(new DelegateAction(ActionIds.FindAction, Strings.CmdFindAction, ActionCategory.Navigation,
                 ctx => ShowFindActionAsync(package, registry), null, null, Strings.KwFindAction));
+            Navigation.NavigationActions.Register(registry);
             L.Info("actions.registered", null, ("count", registry.Count));
         }
 

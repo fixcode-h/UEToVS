@@ -69,7 +69,7 @@ namespace UEToVS.Host.Engine
     /// Everything runs on background threads; nothing here ever blocks the UI thread. When the engine is unavailable,
     /// <see cref="TryInvokeAsync{T}"/> returns (false, default) so features degrade instead of failing.
     /// </summary>
-    internal sealed class EngineClient : IEngineCallbacks, IDisposable
+    internal sealed partial class EngineClient : IEngineCallbacks, IDisposable
     {
         private static readonly Logger L = Log.For("Engine");
         private readonly EngineClientOptions _options;

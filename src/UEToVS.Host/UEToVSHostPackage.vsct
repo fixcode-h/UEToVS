@@ -26,6 +26,15 @@
           <ButtonText>Bookmarks</ButtonText>
         </Strings>
       </Menu>
+      <!-- Editor right-click > UEToVS (C++ code windows; only while an Unreal solution is open, see VisibilityConstraints). -->
+      <Menu guid="guidUEToVSHostCmdSet" id="menuUEToVSContext" priority="0x0100" type="Menu">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpCodeWinUEToVS" />
+        <CommandFlag>DynamicVisibility</CommandFlag>
+        <CommandFlag>DefaultInvisible</CommandFlag>
+        <Strings>
+          <ButtonText>UEToVS</ButtonText>
+        </Strings>
+      </Menu>
     </Menus>
 
     <Groups>
@@ -34,6 +43,15 @@
       </Group>
       <Group guid="guidUEToVSHostCmdSet" id="grpSearch" priority="0x0050">
         <Parent guid="guidUEToVSHostCmdSet" id="menuUEToVS" />
+      </Group>
+      <Group guid="guidUEToVSHostCmdSet" id="grpNavigation" priority="0x0060">
+        <Parent guid="guidUEToVSHostCmdSet" id="menuUEToVS" />
+      </Group>
+      <Group guid="guidUEToVSHostCmdSet" id="grpCodeWinUEToVS" priority="0x0100">
+        <Parent guid="guidSHLMainMenu" id="IDM_VS_CTXT_CODEWIN" />
+      </Group>
+      <Group guid="guidUEToVSHostCmdSet" id="grpContextNavigation" priority="0x0100">
+        <Parent guid="guidUEToVSHostCmdSet" id="menuUEToVSContext" />
       </Group>
       <Group guid="guidUEToVSHostCmdSet" id="grpEngine" priority="0x0100">
         <Parent guid="guidUEToVSHostCmdSet" id="menuUEToVS" />
@@ -535,15 +553,104 @@
           <LocCanonicalName>UEToVS.InstallEditorPlugin</LocCanonicalName>
         </Strings>
       </Button>
+
+      <!-- M2 navigation (ids 0x0200-0x02FF; Navigation/NavigationActions.cs). Also placed in the editor context submenu. -->
+      <Button guid="guidUEToVSHostCmdSet" id="cmdGoToDefinition" priority="0x0100" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpNavigation" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <CommandFlag>DefaultDisabled</CommandFlag>
+        <Strings>
+          <ButtonText>Go to Definition / Declaration</ButtonText>
+          <CanonicalName>UEToVS.GoToDefinition</CanonicalName>
+          <LocCanonicalName>UEToVS.GoToDefinition</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdGoToImplementation" priority="0x0101" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpNavigation" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <CommandFlag>DefaultDisabled</CommandFlag>
+        <Strings>
+          <ButtonText>Go to Implementation</ButtonText>
+          <CanonicalName>UEToVS.GoToImplementation</CanonicalName>
+          <LocCanonicalName>UEToVS.GoToImplementation</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdFindReferences" priority="0x0102" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpNavigation" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <CommandFlag>DefaultDisabled</CommandFlag>
+        <Strings>
+          <ButtonText>Find References</ButtonText>
+          <CanonicalName>UEToVS.FindReferences</CanonicalName>
+          <LocCanonicalName>UEToVS.FindReferences</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdTypeHierarchy" priority="0x0103" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpNavigation" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <CommandFlag>DefaultDisabled</CommandFlag>
+        <Strings>
+          <ButtonText>Type Hierarchy</ButtonText>
+          <CanonicalName>UEToVS.TypeHierarchy</CanonicalName>
+          <LocCanonicalName>UEToVS.TypeHierarchy</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdListMembersInFile" priority="0x0104" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpNavigation" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <CommandFlag>DefaultDisabled</CommandFlag>
+        <Strings>
+          <ButtonText>List Members in File</ButtonText>
+          <CanonicalName>UEToVS.ListMembersInFile</CanonicalName>
+          <LocCanonicalName>UEToVS.ListMembersInFile</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdListTypeMembers" priority="0x0105" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpNavigation" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <CommandFlag>DefaultDisabled</CommandFlag>
+        <Strings>
+          <ButtonText>Type Members (with Inherited)</ButtonText>
+          <CanonicalName>UEToVS.ListTypeMembers</CanonicalName>
+          <LocCanonicalName>UEToVS.ListTypeMembers</LocCanonicalName>
+        </Strings>
+      </Button>
     </Buttons>
   </Commands>
 
-  <!--
-    M1 default shortcuts (proposal; the shortcut owner consolidates all bindings here). Only keys VS leaves free by
-    default are taken: Alt+Left/Right (back/forward), Alt+O (header/source), Ctrl+Alt+F11 (Live Coding, as in UE).
-    Double Shift (Search Everywhere) is not a VS key binding: it is detected by Input/InputMonitor.cs.
-  -->
+  <CommandPlacements>
+    <CommandPlacement guid="guidUEToVSHostCmdSet" id="cmdGoToDefinition" priority="0x0100">
+      <Parent guid="guidUEToVSHostCmdSet" id="grpContextNavigation" />
+    </CommandPlacement>
+    <CommandPlacement guid="guidUEToVSHostCmdSet" id="cmdGoToImplementation" priority="0x0101">
+      <Parent guid="guidUEToVSHostCmdSet" id="grpContextNavigation" />
+    </CommandPlacement>
+    <CommandPlacement guid="guidUEToVSHostCmdSet" id="cmdFindReferences" priority="0x0102">
+      <Parent guid="guidUEToVSHostCmdSet" id="grpContextNavigation" />
+    </CommandPlacement>
+    <CommandPlacement guid="guidUEToVSHostCmdSet" id="cmdTypeHierarchy" priority="0x0103">
+      <Parent guid="guidUEToVSHostCmdSet" id="grpContextNavigation" />
+    </CommandPlacement>
+    <CommandPlacement guid="guidUEToVSHostCmdSet" id="cmdListMembersInFile" priority="0x0104">
+      <Parent guid="guidUEToVSHostCmdSet" id="grpContextNavigation" />
+    </CommandPlacement>
+    <CommandPlacement guid="guidUEToVSHostCmdSet" id="cmdListTypeMembers" priority="0x0105">
+      <Parent guid="guidUEToVSHostCmdSet" id="grpContextNavigation" />
+    </CommandPlacement>
+  </CommandPlacements>
+
+  <VisibilityConstraints>
+    <VisibilityItem guid="guidUEToVSHostCmdSet" id="menuUEToVSContext" context="guidUnrealSolutionContext" />
+  </VisibilityConstraints>
+
+  <!-- Default keys (text editor scope). The keymap presets may rebind them. -->
   <KeyBindings>
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdGoToDefinition" editor="guidTextEditorFactory" key1="G" mod1="Alt" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdGoToImplementation" editor="guidTextEditorFactory" key1="G" mod1="Alt Shift" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdFindReferences" editor="guidTextEditorFactory" key1="F" mod1="Alt Shift" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdTypeHierarchy" editor="guidTextEditorFactory" key1="H" mod1="Alt Shift" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdListMembersInFile" editor="guidTextEditorFactory" key1="M" mod1="Alt" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdListTypeMembers" editor="guidTextEditorFactory" key1="M" mod1="Alt Shift" />
     <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdNavigateBack" editor="guidVSStd97" key1="VK_LEFT" mod1="Alt" />
     <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdNavigateForward" editor="guidVSStd97" key1="VK_RIGHT" mod1="Alt" />
     <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdToggleHeaderSource" editor="guidVSStd97" key1="O" mod1="Alt" />
@@ -555,6 +662,10 @@
     <GuidSymbol name="guidVsExtensionsMenu" value="{d309f791-903f-11d0-9efc-00a0c911004f}">
       <IDSymbol name="IDM_VS_MENU_EXTENSIONS" value="0x0091" />
     </GuidSymbol>
+    <!-- Text editor scope for KeyBindings (GUID_TextEditorFactory). -->
+    <GuidSymbol name="guidTextEditorFactory" value="{8B382828-6202-11d1-8870-0000F87579D2}" />
+    <!-- PackageGuids.UnrealSolutionContextString: active while an Unreal Engine solution is open. -->
+    <GuidSymbol name="guidUnrealSolutionContext" value="{67abac9a-1494-4743-8a5c-8ea3e3142c4c}" />
     <GuidSymbol name="guidUEToVSHostPackage" value="{b77c0841-5e27-4061-b4ec-364fc5d594a6}" />
     <GuidSymbol name="guidUEToVSHostCmdSet" value="{aacea68e-71c0-4b88-baf0-43e34d9fa8a7}">
       <IDSymbol name="menuUEToVS" value="0x1000" />
@@ -623,6 +734,16 @@
       <IDSymbol name="cmdLiveCoding" value="0x0360" />
       <IDSymbol name="cmdGenerateProjectFiles" value="0x0361" />
       <IDSymbol name="cmdInstallEditorPlugin" value="0x0362" />
+      <IDSymbol name="menuUEToVSContext" value="0x1001" />
+      <IDSymbol name="grpNavigation" value="0x1020" />
+      <IDSymbol name="grpCodeWinUEToVS" value="0x1021" />
+      <IDSymbol name="grpContextNavigation" value="0x1022" />
+      <IDSymbol name="cmdGoToDefinition" value="0x0200" />
+      <IDSymbol name="cmdGoToImplementation" value="0x0201" />
+      <IDSymbol name="cmdFindReferences" value="0x0202" />
+      <IDSymbol name="cmdTypeHierarchy" value="0x0203" />
+      <IDSymbol name="cmdListMembersInFile" value="0x0204" />
+      <IDSymbol name="cmdListTypeMembers" value="0x0205" />
     </GuidSymbol>
   </Symbols>
 </CommandTable>

@@ -65,6 +65,13 @@ namespace UEToVS.Host.Navigation
             }
         }
 
+        /// <summary>Async entry for callers that may be off the UI thread (M2 navigation features).</summary>
+        public async System.Threading.Tasks.Task<bool> JumpToAsync(CodeLocation location, string reason)
+        {
+            await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+            return JumpTo(location, reason);
+        }
+
         /// <summary><see cref="JumpTo(CodeLocation, string, bool)"/> for an engine location (0-based, as in the contracts).</summary>
         public bool JumpTo(SourceLocation location, string reason, bool newTabGroup = false) =>
             location != null && JumpTo(new CodeLocation(location.FilePath, location.Line, location.Column), reason, newTabGroup);
