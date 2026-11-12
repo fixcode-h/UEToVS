@@ -43,6 +43,22 @@ namespace UEToVS.Host.Logic.Settings
 
         public int LogMaxTotalMB { get; set; } = 200;
 
+        // ---- 导航（M2）----
+        /// <summary>Ctrl+left-click on an identifier = go to definition (hover with Ctrl underlines it).</summary>
+        public bool CtrlClickNavigation { get; set; } = true;
+
+        /// <summary>Highlight the other occurrences of the symbol under the caret (C++ only).</summary>
+        public bool ReferenceHighlighting { get; set; } = true;
+
+        /// <summary>"#RRGGBB" / "#AARRGGBB" background of read occurrences; empty = theme default (§7.7).</summary>
+        public string ReferenceHighlightReadColor { get; set; } = string.Empty;
+
+        /// <summary>"#RRGGBB" / "#AARRGGBB" background of write occurrences; empty = theme default (§7.7).</summary>
+        public string ReferenceHighlightWriteColor { get; set; } = string.Empty;
+
+        /// <summary>Navigation bar (current type / current function) at the top of C++ editors.</summary>
+        public bool NavigationBar { get; set; } = true;
+
         public HostSettings Clone() => (HostSettings)MemberwiseClone();
     }
 }
