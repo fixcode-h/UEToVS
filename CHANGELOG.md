@@ -13,6 +13,7 @@
 
 ### 改进
 - **“关闭 VS 后台代码分析”默认开启** — 打开 UE 解决方案时默认关闭 VS 的 C++ 后台代码分析（修改前备份，可在设置里关掉这个开关恢复）
+- **Agent / API 转发服务默认端口改为 11434** — 和 VS“添加 Ollama 提供程序”里预填的 http://localhost:11434 一致，手动添加时不用改地址；“应用”时仍会自动把模型写进 VS。11434 已被本机真实的 Ollama 占用时自动改用 47811，并在页面上提示。旧配置里的默认端口 47811 会自动迁移，自己改过的端口保持不变
 - **MCP 设置移到“Agent / API”页** — “启用 MCP 服务”和“写入 .mcp.json”从“常规”移到“Agent / API”页顶部
 - **UEToVS 工具栏去掉“后退 / 前进”按钮** — VS 自带这两个按钮；Alt+← / Alt+→ 和导航历史不变
 - **接管 IntelliSense 时同时关掉浏览数据库的更新** — 除“Disable Database”外，再关闭“Disable Database Updates”“Disable Automatic Updates”（同样先备份，撤销接管时恢复），避免 VS 继续“正在更新 C/C++ IntelliSense 和浏览信息 / 正在分析包含文件”

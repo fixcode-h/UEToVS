@@ -128,7 +128,7 @@ namespace UEToVS.Host.Settings
 
         private void UpdateGatewayStatus()
         {
-            string url = AgentApiConfig.GatewayUrlFor(_service.Snapshot().GatewayPort);
+            string url = AgentApiConfig.GatewayUrlFor(_service.ActivePort);
             string text;
             if (_service.GatewayRunning)
                 text = Loc.F("运行中：{0}，已注册 {1} 个模型到 VS，已处理 {2} 个请求", "Running at {0}; {1} models registered in VS; {2} requests served",
@@ -137,6 +137,9 @@ namespace UEToVS.Host.Settings
                 text = Loc.F("启动失败（{0}）：{1}。换一个端口后应用。", "Failed to start ({0}): {1}. Pick another port and apply.", url, _service.GatewayError);
             else
                 text = T("未运行：还没有启用的模型。", "Not running: no model is enabled yet.");
+            if (_service.PortFellBack)
+                text += "\n" + T("端口 11434 已被其他程序占用（可能是本机的 Ollama），转发服务改用 47811。VS 里如需手动添加 Ollama 提供程序，地址填 http://127.0.0.1:47811。",
+                                  "Port 11434 is used by another program (probably a local Ollama), so the gateway uses 47811. If you add the Ollama provider in VS by hand, use http://127.0.0.1:47811.");
             if (_service.LastVsOutcome == VsByokOutcome.Failed)
                 text += "\n" + Loc.F("写入 VS 模型配置失败：{0}", "Writing VS's model configuration failed: {0}", _service.LastVsError);
             _gatewayStatus.Text = text;
