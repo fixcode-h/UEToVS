@@ -40,7 +40,7 @@ namespace UEToVS.Host.Logic.Tests
                 DisableBackgroundCodeAnalysis = true, LogRetentionDays = 3, LogMaxTotalMB = 50, CppIndexThreads = 6, BlueprintIndexThreads = 2,
                 IndexDuringBuild = IndexDuringBuild.Pause, IndexEngineSource = false, ShareEngineIndex = true, EngineIndexPath = @"D:\Idx",
                 LuaScriptPaths = @"Content/Script; D:\Shared\Lua",
-                ShowToolbar = false, HiddenToolbarButtons = "back,performance", PerformanceSampleSeconds = 5,
+                ShowToolbar = false, HiddenToolbarButtons = "findReferences,performance", PerformanceSampleSeconds = 5,
                 // M1 / M2 fields
                 DoubleShiftEnabled = false, DoubleShiftIntervalMs = 450, DoubleShiftLeftOnly = true, SearchMaxResultsPerCategory = 80,
                 MouseButtonsNavigate = false, NavigationLineThreshold = 30, NavigationHistoryCapacity = 200, CheckIncludesOnSave = false,
@@ -49,7 +49,7 @@ namespace UEToVS.Host.Logic.Tests
             };
             var back = HostSettingsSchema.Codec.FromValues(HostSettingsSchema.Codec.ToValues(s), Schema, new HostSettings());
             Assert.Equal(HostSettingsSchema.Codec.ToValues(s), HostSettingsSchema.Codec.ToValues(back));
-            Assert.Equal("back,performance", back.HiddenToolbarButtons);
+            Assert.Equal("findReferences,performance", back.HiddenToolbarButtons);
             Assert.Equal(450, back.DoubleShiftIntervalMs);
             Assert.Equal(4567, back.EditorLinkPort);
             Assert.Equal("#80FF0000", back.ReferenceHighlightWriteColor);
@@ -132,10 +132,10 @@ namespace UEToVS.Host.Logic.Tests
         [Fact]
         public void SettingsButtonCannotBeHidden()
         {
-            var hidden = ToolbarButtons.ParseHidden("settings, back");
+            var hidden = ToolbarButtons.ParseHidden("settings, findReferences");
             Assert.True(ToolbarButtons.IsVisible("settings", true, hidden));
-            Assert.False(ToolbarButtons.IsVisible("back", true, hidden));
-            Assert.False(ToolbarButtons.IsVisible("forward", false, hidden));
+            Assert.False(ToolbarButtons.IsVisible("findReferences", true, hidden));
+            Assert.False(ToolbarButtons.IsVisible("performance", false, hidden));
         }
     }
 

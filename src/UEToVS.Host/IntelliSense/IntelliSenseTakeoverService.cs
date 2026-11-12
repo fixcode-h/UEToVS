@@ -84,12 +84,14 @@ namespace UEToVS.Host.IntelliSense
 
         public async Task OnSolutionClosedAsync(bool wasUnreal)
         {
-            var s = _settings.Effective;
-            if (wasUnreal && s.IntelliSenseTakeoverMode == IntelliSenseTakeoverMode.UnrealSolutionOnly && BackupExists)
-            {
-                L.Info("intellisense.solution.closed", "Mode UnrealSolutionOnly: restoring VS IntelliSense");
-                await RestoreAsync("solutionClosed").ConfigureAwait(false);
-            }
+            // Not restored on close any more: VS starts its C++ parse and browsing-database scan ("正在更新 C/C++ IntelliSense
+            // 和浏览信息") while the next solution loads, before UEToVS can switch them off again. Keeping the takeover until
+            // a non-UE solution opens (OnOtherSolutionOpenedAsync restores then) means the next UE solution opens with VS's
+            // scanner already off.
+            if (wasUnreal && BackupExists)
+                L.Info("intellisense.solution.closed", "UE solution closed: takeover kept until a non-UE solution opens",
+                       ("mode", _settings.Effective.IntelliSenseTakeoverMode.ToString()));
+            await Task.CompletedTask.ConfigureAwait(false);
         }
 
         /// <summary>A non-UE solution opened: in UE-only mode, VS's IntelliSense must be on, so restore a leftover takeover.</summary>

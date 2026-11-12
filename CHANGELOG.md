@@ -12,6 +12,9 @@
 - **检查更新** — 设置 > 常规 > 更新 新增“检查更新”按钮：查询 GitHub 上的最新版本，有新版本时下载安装包并启动 VS 的扩展安装程序（VSIXInstaller），关闭 VS 后完成安装；已是最新时直接提示（日志 `update.*`）
 
 ### 改进
+- **UEToVS 工具栏去掉“后退 / 前进”按钮** — VS 自带这两个按钮；Alt+← / Alt+→ 和导航历史不变
+- **接管 IntelliSense 时同时关掉浏览数据库的更新** — 除“Disable Database”外，再关闭“Disable Database Updates”“Disable Automatic Updates”（同样先备份，撤销接管时恢复），避免 VS 继续“正在更新 C/C++ IntelliSense 和浏览信息 / 正在分析包含文件”
+- **“仅 UE 解决方案”模式关闭 UE 解决方案时不再立即恢复 VS IntelliSense** — 改为打开非 UE 解决方案时恢复。这样下次打开 UE 解决方案时，VS 的 C++ 解析和浏览数据库扫描一开始就是关的，不会先扫一阵再被关掉
 - **UEToVS 窗口的按键保护再补一处** — 窗口激活但 WPF 焦点暂时为空时，编辑器命令同样留在窗口里，不会落到代码编辑器
 
 ## v0.4.4

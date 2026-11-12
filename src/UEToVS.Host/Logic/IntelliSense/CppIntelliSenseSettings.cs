@@ -82,6 +82,8 @@ namespace UEToVS.Host.Logic.IntelliSense
         public const string KeyIncludeAutoComplete = "includeAutoComplete";
         public const string KeyExternalDependencies = "externalDependencies";
         public const string KeyDatabase = "database";
+        public const string KeyDatabaseUpdates = "databaseUpdates";
+        public const string KeyAutomaticUpdates = "automaticUpdates";
         public const string KeyBackgroundCodeAnalysis = "backgroundCodeAnalysis";
 
         private static CppPropertyCandidate S(string name, bool value) => new CppPropertyCandidate(SpecificPage, name, value);
@@ -106,6 +108,12 @@ namespace UEToVS.Host.Logic.IntelliSense
                 S("DisableExternalDependenciesFolders", true), S("DisableExternalDependencies", true), S("DisableExternalDependencyFolders", true)),
             new CppSettingDefinition(KeyDatabase, "Disable Database (browsing database .vc.db)", CppSettingGate.DisableDatabaseOption,
                 S("DisableDatabase", true), S("DisableBrowsingDatabase", true)),
+            // "正在更新 C/C++ IntelliSense 和浏览信息 / 正在分析包含文件": the browsing database scan. With only "Disable
+            // Database" some VS versions still rescan includes, so the update switches go too (same gate, same backup).
+            new CppSettingDefinition(KeyDatabaseUpdates, "Disable Database Updates", CppSettingGate.DisableDatabaseOption,
+                S("DisableDatabaseUpdates", true), S("DisableDatabaseUpdate", true), S("DisableBrowsingDatabaseUpdates", true)),
+            new CppSettingDefinition(KeyAutomaticUpdates, "Disable Automatic Updates", CppSettingGate.DisableDatabaseOption,
+                S("DisableAutomaticUpdates", true), S("DisableAutoUpdates", true), S("DisableAutoUpdate", true)),
         };
 
         /// <summary>
