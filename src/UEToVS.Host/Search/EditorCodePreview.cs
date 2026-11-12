@@ -111,6 +111,9 @@ namespace UEToVS.Host.Search
             o.SetOptionValue(DefaultTextViewOptions.ShowBlockStructureId, false);
             o.SetOptionValue(DefaultTextViewOptions.UseVisibleWhitespaceId, false);
             view.Caret.IsHidden = true;
+            // Never take keyboard focus: a focused VS text view turns keys into editor commands that VS routes to the last
+            // code editor (typing in Search Everywhere ended up in the code, v0.4.2). Keys stay in the search box.
+            view.VisualElement.Focusable = false;
             _targetLayer = view.GetAdornmentLayer(PreviewAdornments.TargetLineLayer);
             view.LayoutChanged += OnLayoutChanged;
             view.VisualElement.SizeChanged += (s, e) => Safe.Execute(L, "ui.search.preview.resize", CenterIfPending);
