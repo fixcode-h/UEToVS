@@ -139,6 +139,9 @@ namespace UEToVS.UI.Theming
             root.SetResourceReference(System.Windows.Documents.TextElement.FontFamilyProperty, Tokens.FontFamilyUi);
             root.SetResourceReference(System.Windows.Documents.TextElement.FontSizeProperty, Tokens.FontSizeBody);
             root.SetResourceReference(System.Windows.Documents.TextElement.ForegroundProperty, Tokens.TextPrimary);
+            // 和 VS 自己的界面一样按像素网格排字：UEToVS 的窗口和弹窗是独立的顶层窗口，继承不到 VS 主窗口的 Display 模式；
+            // 默认的 Ideal 模式在 12–13px 的中文（尤其是加粗按钮文字、透明圆角窗口里只能灰度抗锯齿时）会发虚。
+            TextOptions.SetTextFormattingMode(root, TextFormattingMode.Display);
             try
             {
                 root.SetResourceReference(ImageThemingUtilities.ImageBackgroundColorProperty, Tokens.ColorOf(TokenNames.SurfacePopup));

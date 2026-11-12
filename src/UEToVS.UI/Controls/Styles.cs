@@ -128,7 +128,8 @@ namespace UEToVS.UI.Controls
             s.Setters.Add(bg == null ? new Setter(Control.BackgroundProperty, Brushes.Transparent) : Ui.Dyn(Control.BackgroundProperty, bg));
             s.Setters.Add(border == null ? new Setter(Control.BorderBrushProperty, Brushes.Transparent) : Ui.Dyn(Control.BorderBrushProperty, border));
             s.Setters.Add(Ui.Dyn(Control.ForegroundProperty, fg));
-            if (kind == ButtonKind.Primary) s.Setters.Add(new Setter(Control.FontWeightProperty, FontWeights.SemiBold));
+            // Medium 而不是 SemiBold：内置中文字体 Noto Sans SC 只带 Regular / Medium，要 SemiBold 时汉字会被系统合成加粗，笔画糊在一起
+            if (kind == ButtonKind.Primary) s.Setters.Add(new Setter(Control.FontWeightProperty, FontWeights.Medium));
 
             var over = new Trigger { Property = UIElement.IsMouseOverProperty, Value = true };
             over.Setters.Add(Ui.Dyn(Control.BackgroundProperty, hover));
