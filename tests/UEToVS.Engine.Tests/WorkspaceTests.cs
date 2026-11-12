@@ -235,5 +235,13 @@ namespace UEToVS.Engine.Tests
             Assert.False(d.EnabledByDefault);
             Assert.NotNull(UnrealDescriptor.Parse("x", "{ not json").Error);
         }
+
+        [Theory]
+        [InlineData("C:\\G\\Content\\Maps\\__ExternalActors__\\L\\A.uasset", false)]
+        [InlineData("/g/Content/Maps/__ExternalObjects__/x.uasset", false)]
+        [InlineData("/g/Content/Maps/L_Main.umap", true)]
+        [InlineData("/g/Content/a.txt", false)]
+        public void ChangedAssetsHonourSkippedFolders(string path, bool expected) =>
+            Assert.Equal(expected, AssetLister.IsIndexedAsset(path));
     }
 }

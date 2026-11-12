@@ -111,7 +111,7 @@ namespace UEToVS.Engine.Vfs
             {
                 // Cheap filter on the watcher thread: build output, VCS folders and unrelated extensions.
                 if (FileLister.IsInSkippedDirectory(root, path)) return;
-                bool known = FileLister.TryGetKind(path, out _) || AssetLister.IsAsset(path);
+                bool known = FileLister.TryGetKind(path, out _) || AssetLister.IsIndexedAsset(path);
                 bool maybeDir = string.IsNullOrEmpty(Path.GetExtension(path));
                 if (!known && !maybeDir) return;
                 Enqueue(new[] { new FileChange { FilePath = path, Kind = kind } }, "watcher");

@@ -22,6 +22,15 @@ namespace UEToVS.Engine.Unreal
         public static bool IsAsset(string path) =>
             path.EndsWith(".uasset", StringComparison.OrdinalIgnoreCase) || path.EndsWith(".umap", StringComparison.OrdinalIgnoreCase);
 
+        /// <summary>Asset that belongs in the index: right extension and not inside a skipped folder (e.g. __ExternalActors__).</summary>
+        public static bool IsIndexedAsset(string path)
+        {
+            if (!IsAsset(path)) return false;
+            foreach (var part in path.Split('/', '\\'))
+                if (SkippedDirectories.Contains(part)) return false;
+            return true;
+        }
+
         public static List<AssetItem> List(IEnumerable<IndexRoot> contentRoots, int maxParallelism = 0, CancellationToken ct = default)
         {
             var bag = new ConcurrentBag<AssetItem>();

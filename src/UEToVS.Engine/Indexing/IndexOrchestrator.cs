@@ -458,7 +458,7 @@ namespace UEToVS.Engine.Indexing
                     continue;
                 }
 
-                if (AssetLister.IsAsset(path))
+                if (AssetLister.IsIndexedAsset(path))
                 {
                     var root = ws.ContentRoots.FirstOrDefault(r => Under(r.Path, path));
                     if (root != null) { Assets.Upsert(AssetLister.Create(path, root)); assetsChanged++; }
