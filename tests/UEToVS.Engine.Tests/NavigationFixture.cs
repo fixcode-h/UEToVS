@@ -90,8 +90,10 @@ namespace UEToVS.Engine.Tests
 
         public CaretRequest Caret(string relative, string text, int nth = 0, int into = 1)
         {
+            // inside the identifier after the last marker of the pattern ("X*/Name" → in Name)
             var (l, c) = Find(relative, text, nth);
-            return new CaretRequest { FilePath = PathOf(relative), Line = l, Column = c + into };
+            int anchor = text.LastIndexOf("*/", StringComparison.Ordinal);
+            return new CaretRequest { FilePath = PathOf(relative), Line = l, Column = c + (anchor >= 0 ? anchor + 2 : 0) + into };
         }
 
         private void ParseMarkers(string path, string text)

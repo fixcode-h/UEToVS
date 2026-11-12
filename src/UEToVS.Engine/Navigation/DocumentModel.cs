@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading;
 using UEToVS.Contracts;
 using UEToVS.Engine.Syntax;
 
@@ -19,6 +20,9 @@ namespace UEToVS.Engine.Navigation
         public int Function { get; set; }
 
         public bool IsParameter { get; set; }
+
+        /// <summary>Byte offset where the local goes out of scope (closing brace of its block).</summary>
+        public int ScopeEnd { get; set; } = int.MaxValue;
     }
 
     /// <summary>
@@ -182,44 +186,73 @@ namespace UEToVS.Engine.Navigation
 
         public static bool IsScopeKind(SymbolKind k) => k == SymbolKind.Namespace || TypeText.IsRecordKind(k) || k == SymbolKind.Enum || TypeText.IsCallableKind(k);
 
-        /// <summary>Declarations whose scope contains the offset, outer → inner.</summary>
-        public List<int> EnclosingScopes(int offset)
+        private int[] _scopeOrder;   // scope declarations sorted by (start asc, end desc)
+        private int[] _scopeParent;  // index into _scopeOrder of the enclosing scope, or -1
+        private int[] _scopeStarts;
+
+        private void EnsureScopeTree()
         {
-            var list = new List<int>();
+            if (Volatile.Read(ref _scopeStarts) != null) return;
+            var order = new List<int>();
             for (int i = 0; i < Decls.Count; i++)
             {
                 var d = Decls[i];
-                if (d.IsImplicit || !IsScopeKind(d.Kind)) continue;
-                var r = ScopeRange(i);
-                if (r.IsNone || offset < r.Start || offset >= r.End) continue;
-                list.Add(i);
+                if (d.IsImplicit || !IsScopeKind(d.Kind) || ScopeRange(i).IsNone) continue;
+                order.Add(i);
             }
-            list.Sort((a, b) =>
+            order.Sort((a, b) =>
             {
                 var ra = ScopeRange(a);
                 var rb = ScopeRange(b);
                 int c = ra.Start.CompareTo(rb.Start);
                 return c != 0 ? c : rb.End.CompareTo(ra.End);
             });
+            var parent = new int[order.Count];
+            var starts = new int[order.Count];
+            var stack = new Stack<int>();
+            for (int k = 0; k < order.Count; k++)
+            {
+                var r = ScopeRange(order[k]);
+                starts[k] = r.Start;
+                while (stack.Count > 0 && ScopeRange(order[stack.Peek()]).End <= r.Start) stack.Pop();
+                parent[k] = stack.Count > 0 ? stack.Peek() : -1;
+                stack.Push(k);
+            }
+            _scopeOrder = order.ToArray();
+            _scopeParent = parent;
+            Volatile.Write(ref _scopeStarts, starts);
+        }
+
+        /// <summary>Declarations whose scope contains the offset, outer → inner. O(log n + depth).</summary>
+        public List<int> EnclosingScopes(int offset)
+        {
+            EnsureScopeTree();
+            var list = new List<int>();
+            int k = Array.BinarySearch(_scopeStarts, offset);
+            if (k < 0) k = ~k - 1;
+            else while (k + 1 < _scopeStarts.Length && _scopeStarts[k + 1] == offset) k++;
+            while (k >= 0)
+            {
+                var r = ScopeRange(_scopeOrder[k]);
+                if (offset >= r.Start && offset < r.End) break;
+                k = _scopeParent[k];
+            }
+            for (; k >= 0; k = _scopeParent[k])
+            {
+                var r = ScopeRange(_scopeOrder[k]);
+                if (offset >= r.Start && offset < r.End) list.Add(_scopeOrder[k]);
+            }
+            list.Reverse();
             return list;
         }
 
         /// <summary>Innermost function (with a body) containing the offset, or -1.</summary>
         public int EnclosingFunction(int offset)
         {
-            int best = -1, bestStart = -1;
-            for (int i = 0; i < Decls.Count; i++)
-            {
-                var d = Decls[i];
-                if (!TypeText.IsCallableKind(d.Kind) || d.Body.IsNone) continue;
-                var r = ScopeRange(i);
-                if (offset >= r.Start && offset < r.End && r.Start > bestStart)
-                {
-                    best = i;
-                    bestStart = r.Start;
-                }
-            }
-            return best;
+            var scopes = EnclosingScopes(offset);
+            for (int k = scopes.Count - 1; k >= 0; k--)
+                if (TypeText.IsCallableKind(Decls[scopes[k]].Kind) && !Decls[scopes[k]].Body.IsNone) return scopes[k];
+            return -1;
         }
 
         /// <summary>
@@ -295,8 +328,11 @@ namespace UEToVS.Engine.Navigation
             int first = TokenIndexFrom(d.Offset);
             int bodyStart = d.Body.Start;
             int end = d.Body.End;
+            var blocks = new Stack<int>(); // open '{' token indices
             for (int j = first + 1; j < Tokens.Length && Tokens[j].Start < end; j++)
             {
+                if (Tokens[j].Is(Punct.LBrace)) { blocks.Push(j); continue; }
+                if (Tokens[j].Is(Punct.RBrace)) { if (blocks.Count > 0) blocks.Pop(); continue; }
                 if (Tokens[j].Kind != TokenKind.Identifier) continue;
                 bool inParams = Tokens[j].Start < bodyStart;
                 if (!LooksLikeDeclarator(j, inParams, out int typeStart)) continue;
@@ -306,7 +342,8 @@ namespace UEToVS.Engine.Navigation
                     string inferred = InferFromInitializer(j);
                     if (inferred != null) type = inferred + "*";
                 }
-                list.Add(new LocalVariable { Name = TokenText(j), Offset = Tokens[j].Start, Type = type, Function = function, IsParameter = inParams });
+                int scopeEnd = inParams || blocks.Count == 0 ? end : ClosingBraceEnd(blocks.Peek(), end);
+                list.Add(new LocalVariable { Name = TokenText(j), Offset = Tokens[j].Start, Type = type, Function = function, IsParameter = inParams, ScopeEnd = scopeEnd });
             }
             return list;
         }
@@ -423,31 +460,22 @@ namespace UEToVS.Engine.Navigation
             foreach (var l in LocalsOf(function))
             {
                 if (l.Offset > offset || !string.Equals(l.Name, name, StringComparison.Ordinal)) continue;
-                if (!l.IsParameter && !LocalInScope(l, offset)) continue;
+                if (offset >= l.ScopeEnd) continue;
                 if (best == null || l.Offset > best.Offset) best = l;
             }
             return best;
         }
 
-        /// <summary>Block scoping: the local's enclosing <c>{</c> (or for-statement) must still be open at <paramref name="offset"/>.</summary>
-        private bool LocalInScope(LocalVariable l, int offset)
+        /// <summary>End offset of the '}' matching the '{' at token <paramref name="open"/> (or <paramref name="fallback"/>).</summary>
+        private int ClosingBraceEnd(int open, int fallback)
         {
-            int ti = TokenIndexFrom(l.Offset);
             int depth = 0;
-            int parenDepth = 0;
-            // a for/if-init variable lives until the end of the statement that follows: approximate by its enclosing block
-            for (int k = ti; k < Tokens.Length && Tokens[k].Start < offset; k++)
+            for (int k = open; k < Tokens.Length; k++)
             {
                 if (Tokens[k].Is(Punct.LBrace)) depth++;
-                else if (Tokens[k].Is(Punct.RBrace))
-                {
-                    if (depth == 0) return false;
-                    depth--;
-                }
-                else if (Tokens[k].Is(Punct.LParen)) parenDepth++;
-                else if (Tokens[k].Is(Punct.RParen)) parenDepth--;
+                else if (Tokens[k].Is(Punct.RBrace) && --depth == 0) return Tokens[k].End;
             }
-            return true;
+            return fallback;
         }
     }
 }
