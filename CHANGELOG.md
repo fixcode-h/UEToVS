@@ -12,6 +12,8 @@
 - **检查更新** — 设置 > 常规 > 更新 新增“检查更新”按钮：查询 GitHub 上的最新版本，有新版本时下载安装包并启动 VS 的扩展安装程序（VSIXInstaller），关闭 VS 后完成安装；已是最新时直接提示（日志 `update.*`）
 
 ### 改进
+- **“关闭 VS 后台代码分析”默认开启** — 打开 UE 解决方案时默认关闭 VS 的 C++ 后台代码分析（修改前备份，可在设置里关掉这个开关恢复）
+- **MCP 设置移到“Agent / API”页** — “启用 MCP 服务”和“写入 .mcp.json”从“常规”移到“Agent / API”页顶部
 - **UEToVS 工具栏去掉“后退 / 前进”按钮** — VS 自带这两个按钮；Alt+← / Alt+→ 和导航历史不变
 - **接管 IntelliSense 时同时关掉浏览数据库的更新** — 除“Disable Database”外，再关闭“Disable Database Updates”“Disable Automatic Updates”（同样先备份，撤销接管时恢复），避免 VS 继续“正在更新 C/C++ IntelliSense 和浏览信息 / 正在分析包含文件”
 - **“仅 UE 解决方案”模式关闭 UE 解决方案时不再立即恢复 VS IntelliSense** — 改为打开非 UE 解决方案时恢复。这样下次打开 UE 解决方案时，VS 的 C++ 解析和浏览数据库扫描一开始就是关的，不会先扫一阵再被关掉

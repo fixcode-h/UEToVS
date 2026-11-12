@@ -45,11 +45,11 @@ namespace UEToVS.Host.Logic.Tests
         }
 
         [Fact]
-        public void BackgroundCodeAnalysisIsOffByDefaultAndOverridable()
+        public void BackgroundCodeAnalysisIsTurnedOffByDefaultAndOverridable()
         {
-            Assert.False(new HostSettings().DisableBackgroundCodeAnalysis);
-            var r = SettingsMerger.Merge(new HostSettings(), @"{ ""intelliSense"": { ""disableBackgroundCodeAnalysis"": true } }");
-            Assert.True(r.Effective.DisableBackgroundCodeAnalysis);
+            Assert.True(new HostSettings().DisableBackgroundCodeAnalysis); // v0.4.5: VS background code analysis off by default
+            var r = SettingsMerger.Merge(new HostSettings(), @"{ ""intelliSense"": { ""disableBackgroundCodeAnalysis"": false } }");
+            Assert.False(r.Effective.DisableBackgroundCodeAnalysis);
             Assert.Empty(r.Warnings);
         }
 

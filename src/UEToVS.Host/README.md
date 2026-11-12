@@ -111,7 +111,7 @@ v0.3.0 起所有设置在独立的“UEToVS 设置”窗口（`Settings/Settings
 
 ## 关闭 VS C++ 后台代码分析
 
-VS 每次打开或保存 .cpp 都会在后台用编译器（/analyze）完整分析整个编译单元，也就是任务中心里的“C++ 后台 Code Analysis”。UE 源文件会展开数千个头文件，单个文件常要几十秒。设置“关闭 VS C++ 后台代码分析”（默认关，独立于 IntelliSense 接管；解决方案设置键 `intelliSense.disableBackgroundCodeAnalysis`）开启后：
+VS 每次打开或保存 .cpp 都会在后台用编译器（/analyze）完整分析整个编译单元，也就是任务中心里的“C++ 后台 Code Analysis”。UE 源文件会展开数千个头文件，单个文件常要几十秒。设置“关闭 VS C++ 后台代码分析”（默认开，独立于 IntelliSense 接管；解决方案设置键 `intelliSense.disableBackgroundCodeAnalysis`）开启后：
 
 1. 打开 UE 解决方案时，把 工具 > 选项 > 文本编辑器 > C/C++ > 高级 > Code Analysis 下的 “Disable Background Code Analysis” 设为 True（DTE 属性候选名见 `CppIntelliSenseSettings.BackgroundCodeAnalysis`）。
 2. 原值先备份到 `%LocalAppData%\UEToVS\code-analysis-backup.json`，日志事件 `codeAnalysis.*`。
