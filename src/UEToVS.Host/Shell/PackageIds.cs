@@ -61,6 +61,8 @@ namespace UEToVS.Host.Shell
         public const int GenerateConstructor = 0x0160;
         public const int GenerateReplication = 0x0161;
         public const int GenerateRpc = 0x0162;
+        public const int ExpandSelection = 0x0163;
+        public const int ShrinkSelection = 0x0164;
     }
 
     /// <summary>Stable action ids (§7.4). Commands dispatch to these.</summary>
@@ -84,5 +86,7 @@ namespace UEToVS.Host.Shell
         public const string GenerateConstructor = "uetovs.generate.constructor";
         public const string GenerateReplication = "uetovs.generate.replication";
         public const string GenerateRpc = "uetovs.generate.rpc";
+        public const string ExpandSelection = "uetovs.edit.expandSelection";
+        public const string ShrinkSelection = "uetovs.edit.shrinkSelection";
     }
 }

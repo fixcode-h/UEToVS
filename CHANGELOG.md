@@ -13,6 +13,7 @@
 - **UE 代码模板（Live Templates）** — 行首输入缩写后按 Tab 展开，或在补全列表里选择：`uclass`、`ustruct`、`uenum`、`uinterface`、`uprop`、`upropr`（ReplicatedUsing + OnRep）、`ufunc`、`ufuncn`（BlueprintNativeEvent + _Implementation）、`userver`、`uelog` / `uelogf`、`logcat` / `logdef`、`uecheck` / `checkf` / `ensuremsg`、`dmdel` / `ddel` / `mdel` / `del` 委托、`cds`（CreateDefaultSubobject）、`adddyn`、`gbody`、`superbp`。展开后 Tab / Shift+Tab 在占位符间跳转，同名占位符联动修改，Enter 跳到结束位置，Esc 退出；类名默认取自文件名。设置“代码感知 > 代码模板”可关闭；日志 `snippets.expand`
 - **Postfix 模板** — 在表达式后输入 `.if`、`.notnull`、`.null`、`.ifvalid`、`.for`、`.return`、`.var`、`.check`、`.ensure`（表达式在行首时）以及 `.cast`（→ `Cast<T>(expr)`）、`.isvalid` / `.valid`（→ `IsValid(expr)`）、`.not`、`.par`、`.text`，从补全列表选择后把表达式包进对应代码；只做行内文本分析，不请求 Engine
 - **Generate：构造函数 / GetLifetimeReplicatedProps / RPC** — 三个新命令（编辑器右键 UEToVS 菜单、Find Action，默认键 Ctrl+Shift+Alt+U 再按 K / Y / W），在头文件的类里执行：生成构造函数声明和 .cpp 定义；按类里的 Replicated / ReplicatedUsing 属性生成 `GetLifetimeReplicatedProps`（已有定义时只补缺少的 `DOREPLIFETIME`，并补 `#include "Net/UnrealNetwork.h"` 和头文件里的 override 声明）；光标在 Server / Client / NetMulticast 声明上时补 `_Implementation` / `_Validate`，在普通函数上时生成一个转发到它的 `Server…` RPC 三件套。头文件和 .cpp 各一次撤销；日志 `generate.run`
+- **Smart Select（扩大 / 缩小选区）** — Shift+Alt+W 按语法逐级扩大选区：单词 → 字符串内容 → 字符串 → 参数 → 括号内容 → 括号 → 调用（含 `Obj->Func`）→ 语句 → 块内容 → 块 → 带 if / for / 函数签名的整块；Ctrl+Shift+Alt+W 按原路缩回。只在按键时计算（超大文件只看选区附近 200 KB）；日志 `edit.smartSelect`
 
 ## v0.4.1
 
