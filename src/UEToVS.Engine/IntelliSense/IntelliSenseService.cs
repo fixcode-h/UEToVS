@@ -35,6 +35,9 @@ namespace UEToVS.Engine.IntelliSense
             Documents = documents ?? new DocumentCache();
             Knowledge = knowledge ?? UeMacroKnowledge.Default;
             _completion.Strings = new StringCompletionSources(backend, files, assets);
+            _diagnostics.Strings = _completion.Strings;
+            _diagnostics.IndexReady = _indexReady;
+            _diagnostics.GamePackageExists = _completion.GamePackageExists;
         }
 
         /// <summary>Gameplay tags, ini files and assets behind string context completion.</summary>
@@ -188,7 +191,7 @@ namespace UEToVS.Engine.IntelliSense
             var data = new (string, object)[]
             {
                 ("file", FileName(doc.Path)), ("lines", from + ".." + to), ("version", request.Document.TextVersion), ("items", items.Count),
-                ("UE0001", stats.UnknownMember), ("UE0003", stats.MissingGeneratedBody), ("checked", stats.Checked), ("uncertain", stats.Uncertain),
+                ("UE0001", stats.UnknownMember), ("UE0003", stats.MissingGeneratedBody), ("ueRules", stats.UeRuleSummary()), ("checked", stats.Checked), ("uncertain", stats.Uncertain),
                 ("uncertainReasons", stats.TopReasons()), ("indexQueries", s.Ctx.IndexQueries), ("ms", resp.ElapsedMs),
             };
             double budget = DiagnosticsBudgetMs * Math.Max(1.0, (to - from + 1) / 200.0);

@@ -96,6 +96,13 @@ namespace UEToVS.Host.Logic.Commands
         public const int FindAction = 0x0150;
         /// <summary>MCP (0x0500–0x05FF).</summary>
         public const int WriteMcpConfig = 0x0500;
+        /// <summary>v0.4.2 Generate (Generate/GenerateActions.cs).</summary>
+        public const int GenerateConstructor = 0x0160;
+        public const int GenerateReplication = 0x0161;
+        public const int GenerateRpc = 0x0162;
+        /// <summary>v0.4.2 Smart Select (Editing/SmartSelectActions.cs).</summary>
+        public const int ExpandSelection = 0x0163;
+        public const int ShrinkSelection = 0x0164;
 
         // ---- M2 navigation (0x0200–0x02FF): Navigation/NavigationActions.cs
         public const int GoToDefinition = 0x0200;
@@ -257,6 +264,12 @@ namespace UEToVS.Host.Logic.Commands
             C(M4, QuickActions, "QuickActions", ActionIds.QuickActions, "上下文操作（Alt+Enter）", "Context Actions (Alt+Enter)", "refactor", Ed, "Alt+Enter", "Alt+Enter", "Alt+Enter"),
             C(M4, Rename, "Rename", ActionIds.Rename, "重命名…", "Rename...", "refactor", Ed, "Ctrl+R, Ctrl+R", "Shift+F6", "Ctrl+R, Ctrl+R"),
             C(M4, ImplementVirtual, "ImplementVirtual", ActionIds.ImplementVirtual, "实现虚函数 / 重写…", "Implement Virtual Methods / Override...", "refactor", Ed, "Ctrl+Shift+Alt+U, V", "Ctrl+O", null),
+            // generate (v0.4.2, host; later also offered by the Alt+Enter hub through the same action ids)
+            C(H, GenerateConstructor, "GenerateConstructor", "uetovs.generate.constructor", "生成构造函数", "Generate Constructor", "unreal", Gl, "Ctrl+Shift+Alt+U, K", null, null),
+            C(H, GenerateReplication, "GenerateReplication", "uetovs.generate.replication", "生成 GetLifetimeReplicatedProps", "Generate GetLifetimeReplicatedProps", "unreal", Gl, "Ctrl+Shift+Alt+U, Y", null, null),
+            C(H, GenerateRpc, "GenerateRpc", "uetovs.generate.rpc", "生成 RPC（_Implementation / _Validate）", "Generate RPC (Implementation / Validate)", "unreal", Gl, "Ctrl+Shift+Alt+U, W", null, null),
+            C(H, ExpandSelection, "ExpandSelection", "uetovs.edit.expandSelection", "扩大选区", "Extend Selection", "navigation", Ed, "Shift+Alt+W", null, null),
+            C(H, ShrinkSelection, "ShrinkSelection", "uetovs.edit.shrinkSelection", "缩小选区", "Shrink Selection", "navigation", Ed, "Ctrl+Shift+Alt+W", null, null),
         };
 
         public static CommandInfo ById(int id)

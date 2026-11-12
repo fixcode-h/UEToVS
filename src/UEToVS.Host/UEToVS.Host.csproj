@@ -72,6 +72,8 @@
     <Content Include="LICENSE.txt" IncludeInVSIX="true" />
     <!-- v0.3.0 brand mark: source Resources\UEToVS.svg; UEToVS16.png is compiled into the VSCT (toolbar / menu bitmap). -->
     <Content Include="Resources\PreviewImage.png" IncludeInVSIX="true" />
+    <!-- v0.4.2 debugger visualizers for UE types the engine natvis does not cover (NativeVisualizer asset) -->
+    <Content Include="Resources\UEToVS.natvis" IncludeInVSIX="true" />
     <None Include="Resources\UEToVS.svg" />
     <None Include="Resources\UEToVS16.png" />
     <None Include="Resources\UEToVS32.png" />
