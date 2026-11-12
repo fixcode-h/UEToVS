@@ -24,6 +24,9 @@ namespace UEToVS.Host.Logic.Fonts
 
         private const string Group = "字体", GroupEn = "Fonts";
         private const string VsGroup = "VS 字体", VsGroupEn = "VS fonts";
+        // 9 个类别分两组：显示代码 / 输出的窗口，和显示界面文字的窗口（VsFontCategory.Role）
+        private const string VsCodeGroup = "VS 字体 · 代码类窗口", VsCodeGroupEn = "VS fonts · code windows";
+        private const string VsUiGroup = "VS 字体 · 界面类窗口", VsUiGroupEn = "VS fonts · interface windows";
         private const string Keywords = "font fonts 字体 字号 Fonts and Colors 字体和颜色";
 
         public static string FamilyKey(VsFontCategory c) => VsPrefix + c.Id + FamilySuffix;
@@ -52,12 +55,16 @@ namespace UEToVS.Host.Logic.Fonts
                 DescriptionEn = "Replaces Tools > Options > Environment > Fonts and Colors: writes VS's fonts from the rows below (bundled fonts are installed for the current user first, no admin needed). The original fonts are backed up before the first change and restored when turned off. Newly installed fonts may need a VS restart to take full effect.",
                 Default = "true", Keywords = Keywords,
             });
-            foreach (var c in VsFontCategories.All)
+            // Code-role categories first, then UI ones, so each group is one card; the size sits on the family's row.
+            foreach (var c in VsFontCategories.All.OrderBy(c => c.Role == VsFontRole.Code ? 0 : 1))
             {
-                list.Add(FontRow(category, FamilyKey(c), c.TitleZh, c.TitleEn, null, null, c.DefaultFamily, VsKeywords, c.Role == VsFontRole.Code, VsGroup, VsGroupEn));
+                bool code = c.Role == VsFontRole.Code;
+                string g = code ? VsCodeGroup : VsUiGroup, gEn = code ? VsCodeGroupEn : VsUiGroupEn;
+                list.Add(FontRow(category, FamilyKey(c), c.TitleZh, c.TitleEn, null, null, c.DefaultFamily, VsKeywords, code, g, gEn));
                 list.Add(new SettingDescriptor
                 {
-                    Category = category, Key = SizeKey(c), Kind = SettingKind.Int, GroupZh = VsGroup, GroupEn = VsGroupEn,
+                    Category = category, Key = SizeKey(c), Kind = SettingKind.Int, GroupZh = g, GroupEn = gEn, InlineWithKey = FamilyKey(c),
+                    InlineLabelZh = "字号", InlineLabelEn = "Size",
                     TitleZh = c.TitleZh + " · 字号", TitleEn = c.TitleEn + " · size",
                     Default = c.DefaultSize.ToString(CultureInfo.InvariantCulture), Min = 0, Max = VsFontCategories.MaxSize,
                     AutoLabelZh = "不修改（保持 VS 当前字号）", AutoLabelEn = "Don't change (keep VS's size)",

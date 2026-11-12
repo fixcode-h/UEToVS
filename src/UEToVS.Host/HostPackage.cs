@@ -97,6 +97,7 @@ namespace UEToVS.Host
         internal UEToVS.Host.Agent.AgentService Agent => _agent;
 
         internal IntelliSenseTakeoverService IntelliSense => _intelliSense;
+        internal UEToVS.Host.Fonts.FontService Fonts => _fonts;
 
         internal EngineClient Engine => _engine;
 

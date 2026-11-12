@@ -32,6 +32,9 @@ namespace UEToVS.Host.Fonts
         private readonly string _backupPath = VsFontBackup.DefaultPath;
         private IReadOnlyList<string> _installed;
         private bool _categoriesLogged;
+        private System.Windows.Threading.DispatcherTimer _previewTimer;
+        private HostSettings _previewSettings;
+        private string _previewReason;
 
         public FontService(AsyncPackage package)
         {
@@ -73,6 +76,34 @@ namespace UEToVS.Host.Fonts
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
             ApplyUiFonts(now, "settingsChanged");
             await ApplyVsFontsAsync(now, "settingsChanged");
+        }
+
+        /// <summary>
+        /// Settings window: shows fonts while the user picks them (not saved). UEToVS's own UI at once; VS's fonts after
+        /// a short pause so stepping a size or scrolling a dropdown does not write every intermediate value. Latest wins.
+        /// </summary>
+        public void Preview(HostSettings s, string reason)
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+            ApplyUiFonts(s, reason);
+            _previewSettings = s;
+            _previewReason = reason;
+            if (_previewTimer == null)
+            {
+                _previewTimer = new System.Windows.Threading.DispatcherTimer(System.Windows.Threading.DispatcherPriority.Background)
+                {
+                    Interval = TimeSpan.FromMilliseconds(250),
+                };
+                _previewTimer.Tick += (sender, e) =>
+                {
+                    _previewTimer.Stop();
+                    var p = _previewSettings;
+                    string r = _previewReason;
+                    _ = Safe.RunAsync(L, "font.vs.preview", () => ApplyVsFontsAsync(p, r));
+                };
+            }
+            _previewTimer.Stop();
+            _previewTimer.Start();
         }
 
         private void ApplyUiFonts(HostSettings s, string reason)

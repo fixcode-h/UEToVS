@@ -19,6 +19,23 @@ namespace UEToVS.UI.Logic.Tests
         };
 
         [Fact]
+        public void InlineSettingsJoinTheirHostRowOnlyWhenItIsShown()
+        {
+            var family = new SettingDescriptor { Key = "f", Kind = SettingKind.Choice };
+            var size = new SettingDescriptor { Key = "s", Kind = SettingKind.Int, InlineWithKey = "f" };
+            var other = new SettingDescriptor { Key = "o", Kind = SettingKind.Bool };
+
+            var own = SettingsModel.MergeInlineRows(new[] { family, size, other }, out var inline);
+            Assert.Equal(new[] { "f", "o" }, own.ConvertAll(d => d.Key).ToArray());
+            Assert.Same(size, Assert.Single(inline["f"]));
+
+            // Search hit on the size alone: it keeps a row of its own.
+            own = SettingsModel.MergeInlineRows(new[] { size }, out inline);
+            Assert.Same(size, Assert.Single(own));
+            Assert.Empty(inline);
+        }
+
+        [Fact]
         public void IntIsClampedAndFlaggedInvalid()
         {
             Assert.Equal("64", SettingsModel.Normalize(Threads, "200", out bool ok));
