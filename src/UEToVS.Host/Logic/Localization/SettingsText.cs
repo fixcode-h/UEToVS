@@ -48,10 +48,12 @@ namespace UEToVS.Host.Logic.Localization
         public static string IntelliSenseNotTakenOver => Loc.T("未接管（VS 自带 C++ IntelliSense 正常工作）", "Not taken over (VS C++ IntelliSense active)");
         public static string LogDirectory(string dir) => dir ?? Loc.T("（尚未打开 UE 解决方案）", "(no UE solution open yet)");
         public static string VsUnrealIntegration => Loc.T(
-            "VS 状态栏里的“正在从 X.uproject 中扫描 Blueprint … Config/*.ini”是 VS 自带的 Unreal Engine 集成（Blueprint 支持），不是 UEToVS。" +
-            "微软文档没有公开它的开关位置，UEToVS 暂不修改它；如需关闭，可在 VS 安装程序里取消“游戏开发 > Unreal Engine 的 IDE 支持”组件，或在 工具 > 选项 中查找 Unreal Engine 相关页。",
-            "The VS status bar message “Scanning Blueprints in X.uproject … Config/*.ini” comes from VS's own Unreal Engine integration (Blueprint support), not from UEToVS. " +
-            "Its switch is not documented, so UEToVS leaves it alone; to turn it off, deselect “IDE support for Unreal Engine” in the VS Installer, or look for Unreal Engine pages under Tools > Options.");
+            "每次打开解决方案时状态栏的“正在从 X.uproject 中扫描 Blueprint”来自 VS 自带的 Unreal Engine 集成，不是 UEToVS（UEToVS 只列出资产文件名，不读取 .uasset 内容）。" +
+            "关闭方法：VS 菜单 项目 > Configure Tools for Unreal Engine，在打开的页面里关掉“Blueprint Support”，然后重启 VS。" +
+            "关掉后 VS 的 Code Lens 蓝图引用也会停用；资产搜索、跳转到资产仍由 UEToVS 提供。微软没有公开这个开关的存储位置，所以 UEToVS 不自动修改它。",
+            "The status bar message “Scanning Blueprints from X.uproject” on every solution load comes from VS's own Unreal Engine integration, not from UEToVS (UEToVS only lists asset file names and never reads .uasset contents). " +
+            "To turn it off: in VS choose Project > Configure Tools for Unreal Engine, switch off “Blueprint Support” on that page, then restart VS. " +
+            "This also turns off VS's Code Lens Blueprint references; asset search and go-to-asset keep working through UEToVS. Microsoft does not document where this switch is stored, so UEToVS does not change it for you.");
 
         // ---- keymap page
         public static string KeymapIntro => Loc.T(
