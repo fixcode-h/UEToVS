@@ -148,7 +148,15 @@ namespace UEToVS.UI.Patterns
         {
             _source = source ?? throw new ArgumentNullException(nameof(source));
             _list = new VirtualList<T>(source.Presenter) { AlwaysActive = true, FocusOnClick = false };
-            Shell = new PopupShell(id ?? "palette", defaultSize ?? new Size(760, 500)) { MinVisibleWidth = 420, MinVisibleHeight = 220 };
+            // Opening shows the results of the new query, not the previous ones swapped out a moment later; no slide
+            // (content moving right after it appears reads as a twitch).
+            Shell = new PopupShell(id ?? "palette", defaultSize ?? new Size(760, 500))
+            {
+                MinVisibleWidth = 420,
+                MinVisibleHeight = 220,
+                DeferReveal = true,
+                SlideOnShow = false,
+            };
             _previewToggle = new IconToggle(Ui.FrozenGeometry("M 0,0 L 12,0 L 12,10 L 0,10 Z M 0,6 L 12,6"), () => Strings.PaletteTogglePreview, "Ctrl+P");
             _debounce = new DispatcherTimer(DispatcherPriority.Input) { Interval = TimeSpan.FromMilliseconds(40) };
             _debounce.Tick += (s, e) => Ui.Safe("ui.palette.debounce", () => { _debounce.Stop(); RunQuery(); });
@@ -197,6 +205,9 @@ namespace UEToVS.UI.Patterns
                 if (!wasVisible) RestoreSplit(); // state is loaded by ShowAt
                 _search.FocusInput();
                 _search.SelectAll();
+                // Setting the text scheduled the same query: run it once, or its results would be applied (and the
+                // preview re-centred) a second time right after the popup appeared.
+                _debounce.Stop();
                 RunQuery();
             }
         }
@@ -452,6 +463,7 @@ namespace UEToVS.UI.Patterns
                 if (!_gate.IsCurrent(gen)) return;
                 _footer.IsBusy = false;
                 _footer.Status = Strings.PaletteError(ex.Message);
+                Shell.Reveal();
             }
         }
 
@@ -473,6 +485,7 @@ namespace UEToVS.UI.Patterns
             UpdateCount();
             UpdateEmpty();
             if (_previewVisible) UpdatePreview();
+            if (final) Shell.Reveal(); // opening: show the popup once its results are in (no-op when already visible)
         }
 
         private void UpdateCount()
