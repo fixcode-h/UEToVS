@@ -23,6 +23,9 @@ namespace UEToVS.Mcp.Tools
 
         public string[] Arguments { get; set; }
         public Func<ToolArgs, CancellationToken, Task<ToolOutput>> Handler { get; set; }
+
+        // ---- v0.4.5 MCP: rename_symbol (apply=true) writes files; every other tool is read-only.
+        public bool ReadOnly { get; set; } = true;
     }
 
     /// <summary>Handler result: the JSON payload plus what the log needs.</summary>
@@ -58,6 +61,7 @@ namespace UEToVS.Mcp.Tools
             Register(IndexStatusTool());
             RegisterLuaTools();
             RegisterUeTools();
+            RegisterBuildTools(); // ---- v0.4.5 get_build_errors / get_diagnostics / rename_symbol
         }
 
         public IReadOnlyList<ToolDefinition> All => _tools.Values.ToList();
@@ -80,8 +84,8 @@ namespace UEToVS.Mcp.Tools
         private static string[] Names(JsonElement schema) => schema.GetProperty("properties").EnumerateObject().Select(p => p.Name).ToArray();
 
         private static ToolDefinition Define(string name, string title, string description, JsonElement schema,
-                                             Func<ToolArgs, CancellationToken, Task<ToolOutput>> handler) =>
-            new ToolDefinition { Name = name, Title = title, Description = description, InputSchema = schema, Arguments = Names(schema), Handler = handler };
+                                             Func<ToolArgs, CancellationToken, Task<ToolOutput>> handler, bool readOnly = true) =>
+            new ToolDefinition { Name = name, Title = title, Description = description, InputSchema = schema, Arguments = Names(schema), Handler = handler, ReadOnly = readOnly };
 
         private const string PagingProps =
             "\"limit\":{\"type\":\"integer\",\"minimum\":1,\"maximum\":200,\"description\":\"Max items to return (default 30).\"}," +

@@ -463,6 +463,47 @@ namespace UEToVS.Mcp.Data
             return new Answer<EngineStatus> { Value = status, Source = Sources.Index, IndexReady = stats != null, Note = stats == null ? null : OfflineNote() };
         }
 
+        // ---- v0.4.5 构建结果 / MCP 自检：get_diagnostics
+
+        /// <summary>
+        /// UE rule diagnostics of whole files: the running engine (sees files as saved on disk) or, without one, the same
+        /// DiagnosticsProvider in-process over the on-disk index (<see cref="OfflineDiagnostics"/>). Skipped = "engine-file",
+        /// "not-indexed" (offline only; still checked) or "not-found".
+        /// </summary>
+        public async Task<Answer<List<(string Path, string Skipped, CodeDiagnosticsResponse Result)>>> GetDiagnosticsAsync(IReadOnlyList<string> paths, CancellationToken ct)
+        {
+            var list = new List<(string, string, CodeDiagnosticsResponse)>();
+            var existing = new List<string>();
+            foreach (var p in paths)
+            {
+                if (File.Exists(p)) existing.Add(p);
+                else list.Add((p, "not-found", null));
+            }
+            if (existing.Count == 0) return new Answer<List<(string, string, CodeDiagnosticsResponse)>> { Value = list, Source = Sources.Index, IndexReady = true };
+            var (ok, engineResults) = await TryEngineAsync("getDiagnostics", async (e, c) =>
+            {
+                var r = new List<(string, string, CodeDiagnosticsResponse)>();
+                foreach (var p in existing)
+                {
+                    var resp = await e.GetDiagnosticsAsync(new CodeDiagnosticsRequest { Document = new CaretRequest { FilePath = p }, StartLine = 0, EndLine = int.MaxValue }, c)
+                        .ConfigureAwait(false);
+                    r.Add((p, null, resp ?? new CodeDiagnosticsResponse()));
+                }
+                return r;
+            }, ct).ConfigureAwait(false);
+            if (ok)
+            {
+                list.AddRange(engineResults);
+                return new Answer<List<(string, string, CodeDiagnosticsResponse)>> { Value = list, Source = Sources.Engine, IndexReady = true };
+            }
+            RequireOffline();
+            var offline = _offline.Use(s => OfflineDiagnostics.Run(s, existing, ct), new List<(string, string, CodeDiagnosticsResponse)>());
+            list.AddRange(offline);
+            return new Answer<List<(string, string, CodeDiagnosticsResponse)>> { Value = list, Source = Sources.Index, IndexReady = true, Note = OfflineNote() };
+        }
+
+        // ---- v0.4.5 end
+
         public static bool SamePath(string a, string b) =>
             a != null && b != null && string.Equals(a.Replace('\\', '/').TrimEnd('/'), b.Replace('\\', '/').TrimEnd('/'), StringComparison.OrdinalIgnoreCase);
 
