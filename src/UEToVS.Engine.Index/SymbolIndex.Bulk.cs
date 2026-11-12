@@ -265,7 +265,7 @@ namespace UEToVS.Engine.Index
             string dir = Path.TrimEndingDirectorySeparator(Path.GetFullPath(_options.Directory));
             string full = Path.GetFullPath(fullPath);
             if (string.Equals(Path.GetDirectoryName(full), dir, StringComparison.OrdinalIgnoreCase)) return Path.GetFileName(full);
-            if (IsOwnedPath(_options, full)) return Path.GetRelativePath(dir, full);
+            if (IsOwnedPath(_options, full)) return Path.GetRelativePath(dir, full).Replace('\\', '/'); // portable: "../engine/x.seg"
             return full;
         }
 
