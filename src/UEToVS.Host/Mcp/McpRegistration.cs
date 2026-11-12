@@ -1,5 +1,7 @@
 using System;
+using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using UEToVS.Core.Diagnostics;
 using UEToVS.Host.Logic.Localization;
@@ -14,7 +16,7 @@ namespace UEToVS.Host.Mcp
     /// API for contributing MCP servers (docs/design/MCP.md §2): it reads MCP configuration files. So, while "Enable MCP
     /// server" is on, the host keeps the "uetovs" entry of &lt;solution&gt;\.vs\mcp.json (VS's per-user, per-solution file)
     /// current on every UE solution open; turning the setting off removes it. The "Write .mcp.json" command writes the
-    /// shareable &lt;solution&gt;\.mcp.json for Claude Code / Cursor / VS Code as well. All file work runs off the UI thread.
+    /// shareable project-scope .mcp.json (version-control root, else the solution folder) for Claude Code. All file work runs off the UI thread.
     /// </summary>
     internal static class McpRegistration
     {
@@ -43,18 +45,18 @@ namespace UEToVS.Host.Mcp
             var r = McpConfig.ApplyToFile(vsTarget, entry);
             LogResult(r, vsTarget.Path, "vs");
 
-            // <solution>\.mcp.json written earlier by the command: keep its command path valid across extension updates
+            // the shared .mcp.json written earlier by the command: keep its command path valid across extension updates
             // (the VSIX folder changes with each version). Only touched when it already has a uetovs entry.
-            var rootTarget = McpConfigTarget.SolutionRoot(solutionDir);
-            if (File.Exists(rootTarget.Path))
+            var shared = McpConfigTarget.SharedProject(ResolveSharedConfigDir(solutionDir));
+            if (File.Exists(shared.Path))
             {
-                string current = McpConfig.ExistingCommand(File.ReadAllText(rootTarget.Path), rootTarget.RootKeys);
+                string current = McpConfig.ExistingCommand(File.ReadAllText(shared.Path), shared.AllKeys);
                 if (current != null && !string.Equals(current, exe, StringComparison.OrdinalIgnoreCase))
-                    LogResult(McpConfig.ApplyToFile(rootTarget, entry), rootTarget.Path, "solution-refresh");
+                    LogResult(McpConfig.ApplyToFile(shared, entry), shared.Path, "shared-refresh");
             }
         });
 
-        /// <summary>Command: write/merge &lt;solution&gt;\.mcp.json and tell the user what happened.</summary>
+        /// <summary>Command: write/merge the shared .mcp.json (version-control root, else solution folder) and tell the user what happened.</summary>
         public static async Task WriteSolutionConfigAsync(string solutionDir)
         {
             if (string.IsNullOrEmpty(solutionDir))
@@ -69,9 +71,15 @@ namespace UEToVS.Host.Mcp
                 VsStatusBar.SetText(McpStrings.NotInstalled(exe));
                 return;
             }
-            var target = McpConfigTarget.SolutionRoot(solutionDir);
-            var r = await Task.Run(() => McpConfig.ApplyToFile(target, McpConfig.BuildEntry(exe, solutionDir))).ConfigureAwait(false);
-            LogResult(r, target.Path, "solution");
+            var (target, r) = await Task.Run(() =>
+            {
+                string dir = ResolveSharedConfigDir(solutionDir);
+                var t = McpConfigTarget.SharedProject(dir);
+                var result = McpConfig.ApplyToFile(t, McpConfig.BuildEntry(exe, solutionDir));
+                LogResult(result, t.Path, "shared");
+                if (result.Outcome != McpMergeOutcome.Invalid) CleanUpLegacy(solutionDir, t.Path);
+                return (t, result);
+            }).ConfigureAwait(false);
             switch (r.Outcome)
             {
                 case McpMergeOutcome.Invalid:
@@ -83,6 +91,78 @@ namespace UEToVS.Host.Mcp
                 default:
                     VsStatusBar.SetText(McpStrings.Written(target.Path, r.OtherServers));
                     break;
+            }
+        }
+
+        /// <summary>
+        /// Where the shared .mcp.json goes: the version-control root above the solution (Git/SVN/Mercurial/Plastic marker or
+        /// P4CONFIG file; else the Perforce client root from p4 when the solution lies in it), otherwise the solution folder
+        /// (the UE project root). Agents such as Claude Code are usually started at the repository root.
+        /// </summary>
+        internal static string ResolveSharedConfigDir(string solutionDir)
+        {
+            string root = VcsRoot.Find(solutionDir) ?? PerforceClientRoot(solutionDir);
+            string dir = root != null && VcsRoot.IsSameOrUnder(solutionDir, root) ? root : solutionDir;
+            L.Info("mcp.config.dir", null, ("solution", solutionDir), ("dir", dir), ("vcs", root ?? "none"));
+            return dir;
+        }
+
+        /// <summary>"p4 -ztag -F %clientRoot% info" run in the solution folder (3 s limit); null when p4 is missing or the folder is not in the client.</summary>
+        private static string PerforceClientRoot(string solutionDir)
+        {
+            try
+            {
+                var psi = new ProcessStartInfo("p4", "-ztag -F %clientRoot% info")
+                {
+                    WorkingDirectory = solutionDir,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    RedirectStandardInput = true,
+                };
+                psi.EnvironmentVariables["PWD"] = solutionDir; // p4 prefers PWD over the process cwd when set
+                var output = new System.Collections.Concurrent.ConcurrentQueue<string>();
+                using (var p = new Process { StartInfo = psi })
+                {
+                    p.OutputDataReceived += (_, e) => { if (!string.IsNullOrWhiteSpace(e.Data)) output.Enqueue(e.Data.Trim()); };
+                    p.ErrorDataReceived += (_, e) => { };
+                    p.Start();
+                    p.BeginOutputReadLine();
+                    p.BeginErrorReadLine();
+                    p.StandardInput.Close();
+                    if (!p.WaitForExit(3000))
+                    {
+                        try { p.Kill(); } catch (Exception) { }
+                        L.Info("mcp.config.p4", "p4 info timed out");
+                        return null;
+                    }
+                    p.WaitForExit(); // flushes the redirected output
+                    string line = output.FirstOrDefault();
+                    if (string.IsNullOrEmpty(line) || line.StartsWith("*", StringComparison.Ordinal) || !Path.IsPathRooted(line)) return null;
+                    return VcsRoot.IsSameOrUnder(solutionDir, line) ? line : null;
+                }
+            }
+            catch (Exception ex) // p4 not installed (Win32Exception) or anything else: no Perforce root
+            {
+                L.Info("mcp.config.p4", "p4 not available", ("error", ex.Message));
+                return null;
+            }
+        }
+
+        /// <summary>The shared file moved away from &lt;solution&gt;\.mcp.json: remove the uetovs entries earlier versions wrote there (the file too if nothing else is left).</summary>
+        private static void CleanUpLegacy(string solutionDir, string sharedPath)
+        {
+            var legacy = McpConfigTarget.LegacySolutionRoot(solutionDir);
+            if (string.Equals(Path.GetFullPath(legacy.Path), Path.GetFullPath(sharedPath), StringComparison.OrdinalIgnoreCase) || !File.Exists(legacy.Path)) return;
+            try
+            {
+                var r = McpConfig.ApplyToFile(legacy, null, remove: true, deleteIfEmpty: true);
+                LogResult(r, legacy.Path, "legacy-cleanup");
+            }
+            catch (Exception ex)
+            {
+                L.Warn("mcp.config.legacy_cleanup_failed", "Could not clean up the old .mcp.json", ("file", legacy.Path), ("error", ex.Message));
             }
         }
 

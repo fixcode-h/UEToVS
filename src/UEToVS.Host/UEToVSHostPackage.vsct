@@ -650,7 +650,7 @@
         <CommandFlag>TextChanges</CommandFlag>
         <CommandFlag>DefaultDisabled</CommandFlag>
         <Strings>
-          <ButtonText>Write .mcp.json to Solution Folder</ButtonText>
+          <ButtonText>Write .mcp.json to Project Root</ButtonText>
           <CanonicalName>UEToVS.WriteMcpConfig</CanonicalName>
           <LocCanonicalName>UEToVS.WriteMcpConfig</LocCanonicalName>
         </Strings>

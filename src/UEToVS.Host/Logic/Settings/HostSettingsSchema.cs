@@ -141,8 +141,9 @@ namespace UEToVS.Host.Logic.Settings
                 "打开 UE 解决方案时在 .vs\\mcp.json 注册 uetovs MCP 服务器，VS Copilot Agent 模式自动发现；关闭则移除该注册。",
                 "Registers the uetovs MCP server in .vs\\mcp.json when a UE solution opens (Copilot agent mode discovers it); off removes the registration.",
                 "true", gMcp, gMcpEn));
-            list.Add(A(General, "mcp.writeConfig", "uetovs.mcp.writeConfig", "写入 .mcp.json 到解决方案目录", "Write .mcp.json to the solution folder",
-                "给 Claude Code / Cursor / VS Code 用；已有文件会合并，不覆盖其他服务器。", "For Claude Code / Cursor / VS Code; an existing file is merged, other servers are kept.", gMcp, gMcpEn));
+            list.Add(A(General, "mcp.writeConfig", "uetovs.mcp.writeConfig", "写入 .mcp.json 到项目根目录", "Write .mcp.json to the project root",
+                "给 Claude Code 用：有版本管理（Git / SVN / Perforce 等）时写到版本库根目录，否则写到 UE 项目根目录；已有文件会合并，不覆盖其他服务器。",
+                "For Claude Code: written to the version-control root (Git / SVN / Perforce, ...) if there is one, else to the UE project root; an existing file is merged, other servers are kept.", gMcp, gMcpEn));
 
             const string gUe = "Unreal Engine", gUeEn = "Unreal Engine";
             list.Add(D(General, "unreal.checkIncludesOnSave", SettingKind.Bool, "保存时检查 #include 的模块依赖", "Check #include module dependencies on save",

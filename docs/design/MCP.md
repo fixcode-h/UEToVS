@@ -31,11 +31,11 @@
 既然没有注册 API，“按 VS 的标准”就是**写 VS 会读的配置文件**：
 
 1. **自动注册（默认开）**：打开 UE 解决方案时，扩展在 `<解决方案目录>\.vs\mcp.json` 的 `servers` 里维护一个 `uetovs` 条目，指向 VSIX 里自带的 `Engine\Mcp\UEToVS.Mcp.exe`。这个文件只属于当前用户、不进版本库，正好对应“这台机器装了扩展才有”。扩展升级后安装目录会变，所以每次打开解决方案都会刷新路径。设置 **UEToVS 设置 > 常规 > MCP > 启用 MCP 服务（给 AI Agent 用）**（`HostSettings.EnableMcpServer`，默认开）关掉时删掉这个条目。
-2. **命令写共享配置**：**扩展 > UEToVS > 写入 .mcp.json 到解决方案目录**（命令 ID `0x0500`，动作 `uetovs.mcp.writeConfig`）在 `<解决方案目录>\.mcp.json` 里同时写入 `servers`（VS 读）和 `mcpServers`（Claude Code / Cursor 读）。
+2. **命令写共享配置**：**扩展 > UEToVS > 写入 .mcp.json 到项目根目录**（命令 ID `0x0500`，动作 `uetovs.mcp.writeConfig`）写 Claude Code 的项目级 `.mcp.json`，只写 `mcpServers`。位置：从解决方案目录往上找版本库根目录（`.git` 目录或文件、`.svn`（取最外层）、`.hg`、`.plastic`、P4CONFIG 文件——环境变量 `P4CONFIG` 指定的名字或 `.p4config` / `p4config.txt`；都没有时运行 `p4 -ztag -F %clientRoot% info`，客户端根目录包含解决方案时采用），找到就写在版本库根目录，否则写在解决方案目录（UE 项目根目录）。Claude Code 通常在版本库根目录启动。不写 `servers`：VS 也会读 `<解决方案目录>\.mcp.json` 的 `servers`，而 `.vs\mcp.json` 已经注册了 uetovs，两处都写会让 VS 看到两份同名服务器；Cursor 读 `.cursor\mcp.json`、VS Code 读 `.vscode\mcp.json`，都不读根目录的 `.mcp.json`，写 `servers` 对它们没用。旧版本写进 `.mcp.json` 的 `servers.uetovs` 会被删掉；写到版本库根目录后，旧版本留在 `<解决方案目录>\.mcp.json` 的 uetovs 条目也会删掉（文件删空则删除文件）。
 3. **合并而不是覆盖**：两种写入都只动 `uetovs` 这一项里的 `type`、`command` 和 `--solution-dir` 的值。别的服务器、未知字段、用户自己加的 `args` / `env` 原样保留。文件不是合法 JSON 时不写，提示用户。写入用临时文件 + `File.Replace`，是原子的。
 4. **选 stdio 而不是 HTTP**：VS、Claude Code、Cursor、VS Code 都支持 stdio。stdio 不占端口，没有鉴权和跨用户访问问题，生命周期由 Agent 管理，VS 不开着也能用（直接读磁盘索引）。
 
-未验证的风险：VS 读 `<解决方案目录>\.mcp.json` 时能否容忍多出来的 `mcpServers` 键。按 JSON 惯例未知键会被忽略。如果某个 VS 版本报错，可以只保留 `.vs\mcp.json` 自动注册，`.mcp.json` 删掉 `servers` 部分。
+未验证的风险：没有版本库时 `.mcp.json` 写在解决方案目录，VS 也会读到它；如果某个 VS 版本把 `mcpServers` 也当作服务器列表，会和 `.vs\mcp.json` 重复出现一次 uetovs。按 VS 文档它只读 `servers`。
 
 ## 2. 架构
 
@@ -107,7 +107,7 @@ UEToVS.Mcp.exe（每个 Agent 会话一个进程，.NET 8，ModelContextProtocol
 
 然后在 Copilot Chat 切到 Agent 模式，工具列表里勾选 `uetovs` 的工具。
 
-**Claude Code**（`D:\MyGame\.mcp.json`，命令生成，同时含 `servers` 和 `mcpServers`）：
+**Claude Code**（版本库根目录或 `D:\MyGame` 下的 `.mcp.json`，命令生成，只含 `mcpServers`）：
 
 ```json
 {
