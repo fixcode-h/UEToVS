@@ -6,6 +6,15 @@
 - 节内用 `### 新功能`、`### 改进`、`### Bug 修复`、`### 注意` 等小标题，条目写成 `- **短标题** — 说明`。
 - 改了 `src/` 的 PR 必须在最上面加一个新版本节（PR 检查会验证），这样每次合并都会出一个带更新日志的包。
 
+## v0.4.2
+
+### 新功能
+- **Alt+Enter 上下文操作** — 接管 VS C++ IntelliSense 后，Alt+Enter 按光标位置列出可用的 UEToVS 操作（生成实现 / 声明、重写虚函数、添加 #include、重命名），同样的操作也出现在 VS 灯泡菜单和“查找操作”里；未接管或非 C++ 文件时 Alt+Enter 仍执行 VS 自带的快速操作。操作由可注册的提供者生成，统一经 Action 中心执行并记录日志（`refactor.*`）
+- **生成实现 / 生成声明** — 在头文件的函数声明上生成成对 .cpp 里的函数体，放在同一个类相邻成员的实现之后；UFUNCTION 的 Server / Client / NetMulticast / BlueprintNativeEvent 生成 `_Implementation`，Server + WithValidation 还生成返回 true 的 `_Validate`；在 .cpp 的成员定义上反向生成类里的声明。签名取自引擎解析，默认参数只留在声明里，virtual / override / static 只出现在声明里；一次撤销还原
+- **重写虚函数** — 列出基类（含引擎类）里还没有重写的虚函数，按声明它的类分组，可多选；在类的 public 区生成 `override` 声明，在成对 .cpp 里生成调用 `Super::` 的实现（纯虚函数和接口方法不调用 Super）。默认快捷键 `Ctrl+Shift+Alt+U, V`（Rider 方案 `Ctrl+O`）
+- **添加 #include** — 光标处类型所在头文件没有被当前文件直接或间接包含时，提供“添加 #include "Xxx.h"”，路径按 UE 习惯相对模块的 Public / Classes 目录，插入到 `.generated.h` 之前的 include 组里；随后检查 Build.cs 模块依赖，缺少时弹出添加依赖的横幅。间接包含只按索引里已有的 include 列表查找，最多 4 层、600 个文件，结果有缓存
+- **重命名** — 重命名项目中的类型、函数、变量、UPROPERTY / UFUNCTION：用“查找引用”的结果生成预览，按文件列出每一处，可取消勾选；引擎和第三方文件中的引用只列出不修改，仅名称匹配的位置默认不勾选；所有文件的修改一次撤销还原。UCLASS / USTRUCT / UENUM / UPROPERTY / UFUNCTION 可选写入项目 Config/DefaultEngine.ini 的 `[CoreRedirects]`；类名与文件名一致时可同时重命名 .h / .cpp 并更新 #include。快捷键 `Ctrl+R, Ctrl+R`（Rider 方案 `Shift+F6`）
+
 ## v0.4.1
 
 ### 新功能
