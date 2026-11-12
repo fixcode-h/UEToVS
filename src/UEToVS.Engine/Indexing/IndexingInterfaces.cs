@@ -28,6 +28,12 @@ namespace UEToVS.Engine.Indexing
 
         /// <summary>Non-fatal problem (file still indexed with what was found).</summary>
         public string Warning { get; set; }
+
+        /// <summary>
+        /// Parser-specific extra data handed to the backend unchanged (e.g. occurrences and includes for the
+        /// segmented index). Backends that don't understand it ignore it.
+        /// </summary>
+        public object Payload { get; set; }
     }
 
     /// <summary>Turns one file into declarations. Must be thread-safe; called in parallel on BelowNormal threads.</summary>
@@ -103,6 +109,9 @@ namespace UEToVS.Engine.Indexing
 
         /// <summary>Replaces every symbol of the file.</summary>
         void UpdateFile(string filePath, IReadOnlyList<SymbolInfo> symbols);
+
+        /// <summary>Replaces the file with a full parse result (symbols + parser payload). Default: symbols only.</summary>
+        void UpdateParsed(string filePath, ParseResult result) => UpdateFile(filePath, result.Symbols);
 
         void RemoveFile(string filePath);
 

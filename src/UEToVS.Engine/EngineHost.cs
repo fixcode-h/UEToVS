@@ -40,7 +40,7 @@ namespace UEToVS.Engine
             Options = options;
             Paths = StoragePaths.ForSolution(options.SolutionDir).EnsureCreated();
             Scheduler = new RequestScheduler(options.MaxParallelism);
-            Index = new IndexOrchestrator(Paths.Index, Scheduler, backend ?? new InMemorySymbolIndex(), parser ?? new SimpleDeclarationParser());
+            Index = new IndexOrchestrator(Paths.Index, Scheduler, backend ?? new SegmentedIndexBackend(), parser ?? new SyntaxFileParser());
             Search = new SearchService(Index);
             Changes = new FileChangeTracker(batch => Index.ApplyChangesAsync(batch, _shutdown.Token));
             Watchdog = new Watchdog { Context = () => QueueContext() };

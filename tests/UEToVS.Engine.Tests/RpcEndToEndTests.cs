@@ -127,7 +127,7 @@ namespace UEToVS.Engine.Tests
             var top = resp.Hits.First();
             Assert.Equal(ResultCategory.Type, top.Category);
             Assert.Equal("AMyCharacter", top.Symbol.Name);
-            Assert.Equal(UeFlags.UClass, top.Symbol.Ue);
+            Assert.True(top.Symbol.Ue.HasFlag(UeFlags.UClass));
             Assert.Equal("MyGame", top.Symbol.Module);
             Assert.Equal(ItemOrigin.Project, top.Symbol.Origin);
             Assert.Equal(new[] { 1, 6 }, top.Highlights);
@@ -144,7 +144,10 @@ namespace UEToVS.Engine.Tests
             Assert.Equal("/Game/Maps/L_Main.L_Main", Assert.Single(assets.Hits).Asset.ObjectPath);
 
             var found = await c.Engine.FindSymbolsAsync("Fire", "AMyCharacter", CancellationToken.None);
-            Assert.Equal(SymbolKind.Method, Assert.Single(found).Kind);
+            // The real parser finds both the declaration (.h) and the out-of-line definition (.cpp).
+            Assert.All(found, f => Assert.Equal(SymbolKind.Method, f.Kind));
+            Assert.Contains(found, f => f.IsDefinition);
+            Assert.Contains(found, f => !f.IsDefinition);
             Assert.Empty(await c.Engine.FindSymbolsAsync("Fire", "Other", CancellationToken.None));
 
             var fileSyms = await c.Engine.GetFileSymbolsAsync(_t.P("Game/Source/MyGame/Public/MyCharacter.h"), CancellationToken.None);
@@ -257,7 +260,7 @@ namespace UEToVS.Engine.Tests
                 Assert.True(parseProject.Items > 0);
                 Assert.Contains("cacheHits=", parseProject.Detail);
 
-                Assert.Contains(p.IndexParts, x => x.Name == "symbols" && x.ManagedBytes > 0);
+                Assert.Contains(p.IndexParts, x => (x.Name == "segments" || x.Name == "delta") && (x.ManagedBytes > 0 || x.MappedBytes > 0));
                 Assert.Contains(p.IndexParts, x => x.Name == "file-table");
                 Assert.Contains(p.IndexParts, x => x.Name == "index-folder" && x.DiskBytes > 0);
 

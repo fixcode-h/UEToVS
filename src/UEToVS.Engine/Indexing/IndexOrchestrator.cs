@@ -189,8 +189,10 @@ namespace UEToVS.Engine.Indexing
                     bool backendLoaded = false;
                     try
                     {
+                        // Always give the backend the key first: a persistent backend opens (or resets) its store here.
+                        bool storeLoaded = _backend.TryLoad(_indexDir, key);
                         _cachedState = IndexStateStore.TryLoad(_indexDir, key);
-                        backendLoaded = _cachedState != null && _backend.TryLoad(_indexDir, key);
+                        backendLoaded = _cachedState != null && storeLoaded;
                         if (!backendLoaded) _cachedState = null;
                     }
                     catch (Exception ex)
@@ -389,7 +391,8 @@ namespace UEToVS.Engine.Indexing
                     s.Module ??= f.Module;
                     s.Origin = f.Origin;
                 }
-                _backend.UpdateFile(f.Path, symbols);
+                if (result != null) _backend.UpdateParsed(f.Path, result);
+                else _backend.UpdateFile(f.Path, symbols);
                 entry.Hash = hash;
                 entry.HashKnown = true;
                 entry.SymbolCount = symbols.Count;
