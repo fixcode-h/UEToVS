@@ -259,7 +259,9 @@ namespace UEToVS.UI.Controls
             this.Bind(BackgroundProperty, Tokens.SegmentTrack);
             this.Bind(BorderBrushProperty, Tokens.BorderSubtle);
             this.Bind(CornerRadiusProperty, Tokens.CornerRadiusControl);
-            this.Bind(MinHeightProperty, Tokens.ControlHeight);
+            // Exactly the standard control height (buttons, text boxes, combo boxes): segments stretch inside the
+            // 2px-inset track instead of growing it with the text line height.
+            this.Bind(HeightProperty, Tokens.ControlHeight);
             KeyboardNavigation.SetDirectionalNavigation(_panel, KeyboardNavigationMode.None);
             SetOptions(options);
             Focusable = false;
@@ -457,6 +459,15 @@ namespace UEToVS.UI.Controls
                 _value = v;
                 ValueChanged?.Invoke(this, EventArgs.Empty);
             }
+        }
+
+        /// <summary>Shows an empty box (e.g. a disabled "auto" value that is not known); <see cref="Value"/> is kept.</summary>
+        public void ShowBlank() => _box.Text = string.Empty;
+
+        public void FocusInput()
+        {
+            _box.Focus();
+            _box.SelectAll();
         }
 
         /// <summary>Sets the value without raising <see cref="ValueChanged"/>.</summary>

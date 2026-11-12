@@ -103,6 +103,8 @@ namespace UEToVS.UI.Logic
         public const string FontSizeSmall = "Font.Size.Small";
         public const string FontSizeCaption = "Font.Size.Caption";
         public const string FontSizeTitle = "Font.Size.Title";
+        public const string FontSizeSubtitle = "Font.Size.Subtitle";
+        public const string FontSizeDisplay = "Font.Size.Display";
         public const string FontSizeInput = "Font.Size.Input";
         public const string FontSizeCode = "Font.Size.Code";
         public const string RowHeight = "Row.Height";

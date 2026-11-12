@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
+using System.Windows.Media;
 using UEToVS.UI.Atoms;
 using UEToVS.UI.Controls;
 using UEToVS.UI.Logic;
@@ -48,6 +49,9 @@ namespace UEToVS.UI.Settings
         private readonly Grid _layout = new Grid();
         private readonly FrameworkElement _form;
         private readonly FrameworkElement _sample;
+        private UiButton _resetButton;
+        private bool _embedded;
+        private int _sections;
 
         public AppearanceSettingsPanel()
         {
@@ -73,6 +77,23 @@ namespace UEToVS.UI.Settings
         {
             get => _live.IsOn;
             set => _live.IsOn = value;
+        }
+
+        /// <summary>
+        /// Hosted inside the UEToVS settings window: transparent background (the window's surface shows through) and no
+        /// own "恢复默认" button (the window footer resets the page).
+        /// </summary>
+        public bool EmbeddedInSettingsWindow
+        {
+            get => _embedded;
+            set
+            {
+                _embedded = value;
+                if (value) Background = Brushes.Transparent;
+                else this.Bind(BackgroundProperty, Tokens.SurfaceBase);
+                if (_resetButton != null) _resetButton.Visibility = value ? Visibility.Collapsed : Visibility.Visible;
+                if (_live != null) _live.Margin = new Thickness(value ? 0 : 16, 0, 0, 0);
+            }
         }
 
         /// <summary>A copy of the edited settings.</summary>
@@ -262,39 +283,29 @@ namespace UEToVS.UI.Settings
             return t;
         }
 
-        private Grid FieldRow(Func<string> label, UIElement control)
+        /// <summary>One setting as a VS 2026 settings card (label left, editor right), like every other settings page.</summary>
+        private SettingsCard FieldRow(Func<string> label, UIElement control)
         {
-            var g = new Grid { Margin = new Thickness(0, 4, 0, 4) };
-            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(170) }); // fits English labels
-            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             var l = Label(label);
-            l.VerticalAlignment = VerticalAlignment.Center;
-            l.Margin = new Thickness(0, 0, 10, 0);
-            if (control is FrameworkElement fe)
-            {
-                fe.HorizontalAlignment = HorizontalAlignment.Left;
-                fe.VerticalAlignment = VerticalAlignment.Center;
-                AutomationProperties.SetLabeledBy(fe, l);
-            }
-            Grid.SetColumn((UIElement)control, 1);
-            g.Children.Add(l);
-            g.Children.Add(control);
-            return g;
+            if (control is FrameworkElement fe) AutomationProperties.SetLabeledBy(fe, l);
+            return new SettingsCard(l, control);
         }
 
+        /// <summary>Group header: semibold subtitle, more space above than below (<see cref="SettingsPageLayout"/>).</summary>
         private StackPanel Section(Func<string> title, StackPanel into)
         {
-            var t = Label(title, TextVariant.Title);
-            t.Margin = new Thickness(0, 14, 0, 4);
+            var t = Label(title, TextVariant.Subtitle);
+            t.Margin = new Thickness(0, SettingsPageLayout.GroupHeaderTop(_sections == 0), 0, SettingsPageLayout.GroupHeaderGapBelow);
+            _sections++;
             into.Children.Add(t);
-            into.Children.Add(new Divider(false, 2));
             return into;
         }
 
         private FrameworkElement BuildForm()
         {
             RelabelSegments();
-            var sp = new StackPanel { Margin = new Thickness(16, 4, 16, 16), MaxWidth = 640, HorizontalAlignment = HorizontalAlignment.Left };
+            // Right margin keeps the cards clear of the overlay scroll bar.
+            var sp = new StackPanel { Margin = new Thickness(0, 0, 12, 16), MaxWidth = 720 };
 
             Section(() => Strings.SettingsSectionStyle, sp);
             sp.Children.Add(FieldRow(() => Strings.SettingsPreset, _preset));
@@ -317,10 +328,12 @@ namespace UEToVS.UI.Settings
             match.Children.Add(_mUnder);
             match.Children.Add(_mAccent);
             sp.Children.Add(FieldRow(() => Strings.SettingsMatch, match));
-            var badgeTitle = Label(() => Strings.SettingsBadges, TextVariant.Secondary);
-            badgeTitle.Margin = new Thickness(0, 8, 0, 4);
-            sp.Children.Add(badgeTitle);
+            var badgeTitle = Label(() => Strings.SettingsBadges);
+            badgeTitle.Margin = new Thickness(0, 0, 0, 6);
+            var badgeCard = new StackPanel();
+            badgeCard.Children.Add(badgeTitle);
             var badges = new WrapPanel();
+            badgeCard.Children.Add(badges);
             foreach (BadgeKind k in TokenNames.AllBadgeKinds)
             {
                 if (k == BadgeKind.Neutral) continue;
@@ -334,7 +347,7 @@ namespace UEToVS.UI.Settings
                 cell.Children.Add(field);
                 badges.Children.Add(cell);
             }
-            sp.Children.Add(badges);
+            sp.Children.Add(new SettingsCard(badgeCard));
 
             Section(() => Strings.SettingsSectionMotion, sp);
             sp.Children.Add(FieldRow(() => Strings.SettingsShadow, _shadow));
@@ -346,9 +359,10 @@ namespace UEToVS.UI.Settings
             sp.Children.Add(FieldRow(() => Strings.SettingsPreviewVisible, _previewVisible));
             sp.Children.Add(FieldRow(() => Strings.SettingsPreviewPosition, _previewPos));
 
-            var bottom = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 18, 0, 0) };
+            var bottom = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, SettingsPageLayout.GroupGap - SettingsPageLayout.CardGap, 0, 0) };
             var reset = new UiButton(() => Strings.CommonReset, ButtonKind.Secondary);
             reset.Click += (s, e) => Ui.Safe("ui.settings.reset", ResetToDefaults);
+            _resetButton = reset;
             bottom.Children.Add(reset);
             _live.Margin = new Thickness(16, 0, 0, 0);
             _live.VerticalAlignment = VerticalAlignment.Center;
@@ -360,9 +374,9 @@ namespace UEToVS.UI.Settings
 
         private FrameworkElement BuildSample()
         {
-            var sp = new StackPanel { Margin = new Thickness(12) };
-            var title = Label(() => Strings.SettingsSampleTitle, TextVariant.Title);
-            title.Margin = new Thickness(0, 4, 0, 8);
+            var sp = new StackPanel { Margin = new Thickness(0, 0, 0, 12) };
+            var title = Label(() => Strings.SettingsSampleTitle, TextVariant.Subtitle);
+            title.Margin = new Thickness(0, 0, 0, SettingsPageLayout.GroupHeaderGapBelow);
             sp.Children.Add(title);
 
             var card = new Border { BorderThickness = new Thickness(1), Width = 320, HorizontalAlignment = HorizontalAlignment.Left };
@@ -435,6 +449,7 @@ namespace UEToVS.UI.Settings
                 Grid.SetRow(_form, 0);
                 Grid.SetColumn(_sample, 1);
                 Grid.SetRow(_sample, 0);
+                _sample.Margin = new Thickness(16, 0, 0, 0);
             }
             else
             {
@@ -444,6 +459,7 @@ namespace UEToVS.UI.Settings
                 Grid.SetColumn(_form, 0);
                 Grid.SetRow(_sample, 1);
                 Grid.SetColumn(_sample, 0);
+                _sample.Margin = new Thickness(0, 12, 0, 0);
             }
             _layout.Children.Add(_form);
             _layout.Children.Add(_sample);

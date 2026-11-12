@@ -46,30 +46,33 @@ namespace UEToVS.Host.Settings
         {
             _package = package;
             var root = new DockPanel { LastChildFill = true };
-            var top = new StackPanel { Margin = new Thickness(0, 0, 0, 10) };
-            top.Children.Add(new UiText(SettingsText.KeymapIntro, TextVariant.Secondary) { TextWrapping = TextWrapping.Wrap, TextTrimming = TextTrimming.None, Margin = new Thickness(0, 0, 0, 10) });
-            var presets = new WrapPanel();
-            presets.Children.Add(new UiText(SettingsText.KeymapPreset, TextVariant.Body) { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 10, 0) });
+            var top = new StackPanel { Margin = new Thickness(0, 0, 12, UEToVS.UI.Logic.SettingsPageLayout.GroupGap - UEToVS.UI.Logic.SettingsPageLayout.CardGap) };
+            top.Children.Add(new UiText(SettingsText.KeymapIntro, TextVariant.Secondary) { TextWrapping = TextWrapping.Wrap, TextTrimming = TextTrimming.None, Margin = new Thickness(0, 0, 0, 12) });
+            // Presets as one settings card: label + caption on the left, the preset buttons on the right.
+            var presetLabels = new StackPanel();
+            presetLabels.Children.Add(new UiText(SettingsText.KeymapPreset, TextVariant.Body));
+            presetLabels.Children.Add(new UiText(SettingsText.KeymapDoubleShift, TextVariant.Secondary) { TextWrapping = TextWrapping.Wrap, TextTrimming = TextTrimming.None, Margin = new Thickness(0, 2, 0, 0) });
+            var presets = new WrapPanel { HorizontalAlignment = HorizontalAlignment.Right };
             foreach (var (id, text) in new[] { (KeymapPresetId.VisualAssist, SettingsText.KeymapPresetVa), (KeymapPresetId.Rider, SettingsText.KeymapPresetRider), (KeymapPresetId.VisualStudio, SettingsText.KeymapPresetVs) })
             {
                 var preset = id;
-                var b = new UiButton(text) { MinWidth = 96, Margin = new Thickness(0, 0, 8, 4) };
+                var b = new UiButton(text) { MinWidth = 88, Margin = new Thickness(8, 4, 0, 4) };
                 b.Click += (s, e) => Safe.RunAsync(L, "keymap.preset", () => ApplyPresetAsync(preset), ("preset", preset.ToString()));
                 presets.Children.Add(b);
             }
-            var restore = new UiButton(SettingsText.KeymapRestore, ButtonKind.Ghost) { Margin = new Thickness(8, 0, 0, 4) };
+            var restore = new UiButton(SettingsText.KeymapRestore, ButtonKind.Ghost) { Margin = new Thickness(8, 4, 0, 4) };
             restore.Click += (s, e) => Safe.RunAsync(L, "keymap.restore", RestoreLastBackupAsync);
             presets.Children.Add(restore);
-            top.Children.Add(presets);
-            top.Children.Add(new UiText(SettingsText.KeymapDoubleShift, TextVariant.Caption) { Margin = new Thickness(0, 6, 0, 0) });
+            top.Children.Add(new SettingsCard(presetLabels, presets) { Margin = new Thickness(0) });
             DockPanel.SetDock(top, Dock.Top);
             root.Children.Add(top);
 
-            var bottom = new StackPanel { Margin = new Thickness(0, 10, 0, 0) };
+            var bottom = new StackPanel { Margin = new Thickness(0, 8, 12, 12) };
             bottom.Children.Add(_status);
             bottom.Children.Add(_conflicts);
             DockPanel.SetDock(bottom, Dock.Bottom);
             root.Children.Add(bottom);
+            _rows.Margin = new Thickness(0, 0, 12, 16); // clear of the overlay scroll bar
             root.Children.Add(new UiScrollViewer { Content = _rows, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled });
             Element = root;
             _status.Text = SettingsText.KeymapLoading;
@@ -117,7 +120,10 @@ namespace UEToVS.Host.Settings
             bool en = Loc.IsEnglish;
             foreach (var group in CommandCatalog.All.GroupBy(c => c.Group))
             {
-                _rows.Children.Add(new UiText(GroupTitle(group.Key), TextVariant.Strong) { Margin = new Thickness(0, _rows.Children.Count == 0 ? 0 : 14, 0, 6) });
+                _rows.Children.Add(new UiText(GroupTitle(group.Key), TextVariant.Subtitle)
+                {
+                    Margin = new Thickness(0, UEToVS.UI.Logic.SettingsPageLayout.GroupHeaderTop(_rows.Children.Count == 0), 0, UEToVS.UI.Logic.SettingsPageLayout.GroupHeaderGapBelow),
+                });
                 foreach (var c in group) _rows.Children.Add(BuildRow(c, en));
             }
         }
@@ -139,24 +145,20 @@ namespace UEToVS.Host.Settings
 
         private UIElement BuildRow(CommandInfo c, bool en)
         {
-            var grid = new Grid { Margin = new Thickness(0, 1, 0, 1) };
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(220) });
             var title = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
             title.Children.Add(new UiText(c.Title(en), TextVariant.Body));
             if (_package.Actions.Get(c.ActionId) == null)
                 title.Children.Add(new UiText(SettingsText.KeymapReserved, TextVariant.Caption) { Margin = new Thickness(6, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center });
-            grid.Children.Add(title);
 
             _ours.TryGetValue(c.Name, out var bindings);
             string current = string.Join("  ", (bindings ?? Array.Empty<string>()).Select(b => Shortcut.TryParseBinding(b, out _, out var k) ? Shortcut.Display(k) : b));
             var button = new UiButton(string.IsNullOrEmpty(current) ? SettingsText.KeymapNone : current, ButtonKind.Secondary)
             {
-                HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Left,
+                Width = 240, HorizontalContentAlignment = HorizontalAlignment.Left,
             };
             System.Windows.Automation.AutomationProperties.SetName(button, c.Title(en) + " " + current);
-            Grid.SetColumn(button, 1);
-            grid.Children.Add(button);
+            // Same settings card as every other page (VS 2026); a little lower than the default card for the long list.
+            var grid = new SettingsCard(title, button) { MinHeight = 44 };
             bool recording = false;
             button.Click += (s, e) => Safe.Execute(L, "keymap.record.start", () =>
             {

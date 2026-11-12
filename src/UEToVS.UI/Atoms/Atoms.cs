@@ -26,6 +26,10 @@ namespace UEToVS.UI.Atoms
         Mono,
         Disabled,
         Link,
+        /// <summary>Group header inside a page (settings groups): semibold, body + 2.</summary>
+        Subtitle,
+        /// <summary>Page title (settings page heading): semibold, body + 8.</summary>
+        Display,
     }
 
     /// <summary>Text atom: a TextBlock whose font size / color come from tokens per <see cref="Variant"/>.</summary>
@@ -73,6 +77,8 @@ namespace UEToVS.UI.Atoms
                 case TextVariant.Mono: size = Tokens.FontSizeCode; this.Bind(FontFamilyProperty, Tokens.FontFamilyCode); break;
                 case TextVariant.Disabled: fg = Tokens.TextDisabled; break;
                 case TextVariant.Link: fg = Tokens.TextLink; break;
+                case TextVariant.Subtitle: size = Tokens.FontSizeSubtitle; weight = FontWeights.SemiBold; break;
+                case TextVariant.Display: size = Tokens.FontSizeDisplay; weight = FontWeights.SemiBold; break;
             }
             this.Bind(ForegroundProperty, fg);
             this.Bind(FontSizeProperty, size);

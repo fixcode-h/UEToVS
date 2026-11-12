@@ -28,6 +28,12 @@ namespace UEToVS.UI.Controls
         private readonly ContentControl _right = new ContentControl { Focusable = false, VerticalAlignment = VerticalAlignment.Center };
         private bool _suppress;
         private bool _embedded;
+        // Boxed mode: Fluent focus underline drawn by this control (the inner text box is chrome-less).
+        private readonly Border _underline = new Border
+        {
+            Height = 2, VerticalAlignment = VerticalAlignment.Bottom, IsHitTestVisible = false, Visibility = Visibility.Hidden,
+            CornerRadius = new CornerRadius(0, 0, 2, 2), SnapsToDevicePixels = true,
+        };
 
         public SearchInput(bool embedded = true)
         {
@@ -60,7 +66,14 @@ namespace UEToVS.UI.Controls
             grid.Children.Add(_box);
             grid.Children.Add(_clear);
             grid.Children.Add(_right);
-            Child = grid;
+            var root = new Grid();
+            root.Children.Add(grid);
+            root.Children.Add(_underline);
+            _underline.Bind(BackgroundProperty, Tokens.InputFocusUnderline);
+            Child = root;
+            IsKeyboardFocusWithinChanged += (s, e) => Ui.Safe("ui.search.focus", UpdateFocusVisual);
+            MouseEnter += (s, e) => Ui.Safe("ui.search.hover", UpdateFocusVisual);
+            MouseLeave += (s, e) => Ui.Safe("ui.search.hover", UpdateFocusVisual);
 
             _box.BorderThickness = new Thickness(0);
             _box.Background = Brushes.Transparent;
@@ -116,6 +129,11 @@ namespace UEToVS.UI.Controls
                     Padding = new Thickness(12, 8, 8, 8);
                     CornerRadius = new CornerRadius(0);
                     ClearValue(MinHeightProperty);
+                    _box.Style = Styles.TextInput;
+                    _box.BorderThickness = new Thickness(0);
+                    _box.Background = Brushes.Transparent;
+                    _box.Padding = new Thickness(0, 2, 0, 2);
+                    _box.MinHeight = 0;
                 }
                 else
                 {
@@ -123,10 +141,33 @@ namespace UEToVS.UI.Controls
                     this.Bind(BackgroundProperty, Tokens.InputBackground);
                     this.Bind(BorderBrushProperty, Tokens.InputBorder);
                     this.Bind(CornerRadiusProperty, Tokens.CornerRadiusControl);
-                    Padding = new Thickness(10, 2, 4, 2);
+                    // Fluent text box metrics: 10px text inset, text vertically centred in the control height, the
+                    // clear button inset 4px from the right edge. The inner box has no chrome of its own (no second
+                    // focus underline over the caret, no inner padding that clips the glyphs).
+                    Padding = new Thickness(10, 0, 4, 0);
                     this.Bind(MinHeightProperty, Tokens.ControlHeight);
+                    _box.Style = Styles.BareTextInput;
+                    _box.ClearValue(Control.BorderThicknessProperty);
+                    _box.ClearValue(Control.BackgroundProperty);
+                    _box.ClearValue(Control.PaddingProperty);
+                    _box.ClearValue(FrameworkElement.MinHeightProperty);
+                    _underline.Margin = new Thickness(-Padding.Left, 0, -Padding.Right, 0); // full inner width, on the bottom border
                 }
             }
+        }
+
+        /// <summary>Boxed mode: hover border and the accent focus underline (Fluent TextBox states).</summary>
+        private void UpdateFocusVisual()
+        {
+            if (_embedded)
+            {
+                _underline.Visibility = Visibility.Hidden;
+                return;
+            }
+            bool focused = IsKeyboardFocusWithin;
+            _underline.Visibility = focused ? Visibility.Visible : Visibility.Hidden;
+            this.Bind(BackgroundProperty, focused ? Tokens.SurfacePopup : Tokens.InputBackground);
+            this.Bind(BorderBrushProperty, IsMouseOver && !focused ? Tokens.BorderStrong : Tokens.InputBorder);
         }
 
         public string Text
