@@ -269,6 +269,20 @@ namespace UEToVS.Engine.Rpc
                 return Task.CompletedTask;
             }, ct, ("conn", _connectionId));
 
+        // ---- M4 refactoring (RefactoringService): Interactive lane, the user is waiting on Alt+Enter / a dialog ----
+
+        public Task<RefactoringContextResponse> GetRefactoringContextAsync(RefactoringContextRequest request, CancellationToken ct) =>
+            InvokeAsync("rpc.getRefactoringContext", c => request?.Caret == null
+                    ? Task.FromResult(new RefactoringContextResponse { Word = string.Empty })
+                    : _host.Scheduler.RunAsync(WorkPriority.Interactive, "rpc.getRefactoringContext", t => _host.Refactoring.GetContext(request, t), c),
+                ct, ("file", request?.Caret?.FilePath), ("line", request?.Caret?.Line), ("col", request?.Caret?.Column), ("checkIncludes", request?.CheckIncludes));
+
+        public Task<OverridableMethodsResponse> GetOverridableMethodsAsync(OverridableMethodsRequest request, CancellationToken ct) =>
+            InvokeAsync("rpc.getOverridableMethods", c => request == null || (request.Caret == null && string.IsNullOrEmpty(request.TypeName))
+                    ? Task.FromResult(new OverridableMethodsResponse())
+                    : _host.Scheduler.RunAsync(WorkPriority.Interactive, "rpc.getOverridableMethods", t => _host.Refactoring.GetOverridableMethods(request, t), c),
+                ct, ("type", request?.TypeName), ("file", request?.Caret?.FilePath), ("line", request?.Caret?.Line));
+
         private static LocalRpcException Error(int code, string message) => new LocalRpcException(message) { ErrorCode = code };
 
         private static bool SamePath(string a, string b)

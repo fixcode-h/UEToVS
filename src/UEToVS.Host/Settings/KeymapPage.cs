@@ -139,6 +139,7 @@ namespace UEToVS.Host.Settings
                 case "unreal": return "Unreal Engine";
                 case "tools": return Loc.T("工具", "Tools");
                 case "settings": return Loc.T("设置", "Settings");
+                case "refactor": return Loc.T("重构", "Refactor");
                 default: return Loc.T("诊断", "Diagnostics");
             }
         }

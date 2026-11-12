@@ -84,6 +84,14 @@ namespace UEToVS.Contracts
         Task<CodeDiagnosticsResponse> GetDiagnosticsAsync(CodeDiagnosticsRequest request, CancellationToken ct);
 
         Task ShutdownAsync(CancellationToken ct);
+
+        // ---- M4 refactoring / code generation (see Refactoring.cs); the engine answers, the host edits ----
+
+        /// <summary>What is at the caret for Alt+Enter: function signature + declaration/definition status, class, type and include state.</summary>
+        Task<RefactoringContextResponse> GetRefactoringContextAsync(RefactoringContextRequest request, CancellationToken ct);
+
+        /// <summary>Virtual functions of a class's bases (engine classes included) that it does not override yet.</summary>
+        Task<OverridableMethodsResponse> GetOverridableMethodsAsync(OverridableMethodsRequest request, CancellationToken ct);
     }
 
     /// <summary>Notifications engine → host.</summary>

@@ -19,6 +19,8 @@ namespace UEToVS.Host.Logic.Commands
         Navigation = 1,
         /// <summary>M1 features (Features/M1Feature.cs, 0x0300–0x03FF).</summary>
         Features = 2,
+        /// <summary>M4 refactoring (Refactoring/RefactoringFeature.cs, 0x0700–0x07FF).</summary>
+        Refactoring = 3,
     }
 
     /// <summary>
@@ -37,7 +39,7 @@ namespace UEToVS.Host.Logic.Commands
         public string ActionId { get; set; }
         public string TitleZh { get; set; }
         public string TitleEn { get; set; }
-        /// <summary>"navigation" | "search" | "related" | "bookmarks" | "unreal" | "tools" | "settings" | "diagnostics" — groups the keymap page.</summary>
+        /// <summary>"navigation" | "search" | "related" | "bookmarks" | "unreal" | "tools" | "settings" | "diagnostics" | "refactor" — groups the keymap page.</summary>
         public string Group { get; set; }
         public CommandScope Scope { get; set; }
         /// <summary>Visual Assist style default (also what the VSCT KeyBinding declares). VS key syntax. Every command has one (tools use the "Ctrl+Shift+Alt+U, x" chords).</summary>
@@ -138,6 +140,11 @@ namespace UEToVS.Host.Logic.Commands
         public const int TbFindReferences = 0x0485;
         public const int TbPerformance = 0x0486;
 
+        // ---- M4 refactoring (0x0700–0x07FF): Refactoring/RefactoringFeature.cs
+        public const int QuickActions = 0x0700;
+        public const int Rename = 0x0701;
+        public const int ImplementVirtual = 0x0702;
+
         /// <summary>Action ids of the M1/M2 commands (mirrors NavigationActionIds / M1ActionIds, which are host-internal).</summary>
         public static class ActionIds
         {
@@ -174,6 +181,11 @@ namespace UEToVS.Host.Logic.Commands
             public const string FindAction = "uetovs.findAction";
             public const string Settings = "uetovs.settings.open";
             public const string ShowPerformancePanel = "uetovs.diagnostics.performancePanel";
+
+            // M4 refactoring (mirror of Logic/Refactoring/RefactorActionIds)
+            public const string QuickActions = "uetovs.refactor.quickActions";
+            public const string Rename = "uetovs.refactor.rename";
+            public const string ImplementVirtual = "uetovs.refactor.implementVirtual";
         }
 
         private static CommandInfo C(CommandOwner owner, int id, string name, string action, string zh, string en, string group, CommandScope scope,
@@ -185,6 +197,7 @@ namespace UEToVS.Host.Logic.Commands
             };
 
         private const CommandOwner H = CommandOwner.Host, M2 = CommandOwner.Navigation, M1 = CommandOwner.Features;
+        private const CommandOwner M4 = CommandOwner.Refactoring;
         private const CommandScope Ed = CommandScope.TextEditor, Gl = CommandScope.Global;
 
         public static IReadOnlyList<CommandInfo> All { get; } = new[]
@@ -239,6 +252,11 @@ namespace UEToVS.Host.Logic.Commands
             C(H, CreateDiagnostics, "CreateDiagnosticsPackage", "uetovs.diagnostics.createPackage", "生成诊断包", "Create Diagnostics Package", "diagnostics", Gl, "Ctrl+Shift+Alt+U, D", null, null),
             C(H, ShowComponentGallery, "ShowComponentGallery", "uetovs.ui.componentGallery", "组件画廊", "Component Gallery", "diagnostics", Gl, "Ctrl+Shift+Alt+U, C", null, null),
             C(H, WriteMcpConfig, "WriteMcpConfig", "uetovs.mcp.writeConfig", "写入 .mcp.json 到项目根目录", "Write .mcp.json to Project Root", "tools", Gl, "Ctrl+Shift+Alt+U, M", null, null),
+
+            // M4 refactoring (text editor). Alt+Enter: UEToVS context actions (falls back to VS's quick actions when UEToVS IntelliSense is off).
+            C(M4, QuickActions, "QuickActions", ActionIds.QuickActions, "上下文操作（Alt+Enter）", "Context Actions (Alt+Enter)", "refactor", Ed, "Alt+Enter", "Alt+Enter", "Alt+Enter"),
+            C(M4, Rename, "Rename", ActionIds.Rename, "重命名…", "Rename...", "refactor", Ed, "Ctrl+R, Ctrl+R", "Shift+F6", "Ctrl+R, Ctrl+R"),
+            C(M4, ImplementVirtual, "ImplementVirtual", ActionIds.ImplementVirtual, "实现虚函数 / 重写…", "Implement Virtual Methods / Override...", "refactor", Ed, "Ctrl+Shift+Alt+U, V", "Ctrl+O", null),
         };
 
         public static CommandInfo ById(int id)
