@@ -51,6 +51,12 @@ namespace UEToVS.Engine.Index
 
         /// <summary>Declared inside a preprocessor conditional.</summary>
         public bool IsConditional;
+
+        /// <summary>
+        /// Base classes of a class/struct as written, without access specifiers or <c>virtual</c> but with template
+        /// arguments (e.g. <c>ACharacter</c>, <c>TSharedFromThis&lt;FFoo&gt;</c>); null for everything else.
+        /// </summary>
+        public string[] Bases;
     }
 
     /// <summary>One identifier occurrence (reference). Role is producer defined (read/write/call/...).</summary>
