@@ -10,10 +10,21 @@ namespace UEToVS.Host.Logic.Commands
         TextEditor = 1,
     }
 
+    /// <summary>Which module implements a command (and therefore binds it to its OleMenuCommand).</summary>
+    public enum CommandOwner
+    {
+        /// <summary>Host commands, bound by CommandRouter from this catalog.</summary>
+        Host = 0,
+        /// <summary>M2 navigation (Navigation/NavigationActions.cs, 0x0200–0x02FF).</summary>
+        Navigation = 1,
+        /// <summary>M1 features (Features/M1Feature.cs, 0x0300–0x03FF).</summary>
+        Features = 2,
+    }
+
     /// <summary>
     /// One UEToVS command: VSCT id, canonical DTE name, the action it dispatches to, titles, and the default shortcut in
-    /// each keymap preset. <see cref="Reserved"/> commands have a reserved VSCT id but are implemented by other modules
-    /// (M2 navigation, M1 search …); until their action is registered they show as disabled.
+    /// each keymap preset. The catalog is the single source for the keymap page (presets, conflicts) and the VSCT tests;
+    /// the commands of M1/M2 are bound by their modules (<see cref="Owner"/>), the host ones by CommandRouter.
     /// </summary>
     public sealed class CommandInfo
     {
@@ -23,16 +34,14 @@ namespace UEToVS.Host.Logic.Commands
         public string ActionId { get; set; }
         public string TitleZh { get; set; }
         public string TitleEn { get; set; }
-        /// <summary>"navigation" | "search" | "tools" | "settings" | "diagnostics" — groups the keymap page.</summary>
+        /// <summary>"navigation" | "search" | "related" | "bookmarks" | "unreal" | "tools" | "settings" | "diagnostics" — groups the keymap page.</summary>
         public string Group { get; set; }
         public CommandScope Scope { get; set; }
         /// <summary>Visual Assist style default (also what the VSCT KeyBinding declares). VS key syntax; null = none.</summary>
         public string VaKeys { get; set; }
         public string RiderKeys { get; set; }
         public string VsKeys { get; set; }
-        public bool Reserved { get; set; }
-        /// <summary>Shown in the top-level Extensions &gt; UEToVS menu (everything else: Find Action / settings window).</summary>
-        public bool InMenu { get; set; }
+        public CommandOwner Owner { get; set; }
 
         public string Title(bool english) => english ? TitleEn : TitleZh;
 
@@ -59,13 +68,14 @@ namespace UEToVS.Host.Logic.Commands
     }
 
     /// <summary>
-    /// The single list of UEToVS commands (ids must match UEToVSHostPackage.vsct; a unit test checks the VSCT key
-    /// bindings against <see cref="CommandInfo.VaKeys"/>). Id ranges: 0x01xx existing, 0x02xx M2 navigation,
-    /// 0x03xx M1 features, 0x04xx settings / windows / toolbar.
+    /// The list of UEToVS commands shown on the keymap page (ids must match UEToVSHostPackage.vsct; unit tests check ids,
+    /// canonical names and that the VSCT key bindings equal <see cref="CommandInfo.VaKeys"/>). Id ranges: 0x01xx host,
+    /// 0x02xx M2 navigation, 0x03xx M1 features, 0x04xx settings / windows / toolbar. The 20 bookmark digit commands
+    /// (0x0340–0x0359) are left out of the page (bind them in Tools &gt; Options &gt; Keyboard).
     /// </summary>
     public static class CommandCatalog
     {
-        // ---- existing (0x01xx)
+        // ---- host (0x01xx)
         public const int OpenLogFolder = 0x0100;
         public const int OpenCurrentLog = 0x0101;
         public const int CreateDiagnostics = 0x0102;
@@ -76,28 +86,40 @@ namespace UEToVS.Host.Logic.Commands
         public const int Settings = 0x0140;
         public const int FindAction = 0x0150;
 
-        // ---- M2 navigation (0x0200–0x02FF), implemented by the navigation module
+        // ---- M2 navigation (0x0200–0x02FF): Navigation/NavigationActions.cs
         public const int GoToDefinition = 0x0200;
         public const int GoToImplementation = 0x0201;
         public const int FindReferences = 0x0202;
         public const int TypeHierarchy = 0x0203;
-        public const int NavigateBack = 0x0204;
-        public const int NavigateForward = 0x0205;
-        public const int FileMembers = 0x0206;
-        public const int ToggleHeaderSource = 0x0207;
+        public const int ListMembersInFile = 0x0204;
+        public const int ListTypeMembers = 0x0205;
 
-        // ---- M1 features (0x0300–0x03FF)
+        // ---- M1 features (0x0300–0x03FF): Features/M1Feature.cs
         public const int SearchEverywhere = 0x0300;
-        public const int OpenFile = 0x0301;
-        public const int SearchSymbol = 0x0302;
-        public const int ToggleBookmark = 0x0303;
-        public const int ShowBookmarks = 0x0304;
-        public const int RecentLocations = 0x0305;
+        public const int GoToType = 0x0301;
+        public const int GoToSymbol = 0x0302;
+        public const int GoToFile = 0x0303;
+        public const int GoToAsset = 0x0304;
+        public const int NavigateBack = 0x0310;
+        public const int NavigateForward = 0x0311;
+        public const int RecentFiles = 0x0312;
+        public const int RecentLocations = 0x0313;
+        public const int LastEditLocation = 0x0314;
+        public const int NextEditLocation = 0x0315;
+        public const int FileStructure = 0x0316;
+        public const int NavigateTo = 0x0317;
+        public const int ToggleHeaderSource = 0x0320;
+        public const int GoToRelated = 0x0321;
+        public const int OpenBuildCs = 0x0322;
+        public const int AddModuleDependency = 0x0323;
+        public const int ToggleBookmark = 0x0330;
+        public const int ShowBookmarks = 0x0331;
+        public const int LiveCoding = 0x0360;
+        public const int GenerateProjectFiles = 0x0361;
+        public const int InstallEditorPlugin = 0x0362;
 
-        // ---- settings / windows (0x0400–0x04FF)
+        // ---- settings / windows / toolbar (0x0400–0x04FF)
         public const int Toolbar = 0x0400;
-        public const int ToolbarGroup = 0x0401;
-        public const int MenuNavigationGroup = 0x0402;
         /// <summary>Toolbar-only buttons (separate ids so each can be hidden from the settings window).</summary>
         public const int TbSettings = 0x0480;
         public const int TbSearchEverywhere = 0x0481;
@@ -107,79 +129,106 @@ namespace UEToVS.Host.Logic.Commands
         public const int TbFindReferences = 0x0485;
         public const int TbPerformance = 0x0486;
 
+        /// <summary>Action ids of the M1/M2 commands (mirrors NavigationActionIds / M1ActionIds, which are host-internal).</summary>
         public static class ActionIds
         {
-            public const string GoToDefinition = "uetovs.nav.goToDefinition";
-            public const string GoToImplementation = "uetovs.nav.goToImplementation";
-            public const string FindReferences = "uetovs.nav.findReferences";
-            public const string TypeHierarchy = "uetovs.nav.typeHierarchy";
-            public const string NavigateBack = "uetovs.nav.back";
-            public const string NavigateForward = "uetovs.nav.forward";
-            public const string FileMembers = "uetovs.nav.fileMembers";
-            public const string ToggleHeaderSource = "uetovs.nav.toggleHeaderSource";
+            public const string GoToDefinition = "uetovs.navigation.goToDefinition";
+            public const string GoToImplementation = "uetovs.navigation.goToImplementation";
+            public const string FindReferences = "uetovs.navigation.findReferences";
+            public const string TypeHierarchy = "uetovs.navigation.typeHierarchy";
+            public const string ListMembersInFile = "uetovs.navigation.listMembersInFile";
+            public const string ListTypeMembers = "uetovs.navigation.listTypeMembers";
             public const string SearchEverywhere = "uetovs.search.everywhere";
-            public const string OpenFile = "uetovs.search.openFile";
-            public const string SearchSymbol = "uetovs.search.symbol";
+            public const string GoToType = "uetovs.search.type";
+            public const string GoToSymbol = "uetovs.search.symbol";
+            public const string GoToFile = "uetovs.search.file";
+            public const string GoToAsset = "uetovs.search.asset";
+            public const string NavigateBack = "uetovs.navigation.back";
+            public const string NavigateForward = "uetovs.navigation.forward";
+            public const string RecentFiles = "uetovs.navigation.recentFiles";
+            public const string RecentLocations = "uetovs.navigation.recentLocations";
+            public const string LastEditLocation = "uetovs.navigation.lastEdit";
+            public const string NextEditLocation = "uetovs.navigation.nextEdit";
+            public const string FileStructure = "uetovs.navigation.fileStructure";
+            public const string NavigateTo = "uetovs.navigation.navigateTo";
+            public const string ToggleHeaderSource = "uetovs.related.toggleHeaderSource";
+            public const string GoToRelated = "uetovs.related.goTo";
+            public const string OpenBuildCs = "uetovs.unreal.openBuildCs";
+            public const string AddModuleDependency = "uetovs.unreal.addModuleDependency";
             public const string ToggleBookmark = "uetovs.bookmarks.toggle";
-            public const string ShowBookmarks = "uetovs.bookmarks.show";
-            public const string RecentLocations = "uetovs.history.recentLocations";
+            public const string ShowBookmarks = "uetovs.bookmarks.list";
+            public const string LiveCoding = "uetovs.unreal.liveCoding";
+            public const string GenerateProjectFiles = "uetovs.unreal.generateProjectFiles";
+            public const string InstallEditorPlugin = "uetovs.unreal.installEditorPlugin";
+
+            // host (mirror of Shell/ActionIds)
+            public const string FindAction = "uetovs.findAction";
+            public const string Settings = "uetovs.settings.open";
+            public const string ShowPerformancePanel = "uetovs.diagnostics.performancePanel";
         }
 
-        private static CommandInfo C(int id, string name, string action, string zh, string en, string group, CommandScope scope,
-                                     string va, string rider, string vs, bool reserved = false, bool inMenu = false) =>
+        private static CommandInfo C(CommandOwner owner, int id, string name, string action, string zh, string en, string group, CommandScope scope,
+                                     string va, string rider, string vs) =>
             new CommandInfo
             {
-                Id = id, Name = "UEToVS." + name, ActionId = action, TitleZh = zh, TitleEn = en, Group = group, Scope = scope,
-                VaKeys = va, RiderKeys = rider, VsKeys = vs, Reserved = reserved, InMenu = inMenu,
+                Owner = owner, Id = id, Name = "UEToVS." + name, ActionId = action, TitleZh = zh, TitleEn = en, Group = group, Scope = scope,
+                VaKeys = va, RiderKeys = rider, VsKeys = vs,
             };
+
+        private const CommandOwner H = CommandOwner.Host, M2 = CommandOwner.Navigation, M1 = CommandOwner.Features;
+        private const CommandScope Ed = CommandScope.TextEditor, Gl = CommandScope.Global;
 
         public static IReadOnlyList<CommandInfo> All { get; } = new[]
         {
-            // navigation (M2) — VA keys as the user asked: Alt+G / Alt+Shift+G / Shift+Alt+F / Alt+M / Alt+O / Alt+←/→ / Ctrl+Alt+H
-            C(GoToDefinition, "GoToDefinition", ActionIds.GoToDefinition, "转到定义", "Go to Definition", "navigation", CommandScope.TextEditor,
-              "Alt+G", "Ctrl+B", "F12", reserved: true, inMenu: true),
-            C(GoToImplementation, "GoToImplementation", ActionIds.GoToImplementation, "转到实现", "Go to Implementation", "navigation", CommandScope.TextEditor,
-              "Shift+Alt+G", "Ctrl+Alt+B", "Ctrl+F12", reserved: true, inMenu: true),
-            C(FindReferences, "FindReferences", ActionIds.FindReferences, "查找引用", "Find References", "navigation", CommandScope.TextEditor,
-              "Shift+Alt+F", "Alt+F7", "Shift+F12", reserved: true, inMenu: true),
-            C(TypeHierarchy, "TypeHierarchy", ActionIds.TypeHierarchy, "类型层次", "Type Hierarchy", "navigation", CommandScope.TextEditor,
-              "Ctrl+Alt+H", "Ctrl+H", null, reserved: true, inMenu: true),
-            C(NavigateBack, "NavigateBack", ActionIds.NavigateBack, "后退", "Navigate Back", "navigation", CommandScope.Global,
-              "Alt+Left Arrow", "Ctrl+Alt+Left Arrow", "Ctrl+-", reserved: true, inMenu: true),
-            C(NavigateForward, "NavigateForward", ActionIds.NavigateForward, "前进", "Navigate Forward", "navigation", CommandScope.Global,
-              "Alt+Right Arrow", "Ctrl+Alt+Right Arrow", "Ctrl+Shift+-", reserved: true, inMenu: true),
-            C(FileMembers, "FileMembers", ActionIds.FileMembers, "文件成员", "File Members", "navigation", CommandScope.TextEditor,
-              "Alt+M", "Ctrl+F12", null, reserved: true, inMenu: true),
-            C(ToggleHeaderSource, "ToggleHeaderSource", ActionIds.ToggleHeaderSource, "头文件/源文件切换", "Toggle Header/Source", "navigation", CommandScope.TextEditor,
-              "Alt+O", "Ctrl+Alt+Home", "Ctrl+K, Ctrl+O", reserved: true, inMenu: true),
+            // navigation (M2, text editor). VA keys = the VSCT defaults: Alt+G / Shift+Alt+G / Shift+Alt+F / Shift+Alt+H / Alt+M / Shift+Alt+M
+            C(M2, GoToDefinition, "GoToDefinition", ActionIds.GoToDefinition, "转到定义 / 声明", "Go to Definition / Declaration", "navigation", Ed, "Alt+G", "Ctrl+B", "F12"),
+            C(M2, GoToImplementation, "GoToImplementation", ActionIds.GoToImplementation, "转到实现", "Go to Implementation", "navigation", Ed, "Shift+Alt+G", "Ctrl+Alt+B", "Ctrl+F12"),
+            C(M2, FindReferences, "FindReferences", ActionIds.FindReferences, "查找引用", "Find References", "navigation", Ed, "Shift+Alt+F", "Alt+F7", "Shift+F12"),
+            C(M2, TypeHierarchy, "TypeHierarchy", ActionIds.TypeHierarchy, "类型层次", "Type Hierarchy", "navigation", Ed, "Shift+Alt+H", "Ctrl+H", null),
+            C(M2, ListMembersInFile, "ListMembersInFile", ActionIds.ListMembersInFile, "文件成员", "List Members in File", "navigation", Ed, "Alt+M", null, null),
+            C(M2, ListTypeMembers, "ListTypeMembers", ActionIds.ListTypeMembers, "类型成员（含继承）", "Type Members (with Inherited)", "navigation", Ed, "Shift+Alt+M", null, null),
+            // navigation history (M1, global)
+            C(M1, NavigateBack, "NavigateBack", ActionIds.NavigateBack, "后退", "Navigate Back", "navigation", Gl, "Alt+Left Arrow", "Ctrl+Alt+Left Arrow", "Ctrl+-"),
+            C(M1, NavigateForward, "NavigateForward", ActionIds.NavigateForward, "前进", "Navigate Forward", "navigation", Gl, "Alt+Right Arrow", "Ctrl+Alt+Right Arrow", "Ctrl+Shift+-"),
+            C(M1, RecentFiles, "RecentFiles", ActionIds.RecentFiles, "最近文件", "Recent Files", "navigation", Gl, null, "Ctrl+E", null),
+            C(M1, RecentLocations, "RecentLocations", ActionIds.RecentLocations, "最近位置", "Recent Locations", "navigation", Gl, null, "Ctrl+Shift+E", null),
+            C(M1, LastEditLocation, "LastEditLocation", ActionIds.LastEditLocation, "上一个编辑位置", "Last Edit Location", "navigation", Gl, null, "Ctrl+Shift+Bkspce", null),
+            C(M1, NextEditLocation, "NextEditLocation", ActionIds.NextEditLocation, "下一个编辑位置", "Next Edit Location", "navigation", Gl, null, null, null),
+            C(M1, FileStructure, "FileStructure", ActionIds.FileStructure, "文件结构", "File Structure", "navigation", Gl, null, "Ctrl+F12", null),
+            C(M1, NavigateTo, "NavigateTo", ActionIds.NavigateTo, "导航到…", "Navigate To", "navigation", Gl, null, null, null),
 
-            // search (M1); Search Everywhere is also "double Shift" (DoubleShiftDetector), which VSCT cannot express
-            C(SearchEverywhere, "SearchEverywhere", ActionIds.SearchEverywhere, "Search Everywhere", "Search Everywhere", "search", CommandScope.Global,
-              null, null, null, reserved: true, inMenu: true),
-            C(OpenFile, "OpenFile", ActionIds.OpenFile, "打开文件", "Open File in Solution", "search", CommandScope.Global,
-              "Shift+Alt+O", "Ctrl+Shift+N", "Ctrl+Shift+T", reserved: true),
-            C(SearchSymbol, "SearchSymbol", ActionIds.SearchSymbol, "搜索符号", "Find Symbol", "search", CommandScope.Global,
-              "Shift+Alt+S", "Ctrl+Shift+Alt+N", "Ctrl+1, Ctrl+S", reserved: true),
-            C(FindAction, "FindAction", "uetovs.findAction", "查找操作", "Find Action", "search", CommandScope.Global,
-              "Ctrl+Shift+Alt+A", "Ctrl+Shift+A", null, inMenu: true),
-            C(ToggleBookmark, "ToggleBookmark", ActionIds.ToggleBookmark, "切换书签", "Toggle Bookmark", "search", CommandScope.TextEditor,
-              null, "F11", "Ctrl+K, Ctrl+K", reserved: true),
-            C(ShowBookmarks, "ShowBookmarks", ActionIds.ShowBookmarks, "书签列表", "Bookmarks", "search", CommandScope.Global,
-              null, "Shift+F11", "Ctrl+K, Ctrl+W", reserved: true),
-            C(RecentLocations, "RecentLocations", ActionIds.RecentLocations, "最近位置", "Recent Locations", "search", CommandScope.Global,
-              null, "Ctrl+Shift+E", null, reserved: true),
+            // search (M1); Search Everywhere is also "double Shift" (M1 InputMonitor), which VSCT cannot express
+            C(H, FindAction, "FindAction", ActionIds.FindAction, "查找操作", "Find Action", "search", Gl, "Ctrl+Shift+Alt+A", "Ctrl+Shift+A", null),
+            C(M1, SearchEverywhere, "SearchEverywhere", ActionIds.SearchEverywhere, "Search Everywhere", "Search Everywhere", "search", Gl, null, null, null),
+            C(M1, GoToType, "GoToType", ActionIds.GoToType, "转到类型", "Go to Type", "search", Gl, null, "Ctrl+N", null),
+            C(M1, GoToSymbol, "GoToSymbol", ActionIds.GoToSymbol, "转到符号", "Go to Symbol", "search", Gl, "Shift+Alt+S", "Ctrl+Shift+Alt+N", null),
+            C(M1, GoToFile, "GoToFile", ActionIds.GoToFile, "转到文件", "Go to File", "search", Gl, "Shift+Alt+O", "Ctrl+Shift+N", null),
+            C(M1, GoToAsset, "GoToAsset", ActionIds.GoToAsset, "转到资产（蓝图）", "Go to Asset (Blueprint)", "search", Gl, null, null, null),
 
-            // tools / settings / diagnostics
-            C(ShowPerformancePanel, "PerformancePanel", "uetovs.diagnostics.performancePanel", "性能面板", "Performance Panel", "tools", CommandScope.Global,
-              null, null, null, inMenu: true),
-            C(Settings, "Settings", "uetovs.settings.open", "设置…", "Settings...", "settings", CommandScope.Global,
-              null, "Ctrl+Alt+S", null, inMenu: true),
-            C(RestartEngine, "RestartEngine", "uetovs.engine.restart", "重启引擎", "Restart Engine", "tools", CommandScope.Global, null, null, null),
-            C(ToggleIntelliSense, "ToggleIntelliSense", "uetovs.intellisense.takeOver", "接管/恢复 VS C++ IntelliSense", "Take Over / Restore C++ IntelliSense", "settings", CommandScope.Global, null, null, null),
-            C(OpenLogFolder, "OpenLogFolder", "uetovs.diagnostics.openLogFolder", "打开日志文件夹", "Open Log Folder", "diagnostics", CommandScope.Global, null, null, null),
-            C(OpenCurrentLog, "OpenCurrentLog", "uetovs.diagnostics.openCurrentLog", "打开当前日志", "Open Current Log", "diagnostics", CommandScope.Global, null, null, null),
-            C(CreateDiagnostics, "CreateDiagnosticsPackage", "uetovs.diagnostics.createPackage", "生成诊断包", "Create Diagnostics Package", "diagnostics", CommandScope.Global, null, null, null),
-            C(ShowComponentGallery, "ShowComponentGallery", "uetovs.ui.componentGallery", "组件画廊", "Component Gallery", "diagnostics", CommandScope.Global, null, null, null),
+            // related (M1)
+            C(M1, ToggleHeaderSource, "ToggleHeaderSource", ActionIds.ToggleHeaderSource, "头文件/源文件切换", "Toggle Header/Source", "related", Gl, "Alt+O", "Ctrl+Alt+Home", "Ctrl+K, Ctrl+O"),
+            C(M1, GoToRelated, "GoToRelated", ActionIds.GoToRelated, "转到相关文件", "Go to Related", "related", Gl, null, null, null),
+            C(M1, OpenBuildCs, "OpenBuildCs", ActionIds.OpenBuildCs, "打开模块 Build.cs", "Open Module Build.cs", "related", Gl, null, null, null),
+            C(M1, AddModuleDependency, "AddModuleDependency", ActionIds.AddModuleDependency, "为 include 添加模块依赖", "Add Module Dependency for Include", "related", Gl, null, null, null),
+
+            // bookmarks (M1)
+            C(M1, ToggleBookmark, "ToggleBookmark", ActionIds.ToggleBookmark, "切换书签", "Toggle Bookmark", "bookmarks", Gl, null, "F11", null),
+            C(M1, ShowBookmarks, "ShowBookmarks", ActionIds.ShowBookmarks, "书签列表", "Show Bookmarks", "bookmarks", Gl, null, "Shift+F11", null),
+
+            // Unreal (M1)
+            C(M1, LiveCoding, "LiveCoding", ActionIds.LiveCoding, "Live Coding（UE 编辑器）", "Live Coding (Unreal Editor)", "unreal", Gl, "Ctrl+Alt+F11", "Ctrl+Alt+F11", "Ctrl+Alt+F11"),
+            C(M1, GenerateProjectFiles, "GenerateProjectFiles", ActionIds.GenerateProjectFiles, "生成项目文件", "Generate Project Files", "unreal", Gl, null, null, null),
+            C(M1, InstallEditorPlugin, "InstallEditorPlugin", ActionIds.InstallEditorPlugin, "安装 UEToVSLink 编辑器插件", "Install UEToVSLink Editor Plugin", "unreal", Gl, null, null, null),
+
+            // tools / settings / diagnostics (host)
+            C(H, ShowPerformancePanel, "PerformancePanel", ActionIds.ShowPerformancePanel, "性能面板", "Performance Panel", "tools", Gl, null, null, null),
+            C(H, Settings, "Settings", ActionIds.Settings, "设置…", "Settings...", "settings", Gl, null, "Ctrl+Alt+S", null),
+            C(H, RestartEngine, "RestartEngine", "uetovs.engine.restart", "重启引擎", "Restart Engine", "tools", Gl, null, null, null),
+            C(H, ToggleIntelliSense, "ToggleIntelliSense", "uetovs.intellisense.takeOver", "接管/恢复 VS C++ IntelliSense", "Take Over / Restore C++ IntelliSense", "settings", Gl, null, null, null),
+            C(H, OpenLogFolder, "OpenLogFolder", "uetovs.diagnostics.openLogFolder", "打开日志文件夹", "Open Log Folder", "diagnostics", Gl, null, null, null),
+            C(H, OpenCurrentLog, "OpenCurrentLog", "uetovs.diagnostics.openCurrentLog", "打开当前日志", "Open Current Log", "diagnostics", Gl, null, null, null),
+            C(H, CreateDiagnostics, "CreateDiagnosticsPackage", "uetovs.diagnostics.createPackage", "生成诊断包", "Create Diagnostics Package", "diagnostics", Gl, null, null, null),
+            C(H, ShowComponentGallery, "ShowComponentGallery", "uetovs.ui.componentGallery", "组件画廊", "Component Gallery", "diagnostics", Gl, null, null, null),
         };
 
         public static CommandInfo ById(int id)
@@ -219,13 +268,13 @@ namespace UEToVS.Host.Logic.Commands
         /// <summary>Left to right; "settings" is the brand-icon button that opens the settings window.</summary>
         public static IReadOnlyList<ToolbarButtonInfo> All { get; } = new[]
         {
-            new ToolbarButtonInfo("settings", CommandCatalog.TbSettings, "uetovs.settings.open", "UEToVS 设置", "UEToVS Settings"),
+            new ToolbarButtonInfo("settings", CommandCatalog.TbSettings, CommandCatalog.ActionIds.Settings, "UEToVS 设置", "UEToVS Settings"),
             new ToolbarButtonInfo("searchEverywhere", CommandCatalog.TbSearchEverywhere, CommandCatalog.ActionIds.SearchEverywhere, "Search Everywhere", "Search Everywhere"),
             new ToolbarButtonInfo("back", CommandCatalog.TbBack, CommandCatalog.ActionIds.NavigateBack, "后退", "Navigate Back"),
             new ToolbarButtonInfo("forward", CommandCatalog.TbForward, CommandCatalog.ActionIds.NavigateForward, "前进", "Navigate Forward"),
             new ToolbarButtonInfo("goToDefinition", CommandCatalog.TbGoToDefinition, CommandCatalog.ActionIds.GoToDefinition, "转到定义", "Go to Definition"),
             new ToolbarButtonInfo("findReferences", CommandCatalog.TbFindReferences, CommandCatalog.ActionIds.FindReferences, "查找引用", "Find References"),
-            new ToolbarButtonInfo("performance", CommandCatalog.TbPerformance, "uetovs.diagnostics.performancePanel", "性能面板", "Performance Panel"),
+            new ToolbarButtonInfo("performance", CommandCatalog.TbPerformance, CommandCatalog.ActionIds.ShowPerformancePanel, "性能面板", "Performance Panel"),
         };
 
         public static HashSet<string> ParseHidden(string text)

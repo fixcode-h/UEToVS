@@ -15,9 +15,8 @@ namespace UEToVS.Host.Shell
     /// Binds VSCT commands to actions. BeforeQueryStatus sets the localized text (VSCT holds the English default and the
     /// TextChanges flag) and enables the command from <see cref="IAction.IsAvailable"/>; Invoke dispatches to the action
     /// hub. Both are wrapped (exceptions logged; UI-thread time measured against 16 ms).
-    /// Every command of <see cref="CommandCatalog"/> is bound, including the reserved ones (M2 navigation, M1 search):
-    /// they stay hidden in the menu / disabled until the module that implements them registers its action, so their
-    /// key bindings start working without touching this file. Toolbar buttons take their visibility from the settings.
+    /// Binds the host commands of <see cref="CommandCatalog"/> (Owner = Host), the M2 navigation map and the toolbar
+    /// buttons; M1 binds its commands through <see cref="RegisterMap"/>. Toolbar buttons take their visibility from the settings.
     /// </summary>
     internal sealed class CommandRouter
     {
@@ -49,10 +48,10 @@ namespace UEToVS.Host.Shell
             int count = 0;
             foreach (var c in CommandCatalog.All)
             {
-                if (c.Id == CommandIds.ToggleIntelliSense) continue;
+                if (c.Owner != CommandOwner.Host || c.Id == CommandIds.ToggleIntelliSense) continue;
                 var info = c;
                 Texts.TryGetValue(c.Id, out var text);
-                Bind(mcs, c.Id, () => info.ActionId, text ?? (() => Loc.T(info.TitleZh, info.TitleEn)), hideWhenMissing: c.Reserved);
+                Bind(mcs, c.Id, () => info.ActionId, text ?? (() => Loc.T(info.TitleZh, info.TitleEn)));
                 count++;
             }
 
@@ -60,8 +59,15 @@ namespace UEToVS.Host.Shell
             // taken it over (a backup of the user's originals exists). Find Action still lists both actions.
             Bind(mcs, CommandIds.ToggleIntelliSense,
                 () => IsIntelliSenseTakenOver() ? ActionIds.RestoreIntelliSense : ActionIds.TakeOverIntelliSense,
-                () => IsIntelliSenseTakenOver() ? Strings.CmdRestoreIntelliSense : Strings.CmdTakeOverIntelliSense, false);
+                () => IsIntelliSenseTakenOver() ? Strings.CmdRestoreIntelliSense : Strings.CmdTakeOverIntelliSense);
             count++;
+
+            // M2 navigation commands (0x0200–0x02FF); M1 binds its own through RegisterMap.
+            foreach (var (cmdId, actionId, text) in Navigation.NavigationActions.Map)
+            {
+                Bind(mcs, cmdId, () => actionId, text);
+                count++;
+            }
 
             foreach (var b in ToolbarButtons.All)
             {
@@ -77,7 +83,7 @@ namespace UEToVS.Host.Shell
         /// <summary>Taken over = UEToVS holds a backup of VS's C++ IntelliSense settings, i.e. it changed them and can restore.</summary>
         private bool IsIntelliSenseTakenOver() => _package.IntelliSense?.BackupExists == true;
 
-        private void Bind(OleMenuCommandService mcs, int cmdId, Func<string> actionId, Func<string> text, bool hideWhenMissing, Func<bool> visible = null)
+        private void Bind(OleMenuCommandService mcs, int cmdId, Func<string> actionId, Func<string> text, bool hideWhenMissing = false, Func<bool> visible = null)
         {
             var cmd = new OleMenuCommand((s, e) => Invoke(actionId()), new CommandID(PackageGuids.CommandSet, cmdId));
             cmd.BeforeQueryStatus += (s, e) => Safe.Execute(L, "command.queryStatus", () =>
@@ -89,6 +95,14 @@ namespace UEToVS.Host.Shell
                 c.Visible = (visible?.Invoke() ?? true) && (!hideWhenMissing || action != null);
             }, ("command", cmdId));
             mcs.AddCommand(cmd);
+        }
+
+        /// <summary>Binds additional command → action maps (feature modules keep their own id tables, e.g. M1Commands).</summary>
+        public void RegisterMap(OleMenuCommandService mcs, IReadOnlyList<(int CommandId, string ActionId, Func<string> Text)> map)
+        {
+            foreach (var (cmdId, actionId, text) in map)
+                Bind(mcs, cmdId, () => actionId, text);
+            L.Info("commands.registered", null, ("count", map.Count), ("first", map.Count > 0 ? map[0].CommandId : 0));
         }
 
         private void Invoke(string actionId)

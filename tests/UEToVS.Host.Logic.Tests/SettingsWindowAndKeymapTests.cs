@@ -38,13 +38,46 @@ namespace UEToVS.Host.Logic.Tests
                 LogLevel = UEToVS.Core.Diagnostics.LogLevel.Debug, EnginePathOverride = @"C:\e\UEToVS.Engine.exe", EngineRequestTimeoutSeconds = 12,
                 IntelliSenseTakeover = true, IntelliSenseTakeoverMode = IntelliSenseTakeoverMode.UnrealSolutionOnly, DisableDatabase = false,
                 DisableBackgroundCodeAnalysis = true, LogRetentionDays = 3, LogMaxTotalMB = 50, CppIndexThreads = 6, BlueprintIndexThreads = 2,
-                IndexDuringBuild = IndexDuringBuild.Pause, IndexEngineSource = false, HighlightReferences = false, ShowNavigationBar = false,
-                CtrlClickGoToDefinition = false, ShowToolbar = false, HiddenToolbarButtons = "back,performance", DoubleShiftSearchEverywhere = false,
-                PerformanceSampleSeconds = 5,
+                IndexDuringBuild = IndexDuringBuild.Pause, IndexEngineSource = false, ShareEngineIndex = true, EngineIndexPath = @"D:\Idx",
+                ShowToolbar = false, HiddenToolbarButtons = "back,performance", PerformanceSampleSeconds = 5,
+                // M1 / M2 fields
+                DoubleShiftEnabled = false, DoubleShiftIntervalMs = 450, DoubleShiftLeftOnly = true, SearchMaxResultsPerCategory = 80,
+                MouseButtonsNavigate = false, NavigationLineThreshold = 30, NavigationHistoryCapacity = 200, CheckIncludesOnSave = false,
+                EditorLinkPort = 4567, CtrlClickNavigation = false, ReferenceHighlighting = false, ReferenceHighlightReadColor = "#336699",
+                ReferenceHighlightWriteColor = "#80FF0000", NavigationBar = false,
             };
             var back = HostSettingsSchema.Codec.FromValues(HostSettingsSchema.Codec.ToValues(s), Schema, new HostSettings());
             Assert.Equal(HostSettingsSchema.Codec.ToValues(s), HostSettingsSchema.Codec.ToValues(back));
             Assert.Equal("back,performance", back.HiddenToolbarButtons);
+            Assert.Equal(450, back.DoubleShiftIntervalMs);
+            Assert.Equal(4567, back.EditorLinkPort);
+            Assert.Equal("#80FF0000", back.ReferenceHighlightWriteColor);
+            Assert.False(back.NavigationBar);
+        }
+
+        /// <summary>Every public settable HostSettings property is either in the settings window or deliberately left out.</summary>
+        [Fact]
+        public void EveryHostSettingIsReachableFromTheWindow()
+        {
+            var notInWindow = new HashSet<string>
+            {
+                nameof(HostSettings.HiddenToolbarButtons), // edited through the toolbar.button.* rows
+            };
+            var defaults = new HostSettings();
+            var changed = HostSettingsSchema.Codec.ToValues(defaults);
+            foreach (var prop in typeof(HostSettings).GetProperties().Where(p => p.CanWrite && p.CanRead))
+            {
+                if (notInWindow.Contains(prop.Name)) continue;
+                // flip the value and check that the codec sees it
+                var s = defaults.Clone();
+                object v = prop.GetValue(s);
+                object flipped = v is bool b ? (object)!b : v is int i ? (object)(i + 1) : v is string str ? (object)(str + "x")
+                    : prop.PropertyType.IsEnum ? Enum.GetValues(prop.PropertyType).Cast<object>().First(e => !e.Equals(v)) : null;
+                Assert.NotNull(flipped);
+                prop.SetValue(s, flipped);
+                Assert.True(!HostSettingsSchema.Codec.ToValues(s).OrderBy(kv => kv.Key).SequenceEqual(changed.OrderBy(kv => kv.Key)),
+                            prop.Name + " is not mapped to a settings-window row");
+            }
         }
 
         [Fact]
@@ -185,41 +218,6 @@ namespace UEToVS.Host.Logic.Tests
         }
     }
 
-    public class DoubleShiftDetectorTests
-    {
-        [Fact]
-        public void TwoQuickTapsFire()
-        {
-            var d = new DoubleShiftDetector();
-            Assert.False(d.OnKeyDown(true, false, 0));
-            d.OnKeyUp(true, 80);
-            Assert.True(d.OnKeyDown(true, false, 250));
-        }
-
-        [Fact]
-        public void TypingWithShiftDoesNotFire()
-        {
-            var d = new DoubleShiftDetector();
-            d.OnKeyDown(true, false, 0);
-            d.OnKeyDown(false, false, 50); // Shift+A
-            d.OnKeyUp(false, 90);
-            d.OnKeyUp(true, 120);
-            Assert.False(d.OnKeyDown(true, false, 200));
-        }
-
-        [Fact]
-        public void SlowOrHeldShiftDoesNotFire()
-        {
-            var d = new DoubleShiftDetector();
-            d.OnKeyDown(true, false, 0);
-            d.OnKeyUp(true, 1000); // held
-            Assert.False(d.OnKeyDown(true, false, 1100));
-            d.OnKeyUp(true, 1150);
-            Assert.False(d.OnKeyDown(true, false, 1800)); // too late
-            Assert.False(d.OnKeyDown(true, true, 1810)); // auto-repeat
-        }
-    }
-
     /// <summary>The VSCT must agree with <see cref="CommandCatalog"/>: ids, canonical names and VA key bindings.</summary>
     public class VsctTests
     {
@@ -255,7 +253,7 @@ namespace UEToVS.Host.Logic.Tests
             foreach (var kb in doc.Descendants(Ns + "KeyBinding"))
             {
                 string key = (string)kb.Attribute("key1");
-                key = key == "VK_LEFT" ? "Left Arrow" : key == "VK_RIGHT" ? "Right Arrow" : key;
+                key = key == "VK_LEFT" ? "Left Arrow" : key == "VK_RIGHT" ? "Right Arrow" : key.StartsWith("VK_") ? key.Substring(3) : key;
                 string mods = string.Join("+", ((string)kb.Attribute("mod1") ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries)
                                                                                  .Select(m => m == "Control" ? "Ctrl" : m));
                 declared[sym[(string)kb.Attribute("id")]] = Shortcut.Normalize(mods.Length > 0 ? mods + "+" + key : key);
@@ -263,14 +261,19 @@ namespace UEToVS.Host.Logic.Tests
             foreach (var c in CommandCatalog.All)
             {
                 declared.TryGetValue(c.Id, out var keys);
-                Assert.Equal(Shortcut.Normalize(c.VaKeys), keys);
+                Assert.True(Shortcut.Normalize(c.VaKeys) == keys, $"{c.Name}: catalog {c.VaKeys}, VSCT {keys}");
             }
+            // no two commands share a default key in the same scope
+            var dup = CommandCatalog.All.Where(c => c.VaKeys != null).GroupBy(c => Shortcut.Normalize(c.VaKeys)).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
+            Assert.Empty(dup);
         }
 
         [Fact]
         public void ReservedIdRangesAreRespected()
         {
-            foreach (var c in CommandCatalog.All.Where(x => x.Group == "navigation")) Assert.InRange(c.Id, 0x0200, 0x02FF);
+            foreach (var c in CommandCatalog.All.Where(x => x.Owner == CommandOwner.Navigation)) Assert.InRange(c.Id, 0x0200, 0x02FF);
+            foreach (var c in CommandCatalog.All.Where(x => x.Owner == CommandOwner.Features)) Assert.InRange(c.Id, 0x0300, 0x03FF);
+            foreach (var c in CommandCatalog.All.Where(x => x.Owner == CommandOwner.Host)) Assert.InRange(c.Id, 0x0100, 0x01FF);
             foreach (var t in ToolbarButtons.All) Assert.InRange(t.CommandId, 0x0400, 0x04FF);
             Assert.Equal(CommandCatalog.All.Count, CommandCatalog.All.Select(c => c.Id).Distinct().Count());
         }

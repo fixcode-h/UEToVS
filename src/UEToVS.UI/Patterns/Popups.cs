@@ -80,6 +80,9 @@ namespace UEToVS.UI.Patterns
             set => _shell.OwnerHandle = value;
         }
 
+        /// <summary>The highlighted item (default when none) — for extra keys such as Delete in a bookmark list.</summary>
+        public T SelectedItem => _list.HasSelection ? _list.SelectedItem : default;
+
         /// <summary>
         /// Shows <paramref name="items"/>; completes when the user picks one (Enter/double-click) or dismisses.
         /// <paramref name="filterText"/> null hides the search box.

@@ -154,6 +154,9 @@ namespace UEToVS.Host.Settings
             {
                 case "navigation": return Loc.T("导航", "Navigation");
                 case "search": return Loc.T("搜索", "Search");
+                case "related": return Loc.T("相关文件", "Related files");
+                case "bookmarks": return Loc.T("书签", "Bookmarks");
+                case "unreal": return "Unreal Engine";
                 case "tools": return Loc.T("工具", "Tools");
                 case "settings": return Loc.T("设置", "Settings");
                 default: return Loc.T("诊断", "Diagnostics");
@@ -167,7 +170,7 @@ namespace UEToVS.Host.Settings
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(220) });
             var title = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
             title.Children.Add(new UiText(c.Title(en), TextVariant.Body));
-            if (c.Reserved && _package.Actions.Get(c.ActionId) == null)
+            if (_package.Actions.Get(c.ActionId) == null)
                 title.Children.Add(new UiText(SettingsText.KeymapReserved, TextVariant.Caption) { Margin = new Thickness(6, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center });
             grid.Children.Add(title);
 

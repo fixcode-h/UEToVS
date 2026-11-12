@@ -125,6 +125,21 @@ namespace UEToVS.Host.Logic.Settings
             const string gKb = "键盘", gKbEn = "Keyboard";
             list.Add(D(General, "keyboard.doubleShift", SettingKind.Bool, "双击 Shift 打开 Search Everywhere", "Double Shift opens Search Everywhere",
                 "像 Rider 一样快速按两次 Shift。", "Press Shift twice quickly, like Rider.", "true", gKb, gKbEn));
+            var interval = D(General, "keyboard.doubleShiftIntervalMs", SettingKind.Int, "双击 Shift 最大间隔（毫秒）", "Double Shift max interval (ms)",
+                "两次 Shift 之间允许的最长时间。", "Longest time allowed between the two Shift presses.", "300", gKb, gKbEn);
+            interval.Min = 150; interval.Max = 1000;
+            list.Add(interval);
+            list.Add(D(General, "keyboard.doubleShiftLeftOnly", SettingKind.Bool, "只识别左 Shift", "Left Shift only",
+                "只有左侧 Shift 键的双击才会触发。", "Only a double press of the left Shift key triggers it.", "false", gKb, gKbEn));
+
+            const string gUe = "Unreal Engine", gUeEn = "Unreal Engine";
+            list.Add(D(General, "unreal.checkIncludesOnSave", SettingKind.Bool, "保存时检查 #include 的模块依赖", "Check #include module dependencies on save",
+                "保存 .h/.cpp 时对照 Build.cs 检查 #include 所属模块，缺失时提示添加依赖。", "On saving a .h/.cpp, checks the #include modules against Build.cs and offers to add missing dependencies.",
+                "true", gUe, gUeEn));
+            var port = D(General, "unreal.editorLinkPort", SettingKind.Int, "UEToVSLink 编辑器插件端口", "UEToVSLink editor plugin port",
+                "0 = 自动（读取 <项目>/Saved/UEToVSLink/port.txt）。", "0 = auto (reads <Project>/Saved/UEToVSLink/port.txt).", "0", gUe, gUeEn);
+            port.Min = 0; port.Max = 65535; port.AutoLabelZh = "自动"; port.AutoLabelEn = "Auto";
+            list.Add(port);
 
             // ================= 索引
             const string gIdx = "索引", gIdxEn = "Indexing";
@@ -163,14 +178,34 @@ namespace UEToVS.Host.Logic.Settings
             list.Add(A(Indexing, "indexing.rebuildBlueprint", WindowActions.RebuildBlueprintIndex, "重建蓝图索引", "Rebuild Blueprint index",
                 "丢弃蓝图/资产索引并重新扫描。", "Drops the Blueprint / asset index and re-scans.", gRb, gRbEn));
 
-            // ================= 导航（M2 预留）
+            // ================= 导航（M2 编辑器 + M1 历史 / 搜索）
             const string gNav = "编辑器", gNavEn = "Editor";
-            list.Add(D(Navigation, "nav.highlightReferences", SettingKind.Bool, "高亮光标处符号的引用", "Highlight references of the symbol at the caret",
-                null, null, "true", gNav, gNavEn));
-            list.Add(D(Navigation, "nav.navigationBar", SettingKind.Bool, "显示导航栏", "Show the navigation bar",
-                "编辑器顶部的 类型 / 成员 导航栏。", "Type / member bar at the top of the editor.", "true", gNav, gNavEn));
             list.Add(D(Navigation, "nav.ctrlClick", SettingKind.Bool, "Ctrl+单击 转到定义", "Ctrl+Click goes to definition",
-                "按住 Ctrl 单击符号跳转（Alt+← / Alt+→ 后退/前进）。", "Ctrl+click a symbol to jump (Alt+← / Alt+→ to go back/forward).", "true", gNav, gNavEn));
+                "按住 Ctrl 悬停会给标识符加下划线，单击跳转（Alt+← / Alt+→ 后退/前进）。", "Holding Ctrl underlines the identifier under the mouse; click to jump (Alt+← / Alt+→ to go back/forward).", "true", gNav, gNavEn));
+            list.Add(D(Navigation, "nav.highlightReferences", SettingKind.Bool, "高亮光标处符号的引用", "Highlight references of the symbol at the caret",
+                "仅 C++；读和写用不同底色。", "C++ only; reads and writes get different backgrounds.", "true", gNav, gNavEn));
+            list.Add(D(Navigation, "nav.highlightReadColor", SettingKind.Text, "读取引用的底色", "Read reference background",
+                "#RRGGBB 或 #AARRGGBB；留空 = 跟随主题。", "#RRGGBB or #AARRGGBB; empty = theme default.", "", gNav, gNavEn));
+            list.Add(D(Navigation, "nav.highlightWriteColor", SettingKind.Text, "写入引用的底色", "Write reference background",
+                "#RRGGBB 或 #AARRGGBB；留空 = 跟随主题。", "#RRGGBB or #AARRGGBB; empty = theme default.", "", gNav, gNavEn));
+            list.Add(D(Navigation, "nav.navigationBar", SettingKind.Bool, "显示导航栏", "Show the navigation bar",
+                "C++ 编辑器顶部的 当前类型 / 当前函数 导航栏。", "Current type / current function bar at the top of C++ editors.", "true", gNav, gNavEn));
+            const string gHist = "导航历史", gHistEn = "Navigation history";
+            list.Add(D(Navigation, "nav.mouseButtons", SettingKind.Bool, "鼠标侧键后退 / 前进", "Mouse side buttons go back / forward",
+                "鼠标 XButton1 / XButton2 在 UEToVS 导航历史中后退 / 前进。", "Mouse XButton1 / XButton2 move back / forward through UEToVS's history.", "true", gHist, gHistEn));
+            var lines = D(Navigation, "nav.lineThreshold", SettingKind.Int, "记录历史的最小跳行数", "Minimum line jump recorded",
+                "同一文件内光标移动超过这么多行才记入后退历史。", "A caret move within one file is recorded only beyond this many lines.", "15", gHist, gHistEn);
+            lines.Min = 1; lines.Max = 1000;
+            list.Add(lines);
+            var cap = D(Navigation, "nav.historyCapacity", SettingKind.Int, "历史容量", "History capacity",
+                "后退历史最多保留的位置数。", "Most positions kept in the Back history.", "100", gHist, gHistEn);
+            cap.Min = 10; cap.Max = 1000;
+            list.Add(cap);
+            const string gSearch = "Search Everywhere", gSearchEn = "Search Everywhere";
+            var perCat = D(Navigation, "search.maxResultsPerCategory", SettingKind.Int, "单个分类最多结果数", "Results per category",
+                "单个标签页每类最多显示的结果（“全部”页每组 8 个）。", "Results per category on a single tab (the All tab shows 8 per group).", "60", gSearch, gSearchEn);
+            perCat.Min = 10; perCat.Max = 1000;
+            list.Add(perCat);
 
             // ================= 日志与诊断
             const string gLog = "日志", gLogEn = "Logs";
@@ -233,16 +268,26 @@ namespace UEToVS.Host.Logic.Settings
                     ["intelliSense.disableDatabase"] = B(s.DisableDatabase),
                     ["intelliSense.disableBackgroundCodeAnalysis"] = B(s.DisableBackgroundCodeAnalysis),
                     ["toolbar.show"] = B(s.ShowToolbar),
-                    ["keyboard.doubleShift"] = B(s.DoubleShiftSearchEverywhere),
+                    ["keyboard.doubleShift"] = B(s.DoubleShiftEnabled),
+                    ["keyboard.doubleShiftIntervalMs"] = I(s.DoubleShiftIntervalMs),
+                    ["keyboard.doubleShiftLeftOnly"] = B(s.DoubleShiftLeftOnly),
+                    ["unreal.checkIncludesOnSave"] = B(s.CheckIncludesOnSave),
+                    ["unreal.editorLinkPort"] = I(s.EditorLinkPort),
                     ["indexing.cppThreads"] = I(s.CppIndexThreads),
                     ["indexing.blueprintThreads"] = I(s.BlueprintIndexThreads),
                     ["indexing.duringBuild"] = s.IndexDuringBuild.ToString(),
                     ["indexing.includeEngine"] = B(s.IndexEngineSource),
                     ["indexing.engineIndexPath"] = s.EngineIndexPath ?? "",
                     ["indexing.shareEngineIndex"] = B(s.ShareEngineIndex),
-                    ["nav.highlightReferences"] = B(s.HighlightReferences),
-                    ["nav.navigationBar"] = B(s.ShowNavigationBar),
-                    ["nav.ctrlClick"] = B(s.CtrlClickGoToDefinition),
+                    ["nav.ctrlClick"] = B(s.CtrlClickNavigation),
+                    ["nav.highlightReferences"] = B(s.ReferenceHighlighting),
+                    ["nav.highlightReadColor"] = s.ReferenceHighlightReadColor ?? "",
+                    ["nav.highlightWriteColor"] = s.ReferenceHighlightWriteColor ?? "",
+                    ["nav.navigationBar"] = B(s.NavigationBar),
+                    ["nav.mouseButtons"] = B(s.MouseButtonsNavigate),
+                    ["nav.lineThreshold"] = I(s.NavigationLineThreshold),
+                    ["nav.historyCapacity"] = I(s.NavigationHistoryCapacity),
+                    ["search.maxResultsPerCategory"] = I(s.SearchMaxResultsPerCategory),
                     ["log.level"] = s.LogLevel.ToString(),
                     ["log.retentionDays"] = I(s.LogRetentionDays),
                     ["log.maxTotalMB"] = I(s.LogMaxTotalMB),
@@ -287,16 +332,26 @@ namespace UEToVS.Host.Logic.Settings
                         case "intelliSense.disableDatabase": s.DisableDatabase = PB(v); break;
                         case "intelliSense.disableBackgroundCodeAnalysis": s.DisableBackgroundCodeAnalysis = PB(v); break;
                         case "toolbar.show": s.ShowToolbar = PB(v); break;
-                        case "keyboard.doubleShift": s.DoubleShiftSearchEverywhere = PB(v); break;
+                        case "keyboard.doubleShift": s.DoubleShiftEnabled = PB(v); break;
+                        case "keyboard.doubleShiftIntervalMs": s.DoubleShiftIntervalMs = PI(v, 300); break;
+                        case "keyboard.doubleShiftLeftOnly": s.DoubleShiftLeftOnly = PB(v); break;
+                        case "unreal.checkIncludesOnSave": s.CheckIncludesOnSave = PB(v); break;
+                        case "unreal.editorLinkPort": s.EditorLinkPort = PI(v, 0); break;
                         case "indexing.cppThreads": s.CppIndexThreads = PI(v, 0); break;
                         case "indexing.blueprintThreads": s.BlueprintIndexThreads = PI(v, 0); break;
                         case "indexing.duringBuild": s.IndexDuringBuild = PE(v, IndexDuringBuild.SingleThread); break;
                         case "indexing.includeEngine": s.IndexEngineSource = PB(v); break;
                         case "indexing.engineIndexPath": s.EngineIndexPath = v; break;
                         case "indexing.shareEngineIndex": s.ShareEngineIndex = PB(v); break;
-                        case "nav.highlightReferences": s.HighlightReferences = PB(v); break;
-                        case "nav.navigationBar": s.ShowNavigationBar = PB(v); break;
-                        case "nav.ctrlClick": s.CtrlClickGoToDefinition = PB(v); break;
+                        case "nav.ctrlClick": s.CtrlClickNavigation = PB(v); break;
+                        case "nav.highlightReferences": s.ReferenceHighlighting = PB(v); break;
+                        case "nav.highlightReadColor": s.ReferenceHighlightReadColor = v; break;
+                        case "nav.highlightWriteColor": s.ReferenceHighlightWriteColor = v; break;
+                        case "nav.navigationBar": s.NavigationBar = PB(v); break;
+                        case "nav.mouseButtons": s.MouseButtonsNavigate = PB(v); break;
+                        case "nav.lineThreshold": s.NavigationLineThreshold = PI(v, 15); break;
+                        case "nav.historyCapacity": s.NavigationHistoryCapacity = PI(v, 100); break;
+                        case "search.maxResultsPerCategory": s.SearchMaxResultsPerCategory = PI(v, 60); break;
                         case "log.level": s.LogLevel = PE(v, LogLevel.Info); break;
                         case "log.retentionDays": s.LogRetentionDays = PI(v, 7); break;
                         case "log.maxTotalMB": s.LogMaxTotalMB = PI(v, 200); break;

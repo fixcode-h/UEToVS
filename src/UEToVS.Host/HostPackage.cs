@@ -49,6 +49,7 @@ namespace UEToVS.Host
     [ProvideMenuResource("Menus.ctmenu", 1)]
     // v0.3.0: all settings live in the UEToVS settings window; Tools > Options keeps one stub page that opens it.
     [ProvideOptionPage(typeof(GeneralOptionsPage), "UEToVS", "General", 0, 0, true, Sort = 0)]
+    [ProvideToolWindow(typeof(Search.SearchResultsWindow), Style = VsDockStyle.Tabbed, Window = ToolWindowGuids.Outputwindow, MultiInstances = false)]
     [ProvideUIContextRule(PackageGuids.CppSolutionContextString,
         name: "UEToVS C++ solution",
         expression: "SolutionReady & VisualCpp",
@@ -68,7 +69,6 @@ namespace UEToVS.Host
         private BuildMonitor _build;
         private SettingsWindowService _settingsWindow;
         private PerformanceWindow _performanceWindow;
-        private DoubleShiftMonitor _doubleShift;
         private UnrealSolutionInfo _unreal = UnrealSolutionInfo.NotUnreal;
         private string _solutionFile;
         private string _solutionDir;
@@ -143,12 +143,13 @@ namespace UEToVS.Host
                 _commands = new CommandRouter(this, Actions);
                 if (await GetServiceAsync(typeof(System.ComponentModel.Design.IMenuCommandService)) is OleMenuCommandService mcs) _commands.Register(mcs);
                 else L.Error("package.commands.unavailable", "IMenuCommandService unavailable; menu commands not registered", null);
+                // M1 prototype features (Search Everywhere, navigation history, bookmarks, related, Build.cs, UE link).
+                Safe.Execute(L, "m1.initialize", () => M1Feature.Initialize(this, Actions, _commands,
+                    GetService(typeof(System.ComponentModel.Design.IMenuCommandService)) as OleMenuCommandService));
 
-                // 4b. Toolbar (shown on the first run) and double Shift → Search Everywhere.
+                // 4b. Toolbar: shown on the first run (double Shift → Search Everywhere is M1's InputMonitor).
                 var dte = await GetServiceAsync(typeof(DTE)) as DTE;
                 Safe.Execute(L, "toolbar.firstRun", () => ToolbarController.ApplyOnFirstRun(dte, s.ShowToolbar));
-                _doubleShift = new DoubleShiftMonitor(OnDoubleShift);
-                Safe.Execute(L, "doubleShift.init", () => _doubleShift.SetEnabled(s.DoubleShiftSearchEverywhere));
 
                 // 5. VS build begin/end → engine pauses background indexing.
                 _build = new BuildMonitor(building =>
@@ -285,6 +286,9 @@ namespace UEToVS.Host
                 };
             }
             await SetUnrealContextAsync(true);
+            await JoinableTaskFactory.SwitchToMainThreadAsync(DisposalToken);
+            Safe.Execute(L, "m1.solutionOpened", () => M1Feature.OnUnrealSolutionOpened(dir));
+            await TaskScheduler.Default;
 
             await _intelliSense.OnUnrealSolutionOpenedAsync();
             await StartEngineAsync();
@@ -292,6 +296,7 @@ namespace UEToVS.Host
 
         private void OnSolutionClosing()
         {
+            Safe.Execute(L, "m1.solutionClosing", M1Feature.OnSolutionClosing);
             if (!_unreal.IsUnreal) return;
             L.Info("solution.closing", null, ("solution", _solutionFile));
             var engine = _engine;
@@ -490,15 +495,13 @@ namespace UEToVS.Host
                 PushIndexingSettings(_engine, "settingsChanged");
             if (old.PerformanceSampleSeconds != now.PerformanceSampleSeconds)
                 Performance.Interval = TimeSpan.FromSeconds(Math.Max(1, now.PerformanceSampleSeconds));
-            if (old.ShowToolbar != now.ShowToolbar || old.DoubleShiftSearchEverywhere != now.DoubleShiftSearchEverywhere)
+            if (old.HiddenToolbarButtons != now.HiddenToolbarButtons || old.ShowToolbar != now.ShowToolbar)
             {
                 await JoinableTaskFactory.SwitchToMainThreadAsync(DisposalToken);
                 if (old.ShowToolbar != now.ShowToolbar)
                     ToolbarController.Apply(await GetServiceAsync(typeof(DTE)) as DTE, now.ShowToolbar, "settingsChanged");
-                _doubleShift?.SetEnabled(now.DoubleShiftSearchEverywhere);
-            }
-            if (old.HiddenToolbarButtons != now.HiddenToolbarButtons || old.ShowToolbar != now.ShowToolbar)
                 Safe.Execute(L, "toolbar.refresh", RefreshCommandUi);
+            }
             await _intelliSense.OnSettingsChangedAsync(old, now, _unreal.IsUnreal);
         }
 
@@ -507,17 +510,6 @@ namespace UEToVS.Host
         {
             ThreadHelper.ThrowIfNotOnUIThread();
             if (GetService(typeof(SVsUIShell)) is IVsUIShell shell) shell.UpdateCommandUI(0);
-        }
-
-        private void OnDoubleShift()
-        {
-            string id = Logic.Commands.CommandCatalog.ActionIds.SearchEverywhere;
-            if (Actions.Get(id) == null)
-            {
-                L.Debug("doubleShift.unavailable", "Search Everywhere is not registered yet");
-                return;
-            }
-            ExecuteAction(id, ActionSource.Menu);
         }
 
         // ================================================================== actions
@@ -588,7 +580,7 @@ namespace UEToVS.Host
                     _engine?.Dispose();
                     _engine = null;
                     _build?.Dispose();
-                    _doubleShift?.Dispose();
+                    M1Feature.Dispose();
                     Performance?.Dispose();
                     _reporter?.Dispose();
                     _reporter = null;

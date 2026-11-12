@@ -51,6 +51,50 @@ namespace UEToVS.Host.Logic.Settings
 
         public int LogMaxTotalMB { get; set; } = 200;
 
+        // ---- M1 原型功能（Search Everywhere / 导航 / 书签 / Build.cs / UE 编辑器联动）----
+
+        /// <summary>Double Shift anywhere in VS opens Search Everywhere.</summary>
+        public bool DoubleShiftEnabled { get; set; } = true;
+
+        /// <summary>Maximum interval between the two Shift presses (ms, ≥ 150).</summary>
+        public int DoubleShiftIntervalMs { get; set; } = 300;
+
+        public bool DoubleShiftLeftOnly { get; set; } = false;
+
+        /// <summary>Results per category on a single tab (the "All" tab shows 8 per group).</summary>
+        public int SearchMaxResultsPerCategory { get; set; } = 60;
+
+        /// <summary>Mouse XButton1/XButton2 navigate back/forward through UEToVS's history.</summary>
+        public bool MouseButtonsNavigate { get; set; } = true;
+
+        /// <summary>A caret move within one file is recorded in Back history only beyond this many lines.</summary>
+        public int NavigationLineThreshold { get; set; } = 15;
+
+        /// <summary>Back history capacity.</summary>
+        public int NavigationHistoryCapacity { get; set; } = 100;
+
+        /// <summary>On save of a .h/.cpp: check #include modules against Build.cs and offer to add missing dependencies.</summary>
+        public bool CheckIncludesOnSave { get; set; } = true;
+
+        /// <summary>UEToVSLink editor plugin TCP port; 0 = read &lt;Project&gt;/Saved/UEToVSLink/port.txt.</summary>
+        public int EditorLinkPort { get; set; } = 0;
+
+        // ---- 导航（M2）----
+        /// <summary>Ctrl+left-click on an identifier = go to definition (hover with Ctrl underlines it).</summary>
+        public bool CtrlClickNavigation { get; set; } = true;
+
+        /// <summary>Highlight the other occurrences of the symbol under the caret (C++ only).</summary>
+        public bool ReferenceHighlighting { get; set; } = true;
+
+        /// <summary>"#RRGGBB" / "#AARRGGBB" background of read occurrences; empty = theme default (§7.7).</summary>
+        public string ReferenceHighlightReadColor { get; set; } = string.Empty;
+
+        /// <summary>"#RRGGBB" / "#AARRGGBB" background of write occurrences; empty = theme default (§7.7).</summary>
+        public string ReferenceHighlightWriteColor { get; set; } = string.Empty;
+
+        /// <summary>Navigation bar (current type / current function) at the top of C++ editors.</summary>
+        public bool NavigationBar { get; set; } = true;
+
         // ---- 索引（设置窗口；0 = 默认 = max(1, 逻辑核心数 / 4)）----
         public int CppIndexThreads { get; set; } = 0;
 
@@ -69,22 +113,11 @@ namespace UEToVS.Host.Logic.Settings
         /// <summary>Shared engine index folder, used only when <see cref="ShareEngineIndex"/> is on. Empty = default location.</summary>
         public string EngineIndexPath { get; set; } = string.Empty;
 
-        // ---- 导航（M2 预留：高亮 / 导航栏 / Ctrl+点击）----
-        public bool HighlightReferences { get; set; } = true;
-
-        public bool ShowNavigationBar { get; set; } = true;
-
-        public bool CtrlClickGoToDefinition { get; set; } = true;
-
         // ---- 工具栏 ----
         public bool ShowToolbar { get; set; } = true;
 
         /// <summary>Comma separated toolbar button keys that are hidden (see ToolbarButtons). Empty = all visible.</summary>
         public string HiddenToolbarButtons { get; set; } = string.Empty;
-
-        // ---- 键盘 ----
-        /// <summary>Press Shift twice to open Search Everywhere (Rider style).</summary>
-        public bool DoubleShiftSearchEverywhere { get; set; } = true;
 
         // ---- 性能 ----
         /// <summary>Performance panel sampling interval in seconds.</summary>

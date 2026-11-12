@@ -209,6 +209,32 @@ namespace UEToVS.UI.Patterns
             if (Shell.IsVisible) RunQuery();
         }
 
+        public bool IsVisible => Shell.IsVisible;
+
+        /// <summary>Switches the tab while open (source Invoke on a group header / "more" row); the query re-runs.</summary>
+        public void SelectTab(string tabId)
+        {
+            if (tabId != null) _tabs.Select(tabId);
+            _search.FocusInput();
+        }
+
+        /// <summary>Replaces the query text (caret at the end) and re-runs it.</summary>
+        public void SetText(string text)
+        {
+            _search.Text = text ?? string.Empty;
+            _search.InputBox.CaretIndex = _search.Text.Length;
+            _search.FocusInput();
+            ScheduleQuery();
+        }
+
+        /// <summary>Flips a header chip (e.g. Rider's double Shift → "include non-project items").</summary>
+        public void ToggleFilter(string filterId)
+        {
+            if (filterId != null && _filterChips.TryGetValue(filterId, out var chip)) chip.IsChecked = chip.IsChecked != true;
+        }
+
+        public bool IsFilterOn(string filterId) => filterId != null && _filterChips.TryGetValue(filterId, out var chip) && chip.IsChecked == true;
+
         private void Build()
         {
             _tabs.SetTabs(MapTabs(_source.Tabs));

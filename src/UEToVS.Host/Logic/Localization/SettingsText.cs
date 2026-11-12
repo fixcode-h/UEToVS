@@ -55,7 +55,7 @@ namespace UEToVS.Host.Logic.Localization
         public static string KeymapColumnShortcut => Loc.T("快捷键", "Shortcut");
         public static string KeymapPressKeys => Loc.T("按下新的快捷键…（Esc 取消，Backspace 清除）", "Press the new shortcut… (Esc cancels, Backspace clears)");
         public static string KeymapNone => Loc.T("（无）", "(none)");
-        public static string KeymapReserved => Loc.T("（待实现）", "(coming)");
+        public static string KeymapReserved => Loc.T("（不可用）", "(unavailable)");
         public static string KeymapRestore => Loc.T("还原上次备份", "Restore last backup");
         public static string KeymapRemoveConflicts => Loc.T("解除冲突（移除其他命令的相同快捷键）", "Resolve conflicts (remove the same keys from other commands)");
         public static string KeymapLoading => Loc.T("正在读取 VS 键盘设置…", "Reading VS keyboard settings…");
