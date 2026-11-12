@@ -117,9 +117,48 @@ namespace UEToVS.Core.Diagnostics
             };
             System.Threading.Tasks.TaskScheduler.UnobservedTaskException += (s, a) =>
             {
-                l.Error("process.unobserved_task", "Unobserved task exception", a.Exception);
-                a.SetObserved();
+                // In the VS process this handler also sees VS's own tasks (JTF WithTimeout, telemetry, StreamJsonRpc
+                // pipes): those are not UEToVS errors, so they go out as capped warnings and are left to VS.
+                if (IsOwnException(a.Exception))
+                {
+                    l.Error("process.unobserved_task", "Unobserved task exception", a.Exception);
+                    a.SetObserved();
+                    return;
+                }
+                int n = Interlocked.Increment(ref _foreignUnobserved);
+                if (n <= MaxForeignUnobservedLogged)
+                    l.Warn("process.unobserved_task.foreign", "Unobserved task exception outside UEToVS code", a.Exception,
+                           ("count", n), ("lastLogged", n == MaxForeignUnobservedLogged));
             };
+        }
+
+        private const int MaxForeignUnobservedLogged = 20;
+        private static int _foreignUnobserved;
+
+        /// <summary>
+        /// True when any stack frame of <paramref name="ex"/> or its inner exceptions is UEToVS code, or when there is
+        /// no stack at all to judge by (then it is treated as ours, so nothing real is hidden).
+        /// </summary>
+        public static bool IsOwnException(Exception ex)
+        {
+            bool sawStack = false;
+            var stack = new Stack<Exception>();
+            if (ex != null) stack.Push(ex);
+            int guard = 0;
+            while (stack.Count > 0 && guard++ < 64)
+            {
+                var e = stack.Pop();
+                string st = e.StackTrace;
+                if (!string.IsNullOrEmpty(st))
+                {
+                    sawStack = true;
+                    if (st.IndexOf("UEToVS.", StringComparison.Ordinal) >= 0) return true;
+                }
+                if (e is AggregateException agg)
+                    foreach (var inner in agg.InnerExceptions) { if (inner != null) stack.Push(inner); }
+                else if (e.InnerException != null) stack.Push(e.InnerException);
+            }
+            return !sawStack;
         }
 
         public static void Shutdown()

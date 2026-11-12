@@ -516,7 +516,8 @@ namespace UEToVS.Host.IntelliSense
             {
                 var names = store.GetPropertyNames(page);
                 L.Info("intellisense.properties", "C/C++ option properties on this VS (for calibrating the candidate table)",
-                       ("page", page), ("count", names?.Count ?? -1), ("names", names ?? new List<string>()),
+                       // one string: the log formatter caps arrays at 100 items and this page has ~280 properties
+                       ("page", page), ("count", names?.Count ?? -1), ("names", names == null ? string.Empty : string.Join(",", names)),
                        ("unknownRelated", IntelliSenseTakeover.UnknownInterestingProperties(names)));
             }
             foreach (var kv in store.PageErrors) L.Warn("intellisense.page.error", "Cannot access options page", ("page", kv.Key), ("error", kv.Value));

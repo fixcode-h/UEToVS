@@ -124,7 +124,7 @@ namespace UEToVS.Host.Settings
                 ShowPage();
                 RebuildNav();
                 UpdateStatus();
-            }));
+            }), onlyWhenChanged: true);
             _infoTimer.Tick += (s, e) => Safe.Execute(L, "settings.info.refresh", RefreshInfo);
             Loaded += (s, e) => Safe.Execute(L, "settings.loaded", () => { _infoTimer.Start(); _search.InputBox.Focus(); });
             Closing += (s, e) => Safe.Execute(L, "settings.closing", () =>
