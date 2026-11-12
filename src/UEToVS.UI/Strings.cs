@@ -42,6 +42,7 @@ namespace UEToVS.UI
         public static string MenuFilter => Loc.T("输入以筛选操作", "Type to filter actions");
         public static string TreeExpandAll => Loc.T("全部展开", "Expand all");
         public static string TreeCollapseAll => Loc.T("全部折叠", "Collapse all");
+        public static string TreeSwitchTab => Loc.T("切换标签", "Switch tab");
         public static string ResultsCount(object a0) => Loc.F("{0} 个结果", "{0} results", a0);
         public static string DialogPreview => Loc.T("预览", "Preview");
         public static string BannerDismiss => Loc.T("关闭提示", "Dismiss");

@@ -23,7 +23,7 @@ namespace UEToVS.UI.Gallery
     /// (VS / Dark / Light / Blue / High contrast), style preset, UI language, data size (empty / 10 / 100k).
     /// Host: <c>new ComponentGallery().Show()</c> from a dev-only command; also usable for screenshot tests.
     /// </summary>
-    public class ComponentGallery : Window
+    public partial class ComponentGallery : Window
     {
         private readonly ContentControl _page = new ContentControl { Focusable = false };
         private readonly VirtualList<string> _nav;
@@ -81,6 +81,7 @@ namespace UEToVS.UI.Gallery
                 _palette?.Shell.CloseForReal();
                 _chooser?.Shell.CloseForReal();
                 _menu?.Shell.CloseForReal();
+                CloseNavigationPopups();
                 ThemeManager.Instance.PaletteSource = new VsThemePaletteSource();
             });
         }
@@ -204,6 +205,7 @@ namespace UEToVS.UI.Gallery
             _pages.Add((() => Loc.T("树形结果", "Tree results"), BuildTree));
             _pages.Add((() => Loc.T("代码预览", "Code preview"), BuildPreview));
             _pages.Add((() => Loc.T("反馈", "Feedback"), BuildFeedback));
+            _pages.Add((() => Loc.T("导航（引用 / 层次 / 导航栏）", "Navigation (references / hierarchy / bar)"), BuildNavigation));
             _pages.Add((() => Loc.T("性能面板", "Performance"), BuildPerf));
             _pages.Add((() => Loc.T("外观设置", "Appearance settings"), () => new AppearanceSettingsPanel()));
         }

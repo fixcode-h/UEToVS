@@ -12,9 +12,9 @@ UEToVS 的全部界面都由本库提供（架构设计 §8）。它是一个 ne
 | `Theming/` | `Tokens`（资源键）、`ThemeManager`（主题与设置）、调色板来源、`Ui` 辅助方法（绑定、几何图形、动画、`Safe` 异常日志）。 |
 | `Atoms/` | `UiText`、`HighlightedText`、`UiIcon`、`TypeGlyph`、`Badge`、`Kbd`、`Divider`、`Spinner`。 |
 | `Controls/` | `UiButton`、`IconButton`、`IconToggle`、`UiToggle`、`UiCheckBox`、`Chip`、`SegmentedControl`、`TextInput`、`SearchInput`、`Dropdown`、`ColorField`、`NumberStepper`、`LinkText`、`Tip`（工具提示）、`UiScrollViewer`/`ScrollRail`。 |
-| `Molecules/` | 列表行 `ListRow`、虚拟化列表 `VirtualList<T>`、树 `TreeList<T>`、`TabStrip`、`CodePreview`、`EmptyState`、`KeyHint`、`StatusFooter`、`Banner`、`Toast`。 |
+| `Molecules/` | 列表行 `ListRow`、虚拟化列表 `VirtualList<T>`、树 `TreeList<T>`、`TabStrip`、`CodePreview`、`EmptyState`、`KeyHint`、`StatusFooter`、`Banner`、`Toast`、编辑器导航栏 `NavigationBar`。 |
 | `Shells/` | `ChromeWindow`（圆角与阴影弹窗窗口）、`PopupShell`（可记忆尺寸的弹出层）、`DialogShell`、`ToolWindowShell`、`PopupAnchor`。 |
-| `Patterns/` | `CommandPalette<T>`、`ChooserPopup<T>`、`ContextMenuPopup`、`ResultsPanel<T>`。 |
+| `Patterns/` | `CommandPalette<T>`、`ChooserPopup<T>`、`ContextMenuPopup`、`ResultsPanel<T>`、浮动结果弹窗 `ResultsPopup<T>`（查找引用）、带标签树弹窗 `TabbedTreePopup<T>`（类型层次）、弹窗标题栏 `PopupHeader`。 |
 | `Perf/` | `StatTile`、`ProgressLine`/`ProgressRow`、`LineChart`（含迷你图模式）、`StackedBar`、`DataTable<T>`、`PerformancePanel`。 |
 | `Settings/` | `AppearanceSettingsPanel`，即外观设置页，带实时预览。 |
 | `Gallery/` | `ComponentGallery`（开发用组件展示窗口）和示例数据。 |
@@ -140,6 +140,9 @@ palette.Show(PopupAnchor.CenterOf(vsMainHwnd), initialText: selectedWord);
 - **`ChooserPopup<T>`**：`await chooser.ShowAsync(items, anchor, title, s => s.Name)` 返回 `ChooserResult<T>`，适合 “选择实现” 和 “选择重载” 这类场景。
 - **`ContextMenuPopup`**：`await menu.ShowAsync(List<MenuEntry>, anchor)` 返回选中项或 null，适合 Alt+Enter 快速操作。它支持分组、快捷键、子菜单、输入即筛选和禁用项。
 - **`ResultsPanel<T>`**：结果工具窗口（“查找引用” 等）。`SetResults(roots, summary)` 设置结果；`PreviewProvider` 提供预览；`ItemInvoked` 处理打开。`Root` 是一个 `ToolWindowShell`，可以直接作为 `ToolWindowPane.Content`。
+- **`ResultsPopup<T>`**：`ResultsPanel<T>` 放进可拖动、记忆尺寸的浮动弹窗，焦点回到编辑器时不关闭（逐条查看结果），Esc / × 关闭；`AddToolbarItem` 加工具条项（筛选 `Chip`、重新搜索按钮），`IsBusy` 显示加载。
+- **`TabbedTreePopup<T>`**：标签页 + `TreeList<T>` 的浮动弹窗，`SetTabRoots(tabId, roots, count)` 按标签设置树，Tab / Shift+Tab 切换。
+- **`NavigationBar`**：编辑器顶部的两个作用域框（左：当前类型，右：当前函数），点击触发 `LeftClicked` / `RightClicked`，宿主用 `ChooserPopup` 在 `LeftBox` / `RightBox` 下方弹出可模糊过滤的列表。
 - **`DialogShell`**：用于重命名、新建类等对话框。设置 `Form`、可选的 `Preview` 和 `Validate`，然后调用 `ShowModal(owner)`。
 
 列表全部使用自研虚拟化（`VirtualListCore`）：只创建可见行数加 1 个行对象并循环复用，10 万条数据时滚动和键盘操作也是 O(1)。
