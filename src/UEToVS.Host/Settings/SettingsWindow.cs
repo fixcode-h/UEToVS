@@ -481,6 +481,8 @@ namespace UEToVS.Host.Settings
                         try
                         {
                             L.Info("settings.action.run", null, ("key", d.Key), ("action", d.ActionId));
+                            // "索引 Lua 脚本" works on the folders shown on the page: commit a just-typed path first.
+                            if (d.ActionId == HostSettingsSchema.WindowActions.IndexLua && SettingsModel.Diff(_schema, _committed, _working).Count > 0) Apply();
                             result.Text = await _host.RunActionAsync(d.ActionId) ?? string.Empty;
                         }
                         finally

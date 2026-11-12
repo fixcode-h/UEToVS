@@ -32,6 +32,16 @@ namespace UEToVS.Host.Logic.Localization
         public static string IndexStatusNone => Loc.T("没有打开 UE 解决方案", "No UE solution open");
         public static string IndexStatus(string phase, int parsed, int toParse, int symbols, int assets) =>
             Loc.F("{0} · {1:N0}/{2:N0} 文件 · {3:N0} 符号 · {4:N0} 资产", "{0} · {1:N0}/{2:N0} files · {3:N0} symbols · {4:N0} assets", phase, parsed, toParse, symbols, assets);
+        public static string LuaIndexDisabled => Loc.T("未设置 Lua 脚本路径", "No Lua script folder set");
+        public static string LuaIndexStatus(string state, int files, int symbols, string roots) =>
+            Loc.F("{0} · {1:N0} 个 Lua 文件 · {2:N0} 符号 · {3}", "{0} · {1:N0} Lua files · {2:N0} symbols · {3}", state, files, symbols, roots);
+        public static string LuaStateName(int state) => state switch
+        {
+            1 => Loc.T("正在索引", "Indexing"),
+            2 => Loc.T("就绪", "Ready"),
+            3 => Loc.T("失败", "Failed"),
+            _ => Loc.T("未启用", "Off"),
+        };
         public static string IndexThreadsEffective(int cpp, int bp, int cores) =>
             Loc.F("当前生效：C++ {0} 线程，蓝图 {1} 线程（本机 {2} 个逻辑核心）", "In effect: C++ {0} threads, Blueprint {1} threads ({2} logical cores)", cpp, bp, cores);
         public static string IntelliSenseTakenOver => Loc.T("已接管（VS 自带 C++ IntelliSense 已关闭，原设置已备份）", "Taken over (VS C++ IntelliSense off; originals backed up)");

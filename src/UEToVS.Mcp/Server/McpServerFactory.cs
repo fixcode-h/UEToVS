@@ -30,7 +30,8 @@ namespace UEToVS.Mcp.Server
             "Prefer these tools over grep/glob/reading whole files when looking for C++ symbols, files or Blueprint/assets: they answer from a " +
             "prebuilt index in milliseconds and return exact file:line locations. search_symbols (fuzzy/exact, kinds, UE markers) → " +
             "go_to_definition / get_file_outline / get_members / get_type_hierarchy / find_references for details; search_files for file names; " +
-            "search_assets for Blueprints, maps, materials. Lines and columns are 1-based. Lists are paged (limit/offset, hasMore/nextOffset); " +
+            "search_assets for Blueprints, maps, materials; search_lua / search_lua_files / get_lua_outline for the project's Lua scripts " +
+            "(UnLua etc., when Lua script folders are set in the UEToVS settings). Lines and columns are 1-based. Lists are paged (limit/offset, hasMore/nextOffset); " +
             "scope='all' includes engine code. Read the source with your file tools around the returned line when you need the body. " +
             "Keep using grep for string literals, comments and config (.ini) contents: those are not indexed.";
 
@@ -117,6 +118,7 @@ namespace UEToVS.Mcp.Server
 @"# UEToVS tools for agents
 
 The index covers the solution's Unreal project (Source, Plugins), the engine source it builds against, and the project's assets.
+Lua scripts are indexed separately when Lua script folders are set (UEToVS settings > Indexing); Lua answers have `source: ""lua-index""`.
 
 | Need | Tool |
 |---|---|
@@ -129,6 +131,9 @@ The index covers the solution's Unreal project (Source, Plugins), the engine sou
 | Who uses X | `find_references` |
 | A file by name | `search_files` |
 | Blueprints, maps, materials, data tables | `search_assets` (`class: ""Blueprint""`) |
+| Lua function / method / class / module table | `search_lua` (`M:Fire`, `kinds: [""method""]`) |
+| A Lua script by name or require path | `search_lua_files` (`UI.MainPanel`) |
+| Structure of a Lua script | `get_lua_outline` (path or module name) |
 | Is the index complete? | `index_status` |
 
 Conventions: 1-based `line`/`col`; absolute paths; omitted fields mean default (no `container` = global scope,

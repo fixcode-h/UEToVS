@@ -207,6 +207,26 @@ namespace UEToVS.Contracts
         public string UnrealVersion { get; set; }
         public ResourceSnapshot Resources { get; set; }
         public string LastError { get; set; }
+
+        // ---- Lua script index (separate from the C++ index; see IndexingSettings.LuaScriptPaths) ----
+
+        public LuaIndexState LuaState { get; set; }
+        public int LuaFileCount { get; set; }
+        public int LuaSymbolCount { get; set; }
+
+        /// <summary>Resolved (absolute) Lua script folders being indexed.</summary>
+        public List<string> LuaRoots { get; set; }
+
+        public string LuaLastError { get; set; }
+    }
+
+    public enum LuaIndexState : byte
+    {
+        /// <summary>No Lua script path configured.</summary>
+        Disabled = 0,
+        Indexing = 1,
+        Ready = 2,
+        Failed = 3,
     }
 
     public sealed class ResourceSnapshot

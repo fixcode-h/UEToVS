@@ -4,7 +4,7 @@ using System.IO;
 namespace UEToVS.Core.Storage
 {
     /// <summary>
-    /// Where UEToVS keeps per-solution data: &lt;solution dir&gt;/.vs/UEToVS/{Index,Logs,Cache}.
+    /// Where UEToVS keeps per-solution data: &lt;solution dir&gt;/.vs/UEToVS/{Index,Logs,Cache,Lua}.
     /// Deleting the .vs folder removes everything. When there is no solution directory (e.g. command-line use without
     /// one) a fallback under the user's local app data is used.
     /// </summary>
@@ -18,6 +18,7 @@ namespace UEToVS.Core.Storage
             Index = Path.Combine(root, "Index");
             Logs = Path.Combine(root, "Logs");
             Cache = Path.Combine(root, "Cache");
+            Lua = Path.Combine(root, "Lua");
             LocalSettings = Path.Combine(root, "settings.local.json");
         }
 
@@ -25,6 +26,9 @@ namespace UEToVS.Core.Storage
         public string Index { get; }
         public string Logs { get; }
         public string Cache { get; }
+
+        /// <summary>Lua script index (lua-index.json), written by the engine and read by the MCP server.</summary>
+        public string Lua { get; }
         public string LocalSettings { get; }
 
         /// <summary>Paths for a solution directory (the folder holding the .sln).</summary>

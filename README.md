@@ -75,7 +75,8 @@ UEToVS 自带一个 MCP 服务（`Engine\Mcp\UEToVS.Mcp.exe`），让 AI Agent �
 - **Visual Studio 2022 17.14+ / 2026**：打开 UE 解决方案后扩展自动把服务写进 `<解决方案目录>\.vs\mcp.json`。在 Copilot Chat 切到 Agent 模式，在工具列表里勾选 `uetovs` 即可。开关：UEToVS 设置 > 常规 > MCP > 启用 MCP 服务（默认开）。
 - **Claude Code**：在 UEToVS 设置 > 常规 > MCP（或 Find Action）中执行“写入 .mcp.json 到项目根目录”。有版本管理（Git / SVN / Perforce / Mercurial / Plastic）时写到版本库根目录，否则写到 UE 项目根目录（解决方案目录）；已有文件会合并，不会覆盖别的服务器。Claude Code 在该目录启动即可识别。
 - **Cursor / VS Code**：它们分别读 `.cursor\mcp.json` 和 `.vscode\mcp.json`，写法见 [docs/design/MCP.md](docs/design/MCP.md#4-各客户端配置示例)。
-- **工具**：`search_symbols`（按名字/种类/UE 宏找符号）、`search_files`、`search_assets`（蓝图、关卡、材质…）、`get_file_outline`、`go_to_definition`、`find_references`、`get_type_hierarchy`、`get_members`、`index_status`。
+- **工具**：`search_symbols`（按名字/种类/UE 宏找符号）、`search_files`、`search_assets`（蓝图、关卡、材质…）、`get_file_outline`、`go_to_definition`、`find_references`、`get_type_hierarchy`、`get_members`、`index_status`；Lua 脚本用 `search_lua`、`search_lua_files`、`get_lua_outline`。
+- **Lua 脚本**：在 UEToVS 设置 > 索引 > Lua 脚本 填写“Lua 脚本路径”（如 `Content/Script`，多个用 `;` 分隔，相对路径相对于 .uproject 所在目录），应用后自动索引，也可以点“索引 Lua 脚本”重新解析全部。之后保存、新增、删除、重命名 .lua 文件会增量更新，和 C++ 项目索引一样。索引写在 `.vs\UEToVS\Lua\lua-index.json`，MCP 直接读这个文件，VS 没开也能查。
 - **数据来源**：VS 开着时问正在运行的 Engine；VS 没开时直接读磁盘上的索引（需要之前用 VS 打开过一次该解决方案）。
 - **比 grep 快多少**：8,000 个源文件的合成工程上，找定义 / 找调用者 / 找子类等问题，rg 要 18–20 ms，MCP 一次往返 1–3 ms（快 13–25 倍），工程越大差距越大；而且结果是结构化的（种类、UE 标记、所在类、位置），Agent 不用再翻文件确认。详细数据见 [MCP.md §5](docs/design/MCP.md#5-比-grep-快多少)。
 - **日志**：`<解决方案目录>\.vs\UEToVS\Logs\mcp-*.log`，每次调用一行 `mcp.tool.*`。

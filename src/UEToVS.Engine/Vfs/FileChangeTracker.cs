@@ -42,6 +42,7 @@ namespace UEToVS.Engine.Vfs
         private static readonly Logger L = Log.For("Vfs");
 
         private readonly Func<ChangeBatch, Task> _apply;
+        private readonly Func<string, bool> _accept;
         private readonly object _gate = new object();
         private readonly Dictionary<string, FileChangeKind> _pending = new Dictionary<string, FileChangeKind>(StringComparer.OrdinalIgnoreCase);
         private readonly List<FileSystemWatcher> _watchers = new List<FileSystemWatcher>();
@@ -52,9 +53,14 @@ namespace UEToVS.Engine.Vfs
         private string _source;
         private bool _disposed;
 
-        public FileChangeTracker(Func<ChangeBatch, Task> apply)
+        /// <param name="accept">
+        /// Watcher-thread filter for paths of interest. Null = the C++ index's (indexed source / asset extensions, outside
+        /// skipped build folders); the Lua index passes its own (.lua files and folders).
+        /// </param>
+        public FileChangeTracker(Func<ChangeBatch, Task> apply, Func<string, bool> accept = null)
         {
             _apply = apply;
+            _accept = accept;
             _timer = new Timer(_ => _ = FlushAsync(), null, Timeout.Infinite, Timeout.Infinite);
         }
 
@@ -109,6 +115,11 @@ namespace UEToVS.Engine.Vfs
         {
             try
             {
+                if (_accept != null)
+                {
+                    if (_accept(path)) Enqueue(new[] { new FileChange { FilePath = path, Kind = kind } }, "watcher");
+                    return;
+                }
                 // Cheap filter on the watcher thread: build output, VCS folders and unrelated extensions.
                 if (FileLister.IsInSkippedDirectory(root, path)) return;
                 bool known = FileLister.TryGetKind(path, out _) || AssetLister.IsIndexedAsset(path);

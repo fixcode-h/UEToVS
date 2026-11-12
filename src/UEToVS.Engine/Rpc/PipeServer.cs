@@ -31,6 +31,7 @@ namespace UEToVS.Engine.Rpc
             _pipeName = pipeName;
             _host = host;
             host.Index.StatusChanged += OnStatusChanged;
+            host.Lua.StatusChanged += OnStatusChanged;
         }
 
         public int ConnectionCount => _connections.Count;

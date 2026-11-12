@@ -37,7 +37,7 @@ namespace UEToVS.Mcp.Tools
     /// The UEToVS MCP tools. All are read-only and idempotent. Lines/columns are 1-based in arguments and results.
     /// Results are compact JSON (one text content block) with limit/offset paging where lists can be long.
     /// </summary>
-    public sealed class ToolCatalog
+    public sealed partial class ToolCatalog
     {
         public const int MaxFetch = 1000;
 
@@ -56,6 +56,7 @@ namespace UEToVS.Mcp.Tools
             Register(TypeHierarchyTool());
             Register(MembersTool());
             Register(IndexStatusTool());
+            RegisterLuaTools();
         }
 
         public IReadOnlyList<ToolDefinition> All => _tools.Values.ToList();
@@ -747,6 +748,7 @@ namespace UEToVS.Mcp.Tools
                 if (info.Rejected.Count > 0) idx["rejected"] = new JsonArray(info.Rejected.Select(r => (JsonNode)r).ToArray());
                 payload["onDisk"] = idx;
             }
+            payload["lua"] = LuaStatus(s);
             payload["mcpVersion"] = EngineConnection.Version;
             payload["dataSource"] = _index.Mode.ToString();
             if (!string.IsNullOrEmpty(st.Note)) payload["note"] = st.Note;

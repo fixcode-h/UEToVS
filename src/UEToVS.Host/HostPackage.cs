@@ -453,7 +453,8 @@ namespace UEToVS.Host
             var indexing = HostSettingsSchema.Codec.ToIndexing(_settings.Effective);
             _ = Safe.RunInBackgroundAsync(L, "engine.indexing.push", () => engine.SetIndexingSettingsAsync(indexing),
                 ("reason", reason), ("cppThreads", indexing.CppThreads), ("assetThreads", indexing.AssetThreads),
-                ("duringBuild", indexing.DuringBuild), ("includeEngine", indexing.IncludeEngine));
+                ("duringBuild", indexing.DuringBuild), ("includeEngine", indexing.IncludeEngine),
+                ("luaPaths", indexing.LuaScriptPaths == null ? null : string.Join(";", indexing.LuaScriptPaths)));
         }
 
         private static void OnEngineStateChanged(EngineClient engine)
@@ -508,7 +509,8 @@ namespace UEToVS.Host
             }
             if (old.ShareEngineIndex != now.ShareEngineIndex || !string.Equals(old.EngineIndexPath, now.EngineIndexPath, StringComparison.OrdinalIgnoreCase) ||
                 old.CppIndexThreads != now.CppIndexThreads || old.BlueprintIndexThreads != now.BlueprintIndexThreads ||
-                old.IndexDuringBuild != now.IndexDuringBuild || old.IndexEngineSource != now.IndexEngineSource)
+                old.IndexDuringBuild != now.IndexDuringBuild || old.IndexEngineSource != now.IndexEngineSource ||
+                !string.Equals(old.LuaScriptPaths ?? "", now.LuaScriptPaths ?? "", StringComparison.OrdinalIgnoreCase))
                 PushIndexingSettings(_engine, "settingsChanged");
             if (old.PerformanceSampleSeconds != now.PerformanceSampleSeconds)
                 Performance.Interval = TimeSpan.FromSeconds(Math.Max(1, now.PerformanceSampleSeconds));
