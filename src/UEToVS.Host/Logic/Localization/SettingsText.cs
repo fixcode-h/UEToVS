@@ -69,12 +69,32 @@ namespace UEToVS.Host.Logic.Localization
             "上面的“启用 VS 自带的蓝图扫描”关闭时，UEToVS 会找到这个开关并关掉（修改前备份），下次启动 VS 生效；关掉后 VS 自己的 Code Lens 蓝图引用也会停用。",
             "The status bar message “Scanning Blueprints from X.uproject” comes from VS's own Unreal Engine integration (Blueprint Support under Project > Configure Tools for Unreal Engine), not from UEToVS; UEToVS only lists asset file names and never reads .uasset files. " +
             "With “Enable VS's own Blueprint scan” above turned off, UEToVS finds that switch and turns it off (backed up first); it takes effect from the next VS start and also turns off VS's Code Lens Blueprint references.");
-        public static string UpdateBusy => Loc.T("正在检查更新…", "Checking for updates…");
-        public static string UpdateUpToDate(string v) => Loc.F("已是最新版本（v{0}）", "You have the latest version (v{0})", v);
-        public static string UpdateCheckFailed(string why) => Loc.F("检查更新失败：{0}", "Update check failed: {0}", why);
-        public static string UpdateDownloadFailed => Loc.T("下载的安装包不完整，请重试。", "The downloaded package is incomplete; please try again.");
+        // ---- 检查更新 (Logic/Update/UpdateState.cs renders these)
+        public static string UpdateButtonCheck => Loc.T("检查", "Check");
+        public static string UpdateButtonChecking => Loc.T("检查中…", "Checking…");
+        public static string UpdateButtonInstall => Loc.T("下载并安装", "Download and install");
+        public static string UpdateButtonRetry => Loc.T("重试", "Retry");
+        public static string UpdateReleaseNotes => Loc.T("更新说明", "Release notes");
+        public static string UpdateCurrentVersion(string v) => Loc.F("当前版本 {0}", "Current version {0}", v);
+        public static string UpdateChecking => Loc.T("正在连接 GitHub…", "Contacting GitHub…");
+        public static string UpdateUpToDate(string v) => Loc.F("已是最新版本（{0}）", "You have the latest version ({0})", v);
+        public static string UpdateAvailable(string latest, string installed, string size) => Loc.F(
+            "发现新版本 {0}（当前 {1}），安装包 {2}", "{0} is available (installed: {1}), download {2}", latest, installed, size);
+        public static string UpdateDownloading(string v, string progress) => Loc.F("正在下载 {0}：{1}", "Downloading {0}: {1}", v, progress);
+        public static string UpdateDownloadCanceled => Loc.T("已取消下载。", "Download canceled.");
         public static string UpdateInstallerStarted(string v) => Loc.F(
-            "已下载 v{0} 并启动安装程序：请关闭 Visual Studio，安装完成后重新打开。", "Downloaded v{0} and started the installer: close Visual Studio, then reopen it after the install finishes.", v);
+            "已下载 {0} 并启动安装程序：请关闭 Visual Studio，安装完成后重新打开。", "Downloaded {0} and started the installer: close Visual Studio, then reopen it after the install finishes.", v);
+        public static string UpdateCheckFailed(string why) => Loc.F("检查更新失败：{0}", "Update check failed: {0}", why);
+        public static string UpdateDownloadFailedWith(string why) => Loc.F(
+            "下载失败：{0}。可以重试，或点“更新说明”到发布页手动下载。", "Download failed: {0}. Retry, or use “Release notes” to download it by hand.", why);
+        public static string UpdateDownloadIncomplete => Loc.T("下载的安装包不完整", "the downloaded package is incomplete");
+        public static string UpdateDownloadStalled(int seconds) => Loc.F("{0} 秒没有收到数据", "no data for {0} seconds", seconds);
+        public static string UpdateConnectTimeout => Loc.T("连接 GitHub 超时，请检查网络或代理", "timed out contacting GitHub; check your network or proxy");
+        public static string UpdateRateLimited => Loc.T("GitHub 接口访问次数超限（每小时 60 次），请稍后再试", "GitHub API rate limit reached (60 per hour); try again later");
+        public static string UpdateNoRelease => Loc.T("GitHub 上还没有发布版本", "no release has been published on GitHub");
+        public static string UpdateNoVsix => Loc.T("最新发布里没有 VSIX 安装包", "the latest release has no VSIX package");
+        public static string UpdateHttpStatus(int code) => Loc.F("GitHub 返回 HTTP {0}", "GitHub answered HTTP {0}", code);
+        public static string UpdateNetwork(string message) => Loc.F("无法连接 GitHub（{0}）", "cannot reach GitHub ({0})", message);
         public static string VsBlueprintOptionsFound(string list) => Loc.F("本机找到的 VS 蓝图开关：{0}", "VS Blueprint options found on this machine: {0}", list);
         public static string VsBlueprintOptionsNone => Loc.T(
             "本机没有找到 VS 蓝图开关，UEToVS 无法自动关闭。请在 项目 > Configure Tools for Unreal Engine 里手动关掉 Blueprint Support。",

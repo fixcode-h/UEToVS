@@ -5,7 +5,7 @@ Sources (npm registry tarballs, pinned by version and verified against the regis
   IBM Plex Sans   @ibm/plex-sans 1.1.0                     fonts/complete/woff2/IBMPlexSans-{Regular,Medium,SemiBold}
                   (font version 3.005). Only decompressed WOFF2 -> TTF (lossless, no glyph or name change): the
                   license reserves the name "Plex", so the files are not subset or renamed.
-  Noto Sans SC    @expo-google-fonts/noto-sans-sc 0.4.4    NotoSansSC_{400Regular,500Medium}.ttf (Google Fonts static
+  Noto Sans SC    @expo-google-fonts/noto-sans-sc 0.4.4    NotoSansSC_{400Regular,500Medium,600SemiBold}.ttf (Google Fonts static
                   instances, font version 2.004). Subset to GB2312 + ASCII/Latin-1 + common CJK/fullwidth punctuation
                   (reserved name is "Source", so subsetting under the original name is allowed).
   Maple Mono NL   @fontsource/maple-mono 5.3.0             maple-mono-latin-{400,700}-normal.woff2 (Maple Mono v7.8).
@@ -104,7 +104,7 @@ def cjk_unicodes():
 def build_noto(pkg):
     out = os.path.join(OUT, "NotoSansSC")
     reset_dir(out)
-    for src, dst in (("400Regular", "Regular"), ("500Medium", "Medium")):
+    for src, dst in (("400Regular", "Regular"), ("500Medium", "Medium"), ("600SemiBold", "SemiBold")):
         font = TTFont(os.path.join(pkg, src, f"NotoSansSC_{src}.ttf"))
         opts = subset.Options()
         opts.layout_features = ["ccmp", "locl", "kern", "palt", "halt", "vert", "vrt2", "fwid", "hwid"]

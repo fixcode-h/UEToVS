@@ -66,7 +66,7 @@ namespace UEToVS.Host.Settings
     /// after it; a page that fails to build is replaced by an inline error card (settings.page.show is logged with the
     /// category, the time and the exception), never silently left on the previous page.
     /// </summary>
-    internal sealed class SettingsWindow : UtilityWindow
+    internal sealed partial class SettingsWindow : UtilityWindow
     {
         private static readonly Logger L = Log.For("SettingsWindow");
         private const string OpenCurrentLogAction = "uetovs.diagnostics.openCurrentLog";
@@ -546,6 +546,7 @@ namespace UEToVS.Host.Settings
                 }
                 case SettingKind.Action:
                 {
+                    if (d.ActionId == HostSettingsSchema.WindowActions.CheckForUpdates) return BuildUpdateRow(d);
                     var result = new UiText((string)null, TextVariant.Secondary)
                     {
                         VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 12, 0), MaxWidth = 260,
