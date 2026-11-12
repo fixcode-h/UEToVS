@@ -101,7 +101,13 @@ namespace UEToVS.Engine.Index
         /// at most one segment of that kind and it has no tombstones. Updates made meanwhile are preserved.
         /// Memory: materialises the merged files once (like <see cref="Compact"/>); run on a background thread.
         /// </summary>
-        public bool MergeBases(SegmentKind kind, CancellationToken ct = default)
+        public bool MergeBases(SegmentKind kind, CancellationToken ct = default) => MergeBases(kind, int.MaxValue, ct);
+
+        /// <summary>
+        /// Tiered variant: merges the <paramref name="maxInputs"/> smallest segments of <paramref name="kind"/> (by file
+        /// count), which bounds the memory of one merge to roughly that many batches.
+        /// </summary>
+        public bool MergeBases(SegmentKind kind, int maxInputs, CancellationToken ct = default)
         {
             ThrowIfDisposed();
             lock (_maintenanceLock)
@@ -109,7 +115,8 @@ namespace UEToVS.Engine.Index
                 Snapshot s0 = AcquireInner();
                 try
                 {
-                    var olds = s0.Bases.Where(b => b.Segment.Kind == kind).ToArray();
+                    var olds = s0.Bases.Where(b => b.Segment.Kind == kind).OrderBy(b => b.Segment.FileCount - b.TombstoneCount)
+                        .Take(Math.Max(2, maxInputs)).ToArray();
                     if (olds.Length == 0 || (olds.Length == 1 && olds[0].TombstoneCount == 0)) return false;
                     using (var scope = L.Time("index.segment.merge", double.MaxValue, ("kind", kind.ToString()), ("segments", olds.Length)))
                     {

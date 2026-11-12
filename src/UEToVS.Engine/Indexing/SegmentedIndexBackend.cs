@@ -34,7 +34,10 @@ namespace UEToVS.Engine.Indexing
         public SymbolIndex Store => Current;
 
         /// <summary>Bulk stages leave at most this many base segments per kind; more are merged at the end of the stage.</summary>
-        public int MaxBulkSegments { get; set; } = 24;
+        public int MaxBulkSegments { get; set; } = 64;
+
+        /// <summary>Segments merged together per step when there are more than <see cref="MaxBulkSegments"/>.</summary>
+        public int MergeFanIn { get; set; } = 6;
 
         public bool TryLoad(string indexDir, string key)
         {
@@ -163,8 +166,10 @@ namespace UEToVS.Engine.Indexing
             var idx = Current;
             if (idx == null) return;
             var kind = engine ? SegmentKind.Engine : SegmentKind.Project;
-            int count = idx.BaseSegmentCount(kind);
-            if (count > MaxBulkSegments) idx.MergeBases(kind, ct);
+            // Tiered: merge the smallest few at a time so one merge never materialises the whole engine in memory.
+            int guard = 0;
+            while (idx.BaseSegmentCount(kind) > MaxBulkSegments && guard++ < 64)
+                if (!idx.MergeBases(kind, MergeFanIn, ct)) break;
         }
 
         public void Reset(bool project, bool engine)

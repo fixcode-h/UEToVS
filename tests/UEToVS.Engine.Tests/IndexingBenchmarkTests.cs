@@ -65,6 +65,8 @@ namespace UEToVS.Engine.Tests
             if (!string.IsNullOrEmpty(threads)) args.AddRange(new[] { "--cpp-threads", threads });
             var options = EngineOptions.Parse(args, out _);
             using var host = new EngineHost(options);
+            if (int.TryParse(Environment.GetEnvironmentVariable("UETOVS_BENCH_MAXSEG"), out int maxSeg) && host.Index.Backend is UEToVS.Engine.Indexing.SegmentedIndexBackend sb)
+                sb.MaxBulkSegments = maxSeg;
             var sw = Stopwatch.StartNew();
             host.StartIndexing();
             Assert.True(host.Index.WaitForReadyAsync(CancellationToken.None).Wait(TimeSpan.FromMinutes(30)));
@@ -81,6 +83,21 @@ namespace UEToVS.Engine.Tests
                 _out.WriteLine($"   {t.Stage}: {t.FilesDone}/{t.FilesTotal} files, {t.FilesPerSecond:F0} files/s, {t.MegabytesPerSecond:F1} MB/s, parse p50 {t.ParseP50Ms:F2} p95 {t.ParseP95Ms:F2} max {t.ParseMaxMs:F1} ms, " +
                     $"read {t.ReadMs:F0} parse {t.ParseMs:F0} apply {t.ApplyMs:F0} ms, io {t.IoShare:P0}, threads {t.Threads}/{t.ConfiguredThreads}, util {t.ThreadUtilization:P0}, throttled {t.ThrottledMs:F0} ms, segments {t.SegmentsWritten} ({t.SegmentWriteMs:F0} ms)");
                 if (t.SlowestFiles.Count > 0) _out.WriteLine($"     slowest: {t.SlowestFiles[0].Ms:F1} ms {t.SlowestFiles[0].Bytes} B");
+            }
+            // Search latency over the result (fuzzy + exact), median of 15.
+            var store = (host.Index.Backend as UEToVS.Engine.Indexing.SegmentedIndexBackend)?.Store;
+            foreach (var pattern in new[] { "Compute", "UMod1Obj", "FMod3Data", "IsReady" })
+            {
+                var times = new System.Collections.Generic.List<double>();
+                int hits = 0;
+                for (int i = 0; i < 15; i++)
+                {
+                    var q = Stopwatch.StartNew();
+                    hits = host.Index.Backend.Search(new UEToVS.Engine.Indexing.SymbolQuery { Pattern = pattern, IncludeNonProject = true, MaxResults = 100 }, CancellationToken.None).Matches.Count;
+                    times.Add(q.Elapsed.TotalMilliseconds);
+                }
+                times.Sort();
+                _out.WriteLine($"   search '{pattern}': median {times[7]:F2} ms, max {times[14]:F2} ms, hits {hits}, engine segments {store?.BaseSegmentCount(UEToVS.Engine.Index.SegmentKind.Engine)}");
             }
             return ms;
         }
