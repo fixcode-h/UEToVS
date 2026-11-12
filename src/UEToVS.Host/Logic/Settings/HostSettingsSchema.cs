@@ -296,6 +296,20 @@ namespace UEToVS.Host.Logic.Settings
                 "接管 VS IntelliSense 后提供：未知成员、缺少 GENERATED_BODY()、#include 的模块不在 Build.cs 依赖中。只报确定的问题，不因 .generated.h 缺失报错。",
                 "Shown once VS IntelliSense is taken over: unknown members, missing GENERATED_BODY(), #include of a module missing from Build.cs. Only certain problems; a missing .generated.h is never reported.",
                 "true", gSquiggle, gSquiggleEn));
+            // ---- v0.4.5 构建结果 / 错误列表
+            const string gBuild = "构建结果与错误列表", gBuildEn = "Build results & Error List";
+            list.Add(D(IntelliSense, "build.squiggles", SettingKind.Bool, "编译错误波浪线", "Compiler error squiggles",
+                "VS 生成结束后解析“生成”输出（UBT / MSVC / clang / UHT），在源码里标出错误和警告；下次生成开始时清除。不依赖接管 IntelliSense。",
+                "After a VS build, parses the Build output (UBT / MSVC / clang / UHT) and marks errors and warnings in the source; cleared when the next build starts. Works without the IntelliSense takeover.",
+                "true", gBuild, gBuildEn));
+            list.Add(D(IntelliSense, "errorList.enabled", SettingKind.Bool, "写入错误列表", "Show in the Error List",
+                "把 UEToVS 的 UE 规则诊断（已打开文件的可见部分）写到 VS 错误列表，来源为“UEToVS”。",
+                "Lists UEToVS's UE rule diagnostics (visible part of open files) in the VS Error List, source \"UEToVS\".",
+                "true", gBuild, gBuildEn));
+            list.Add(D(IntelliSense, "errorList.includeBuild", SettingKind.Bool, "错误列表包含编译错误", "Error List includes build errors",
+                "同时以“UEToVS”来源列出解析出的编译错误。VS 自己的“生成”来源通常已列出它们，打开后可能重复。",
+                "Also lists the parsed build errors under \"UEToVS\". VS's own \"Build\" source usually lists them already, so they may appear twice.",
+                "false", gBuild, gBuildEn));
             const string gTpl = "代码模板", gTplEn = "Templates";
             list.Add(D(IntelliSense, "snippets.enabled", SettingKind.Bool, "UE 代码模板", "UE live templates",
                 "在行首输入缩写（uclass、ustruct、uprop、ufunc、uelog …）后按 Tab 展开，或在补全列表里选择；Tab / Shift+Tab 在占位符之间跳转，Enter / Esc 结束。",
@@ -440,6 +454,10 @@ namespace UEToVS.Host.Logic.Settings
                     ["postfix.enabled"] = B(s.PostfixTemplatesEnabled),
                     ["inlay.parameterNames"] = B(s.InlayParameterNames),
                     ["inlay.autoTypes"] = B(s.InlayAutoTypes),
+                    // ---- v0.4.5 构建结果 / 错误列表
+                    ["build.squiggles"] = B(s.BuildErrorSquiggles),
+                    ["errorList.enabled"] = B(s.ErrorListEnabled),
+                    ["errorList.includeBuild"] = B(s.ErrorListIncludeBuild),
                 };
                 foreach (var b in ToolbarButtons.All)
                     if (b.Key != "settings") d["toolbar.button." + b.Key] = B(!hidden.Contains(b.Key));
@@ -539,6 +557,10 @@ namespace UEToVS.Host.Logic.Settings
                         case "postfix.enabled": s.PostfixTemplatesEnabled = PB(v); break;
                         case "inlay.parameterNames": s.InlayParameterNames = PB(v); break;
                         case "inlay.autoTypes": s.InlayAutoTypes = PB(v); break;
+                        // ---- v0.4.5 构建结果 / 错误列表
+                        case "build.squiggles": s.BuildErrorSquiggles = PB(v); break;
+                        case "errorList.enabled": s.ErrorListEnabled = PB(v); break;
+                        case "errorList.includeBuild": s.ErrorListIncludeBuild = PB(v); break;
                         default:
                             if (d.Key.StartsWith("toolbar.button.", StringComparison.Ordinal))
                             {

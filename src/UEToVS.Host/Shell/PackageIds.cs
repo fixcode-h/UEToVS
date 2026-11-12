@@ -63,6 +63,15 @@ namespace UEToVS.Host.Shell
         public const int GenerateRpc = 0x0162;
         public const int ExpandSelection = 0x0163;
         public const int ShrinkSelection = 0x0164;
+
+        // ---- v0.4.5 构建结果 / 错误列表 / 新建 UE 类 (0x0170–0x017F; toolbar 0x0487) ----
+        public const int NewUeClass = 0x0170;
+        public const int NextBuildError = 0x0171;
+        public const int ClearBuildErrors = 0x0172;
+        /// <summary>Solution Explorer context-menu variants (solution / game project / .uproject; folder / project).</summary>
+        public const int CtxGenerateProjectFiles = 0x0173;
+        public const int CtxNewUeClass = 0x0174;
+        public const int TbGenerateProjectFiles = 0x0487;
     }
 
     /// <summary>Stable action ids (§7.4). Commands dispatch to these.</summary>
@@ -88,5 +97,10 @@ namespace UEToVS.Host.Shell
         public const string GenerateRpc = "uetovs.generate.rpc";
         public const string ExpandSelection = "uetovs.edit.expandSelection";
         public const string ShrinkSelection = "uetovs.edit.shrinkSelection";
+
+        // ---- v0.4.5 构建结果 / 错误列表 / 新建 UE 类 ----
+        public const string NewUeClass = "uetovs.unreal.newClass";
+        public const string NextBuildError = "uetovs.build.nextError";
+        public const string ClearBuildErrors = "uetovs.build.clearErrors";
     }
 }

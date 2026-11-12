@@ -273,7 +273,8 @@ namespace UEToVS.Host
             }
 
             Add(M1ActionIds.LiveCoding, FeatureStrings.CmdLiveCoding, ActionCategory.Unreal, ctx => EditorLinkService.Instance.LiveCodingAsync(), Unreal, FeatureStrings.KwUnreal);
-            Add(M1ActionIds.GenerateProjectFiles, FeatureStrings.CmdGenerateProjectFiles, ActionCategory.Unreal, ctx => UnrealTools.GenerateProjectFilesAsync(p), Unreal, FeatureStrings.KwUnreal);
+            Add(M1ActionIds.GenerateProjectFiles, FeatureStrings.CmdGenerateProjectFiles, ActionCategory.Unreal, ctx => UnrealTools.GenerateProjectFilesAsync(p),
+                c => c.IsUnrealSolution && !UnrealTools.IsGeneratingProjectFiles, FeatureStrings.KwUnreal); // v0.4.5: disabled while UBT runs
             Add(M1ActionIds.InstallEditorPlugin, FeatureStrings.CmdInstallEditorPlugin, ActionCategory.Unreal, ctx => UnrealTools.InstallEditorPluginAsync(p), Unreal, FeatureStrings.KwUnreal);
 
             // Optional full Rider layouts through DTE bindings (backed up; restorable).
