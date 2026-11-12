@@ -774,7 +774,7 @@ IAction
 
 - 每个组件实现 `AutomationPeer`，读屏可读出“类 AActor，模块 Engine，3 / 120”。
 - 高对比度主题下只使用系统颜色令牌。
-- 所有文案放资源文件，默认中文，可切换英文；不在代码中硬编码字符串（现有代码中的中文字面量逐步迁移）。
+- **中英双语，跟随 VS 自身语言（用户决定）**：VS 界面语言为英语时显示英文，其他任何语言都显示中文。宿主启动时读取 VS UI 语言（`IUIHostLocale` / `DTE.LocaleID`）设置 `UEToVS.Core.Localization.Loc`；每个模块的界面文案集中在一个 `Strings` 类里（`Loc.T("中文", "English")`），组件监听 `Loc.LanguageChanged` 刷新文案；VSCT 命令名在运行时按语言设置。日志内容保持英文，不做本地化。
 - 支持每显示器 DPI（Per-Monitor V2），图标使用 ImageMoniker 以获得矢量缩放。
 
 ### 8.7 组件画廊与 UI 测试
