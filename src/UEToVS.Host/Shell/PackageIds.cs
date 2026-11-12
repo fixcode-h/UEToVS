@@ -37,8 +37,8 @@ namespace UEToVS.Host.Shell
         public const int CreateDiagnostics = 0x0102;
         public const int ShowPerformancePanel = 0x0104;
         public const int RestartEngine = 0x0110;
-        public const int TakeOverIntelliSense = 0x0120;
-        public const int RestoreIntelliSense = 0x0121;
+        /// <summary>Single toggle: take over / restore, depending on the current state (0x0121 was the old Restore item).</summary>
+        public const int ToggleIntelliSense = 0x0120;
         public const int ShowComponentGallery = 0x0130;
         public const int Settings = 0x0140;
         public const int FindAction = 0x0150;

@@ -34,8 +34,6 @@ namespace UEToVS.Host.Shell
             (CommandIds.CreateDiagnostics, ActionIds.CreateDiagnostics, () => Strings.CmdCreateDiagnostics),
             (CommandIds.ShowPerformancePanel, ActionIds.ShowPerformancePanel, () => Strings.CmdPerformancePanel),
             (CommandIds.RestartEngine, ActionIds.RestartEngine, () => Strings.CmdRestartEngine),
-            (CommandIds.TakeOverIntelliSense, ActionIds.TakeOverIntelliSense, () => Strings.CmdTakeOverIntelliSense),
-            (CommandIds.RestoreIntelliSense, ActionIds.RestoreIntelliSense, () => Strings.CmdRestoreIntelliSense),
             (CommandIds.ShowComponentGallery, ActionIds.ShowComponentGallery, () => Strings.CmdComponentGallery),
             (CommandIds.Settings, ActionIds.Settings, () => Strings.CmdSettings),
             (CommandIds.FindAction, ActionIds.FindAction, () => Strings.CmdFindAction),
@@ -44,19 +42,31 @@ namespace UEToVS.Host.Shell
         public void Register(OleMenuCommandService mcs)
         {
             foreach (var (cmdId, actionId, text) in Map)
+                Bind(mcs, cmdId, () => actionId, text);
+
+            // One IntelliSense menu item that toggles: "接管" while VS's own IntelliSense is active, "恢复" once UEToVS has
+            // taken it over (a backup of the user's originals exists). Find Action still lists both actions.
+            Bind(mcs, CommandIds.ToggleIntelliSense,
+                () => IsIntelliSenseTakenOver() ? ActionIds.RestoreIntelliSense : ActionIds.TakeOverIntelliSense,
+                () => IsIntelliSenseTakenOver() ? Strings.CmdRestoreIntelliSense : Strings.CmdTakeOverIntelliSense);
+            L.Info("commands.registered", null, ("count", Map.Count + 1));
+        }
+
+        /// <summary>Taken over = UEToVS holds a backup of VS's C++ IntelliSense settings, i.e. it changed them and can restore.</summary>
+        private bool IsIntelliSenseTakenOver() => _package.IntelliSense?.BackupExists == true;
+
+        private void Bind(OleMenuCommandService mcs, int cmdId, Func<string> actionId, Func<string> text)
+        {
+            var cmd = new OleMenuCommand((s, e) => Invoke(actionId()), new CommandID(PackageGuids.CommandSet, cmdId));
+            cmd.BeforeQueryStatus += (s, e) => Safe.Execute(L, "command.queryStatus", () =>
             {
-                var cmd = new OleMenuCommand((s, e) => Invoke(actionId), new CommandID(PackageGuids.CommandSet, cmdId));
-                cmd.BeforeQueryStatus += (s, e) => Safe.Execute(L, "command.queryStatus", () =>
-                {
-                    var c = (OleMenuCommand)s;
-                    c.Text = text();
-                    var action = _registry.Get(actionId);
-                    c.Enabled = action != null && action.IsAvailable(_package.CreateActionContext(ActionSource.Menu));
-                    c.Visible = true;
-                }, ("action", actionId));
-                mcs.AddCommand(cmd);
-            }
-            L.Info("commands.registered", null, ("count", Map.Count));
+                var c = (OleMenuCommand)s;
+                c.Text = text();
+                var action = _registry.Get(actionId());
+                c.Enabled = action != null && action.IsAvailable(_package.CreateActionContext(ActionSource.Menu));
+                c.Visible = true;
+            }, ("command", cmdId));
+            mcs.AddCommand(cmd);
         }
 
         private void Invoke(string actionId)
