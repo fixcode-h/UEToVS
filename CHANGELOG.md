@@ -24,6 +24,14 @@
 - **Build.cs 模块依赖修复** — 保存 .h/.cpp 时检查 `#include` 的头文件所在模块是否已加入 Build.cs，缺失时一键加入 Public/PrivateDependencyModuleNames；也可在 `#include` 行或类型名上手动执行
 - **UE 编辑器联动** — 通过 UEToVSLink 插件在编辑器中打开搜索到的资产（蓝图），一键 Live Coding（Ctrl+Alt+F11）；提供“安装 UEToVSLink 插件到当前项目”和“生成工程文件”
 - **Rider 键位方案（可选）** — Find Action 中“应用键位方案 — Rider 默认键位 / Rider（Visual Studio 键位）”，修改前自动备份，可一键恢复
+- **核心导航（Engine 端）** — 转到定义 / 声明 / 实现与 VA 式 Alt+G 互跳都由 Engine 按作用域解析：光标在声明上直接命中；`A::B`、`Super::`、`this->`、`obj.x` / `p->x`（从局部变量、字段、`Cast<T>` 推断类型）、函数内局部变量与参数、当前类及基类成员、外围命名空间、全局依次查找；重载按实参个数和类别挑选；`#include "X.h"` 打开头文件；`GENERATED_BODY` 等宏不乱跳。每次解析都写 `nav.resolve` 日志（单词、原因、候选数、耗时）
+- **UE 规则** — `UFUNCTION(BlueprintNativeEvent / Server / Client / NetMulticast)` 的 Foo 与 `Foo_Implementation` / `Foo_Validate`（WithValidation）互相跳转；转到实现列出派生类里的 override（类型则列出派生类型）
+- **查找引用** — 按名字查索引里的出现位置并合并未保存的缓冲区，再逐个按作用域过滤（不同类的同名成员不会混在一起），标出声明 / 定义 / 读 / 写 / 调用 / 类型使用，带行文本和所在函数；支持结果上限、取消、是否包含引擎代码
+- **类型层次、引用高亮、导航栏上下文、成员列表** — 基类 / 派生树（防环、深度与节点上限，未索引的基类按原文显示）；高亮只看当前文档、按文本版本缓存；导航栏给出外→内作用域和全文件声明；成员列表含继承成员与 GENERATED_BODY 注入成员，派生类 override 只保留最派生的
+- **MCP 服务（给 AI Agent 用）** — 自带 `UEToVS.Mcp.exe`（stdio），让 VS Copilot Agent 模式、Claude Code、Cursor、VS Code 直接查 UEToVS 的索引：`search_symbols`、`search_files`、`search_assets`（蓝图等资产）、`get_file_outline`、`go_to_definition`、`find_references`、`get_type_hierarchy`、`get_members`、`index_status`。VS 开着时问 Engine，没开时读磁盘索引。合成工程上常见查询比 rg 快 13–25 倍，详见 docs/design/MCP.md
+- **自动注册到 Visual Studio** — 打开 UE 解决方案时把服务写进 `.vs\mcp.json`，在 Copilot Agent 模式的工具列表里就能勾选。可在 UEToVS 设置 > 常规 > MCP 中关闭
+- **写入 .mcp.json 到解决方案目录** — 新命令（UEToVS 设置 > 常规 > MCP，或 Find Action），生成 Claude Code / Cursor / VS Code 也能读的 `.mcp.json`；已有文件会合并，不覆盖其他服务器
+
 - **UEToVS 设置窗口** — 扩展 > UEToVS > 设置…、工具栏最左侧的 UEToVS 图标或 Find Action 打开；分类 常规 / 外观 / 索引 / 快捷键 / 导航 / 日志与诊断 / 性能，支持搜索，底部 恢复默认 / 取消 / 应用 / 确定。旧的 工具 > 选项 设置自动迁移
 - **索引设置** — C++ 和蓝图索引线程数（默认逻辑核心数的 1/4，至少 1）、编译期间暂停 / 单线程 / 全速、是否索引引擎源码、实时索引状态；“重建项目索引 / 重建引擎索引 / 重建蓝图索引”三个按钮
 - **引擎索引位置** — 默认放在本解决方案的 `.vs\UEToVS\Index`；打开“在多个工程间共享引擎索引”后，同一引擎版本的工程共用一份（默认 `%LocalAppData%\UEToVS\EngineIndex\<引擎版本>`，可修改）
@@ -32,7 +40,9 @@
 - **UEToVS 工具栏** — 默认显示：UEToVS（打开设置）、Search Everywhere、后退、前进、转到定义、查找引用、性能面板；整个工具栏和每个按钮都可以在设置里隐藏
 - **品牌图标** — 新的 UEToVS 图标，用于扩展图标、工具栏和设置窗口标题栏
 
+
 ### 改进
+- **索引记录继承关系** — 类的基类（含模板实参原文）和“基类 → 派生类”倒排表写入索引段；项目文件额外索引声明里出现的类型名（字段 / 参数 / 基类），查找引用能找到头文件里的用法
 - **VS 2026 风格** — 组件库整体改为 VS 2026 / Fluent 视觉：控件圆角 4、弹窗圆角 8、仅键盘焦点时显示的焦点环、输入框聚焦强调色下划线、列表选中指示条、细滚动条、Fluent 开关与复选框；默认界面风格改为“VS 2026”（保留紧凑 / 宽松），旧的“Rider 风格”自动迁移
 - **分段控件与筛选芯片** — 改为圆角矩形，选中项用强调色填充
 - **性能面板与组件画廊改为浮动窗口** — 记住位置和大小，双击标题栏恢复默认；性能面板的采样间隔可在设置里调整
@@ -43,6 +53,7 @@
 - 状态栏的“正在从 X.uproject 中扫描 Blueprint … Config/*.ini”来自 VS 自带的 Unreal Engine 集成，不是 UEToVS；它没有公开的开关，设置窗口 常规 页有说明
 - 旧原型目录 `legacy/` 已删除，原型的全部功能已在新架构上重新实现
 - 原型的“全文搜索（Text 页签）”暂未迁移：Engine 还没有全文搜索接口，`/text` 前缀暂时按“全部”搜索
+- 索引格式升级（段格式 v2），升级后第一次打开会自动重建索引
 
 ## v0.2.3
 

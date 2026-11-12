@@ -110,6 +110,8 @@ namespace UEToVS.Engine.Index.Query
             return result;
         }
 
+        private static string[] NullIfEmpty(string[] a) => a.Length == 0 ? null : a;
+
         private static FileSymbols ReadFile(Segment seg, int fi, List<OccurrenceInput> occ)
         {
             ref readonly var f = ref seg.Files[fi];
@@ -132,6 +134,7 @@ namespace UEToVS.Engine.Index.Query
                     Column = r.Column,
                     IsDefinition = r.IsDefinition,
                     IsConditional = r.IsConditional,
+                    Bases = NullIfEmpty(seg.BaseStrings(f.FirstSymbol + (uint)i)),
                 };
             }
             var inc = seg.Includes.Slice((int)f.FirstInclude, (int)f.IncludeCount);

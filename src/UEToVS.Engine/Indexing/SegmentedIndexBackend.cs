@@ -26,7 +26,7 @@ namespace UEToVS.Engine.Indexing
 
         public string Name => "segmented";
 
-        public string FormatVersion => "1";
+        public string FormatVersion => "2"; // 2: inheritance sections (segment format 2)
 
         private SymbolIndex Current => Volatile.Read(ref _index);
 
@@ -85,6 +85,25 @@ namespace UEToVS.Engine.Indexing
 
         public IReadOnlyList<SymbolInfo> FindSymbols(string name, string container) =>
             Current?.FindByName(name, container) ?? Array.Empty<SymbolInfo>();
+
+        public IReadOnlyList<TypeEntry> FindTypes(string name, string container) =>
+            Current?.FindTypes(name, container) ?? (IReadOnlyList<TypeEntry>)Array.Empty<TypeEntry>();
+
+        public IReadOnlyList<TypeEntry> FindDerivedTypes(string simpleBaseName) =>
+            Current?.FindDerived(simpleBaseName) ?? (IReadOnlyList<TypeEntry>)Array.Empty<TypeEntry>();
+
+        public IEnumerable<string> FindOccurrenceFiles(string name, CancellationToken ct)
+        {
+            var idx = Current;
+            if (idx == null) yield break;
+            string last = null;
+            foreach (var h in idx.FindOccurrences(name, ct))
+            {
+                if (ReferenceEquals(h.Path, last) || string.Equals(h.Path, last, StringComparison.Ordinal)) continue;
+                last = h.Path;
+                yield return h.Path;
+            }
+        }
 
         public void UpdateFile(string filePath, IReadOnlyList<SymbolInfo> symbols)
         {

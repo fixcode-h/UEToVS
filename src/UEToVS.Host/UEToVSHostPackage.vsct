@@ -645,6 +645,17 @@
         </Strings>
       </Button>
 
+      <Button guid="guidUEToVSHostCmdSet" id="cmdWriteMcpConfig" priority="0x0100" type="Button">
+        <!-- no menu parent (v0.3.0): settings window (General > MCP), Find Action, key bindings -->
+        <CommandFlag>TextChanges</CommandFlag>
+        <CommandFlag>DefaultDisabled</CommandFlag>
+        <Strings>
+          <ButtonText>Write .mcp.json to Solution Folder</ButtonText>
+          <CanonicalName>UEToVS.WriteMcpConfig</CanonicalName>
+          <LocCanonicalName>UEToVS.WriteMcpConfig</LocCanonicalName>
+        </Strings>
+      </Button>
+
       <!-- ===== UEToVS toolbar (0x0480-0x04FF; Logic/Commands/CommandCatalog.cs ToolbarButtons) ===== -->
       <Button guid="guidUEToVSHostCmdSet" id="cmdTbSettings" priority="0x0080" type="Button">
         <Parent guid="guidUEToVSHostCmdSet" id="grpToolbarMain" />
@@ -880,6 +891,8 @@
       <IDSymbol name="cmdTbGoToDefinition" value="0x0484" />
       <IDSymbol name="cmdTbFindReferences" value="0x0485" />
       <IDSymbol name="cmdTbPerformance" value="0x0486" />
+      <IDSymbol name="grpMcp" value="0x1050" />
+      <IDSymbol name="cmdWriteMcpConfig" value="0x0500" />
     </GuidSymbol>
   </Symbols>
 </CommandTable>

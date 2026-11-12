@@ -53,6 +53,9 @@ namespace UEToVS.Host.Shell
         public const int TbGoToDefinition = 0x0484;
         public const int TbFindReferences = 0x0485;
         public const int TbPerformance = 0x0486;
+
+        // ---- MCP (0x0500–0x05FF) ----
+        public const int WriteMcpConfig = 0x0500;
     }
 
     /// <summary>Stable action ids (§7.4). Commands dispatch to these.</summary>
@@ -68,5 +71,8 @@ namespace UEToVS.Host.Shell
         public const string ShowComponentGallery = "uetovs.ui.componentGallery";
         public const string Settings = "uetovs.settings.open";
         public const string FindAction = "uetovs.findAction";
+
+        // ---- MCP ----
+        public const string WriteMcpConfig = "uetovs.mcp.writeConfig";
     }
 }

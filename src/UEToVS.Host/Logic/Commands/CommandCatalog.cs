@@ -69,7 +69,7 @@ namespace UEToVS.Host.Logic.Commands
 
     /// <summary>
     /// The list of UEToVS commands shown on the keymap page (ids must match UEToVSHostPackage.vsct; unit tests check ids,
-    /// canonical names and that the VSCT key bindings equal <see cref="CommandInfo.VaKeys"/>). Id ranges: 0x01xx host,
+    /// canonical names and that the VSCT key bindings equal <see cref="CommandInfo.VaKeys"/>). Id ranges: 0x01xx host (+ 0x05xx MCP),
     /// 0x02xx M2 navigation, 0x03xx M1 features, 0x04xx settings / windows / toolbar. The 20 bookmark digit commands
     /// (0x0340–0x0359) are left out of the page (bind them in Tools &gt; Options &gt; Keyboard).
     /// </summary>
@@ -85,6 +85,8 @@ namespace UEToVS.Host.Logic.Commands
         public const int ShowComponentGallery = 0x0130;
         public const int Settings = 0x0140;
         public const int FindAction = 0x0150;
+        /// <summary>MCP (0x0500–0x05FF).</summary>
+        public const int WriteMcpConfig = 0x0500;
 
         // ---- M2 navigation (0x0200–0x02FF): Navigation/NavigationActions.cs
         public const int GoToDefinition = 0x0200;
@@ -229,6 +231,7 @@ namespace UEToVS.Host.Logic.Commands
             C(H, OpenCurrentLog, "OpenCurrentLog", "uetovs.diagnostics.openCurrentLog", "打开当前日志", "Open Current Log", "diagnostics", Gl, null, null, null),
             C(H, CreateDiagnostics, "CreateDiagnosticsPackage", "uetovs.diagnostics.createPackage", "生成诊断包", "Create Diagnostics Package", "diagnostics", Gl, null, null, null),
             C(H, ShowComponentGallery, "ShowComponentGallery", "uetovs.ui.componentGallery", "组件画廊", "Component Gallery", "diagnostics", Gl, null, null, null),
+            C(H, WriteMcpConfig, "WriteMcpConfig", "uetovs.mcp.writeConfig", "写入 .mcp.json 到解决方案目录", "Write .mcp.json to Solution Folder", "tools", Gl, null, null, null),
         };
 
         public static CommandInfo ById(int id)

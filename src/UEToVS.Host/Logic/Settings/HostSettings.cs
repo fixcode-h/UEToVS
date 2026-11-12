@@ -94,6 +94,13 @@ namespace UEToVS.Host.Logic.Settings
 
         /// <summary>Navigation bar (current type / current function) at the top of C++ editors.</summary>
         public bool NavigationBar { get; set; } = true;
+        // ---- MCP（给 AI Agent 用） ----
+
+        /// <summary>
+        /// 启用 MCP 服务：打开 UE 解决方案时把 uetovs MCP 服务器登记到 &lt;解决方案&gt;\.vs\mcp.json（VS Copilot Agent 自动发现），
+        /// 关闭时移除。文案见 McpStrings.SettingEnableMcp / SettingEnableMcpDescription；docs/design/MCP.md。
+        /// </summary>
+        public bool EnableMcpServer { get; set; } = true;
 
         // ---- 索引（设置窗口；0 = 默认 = max(1, 逻辑核心数 / 4)）----
         public int CppIndexThreads { get; set; } = 0;

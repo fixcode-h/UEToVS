@@ -132,6 +132,14 @@ namespace UEToVS.Host.Logic.Settings
             list.Add(D(General, "keyboard.doubleShiftLeftOnly", SettingKind.Bool, "只识别左 Shift", "Left Shift only",
                 "只有左侧 Shift 键的双击才会触发。", "Only a double press of the left Shift key triggers it.", "false", gKb, gKbEn));
 
+            const string gMcp = "MCP（AI Agent）", gMcpEn = "MCP (AI agents)";
+            list.Add(D(General, "mcp.enable", SettingKind.Bool, "启用 MCP 服务（给 AI Agent 用）", "Enable MCP server (for AI agents)",
+                "打开 UE 解决方案时在 .vs\\mcp.json 注册 uetovs MCP 服务器，VS Copilot Agent 模式自动发现；关闭则移除该注册。",
+                "Registers the uetovs MCP server in .vs\\mcp.json when a UE solution opens (Copilot agent mode discovers it); off removes the registration.",
+                "true", gMcp, gMcpEn));
+            list.Add(A(General, "mcp.writeConfig", "uetovs.mcp.writeConfig", "写入 .mcp.json 到解决方案目录", "Write .mcp.json to the solution folder",
+                "给 Claude Code / Cursor / VS Code 用；已有文件会合并，不覆盖其他服务器。", "For Claude Code / Cursor / VS Code; an existing file is merged, other servers are kept.", gMcp, gMcpEn));
+
             const string gUe = "Unreal Engine", gUeEn = "Unreal Engine";
             list.Add(D(General, "unreal.checkIncludesOnSave", SettingKind.Bool, "保存时检查 #include 的模块依赖", "Check #include module dependencies on save",
                 "保存 .h/.cpp 时对照 Build.cs 检查 #include 所属模块，缺失时提示添加依赖。", "On saving a .h/.cpp, checks the #include modules against Build.cs and offers to add missing dependencies.",
@@ -272,6 +280,7 @@ namespace UEToVS.Host.Logic.Settings
                     ["keyboard.doubleShiftIntervalMs"] = I(s.DoubleShiftIntervalMs),
                     ["keyboard.doubleShiftLeftOnly"] = B(s.DoubleShiftLeftOnly),
                     ["unreal.checkIncludesOnSave"] = B(s.CheckIncludesOnSave),
+                    ["mcp.enable"] = B(s.EnableMcpServer),
                     ["unreal.editorLinkPort"] = I(s.EditorLinkPort),
                     ["indexing.cppThreads"] = I(s.CppIndexThreads),
                     ["indexing.blueprintThreads"] = I(s.BlueprintIndexThreads),
@@ -336,6 +345,7 @@ namespace UEToVS.Host.Logic.Settings
                         case "keyboard.doubleShiftIntervalMs": s.DoubleShiftIntervalMs = PI(v, 300); break;
                         case "keyboard.doubleShiftLeftOnly": s.DoubleShiftLeftOnly = PB(v); break;
                         case "unreal.checkIncludesOnSave": s.CheckIncludesOnSave = PB(v); break;
+                        case "mcp.enable": s.EnableMcpServer = PB(v); break;
                         case "unreal.editorLinkPort": s.EditorLinkPort = PI(v, 0); break;
                         case "indexing.cppThreads": s.CppIndexThreads = PI(v, 0); break;
                         case "indexing.blueprintThreads": s.BlueprintIndexThreads = PI(v, 0); break;

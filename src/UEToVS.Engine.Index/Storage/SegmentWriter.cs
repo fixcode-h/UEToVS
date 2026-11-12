@@ -66,6 +66,9 @@ namespace UEToVS.Engine.Index.Storage
                 var fileRecs = new FileRecord[files.Length];
                 var symbols = new List<SymbolRecord>();
                 var includes = new List<uint>();
+                var baseEntries = new List<BaseEntry>();
+                var baseTexts = new List<uint>();
+                var derived = new Dictionary<uint, List<uint>>();
                 var symCountPerName = new uint[nameCount];
                 var occCountPerName = new uint[nameCount];
                 long totalOcc = 0;
@@ -90,6 +93,8 @@ namespace UEToVS.Engine.Index.Storage
                         if (string.IsNullOrEmpty(d.Name)) continue;
                         pool.TryGet(d.Name, out uint nameId);
                         symCountPerName[nameId - 1]++;
+                        if (d.Bases != null && d.Bases.Length > 0)
+                            AddBases((uint)symbols.Count, d.Bases, pool, baseEntries, baseTexts, derived);
                         symbols.Add(new SymbolRecord
                         {
                             NameId = nameId,
@@ -200,6 +205,17 @@ namespace UEToVS.Engine.Index.Storage
                 var fileBuckets = BuildFileBuckets(keys);
                 ct.ThrowIfCancellationRequested();
 
+                // 8. inheritance: base → derived table keyed by simple base name.
+                var derivedKeys = derived.Keys.ToArray();
+                Array.Sort(derivedKeys);
+                var derivedOffsets = new uint[derivedKeys.Length + 1];
+                var derivedSymbols = new List<uint>();
+                for (int i = 0; i < derivedKeys.Length; i++)
+                {
+                    derivedSymbols.AddRange(derived[derivedKeys[i]]);
+                    derivedOffsets[i + 1] = (uint)derivedSymbols.Count;
+                }
+
                 var sections = new List<(SectionId id, byte[] data)>
                 {
                     (SectionId.StrOffsets, Bytes(pool.BuildOffsets())),
@@ -223,6 +239,11 @@ namespace UEToVS.Engine.Index.Storage
                     (SectionId.FileNameLowerData, fnData.ToArray()),
                     (SectionId.Includes, Bytes(includes.ToArray())),
                     (SectionId.NameLowerOrder, Bytes(lowerOrder)),
+                    (SectionId.BaseEntries, Bytes(baseEntries.ToArray())),
+                    (SectionId.BaseTexts, Bytes(baseTexts.ToArray())),
+                    (SectionId.DerivedKeys, Bytes(derivedKeys)),
+                    (SectionId.DerivedOffsets, Bytes(derivedOffsets)),
+                    (SectionId.DerivedSymbols, Bytes(derivedSymbols.ToArray())),
                 };
 
                 var info = new WriteInfo { Files = files.Length, Symbols = symArr.Length, Names = nameCount, Occurrences = totalOcc };
@@ -231,6 +252,24 @@ namespace UEToVS.Engine.Index.Storage
                     ("symbols", info.Symbols), ("names", info.Names), ("occurrences", info.Occurrences), ("bytes", info.Bytes));
                 return info;
             }
+        }
+
+        private static void AddBases(uint symbol, string[] bases, StringPoolBuilder pool, List<BaseEntry> entries, List<uint> texts,
+            Dictionary<uint, List<uint>> derived)
+        {
+            var entry = new BaseEntry { Symbol = symbol, First = (uint)texts.Count };
+            foreach (var b in bases)
+            {
+                if (string.IsNullOrWhiteSpace(b)) continue;
+                texts.Add(pool.Add(b));
+                string simple = BaseNames.Simple(b);
+                if (simple == null) continue;
+                uint key = pool.Add(simple);
+                if (!derived.TryGetValue(key, out var list)) derived[key] = list = new List<uint>();
+                if (list.Count == 0 || list[list.Count - 1] != symbol) list.Add(symbol);
+            }
+            entry.Count = (uint)texts.Count - entry.First;
+            if (entry.Count > 0) entries.Add(entry);
         }
 
         private static int[] SortedDeclOrder(DeclInput[] decls)

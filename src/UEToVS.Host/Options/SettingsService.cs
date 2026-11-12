@@ -142,6 +142,7 @@ namespace UEToVS.Host.Options
                 ["navigationHistoryCapacity"] = s.NavigationHistoryCapacity,
                 ["checkIncludesOnSave"] = s.CheckIncludesOnSave,
                 ["editorLinkPort"] = s.EditorLinkPort,
+                ["enableMcpServer"] = s.EnableMcpServer,
             };
             return Sanitizer.MaskSecrets(d);
         }

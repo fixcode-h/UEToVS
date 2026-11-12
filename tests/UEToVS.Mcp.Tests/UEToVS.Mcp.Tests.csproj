@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Tests of the MCP server (src/UEToVS.Mcp): protocol handshake (in-memory and as a real stdio process), every tool's
+    arguments and result format against a real engine (in-process, over its named pipe) and against the index on disk,
+    the engine discovery file, and a grep-vs-index benchmark on a synthetic project (Category=Benchmark, prints numbers).
+  -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <NoWarn>$(NoWarn);VSTHRD002;VSTHRD003;VSTHRD103;VSTHRD105;VSTHRD110;VSTHRD200;CA1416</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+    <PackageReference Include="StreamJsonRpc" Version="2.19.27" />
+    <PackageReference Include="ModelContextProtocol.Core" Version="2.4.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\UEToVS.Contracts\UEToVS.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\UEToVS.Core\UEToVS.Core.csproj" />
+    <ProjectReference Include="..\..\src\UEToVS.Engine\UEToVS.Engine.csproj" />
+    <ProjectReference Include="..\..\src\UEToVS.Engine.Index\UEToVS.Engine.Index.csproj" />
+    <ProjectReference Include="..\..\src\UEToVS.Mcp\UEToVS.Mcp.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\UEToVS.Engine.Tests\FakeUnrealTree.cs" Link="Shared\FakeUnrealTree.cs" />
+  </ItemGroup>
+</Project>

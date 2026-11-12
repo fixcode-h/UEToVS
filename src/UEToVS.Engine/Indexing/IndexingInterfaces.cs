@@ -126,5 +126,22 @@ namespace UEToVS.Engine.Indexing
         bool TryLoad(string indexDir, string key);
 
         void Save(string indexDir, string key);
+
+        // ---- M2 navigation (defaults keep simple backends working without inheritance / occurrence data) ----
+
+        /// <summary>Classes/structs/unions named <paramref name="name"/> with their base texts (container rule as <see cref="FindSymbols"/>).</summary>
+        IReadOnlyList<UEToVS.Engine.Index.TypeEntry> FindTypes(string name, string container)
+        {
+            var list = new List<UEToVS.Engine.Index.TypeEntry>();
+            foreach (var s in FindSymbols(name, container))
+                if (UEToVS.Engine.Index.IndexSnapshot.IsRecordKind(s.Kind)) list.Add(new UEToVS.Engine.Index.TypeEntry { Symbol = s });
+            return list;
+        }
+
+        /// <summary>Types listing a base whose simple name (<see cref="UEToVS.Engine.Index.BaseNames.Simple"/>) matches.</summary>
+        IReadOnlyList<UEToVS.Engine.Index.TypeEntry> FindDerivedTypes(string simpleBaseName) => Array.Empty<UEToVS.Engine.Index.TypeEntry>();
+
+        /// <summary>Distinct files that contain an occurrence of <paramref name="name"/> (streamed, may be large).</summary>
+        IEnumerable<string> FindOccurrenceFiles(string name, CancellationToken ct) => Array.Empty<string>();
     }
 }

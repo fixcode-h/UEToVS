@@ -235,6 +235,63 @@ namespace UEToVS.Engine.Tests
         }
 
         [Fact]
+        public async Task NavigateAndFindReferencesThroughTheRealPipeline()
+        {
+            using var c = await ConnectReadyAsync();
+            string header = _t.P("Game/Source/MyGame/Public/MyCharacter.h");
+            string source = _t.P("Game/Source/MyGame/Private/MyCharacter.cpp");
+            var headerLines = File.ReadAllLines(header);
+            int fireLine = Array.FindIndex(headerLines, l => l.Contains("void Fire("));
+            int fireCol = headerLines[fireLine].IndexOf("Fire", StringComparison.Ordinal) + 1;
+
+            // header declaration → out-of-line definition in the .cpp
+            var nav = await c.Engine.NavigateAsync(new NavigationRequest
+            {
+                Kind = NavigationKind.Definition,
+                Caret = new CaretRequest { FilePath = header, Line = fireLine, Column = fireCol },
+            }, CancellationToken.None);
+            Assert.Equal("Fire", nav.Word);
+            Assert.True(nav.IndexReady);
+            Assert.Equal(ResolutionConfidence.Exact, nav.Confidence);
+            var target = Assert.Single(nav.Targets);
+            Assert.Equal(NavigationTargetRole.Definition, target.Role);
+            Assert.Equal(source, target.Symbol.Location.FilePath);
+            Assert.Equal(1, target.Symbol.Location.Line);
+
+            // unsaved buffer of the .cpp adds a call; Find References sees it next to the indexed declaration / definition
+            string buffer = File.ReadAllText(source) + "void UseIt(AMyCharacter* C)\n{\n\tC->Fire(2.f);\n}\n";
+            var bufferLines = buffer.Split('\n');
+            int callLine = Array.FindIndex(bufferLines, l => l.Contains("C->Fire"));
+            var refs = await c.Engine.FindReferencesAsync(new ReferencesRequest
+            {
+                Caret = new CaretRequest { FilePath = source, Text = buffer, TextVersion = 3, Line = callLine, Column = bufferLines[callLine].IndexOf("Fire", StringComparison.Ordinal) + 1 },
+            }, CancellationToken.None);
+            Assert.Equal("Fire", refs.Symbol.Name);
+            Assert.Equal("AMyCharacter", refs.Symbol.Container);
+            Assert.Contains(refs.Hits, h => h.Location.FilePath == header && h.Location.Line == fireLine && h.Kind == ReferenceKind.Declaration);
+            Assert.Contains(refs.Hits, h => h.Location.FilePath == source && h.Location.Line == 1 && h.Kind == ReferenceKind.Definition);
+            var call = Assert.Single(refs.Hits, h => h.Location.FilePath == source && h.Location.Line == callLine);
+            Assert.True(call.Kind.HasFlag(ReferenceKind.Call));
+            Assert.Equal("C->Fire(2.f);", call.LineText);
+            Assert.Equal("Fire", call.LineText.Substring(call.LineTextColumn, call.Length));
+
+            // the other navigation RPCs answer over the pipe too
+            var hl = await c.Engine.GetHighlightsAsync(new CaretRequest { FilePath = header, Line = fireLine, Column = fireCol }, CancellationToken.None);
+            Assert.Equal("Fire", hl.Word);
+            Assert.Single(hl.Spans);
+            var ctx = await c.Engine.GetCaretContextAsync(new CaretRequest { FilePath = header, Line = fireLine, Column = fireCol }, CancellationToken.None);
+            Assert.Equal("AMyCharacter", Assert.Single(ctx.Scopes).Name);
+            var members = await c.Engine.GetMembersAsync(new MembersRequest { TypeName = "AMyCharacter" }, CancellationToken.None);
+            Assert.Contains(members.Members, m => m.Name == "Health");
+            Assert.Contains(members.Members, m => m.Name == "StaticClass");
+            var hierarchy = await c.Engine.GetTypeHierarchyAsync(new TypeHierarchyRequest { TypeName = "AMyCharacter" }, CancellationToken.None);
+            Assert.Equal("ACharacter", Assert.Single(hierarchy.Bases).DisplayName);
+
+            var bad = await Assert.ThrowsAsync<RemoteInvocationException>(() => c.Engine.NavigateAsync(new NavigationRequest(), CancellationToken.None));
+            Assert.Equal(RpcErrorCodes.InvalidArgument, bad.ErrorCode);
+        }
+
+        [Fact]
         public async Task PerformanceSnapshotOverRpc()
         {
             using var c = await ConnectReadyAsync();
