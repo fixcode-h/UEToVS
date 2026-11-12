@@ -23,6 +23,12 @@ namespace UEToVS.Host.Logic.Commands
             ["pageup"] = "PgUp", ["pgup"] = "PgUp", ["pagedown"] = "PgDn", ["pgdn"] = "PgDn",
             ["escape"] = "Esc", ["esc"] = "Esc", ["enter"] = "Enter", ["return"] = "Enter", ["space"] = "Space", ["tab"] = "Tab",
             ["home"] = "Home", ["end"] = "End", ["minus"] = "-", ["oemminus"] = "-", ["comma"] = ",", ["oemcomma"] = ",",
+            // localized key names some VS language packs return from DTE Command.Bindings
+            ["向左键"] = "Left Arrow", ["左箭头"] = "Left Arrow", ["左方向键"] = "Left Arrow", ["向右键"] = "Right Arrow", ["右箭头"] = "Right Arrow", ["右方向键"] = "Right Arrow",
+            ["向上键"] = "Up Arrow", ["上箭头"] = "Up Arrow", ["上方向键"] = "Up Arrow", ["向下键"] = "Down Arrow", ["下箭头"] = "Down Arrow", ["下方向键"] = "Down Arrow",
+            ["退格键"] = "Bkspce", ["删除"] = "Del", ["空格键"] = "Space", ["空格"] = "Space", ["回车"] = "Enter", ["回车键"] = "Enter",
+            ["nach-links"] = "Left Arrow", ["nach-rechts"] = "Right Arrow", ["nach-oben"] = "Up Arrow", ["nach-unten"] = "Down Arrow",
+            ["entf"] = "Del", ["einfg"] = "Ins", ["rück"] = "Bkspce", ["leer"] = "Space", ["eingabe"] = "Enter", ["bild-auf"] = "PgUp", ["bild-ab"] = "PgDn", ["pos1"] = "Home", ["ende"] = "End",
         };
 
         /// <summary>Canonical form, or null when the text is not a valid shortcut (no key, unknown modifier, too many chords).</summary>
@@ -83,8 +89,8 @@ namespace UEToVS.Host.Logic.Commands
                 if (tok.Length == 0) return null;
                 switch (tok.ToLowerInvariant())
                 {
-                    case "ctrl": case "control": ctrl = true; continue;
-                    case "shift": shift = true; continue;
+                    case "ctrl": case "control": case "strg": case "ctl": ctrl = true; continue;
+                    case "shift": case "umschalt": case "maj": shift = true; continue;
                     case "alt": alt = true; continue;
                 }
                 if (key != null) return null; // two keys in one chord
