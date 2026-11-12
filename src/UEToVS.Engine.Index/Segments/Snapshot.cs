@@ -24,6 +24,7 @@ namespace UEToVS.Engine.Index.Segments
             {
                 NameLower[i] = Decls[i].Name.ToLowerInvariant();
                 if (Decls[i].Bases != null) foreach (var b in Decls[i].Bases) bytes += 24 + (b?.Length ?? 0) * 2;
+                if (Decls[i].Deprecation != null) bytes += 64 + (Decls[i].Deprecation.Version.Length + Decls[i].Deprecation.Message.Length) * 2;
                 bytes += 64 + Decls[i].Name.Length * 4 + (Decls[i].Container?.Length ?? 0) * 2 + (Decls[i].Signature?.Length ?? 0) * 2 +
                          (Decls[i].Specifiers?.Length ?? 0) * 2;
             }

@@ -108,6 +108,13 @@ namespace UEToVS.Contracts
 
         /// <summary>Declarations, definitions and UE_LOG / UE_CLOG / UE_LOGFMT uses of one log category (with decoded formats).</summary>
         Task<LogSitesResponse> FindLogSitesAsync(LogSitesRequest request, CancellationToken ct);
+        // ---- v0.4.5 heavy features (see HeavyFeatures.cs); each answers HeavyJobState.Disabled when switched off ----
+
+        /// <summary>Whole-project UE rule inspection: start / status / results page / cancel.</summary>
+        Task<ProjectInspectionResponse> ProjectInspectionAsync(ProjectInspectionRequest request, CancellationToken ct);
+
+        /// <summary>Engine upgrade assistant: project references to deprecated APIs (start / status / results / cancel).</summary>
+        Task<DeprecationScanResponse> DeprecationScanAsync(DeprecationScanRequest request, CancellationToken ct);
     }
 
     /// <summary>Notifications engine → host.</summary>

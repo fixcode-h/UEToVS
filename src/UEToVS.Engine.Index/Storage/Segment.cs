@@ -347,6 +347,32 @@ namespace UEToVS.Engine.Index.Storage
             return result;
         }
 
+        /// <summary>v0.4.5: deprecation entries (sorted by symbol index); one per deprecated symbol.</summary>
+        public ReadOnlySpan<DeprecationEntry> Deprecations => Get<DeprecationEntry>(SectionId.DeprecationEntries);
+
+        /// <summary>Deprecation (version, message) of a symbol; false when it has none.</summary>
+        public bool TryGetDeprecation(uint symbolIndex, out string version, out string message)
+        {
+            version = message = null;
+            if (!Symbols[(int)symbolIndex].IsDeprecated) return false;
+            var entries = Deprecations;
+            int lo = 0, hi = entries.Length - 1;
+            while (lo <= hi)
+            {
+                int mid = (lo + hi) >>> 1;
+                uint s = entries[mid].Symbol;
+                if (s == symbolIndex)
+                {
+                    version = GetString(entries[mid].VersionId) ?? string.Empty;
+                    message = GetString(entries[mid].MessageId) ?? string.Empty;
+                    return true;
+                }
+                if (s < symbolIndex) lo = mid + 1;
+                else hi = mid - 1;
+            }
+            return false;
+        }
+
         /// <summary>Symbol indices of types listing a base whose simple name (<see cref="BaseNames.Simple"/>) is <paramref name="simpleName"/>.</summary>
         public ReadOnlySpan<uint> DerivedOf(string simpleName)
         {

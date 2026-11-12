@@ -26,6 +26,8 @@ namespace UEToVS.Host.Logic.Settings
         public const string Agent = "agent";
         public const string Logging = "logging";
         public const string Performance = "performance";
+        // ---- v0.4.5 heavy features: whole-project inspection / upgrade assistant page
+        public const string Inspection = "inspection";
 
         /// <summary>Action ids only the settings window resolves (not registered in the ActionRegistry).</summary>
         public static class WindowActions
@@ -59,6 +61,8 @@ namespace UEToVS.Host.Logic.Settings
             new SettingCategory(Keymap, "快捷键", "Keyboard"),
             new SettingCategory(Navigation, "导航", "Navigation"),
             new SettingCategory(IntelliSense, "代码感知", "IntelliSense"),
+            // ---- v0.4.5 heavy features
+            new SettingCategory(Inspection, "检查", "Inspections"),
             new SettingCategory(Agent, "Agent / API", "Agent / API"),
             new SettingCategory(Logging, "日志与诊断", "Logs & Diagnostics"),
             new SettingCategory(Performance, "性能", "Performance"),
@@ -369,6 +373,37 @@ namespace UEToVS.Host.Logic.Settings
             // ---- v0.4.5 编辑体验
             EditorFeatureSettings.AddDescriptors(list, IntelliSense);
 
+            // ---- v0.4.5 heavy features: generic template instantiation (IntelliSense page)
+            const string gTi = "模板实例化", gTiEn = "Template instantiation";
+            list.Add(D(IntelliSense, "templates.enabled", SettingKind.Bool, "通用模板实例化", "Generic template instantiation",
+                "把模板实参代入成员的返回 / 字段类型（TOptional、TSharedPtr、TWeakObjectPtr、自定义类模板、typedef / using 别名、Cast<T> 等），补全更准。可能占用较多 CPU/内存；关闭后回到内置的 UE 模板规则。",
+                "Substitutes template arguments into member return / field types (TOptional, TSharedPtr, TWeakObjectPtr, your class templates, typedef / using aliases, Cast<T>…) for more exact completion. May use more CPU/memory; off = the built-in UE template rules only.",
+                "true", gTi, gTiEn));
+            var tplCache = D(IntelliSense, "templates.cacheCapacity", SettingKind.Int, "实例缓存容量", "Instance cache capacity",
+                "引擎里缓存的（模板, 实参）实例数（LRU），越大命中率越高、占内存越多。命中率见日志 intellisense.templates。",
+                "(template, arguments) instances cached in the engine (LRU); larger = more hits and more memory. Hit rate: log event intellisense.templates.",
+                "2048", gTi, gTiEn);
+            tplCache.Min = 64; tplCache.Max = 65536;
+            list.Add(tplCache);
+
+            // ================= v0.4.5 检查（全项目检查 / 引擎升级助手）
+            const string gInsp = "全项目检查", gInspEn = "Whole-project inspection";
+            list.Add(D(Inspection, "inspection.enabled", SettingKind.Bool, "启用全项目检查", "Enable whole-project inspection",
+                "按需（命令 / 本页按钮 / MCP run_project_inspection）用波浪线的 UE 规则检查整个项目源码，结果写到 .vs\\UEToVS\\inspections。可能占用较多 CPU/内存；关闭后不允许运行。",
+                "On demand (command / this page / MCP run_project_inspection) runs the squiggle UE rules over all project sources; results go to .vs\\UEToVS\\inspections. May use a lot of CPU/memory; when off it cannot run.",
+                "true", gInsp, gInspEn));
+            list.Add(D(Inspection, "inspection.includePlugins", SettingKind.Bool, "包含项目插件", "Include project plugins",
+                "同时检查项目 Plugins 目录下的源码（文件更多，耗时更长）。", "Also inspects sources under the project's Plugins folder (more files, takes longer).", "false", gInsp, gInspEn));
+            list.Add(A(Inspection, "inspection.run", "uetovs.inspection.run", "运行全项目检查", "Run whole-project inspection",
+                "在后台低优先级线程上运行（线程数同 C++ 索引），可随时取消。", "Runs on low-priority background threads (as many as C++ indexing), cancellable at any time.", gInsp, gInspEn));
+            list.Add(A(Inspection, "inspection.results", "uetovs.inspection.show", "查看结果", "Show results", null, null, gInsp, gInspEn));
+            const string gUpg = "引擎升级助手", gUpgEn = "Engine upgrade assistant";
+            list.Add(D(Inspection, "upgrade.enabled", SettingKind.Bool, "启用引擎升级助手", "Enable the engine upgrade assistant",
+                "按需查找项目对 UE_DEPRECATED / [[deprecated]] API 的引用，按弃用版本分组，签名兼容时可批量替换（一次撤销）。可能占用较多 CPU/内存；关闭后不允许运行。",
+                "On demand, finds project references to UE_DEPRECATED / [[deprecated]] APIs grouped by deprecation version, with batch replacement (one undo) when the replacement is signature-compatible. May use a lot of CPU/memory; when off it cannot run.",
+                "true", gUpg, gUpgEn));
+            list.Add(A(Inspection, "upgrade.run", "uetovs.upgrade.run", "查找弃用 API", "Find deprecated APIs", null, null, gUpg, gUpgEn));
+
             // ================= 日志与诊断
             const string gLog = "日志", gLogEn = "Logs";
             var level = D(Logging, "log.level", SettingKind.Choice, "日志级别", "Log level",
@@ -437,6 +472,10 @@ namespace UEToVS.Host.Logic.Settings
             ["perf.open"] = ("打开", "Open"),
             ["link.pluginInstall"] = ("安装 / 更新", "Install / Update"),
             ["link.pluginUninstall"] = ("卸载", "Uninstall"),
+            // ---- v0.4.5 heavy features
+            ["inspection.run"] = ("运行", "Run"),
+            ["inspection.results"] = ("打开", "Open"),
+            ["upgrade.run"] = ("运行", "Run"),
         };
 
         /// <summary>HostSettings ⇄ invariant string values, keyed by descriptor key.</summary>
@@ -511,6 +550,12 @@ namespace UEToVS.Host.Logic.Settings
                     ["build.squiggles"] = B(s.BuildErrorSquiggles),
                     ["errorList.enabled"] = B(s.ErrorListEnabled),
                     ["errorList.includeBuild"] = B(s.ErrorListIncludeBuild),
+                    // ---- v0.4.5 heavy features
+                    ["templates.enabled"] = B(s.TemplateInstantiationEnabled),
+                    ["templates.cacheCapacity"] = I(s.TemplateCacheCapacity),
+                    ["inspection.enabled"] = B(s.ProjectInspectionEnabled),
+                    ["inspection.includePlugins"] = B(s.InspectionIncludePlugins),
+                    ["upgrade.enabled"] = B(s.UpgradeAssistantEnabled),
                 };
                 foreach (var b in ToolbarButtons.All)
                     if (b.Key != "settings") d["toolbar.button." + b.Key] = B(!hidden.Contains(b.Key));
@@ -530,6 +575,11 @@ namespace UEToVS.Host.Logic.Settings
                 SharedEngineCache = s.ShareEngineIndex,
                 EngineCacheDirectory = string.IsNullOrWhiteSpace(s.EngineIndexPath) ? null : s.EngineIndexPath,
                 LuaScriptPaths = SplitPaths(s.LuaScriptPaths),
+                // ---- v0.4.5 heavy features
+                ProjectInspectionEnabled = s.ProjectInspectionEnabled,
+                UpgradeAssistantEnabled = s.UpgradeAssistantEnabled,
+                TemplateInstantiationEnabled = s.TemplateInstantiationEnabled,
+                TemplateCacheCapacity = Math.Max(0, s.TemplateCacheCapacity),
             };
 
             /// <summary>"a; b;;c" → [a, b, c]. ';' (or a new line) separates; ',' does not, folder names may contain it.</summary>
@@ -620,6 +670,12 @@ namespace UEToVS.Host.Logic.Settings
                         case "build.squiggles": s.BuildErrorSquiggles = PB(v); break;
                         case "errorList.enabled": s.ErrorListEnabled = PB(v); break;
                         case "errorList.includeBuild": s.ErrorListIncludeBuild = PB(v); break;
+                        // ---- v0.4.5 heavy features
+                        case "templates.enabled": s.TemplateInstantiationEnabled = PB(v); break;
+                        case "templates.cacheCapacity": s.TemplateCacheCapacity = PI(v, 2048); break;
+                        case "inspection.enabled": s.ProjectInspectionEnabled = PB(v); break;
+                        case "inspection.includePlugins": s.InspectionIncludePlugins = PB(v); break;
+                        case "upgrade.enabled": s.UpgradeAssistantEnabled = PB(v); break;
                         default:
                             if (UEToVS.Host.Logic.Fonts.FontSettingsSchema.TrySet(s, d.Key, v)) break;
                             if (UEToVS.Host.Logic.Translation.TranslationSettingsSchema.TrySet(s, d.Key, v)) break;

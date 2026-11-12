@@ -21,8 +21,8 @@ namespace UEToVS.Mcp.Tests
         private static readonly string[] ExpectedTools =
         {
             "find_delegate_bindings", "find_references", "get_build_errors", "get_diagnostics", "get_file_outline", "get_lua_outline", "get_members",
-            "get_module_info", "get_reflection_info", "get_type_hierarchy", "go_to_definition", "index_status", "rename_symbol", "search_assets",
-            "search_config", "search_files", "search_lua", "search_lua_files", "search_symbols", "suggest_include",
+            "get_module_info", "get_reflection_info", "get_type_hierarchy", "go_to_definition", "index_status", "rename_symbol", "run_project_inspection",
+            "search_assets", "search_config", "search_files", "search_lua", "search_lua_files", "search_symbols", "suggest_include",
         };
 
         private readonly OfflineFixture _f;

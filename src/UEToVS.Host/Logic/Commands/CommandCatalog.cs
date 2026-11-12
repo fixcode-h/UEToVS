@@ -114,6 +114,12 @@ namespace UEToVS.Host.Logic.Commands
         public const int ToggleInlayHints = 0x0181;
         public const int ShowHashtags = 0x0182;
         public const int PasteFromHistory = 0x0183;
+        // ---- v0.4.5 heavy features (0x01A0–0x01AF): Inspection/HeavyFeatureActions.cs
+        public const int RunProjectInspection = 0x01A0;
+        public const int ShowInspectionResults = 0x01A1;
+        public const int RunUpgradeAssistant = 0x01A2;
+        public const int ShowUpgradeResults = 0x01A3;
+        public const int CancelHeavyJob = 0x01A4;
 
         // ---- M2 navigation (0x0200–0x02FF): Navigation/NavigationActions.cs
         public const int GoToDefinition = 0x0200;
@@ -337,6 +343,12 @@ namespace UEToVS.Host.Logic.Commands
             C(H, ToggleInlayHints, "ToggleInlayHints", "uetovs.edit.toggleInlayHints", "显示 / 隐藏内嵌提示", "Toggle Inlay Hints", "tools", Ed, "Ctrl+Shift+Alt+U, 2", null, null),
             C(H, ShowHashtags, "ShowHashtags", "uetovs.edit.hashtags", "#tag 书签", "#tag Bookmarks", "bookmarks", Gl, "Ctrl+Shift+Alt+U, 3", null, null),
             C(H, PasteFromHistory, "PasteFromHistory", "uetovs.edit.pasteFromHistory", "从剪贴板历史粘贴…", "Paste from Clipboard History...", "tools", Ed, "Ctrl+Shift+V", "Ctrl+Shift+V", null),
+            // ---- v0.4.5 heavy features (each behind a plugin switch in Settings > Inspections / IntelliSense)
+            C(H, RunProjectInspection, "RunProjectInspection", "uetovs.inspection.run", "全项目 UE 规则检查", "Inspect Whole Project (UE Rules)", "unreal", Gl, "Ctrl+Shift+Alt+U, 6", null, null),
+            C(H, ShowInspectionResults, "ShowInspectionResults", "uetovs.inspection.show", "全项目检查结果", "Project Inspection Results", "unreal", Gl, "Ctrl+Shift+Alt+U, 7", null, null),
+            C(H, RunUpgradeAssistant, "RunUpgradeAssistant", "uetovs.upgrade.run", "引擎升级助手：查找弃用 API", "Engine Upgrade Assistant: Find Deprecated APIs", "unreal", Gl, "Ctrl+Shift+Alt+U, 8", null, null),
+            C(H, ShowUpgradeResults, "ShowUpgradeResults", "uetovs.upgrade.show", "引擎升级助手结果", "Engine Upgrade Assistant Results", "unreal", Gl, "Ctrl+Shift+Alt+U, 9", null, null),
+            C(H, CancelHeavyJob, "CancelHeavyJob", "uetovs.heavy.cancel", "取消全项目检查 / 升级扫描", "Cancel Project Inspection / Upgrade Scan", "unreal", Gl, "Ctrl+Shift+Alt+U, U", null, null),
         };
 
         public static CommandInfo ById(int id)

@@ -37,6 +37,10 @@ namespace UEToVS.Engine.Index.Storage
         DerivedOffsets = 25,
         /// <summary>Symbol indices of derived types, sliced by <see cref="DerivedOffsets"/>, source order per key.</summary>
         DerivedSymbols = 26,
+
+        // ---- v0.4.5 heavy features: format 3, deprecation markers ----
+        /// <summary><see cref="DeprecationEntry"/> per deprecated symbol (UE_DEPRECATED / [[deprecated]] / UE_DEPRECATED_FORGAME), sorted by symbol index.</summary>
+        DeprecationEntries = 27,
     }
 
     /// <summary>
@@ -61,8 +65,8 @@ namespace UEToVS.Engine.Index.Storage
     /// </summary>
     internal static class SegmentFormat
     {
-        /// <summary>2: base classes + base → derived table.</summary>
-        public const uint Version = 2;
+        /// <summary>2: base classes + base → derived table. 3: deprecation markers (v0.4.5; older segments are rebuilt).</summary>
+        public const uint Version = 3;
         public const int PageSize = 4096;
         public const int HeaderSize = PageSize;
         public static readonly byte[] Magic = Encoding.ASCII.GetBytes("UETVSSEG");

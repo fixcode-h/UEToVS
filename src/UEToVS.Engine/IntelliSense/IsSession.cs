@@ -109,6 +109,12 @@ namespace UEToVS.Engine.IntelliSense
         public UeMacroKnowledge Knowledge { get; }
         public CancellationToken Ct => Ctx.Ct;
 
+        /// <summary>
+        /// v0.4.5 generic template instantiation (settings: IntelliSense &gt; 通用模板实例化). Null = off: member types of
+        /// templates are inferred by the UE container / smart pointer rules only (the behaviour before v0.4.5).
+        /// </summary>
+        public TemplateInstantiator Templates { get; set; }
+
         private readonly Dictionary<string, TypeMembers> _local = new Dictionary<string, TypeMembers>(StringComparer.Ordinal);
 
         /// <summary>The overlay document for its own path, otherwise the cached parse of the file on disk.</summary>

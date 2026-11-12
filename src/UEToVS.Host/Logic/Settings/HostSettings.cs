@@ -273,6 +273,21 @@ namespace UEToVS.Host.Logic.Settings
 
         /// <summary>Also list the parsed build errors under "UEToVS" (VS already lists most of them under "Build").</summary>
         public bool ErrorListIncludeBuild { get; set; }
+        // ---- v0.4.5 heavy features（插件开关：默认开；关闭后不允许运行，后台也不跑）----
+        /// <summary>Whole-project UE rule inspection (command, settings button, MCP run_project_inspection).</summary>
+        public bool ProjectInspectionEnabled { get; set; } = true;
+
+        /// <summary>Whole-project inspection also covers project plugins.</summary>
+        public bool InspectionIncludePlugins { get; set; } = false;
+
+        /// <summary>Engine upgrade assistant (deprecated API references, batch replacement).</summary>
+        public bool UpgradeAssistantEnabled { get; set; } = true;
+
+        /// <summary>Generic template instantiation in IntelliSense; off = the built-in UE template rules only.</summary>
+        public bool TemplateInstantiationEnabled { get; set; } = true;
+
+        /// <summary>LRU capacity of instantiated (template, arguments) bindings in the engine.</summary>
+        public int TemplateCacheCapacity { get; set; } = 2048;
 
         public HostSettings Clone() => (HostSettings)MemberwiseClone();
     }

@@ -68,6 +68,7 @@ namespace UEToVS.Engine.Index.Storage
                 var includes = new List<uint>();
                 var baseEntries = new List<BaseEntry>();
                 var baseTexts = new List<uint>();
+                var deprecations = new List<DeprecationEntry>();
                 var derived = new Dictionary<uint, List<uint>>();
                 var symCountPerName = new uint[nameCount];
                 var occCountPerName = new uint[nameCount];
@@ -95,6 +96,8 @@ namespace UEToVS.Engine.Index.Storage
                         symCountPerName[nameId - 1]++;
                         if (d.Bases != null && d.Bases.Length > 0)
                             AddBases((uint)symbols.Count, d.Bases, pool, baseEntries, baseTexts, derived);
+                        if (d.Deprecation != null)
+                            deprecations.Add(new DeprecationEntry { Symbol = (uint)symbols.Count, VersionId = pool.Add(d.Deprecation.Version), MessageId = pool.Add(d.Deprecation.Message) });
                         symbols.Add(new SymbolRecord
                         {
                             NameId = nameId,
@@ -106,7 +109,8 @@ namespace UEToVS.Engine.Index.Storage
                             LineColumn = SymbolRecord.PackLineColumn(d.Line, d.Column),
                             Ue = (ushort)d.Ue,
                             Kind = (byte)d.Kind,
-                            Flags = (byte)((d.IsDefinition ? SymbolFlags.IsDefinition : 0) | (d.IsConditional ? SymbolFlags.IsConditional : 0)),
+                            Flags = (byte)((d.IsDefinition ? SymbolFlags.IsDefinition : 0) | (d.IsConditional ? SymbolFlags.IsConditional : 0) |
+                                           (d.Deprecation != null ? SymbolFlags.IsDeprecated : 0)),
                         });
                     }
                     fr.SymbolCount = (uint)symbols.Count - fr.FirstSymbol;
@@ -244,12 +248,13 @@ namespace UEToVS.Engine.Index.Storage
                     (SectionId.DerivedKeys, Bytes(derivedKeys)),
                     (SectionId.DerivedOffsets, Bytes(derivedOffsets)),
                     (SectionId.DerivedSymbols, Bytes(derivedSymbols.ToArray())),
+                    (SectionId.DeprecationEntries, Bytes(deprecations.ToArray())),
                 };
 
                 var info = new WriteInfo { Files = files.Length, Symbols = symArr.Length, Names = nameCount, Occurrences = totalOcc };
                 info.Bytes = WriteFile(path, kind, kbVersion, engineBuildId, sections, info, pool.Count);
                 L.Info("index.segment.written", "Segment written", ("path", path), ("kind", kind.ToString()), ("files", info.Files),
-                    ("symbols", info.Symbols), ("names", info.Names), ("occurrences", info.Occurrences), ("bytes", info.Bytes));
+                    ("symbols", info.Symbols), ("names", info.Names), ("occurrences", info.Occurrences), ("bytes", info.Bytes), ("deprecated", deprecations.Count));
                 return info;
             }
         }

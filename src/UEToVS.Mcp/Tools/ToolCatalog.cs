@@ -62,6 +62,8 @@ namespace UEToVS.Mcp.Tools
             RegisterLuaTools();
             RegisterUeTools();
             RegisterBuildTools(); // ---- v0.4.5 get_build_errors / get_diagnostics / rename_symbol
+            // ---- v0.4.5 heavy features
+            RegisterHeavyTools();
         }
 
         public IReadOnlyList<ToolDefinition> All => _tools.Values.ToList();

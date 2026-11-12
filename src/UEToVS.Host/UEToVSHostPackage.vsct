@@ -1058,6 +1058,57 @@
           <LocCanonicalName>UEToVS.PasteFromHistory</LocCanonicalName>
         </Strings>
       </Button>
+      <!-- ===== v0.4.5 heavy features (0x01A0-0x01AF): Inspection/HeavyFeatureActions.cs ===== -->
+      <Button guid="guidUEToVSHostCmdSet" id="cmdRunProjectInspection" priority="0x0200" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpM1Unreal" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <CommandFlag>DefaultDisabled</CommandFlag>
+        <Strings>
+          <ButtonText>Inspect Whole Project (UE Rules)</ButtonText>
+          <CanonicalName>UEToVS.RunProjectInspection</CanonicalName>
+          <LocCanonicalName>UEToVS.RunProjectInspection</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdShowInspectionResults" priority="0x0201" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpM1Unreal" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <CommandFlag>DefaultDisabled</CommandFlag>
+        <Strings>
+          <ButtonText>Project Inspection Results</ButtonText>
+          <CanonicalName>UEToVS.ShowInspectionResults</CanonicalName>
+          <LocCanonicalName>UEToVS.ShowInspectionResults</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdRunUpgradeAssistant" priority="0x0202" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpM1Unreal" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <CommandFlag>DefaultDisabled</CommandFlag>
+        <Strings>
+          <ButtonText>Engine Upgrade Assistant: Find Deprecated APIs</ButtonText>
+          <CanonicalName>UEToVS.RunUpgradeAssistant</CanonicalName>
+          <LocCanonicalName>UEToVS.RunUpgradeAssistant</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdShowUpgradeResults" priority="0x0203" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpM1Unreal" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <CommandFlag>DefaultDisabled</CommandFlag>
+        <Strings>
+          <ButtonText>Engine Upgrade Assistant Results</ButtonText>
+          <CanonicalName>UEToVS.ShowUpgradeResults</CanonicalName>
+          <LocCanonicalName>UEToVS.ShowUpgradeResults</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdCancelHeavyJob" priority="0x0204" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpM1Unreal" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <CommandFlag>DefaultDisabled</CommandFlag>
+        <Strings>
+          <ButtonText>Cancel Project Inspection / Upgrade Scan</ButtonText>
+          <CanonicalName>UEToVS.CancelHeavyJob</CanonicalName>
+          <LocCanonicalName>UEToVS.CancelHeavyJob</LocCanonicalName>
+        </Strings>
+      </Button>
     </Buttons>
 
     <Bitmaps>
@@ -1185,6 +1236,12 @@
     <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdToggleInlayHints" editor="guidTextEditorFactory" key1="U" mod1="Control Shift Alt" key2="2" />
     <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdShowHashtags" editor="guidVSStd97" key1="U" mod1="Control Shift Alt" key2="3" />
     <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdPasteFromHistory" editor="guidTextEditorFactory" key1="V" mod1="Control Shift" />
+    <!-- v0.4.5 heavy features -->
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdRunProjectInspection" editor="guidVSStd97" key1="U" mod1="Control Shift Alt" key2="6" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdShowInspectionResults" editor="guidVSStd97" key1="U" mod1="Control Shift Alt" key2="7" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdRunUpgradeAssistant" editor="guidVSStd97" key1="U" mod1="Control Shift Alt" key2="8" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdShowUpgradeResults" editor="guidVSStd97" key1="U" mod1="Control Shift Alt" key2="9" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdCancelHeavyJob" editor="guidVSStd97" key1="U" mod1="Control Shift Alt" key2="U" />
   </KeyBindings>
 
   <Symbols>
@@ -1334,6 +1391,12 @@
       <IDSymbol name="cmdToggleInlayHints" value="0x0181" />
       <IDSymbol name="cmdShowHashtags" value="0x0182" />
       <IDSymbol name="cmdPasteFromHistory" value="0x0183" />
+      <!-- v0.4.5 heavy features (Inspection/HeavyFeatureActions.cs) -->
+      <IDSymbol name="cmdRunProjectInspection" value="0x01A0" />
+      <IDSymbol name="cmdShowInspectionResults" value="0x01A1" />
+      <IDSymbol name="cmdRunUpgradeAssistant" value="0x01A2" />
+      <IDSymbol name="cmdShowUpgradeResults" value="0x01A3" />
+      <IDSymbol name="cmdCancelHeavyJob" value="0x01A4" />
     </GuidSymbol>
   </Symbols>
 </CommandTable>

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using UEToVS.Contracts;
+using UEToVS.Engine.Deprecation;
 using UEToVS.Engine.Index;
 using UEToVS.Engine.Syntax;
 using UEToVS.Engine.Unreal;
@@ -37,8 +38,11 @@ namespace UEToVS.Engine.Indexing
             var decls = summary.Declarations;
             var symbols = new List<SymbolInfo>(decls.Count);
             var inputs = new List<DeclInput>(decls.Count);
-            foreach (var d in decls)
+            // v0.4.5: UE_DEPRECATED / [[deprecated]] markers (one byte search per file; lexed only when a marker may exist)
+            var deprecations = DeprecationParser.Attach(summary.TranscodedText != null ? (ReadOnlySpan<byte>)summary.TranscodedText : utf8.Span, decls);
+            for (int di = 0; di < decls.Count; di++)
             {
+                var d = decls[di];
                 // GENERATED_BODY-injected members (StaticClass, Super…) are for member completion, not search.
                 if (d.IsImplicit || string.IsNullOrEmpty(d.Name)) continue;
                 symbols.Add(new SymbolInfo
@@ -68,6 +72,7 @@ namespace UEToVS.Engine.Indexing
                     IsDefinition = d.IsDefinition,
                     IsConditional = d.IsConditional,
                     Bases = d.Bases != null && d.Bases.Length > 0 ? d.Bases : null,
+                    Deprecation = deprecations?[di],
                 });
             }
 

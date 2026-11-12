@@ -307,6 +307,16 @@ namespace UEToVS.Engine.Rpc
 
         public Task<LogSitesResponse> FindLogSitesAsync(LogSitesRequest request, CancellationToken ct) =>
             InvokeAsync("rpc.findLogSites", c => _host.UeCode.FindLogSitesAsync(request, c), ct, ("category", request?.Category), ("includeEngine", request?.IncludeEngine));
+        // ---- v0.4.5 heavy features: the work runs on the services' own BelowNormal threads; these calls only start / poll / page
+
+        public Task<ProjectInspectionResponse> ProjectInspectionAsync(ProjectInspectionRequest request, CancellationToken ct) =>
+            InvokeAsync("rpc.projectInspection", c => request?.Action == HeavyJobAction.Results
+                    ? _host.Scheduler.RunAsync(WorkPriority.Visible, "rpc.projectInspection", t => _host.Inspection.Handle(request, t), c)
+                    : Task.FromResult(_host.Inspection.Handle(request, c)),
+                ct, ("action", request?.Action.ToString()), ("plugins", request?.IncludePlugins), ("rule", request?.Rule), ("offset", request?.Offset));
+
+        public Task<DeprecationScanResponse> DeprecationScanAsync(DeprecationScanRequest request, CancellationToken ct) =>
+            InvokeAsync("rpc.deprecationScan", c => Task.FromResult(_host.Upgrade.Handle(request)), ct, ("action", request?.Action.ToString()), ("plugins", request?.IncludePlugins));
 
         private static LocalRpcException Error(int code, string message) => new LocalRpcException(message) { ErrorCode = code };
 

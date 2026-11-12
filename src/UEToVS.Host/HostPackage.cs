@@ -536,7 +536,10 @@ namespace UEToVS.Host
             if (old.ShareEngineIndex != now.ShareEngineIndex || !string.Equals(old.EngineIndexPath, now.EngineIndexPath, StringComparison.OrdinalIgnoreCase) ||
                 old.CppIndexThreads != now.CppIndexThreads || old.BlueprintIndexThreads != now.BlueprintIndexThreads ||
                 old.IndexDuringBuild != now.IndexDuringBuild || old.IndexEngineSource != now.IndexEngineSource ||
-                !string.Equals(old.LuaScriptPaths ?? "", now.LuaScriptPaths ?? "", StringComparison.OrdinalIgnoreCase))
+                !string.Equals(old.LuaScriptPaths ?? "", now.LuaScriptPaths ?? "", StringComparison.OrdinalIgnoreCase) ||
+                // ---- v0.4.5 heavy features: switches (off cancels a running job in the engine) and the template cache
+                old.ProjectInspectionEnabled != now.ProjectInspectionEnabled || old.UpgradeAssistantEnabled != now.UpgradeAssistantEnabled ||
+                old.TemplateInstantiationEnabled != now.TemplateInstantiationEnabled || old.TemplateCacheCapacity != now.TemplateCacheCapacity)
                 PushIndexingSettings(_engine, "settingsChanged");
             if (old.PerformanceSampleSeconds != now.PerformanceSampleSeconds)
                 Performance.Interval = TimeSpan.FromSeconds(Math.Max(1, now.PerformanceSampleSeconds));
