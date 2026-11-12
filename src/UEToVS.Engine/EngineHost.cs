@@ -50,7 +50,10 @@ namespace UEToVS.Engine
             Navigation = new Navigation.NavigationService(Index.Backend, Index.Files, () => Index.Phase == IndexPhase.Ready);
             IntelliSense = new IntelliSense.IntelliSenseService(Index.Backend, Index.Files, () => Index.Phase == IndexPhase.Ready, Navigation.Documents,
                 assets: Index.Assets);
-            Refactoring = new Refactoring.RefactoringService(Index.Backend, Index.Files, Navigation.Documents, () => Index.Phase == IndexPhase.Ready);
+            Refactoring = new Refactoring.RefactoringService(Index.Backend, Index.Files, Navigation.Documents, () => Index.Phase == IndexPhase.Ready)
+            {
+                MemberTables = IntelliSense.MemberTables, // v0.4.5: Introduce Variable types expressions with the IntelliSense member tables
+            };
             Changes = new FileChangeTracker(batch => Index.ApplyChangesAsync(batch, _shutdown.Token));
             Watchdog = new Watchdog { Context = () => QueueContext() };
             Performance = new PerformanceMonitor();

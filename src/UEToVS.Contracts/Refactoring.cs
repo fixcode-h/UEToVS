@@ -75,6 +75,39 @@ namespace UEToVS.Contracts
 
         /// <summary>Also decide whether the type at the caret is already included (bounded walk over the index's include lists).</summary>
         public bool CheckIncludes { get; set; }
+
+        // ---- v0.4.5 refactoring batch 2 (Change Signature / Introduce Variable / Extract Method)
+
+        /// <summary>Editor selection (0-based); -1 when there is none. Introduce Variable types the expression ending at the selection end.</summary>
+        public int SelectionStartLine { get; set; } = -1;
+
+        public int SelectionStartColumn { get; set; } = -1;
+        public int SelectionEndLine { get; set; } = -1;
+        public int SelectionEndColumn { get; set; } = -1;
+
+        /// <summary>Also return <see cref="RefactoringContextResponse.EnclosingFunction"/> and its <see cref="RefactoringContextResponse.Locals"/>.</summary>
+        public bool IncludeLocals { get; set; }
+
+        /// <summary>Also return the override chain of <see cref="RefactoringContextResponse.Function"/> (bases and derived types).</summary>
+        public bool IncludeSignatureFamily { get; set; }
+    }
+
+    /// <summary>A local variable or parameter of a function (v0.4.5, Extract Method). Positions are 0-based (UTF-16 columns).</summary>
+    public sealed class LocalSymbol
+    {
+        public string Name { get; set; }
+
+        /// <summary>Type as written (<c>auto</c> stays <c>auto</c> unless a Cast&lt;T&gt;-style initializer tells the type).</summary>
+        public string Type { get; set; }
+
+        public int Line { get; set; }
+        public int Column { get; set; }
+        public bool IsParameter { get; set; }
+
+        /// <summary>Where the variable goes out of scope (the closing brace of its block).</summary>
+        public int ScopeEndLine { get; set; } = -1;
+
+        public int ScopeEndColumn { get; set; } = -1;
     }
 
     public enum IncludeState : byte
@@ -148,6 +181,23 @@ namespace UEToVS.Contracts
 
         public bool IndexReady { get; set; }
         public double ElapsedMs { get; set; }
+
+        // ---- v0.4.5 refactoring batch 2
+
+        /// <summary>Type of the expression ending at the selection end (best effort, as written), or null.</summary>
+        public string ExpressionType { get; set; }
+
+        /// <summary>The function whose body contains the caret (with RefactoringContextRequest.IncludeLocals); Location = its name, EndLine = closing brace.</summary>
+        public FunctionSignature EnclosingFunction { get; set; }
+
+        /// <summary>Locals and parameters of <see cref="EnclosingFunction"/>, in source order.</summary>
+        public List<LocalSymbol> Locals { get; set; } = new List<LocalSymbol>();
+
+        /// <summary>For <see cref="Function"/> (with IncludeSignatureFamily): declarations of the same name / arity in base types, nearest first.</summary>
+        public List<SymbolInfo> BaseDeclarations { get; set; } = new List<SymbolInfo>();
+
+        /// <summary>For <see cref="Function"/> (with IncludeSignatureFamily): overrides in derived types (Name and Name_Implementation).</summary>
+        public List<SymbolInfo> Overrides { get; set; } = new List<SymbolInfo>();
     }
 
     public sealed class OverridableMethodsRequest

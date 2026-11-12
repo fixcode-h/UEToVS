@@ -161,6 +161,87 @@ void AMyActor::Extra(int A)
 
         // ------------------------------------------------------------------ fixture
 
+        // ---- v0.4.5 refactoring batch 2: expression type, locals, override chain
+
+        private const string LocalsCpp = @"#include ""MyActor.h""
+
+void AMyActor::Local()
+{
+	const int32 Count = 3;
+	FHitResult Copy = Hit;
+	for (int32 I = 0; I < Count; ++I)
+	{
+		float Scale = I * 2.f;
+	}
+	BeginPlay();
+}
+";
+
+        [Fact]
+        public void Context_IncludeLocals_ReturnsEnclosingFunctionAndLocals()
+        {
+            using var p = new Project(("Actor.h", BaseH), ("Character.h", CharH), ("MyActor.h", MyH), ("MyActor.cpp", LocalsCpp));
+            var (l, c) = p.Find("MyActor.cpp", "BeginPlay();");
+            var r = p.Service.GetContext(new RefactoringContextRequest { Caret = p.Caret("MyActor.cpp", l, c), IncludeLocals = true }, CancellationToken.None);
+            Assert.NotNull(r.EnclosingFunction);
+            Assert.Equal("Local", r.EnclosingFunction.Name);
+            Assert.Equal("AMyActor", r.EnclosingFunction.Container);
+            Assert.True(r.EnclosingFunction.EndLine > l);
+            var count = Assert.Single(r.Locals, x => x.Name == "Count");
+            Assert.Equal("const int32", count.Type);
+            Assert.Equal(4, count.Line);
+            Assert.False(count.IsParameter);
+            var scale = Assert.Single(r.Locals, x => x.Name == "Scale");
+            Assert.Equal("float", scale.Type);
+            Assert.True(scale.ScopeEndLine < l, "Scale goes out of scope at the loop's closing brace");
+            // without the flag nothing is computed
+            r = p.Service.GetContext(new RefactoringContextRequest { Caret = p.Caret("MyActor.cpp", l, c) }, CancellationToken.None);
+            Assert.Null(r.EnclosingFunction);
+            Assert.Empty(r.Locals);
+        }
+
+        [Fact]
+        public void Context_Selection_TypesTheExpressionEndingThere()
+        {
+            using var p = new Project(("Actor.h", BaseH), ("Character.h", CharH), ("MyActor.h", MyH), ("MyActor.cpp", LocalsCpp),
+                ("HitResult.h", "#pragma once\nstruct FHitResult { int X; };\n"));
+            var (l, c) = p.Find("MyActor.cpp", "Hit;");
+            var r = p.Service.GetContext(new RefactoringContextRequest
+            {
+                Caret = p.Caret("MyActor.cpp", l, c), SelectionStartLine = l, SelectionStartColumn = c, SelectionEndLine = l, SelectionEndColumn = c + 3,
+            }, CancellationToken.None);
+            Assert.Equal("FHitResult", r.ExpressionType);
+            // a selection ending inside a token is not typed
+            r = p.Service.GetContext(new RefactoringContextRequest
+            {
+                Caret = p.Caret("MyActor.cpp", l, c), SelectionStartLine = l, SelectionStartColumn = c, SelectionEndLine = l, SelectionEndColumn = c + 2,
+            }, CancellationToken.None);
+            Assert.Null(r.ExpressionType);
+        }
+
+        [Fact]
+        public void Context_SignatureFamily_ListsBaseDeclarationsAndOverrides()
+        {
+            const string Derived = @"#pragma once
+#include ""MyActor.h""
+class AMyChild : public AMyActor
+{
+public:
+	virtual void BeginPlay() override;
+	void ServerFire_Implementation(const FVector& Dir, int32 Count);
+};
+";
+            using var p = new Project(("Actor.h", BaseH), ("Character.h", CharH), ("MyActor.h", MyH), ("MyActor.cpp", MyCpp), ("MyChild.h", Derived));
+            var (l, c) = p.Find("MyActor.h", "BeginPlay");
+            var r = p.Service.GetContext(new RefactoringContextRequest { Caret = p.Caret("MyActor.h", l, c + 1), IncludeSignatureFamily = true }, CancellationToken.None);
+            Assert.Contains(r.BaseDeclarations, s => s.Container == "AActor" && s.Name == "BeginPlay");
+            Assert.Contains(r.Overrides, s => s.Container == "AMyChild" && s.Name == "BeginPlay");
+            (l, c) = p.Find("MyActor.h", "ServerFire");
+            r = p.Service.GetContext(new RefactoringContextRequest { Caret = p.Caret("MyActor.h", l, c + 1), IncludeSignatureFamily = true }, CancellationToken.None);
+            Assert.Empty(r.BaseDeclarations);
+            Assert.Contains(r.Overrides, s => s.Container == "AMyChild" && s.Name == "ServerFire_Implementation");
+        }
+
         private sealed class Project : IDisposable
         {
             private readonly string _root = Path.Combine(Path.GetTempPath(), "uetovs-refactor", Guid.NewGuid().ToString("N"));
