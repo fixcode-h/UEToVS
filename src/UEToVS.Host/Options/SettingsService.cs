@@ -133,6 +133,7 @@ namespace UEToVS.Host.Options
                 ["referenceHighlightReadColor"] = s.ReferenceHighlightReadColor ?? "",
                 ["referenceHighlightWriteColor"] = s.ReferenceHighlightWriteColor ?? "",
                 ["navigationBar"] = s.NavigationBar,
+                ["syncSolutionExplorer"] = s.SyncSolutionExplorer,
                 ["doubleShiftEnabled"] = s.DoubleShiftEnabled,
                 ["doubleShiftIntervalMs"] = s.DoubleShiftIntervalMs,
                 ["doubleShiftLeftOnly"] = s.DoubleShiftLeftOnly,

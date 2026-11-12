@@ -203,6 +203,12 @@ namespace UEToVS.Host.Logic.Settings
                 "#RRGGBB 或 #AARRGGBB；留空 = 跟随主题。", "#RRGGBB or #AARRGGBB; empty = theme default.", "", gNav, gNavEn));
             list.Add(D(Navigation, "nav.navigationBar", SettingKind.Bool, "显示导航栏", "Show the navigation bar",
                 "C++ 编辑器顶部的 当前类型 / 当前函数 导航栏。", "Current type / current function bar at the top of C++ editors.", "true", gNav, gNavEn));
+            var sync = D(Navigation, "nav.syncSolutionExplorer", SettingKind.Bool, "在解决方案资源管理器中定位 C++ 文件", "Reveal C++ files in Solution Explorer",
+                "打开或切换到 C++ 文件时，在解决方案资源管理器中展开并选中它（类似 Rider 的 Autoscroll from Source；不抢焦点）。",
+                "Opening or switching to a C++ file expands and selects it in Solution Explorer (like Rider's Autoscroll from Source; focus stays in the editor).",
+                "true", gNav, gNavEn);
+            sync.Keywords = "track active item 跟踪活动项 同步 sync autoscroll from source 定位 locate reveal select opened file";
+            list.Add(sync);
             const string gHist = "导航历史", gHistEn = "Navigation history";
             list.Add(D(Navigation, "nav.mouseButtons", SettingKind.Bool, "鼠标侧键后退 / 前进", "Mouse side buttons go back / forward",
                 "鼠标 XButton1 / XButton2 在 UEToVS 导航历史中后退 / 前进。", "Mouse XButton1 / XButton2 move back / forward through UEToVS's history.", "true", gHist, gHistEn));
@@ -365,6 +371,7 @@ namespace UEToVS.Host.Logic.Settings
                     ["nav.highlightReadColor"] = s.ReferenceHighlightReadColor ?? "",
                     ["nav.highlightWriteColor"] = s.ReferenceHighlightWriteColor ?? "",
                     ["nav.navigationBar"] = B(s.NavigationBar),
+                    ["nav.syncSolutionExplorer"] = B(s.SyncSolutionExplorer),
                     ["nav.mouseButtons"] = B(s.MouseButtonsNavigate),
                     ["nav.lineThreshold"] = I(s.NavigationLineThreshold),
                     ["nav.historyCapacity"] = I(s.NavigationHistoryCapacity),
@@ -442,6 +449,7 @@ namespace UEToVS.Host.Logic.Settings
                         case "nav.highlightReadColor": s.ReferenceHighlightReadColor = v; break;
                         case "nav.highlightWriteColor": s.ReferenceHighlightWriteColor = v; break;
                         case "nav.navigationBar": s.NavigationBar = PB(v); break;
+                        case "nav.syncSolutionExplorer": s.SyncSolutionExplorer = PB(v); break;
                         case "nav.mouseButtons": s.MouseButtonsNavigate = PB(v); break;
                         case "nav.lineThreshold": s.NavigationLineThreshold = PI(v, 15); break;
                         case "nav.historyCapacity": s.NavigationHistoryCapacity = PI(v, 100); break;

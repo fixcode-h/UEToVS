@@ -94,6 +94,11 @@ namespace UEToVS.Host.Logic.Settings
 
         /// <summary>Navigation bar (current type / current function) at the top of C++ editors.</summary>
         public bool NavigationBar { get; set; } = true;
+
+        /// <summary>
+        /// 打开 / 切换到 C++ 文件时在解决方案资源管理器中展开并选中它（类似 Rider 的 Autoscroll from Source，只对 C++ 文件，不抢焦点）。
+        /// </summary>
+        public bool SyncSolutionExplorer { get; set; } = true;
         // ---- MCP（给 AI Agent 用） ----
 
         /// <summary>

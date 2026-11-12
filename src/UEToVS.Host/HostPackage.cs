@@ -69,6 +69,7 @@ namespace UEToVS.Host
         private DiagnosticsReporter _reporter;
         private CommandRouter _commands;
         private BuildMonitor _build;
+        private SolutionExplorerTracker _solutionExplorer;
         private SettingsWindowService _settingsWindow;
         private PerformanceWindow _performanceWindow;
         private UnrealSolutionInfo _unreal = UnrealSolutionInfo.NotUnreal;
@@ -165,6 +166,10 @@ namespace UEToVS.Host
                     if (engine != null) _ = Safe.RunInBackgroundAsync(L, "engine.build", () => engine.SetBuildInProgressAsync(building), ("building", building));
                 });
                 await _build.AdviseAsync(this);
+
+                // 5b. Reveal the active C++ file in Solution Explorer (nav.syncSolutionExplorer).
+                _solutionExplorer = new SolutionExplorerTracker();
+                await _solutionExplorer.AdviseAsync(this);
 
                 // 6. Solution lifecycle.
                 SolutionEvents.OnAfterOpenSolution += (sender, e) => Safe.RunAsync(L, "solution.opened", OnSolutionOpenedAsync);
@@ -594,6 +599,7 @@ namespace UEToVS.Host
                     _engine?.Dispose();
                     _engine = null;
                     _build?.Dispose();
+                    _solutionExplorer?.Dispose();
                     M1Feature.Dispose();
                     Performance?.Dispose();
                     _reporter?.Dispose();
