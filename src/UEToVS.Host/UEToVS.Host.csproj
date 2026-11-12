@@ -99,6 +99,31 @@
     </ItemGroup>
   </Target>
 
+  <!--
+    MCP server for AI agents: <ext>\Engine\Mcp\UEToVS.Mcp.exe (framework-dependent, .NET 8). Its own folder: it uses the
+    ModelContextProtocol SDK whose dependency versions (System.IO.Pipelines, Microsoft.Extensions.*) must not overwrite
+    the engine's. Registered for agents through .vs\mcp.json / .mcp.json (Mcp\McpRegistration.cs, docs/design/MCP.md).
+    Skip with /p:SkipMcpPublish=true.
+  -->
+  <PropertyGroup>
+    <McpProject>$(MSBuildThisFileDirectory)..\UEToVS.Mcp\UEToVS.Mcp.csproj</McpProject>
+  </PropertyGroup>
+  <Target Name="PublishMcp" BeforeTargets="GetVsixSourceItems;PrepareForBuild"
+          Condition="'$(IsWindows)' == 'true' And '$(SkipMcpPublish)' != 'true' And Exists('$(McpProject)')">
+    <MSBuild Projects="$(McpProject)" Targets="Restore" Properties="RuntimeIdentifier=$(EngineRuntimeIdentifier)" />
+    <MSBuild Projects="$(McpProject)" Targets="Publish"
+             Properties="Configuration=$(EngineConfiguration);RuntimeIdentifier=$(EngineRuntimeIdentifier);SelfContained=false;PublishDir=$(MSBuildProjectDirectory)\obj\McpPublish\" />
+    <ItemGroup>
+      <McpFiles Include="$(MSBuildProjectDirectory)\obj\McpPublish\**\*" />
+      <Content Include="@(McpFiles)">
+        <Link>Engine\Mcp\%(RecursiveDir)%(Filename)%(Extension)</Link>
+        <IncludeInVSIX>true</IncludeInVSIX>
+        <VSIXSubPath>Engine\Mcp\%(RecursiveDir)</VSIXSubPath>
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </Content>
+    </ItemGroup>
+  </Target>
+
   <Target Name="WarnMissingEngine" BeforeTargets="PrepareForBuild"
           Condition="'$(IsWindows)' == 'true' And !Exists('$(EngineProject)')">
     <Message Importance="high" Text="UEToVS.Host: src\UEToVS.Engine not found; the VSIX is built without Engine\ (host degrades gracefully)." />

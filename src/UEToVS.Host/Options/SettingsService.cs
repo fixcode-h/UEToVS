@@ -99,6 +99,7 @@ namespace UEToVS.Host.Options
                 ["referenceHighlightReadColor"] = s.ReferenceHighlightReadColor ?? "",
                 ["referenceHighlightWriteColor"] = s.ReferenceHighlightWriteColor ?? "",
                 ["navigationBar"] = s.NavigationBar,
+                ["enableMcpServer"] = s.EnableMcpServer,
             };
             return Sanitizer.MaskSecrets(d);
         }

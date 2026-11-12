@@ -1047,3 +1047,14 @@ struct SymbolRecord        // 32 bytes
 - Rider 蓝图支持：<https://www.jetbrains.com/help/rider/2026.2/Unreal_Engine__Blueprints.html>
 
 > 说明：VA 的功能列表以官方发布记录为准；部分 UE 细节（例如 VA 是否提供反射说明符补全）在官方页面中没有找到明确记录，本文没有把它们算作 VA 已有能力。Rider 交互部分基于其公开文档与产品行为整理。
+
+## 15. MCP 服务（给 AI Agent 用）
+
+详细设计、调研来源和基准数据见 [MCP.md](MCP.md)。摘要：
+
+- **为什么做**：Agent（VS Copilot Agent 模式、Claude Code、Cursor、VS Code）找代码默认靠 grep 和读整个文件，在 UE 工程里又慢又不准。UEToVS 已经有符号索引和资产列表，用 MCP 把它们开放给 Agent。
+- **怎么接入 VS**：VS 17.14+ / 2026 没有公开的“扩展注册 MCP 服务器”API，只读配置文件（`%USERPROFILE%\.mcp.json`、`<sln>\.vs\mcp.json`、`<sln>\.mcp.json`、`.vscode\mcp.json`、`.cursor\mcp.json`）。所以扩展在打开 UE 解决方案时自动维护 `<sln>\.vs\mcp.json` 的 `uetovs` 条目（设置“启用 MCP 服务”，默认开），另提供命令“写入 .mcp.json 到解决方案目录”生成可共享、其他 Agent 也能读的配置。写入都是合并，不覆盖其他服务器。
+- **进程结构**：`UEToVS.Mcp.exe`（stdio，.NET 8，官方 C# SDK）打包在 VSIX 的 `Engine\Mcp\`。优先通过 `.vs\UEToVS\engine.json` 连正在运行的 Engine（同一套 RPC 契约，不触发重建索引），没有 Engine 时只读映射磁盘上的索引段。Engine 侧的改动只有写/删发现文件。
+- **工具**：`search_symbols`、`search_files`、`search_assets`、`get_file_outline`、`go_to_definition`、`find_references`、`get_type_hierarchy`、`get_members`、`index_status`，全部只读、分页、参数严格校验；另有 2 个资源和 2 个提示。每次调用记录到 `.vs\UEToVS\Logs\mcp-*.log`（`mcp.tool.*`）。
+- **效果**：8,000 个源文件的合成工程上，常见问题（找定义、找调用者、找子类、找 UFUNCTION）通过 stdio 往返 1–3 ms，rg 18–20 ms；工程越大差距越大，且结果是结构化的，Agent 少读文件、少消耗 token。
+- **限制**：Engine M2 导航 RPC 完成前，定义/引用/层次/成员用索引按名字回退；资产类型按命名前缀推断；只提供 stdio。

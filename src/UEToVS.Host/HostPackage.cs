@@ -282,6 +282,7 @@ namespace UEToVS.Host
 
             await _intelliSense.OnUnrealSolutionOpenedAsync();
             await StartEngineAsync();
+            _ = Safe.RunInBackgroundAsync(L, "mcp.register", () => Mcp.McpRegistration.SyncAsync(dir, _settings.Effective)); // .vs\mcp.json for AI agents
         }
 
         private void OnSolutionClosing()
@@ -470,6 +471,8 @@ namespace UEToVS.Host
                 if (_unreal.IsUnreal) await StartEngineAsync();
             }
             await _intelliSense.OnSettingsChangedAsync(old, now, _unreal.IsUnreal);
+            if (old.EnableMcpServer != now.EnableMcpServer && _unreal.IsUnreal)
+                await Mcp.McpRegistration.SyncAsync(_solutionDir, now);
         }
 
         // ================================================================== actions
