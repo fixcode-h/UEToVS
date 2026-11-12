@@ -109,6 +109,8 @@ namespace UEToVS.UI.Theming
         public static readonly ComponentResourceKey FontSizeSmall = Key(TokenNames.FontSizeSmall);
         public static readonly ComponentResourceKey FontSizeCaption = Key(TokenNames.FontSizeCaption);
         public static readonly ComponentResourceKey FontSizeTitle = Key(TokenNames.FontSizeTitle);
+        public static readonly ComponentResourceKey FontSizeSubtitle = Key(TokenNames.FontSizeSubtitle);
+        public static readonly ComponentResourceKey FontSizeDisplay = Key(TokenNames.FontSizeDisplay);
         public static readonly ComponentResourceKey FontSizeInput = Key(TokenNames.FontSizeInput);
         public static readonly ComponentResourceKey FontSizeCode = Key(TokenNames.FontSizeCode);
         public static readonly ComponentResourceKey RowHeight = Key(TokenNames.RowHeight);

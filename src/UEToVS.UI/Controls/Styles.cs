@@ -24,7 +24,7 @@ namespace UEToVS.UI.Controls
     {
         private static Style _ghostToggle, _secondaryToggle;
         private static Style _segment;
-        private static Style _primary, _secondary, _ghost, _toggle, _check, _chip, _input, _tooltip, _scroll, _thumb;
+        private static Style _primary, _secondary, _ghost, _toggle, _check, _chip, _input, _bareInput, _tooltip, _scroll, _thumb;
 
         public static Style Button(ButtonKind kind)
         {
@@ -319,7 +319,8 @@ namespace UEToVS.UI.Controls
             var s = new Style(typeof(ToggleButton));
             s.Setters.Add(new Setter(Control.TemplateProperty, BorderTemplate(typeof(ToggleButton), Tokens.CornerRadiusInner)));
             s.Setters.Add(new Setter(Control.BorderThicknessProperty, new Thickness(0)));
-            s.Setters.Add(new Setter(Control.PaddingProperty, new Thickness(12, 2, 12, 2)));
+            s.Setters.Add(new Setter(Control.PaddingProperty, new Thickness(12, 0, 12, 0)));
+            s.Setters.Add(new Setter(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Stretch));
             s.Setters.Add(new Setter(Control.VerticalContentAlignmentProperty, VerticalAlignment.Center));
             s.Setters.Add(new Setter(Control.HorizontalContentAlignmentProperty, HorizontalAlignment.Center));
             s.Setters.Add(new Setter(FrameworkElement.FocusVisualStyleProperty, null));
@@ -416,6 +417,53 @@ namespace UEToVS.UI.Controls
             var dis = new Trigger { Property = UIElement.IsEnabledProperty, Value = false };
             dis.Setters.Add(new Setter(UIElement.OpacityProperty, 0.5));
             s.Triggers.Add(dis);
+            return s;
+        }
+
+        /// <summary>
+        /// Chrome-less text input (placeholder + text only; no border, fill, focus underline or min height) for text
+        /// boxes hosted inside another control's chrome, e.g. the boxed <see cref="SearchInput"/>: the host draws the
+        /// border and the focus underline, so nothing overlaps the caret or the text.
+        /// </summary>
+        public static Style BareTextInput => _bareInput ?? (_bareInput = BuildBareInput());
+
+        private static Style BuildBareInput()
+        {
+            var grid = new FrameworkElementFactory(typeof(Grid));
+            grid.SetValue(FrameworkElement.MarginProperty, new TemplateBindingExtension(Control.PaddingProperty));
+            grid.SetValue(Panel.BackgroundProperty, Brushes.Transparent);
+            var ph = new FrameworkElementFactory(typeof(TextBlock), "Placeholder");
+            ph.SetValue(TextBlock.TextProperty, new TemplateBindingExtension(Controls.TextInput.PlaceholderProperty));
+            ph.SetValue(FrameworkElement.MarginProperty, new Thickness(2, 0, 0, 0));
+            ph.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
+            ph.SetValue(UIElement.IsHitTestVisibleProperty, false);
+            ph.SetValue(UIElement.VisibilityProperty, Visibility.Collapsed);
+            ph.SetValue(TextBlock.TextTrimmingProperty, TextTrimming.CharacterEllipsis);
+            ph.SetResourceReference(TextBlock.ForegroundProperty, Tokens.InputPlaceholder);
+            var host = new FrameworkElementFactory(typeof(System.Windows.Controls.ScrollViewer), "PART_ContentHost");
+            host.SetValue(System.Windows.Controls.ScrollViewer.HorizontalScrollBarVisibilityProperty, ScrollBarVisibility.Hidden);
+            host.SetValue(System.Windows.Controls.ScrollViewer.VerticalScrollBarVisibilityProperty, ScrollBarVisibility.Hidden);
+            host.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
+            host.SetValue(Control.FocusVisualStyleProperty, null);
+            grid.AppendChild(ph);
+            grid.AppendChild(host);
+            var t = new ControlTemplate(typeof(Controls.TextInput)) { VisualTree = grid };
+            var empty = new Trigger { Property = TextBox.TextProperty, Value = string.Empty };
+            empty.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Visible, "Placeholder"));
+            t.Triggers.Add(empty);
+
+            var s = new Style(typeof(Controls.TextInput));
+            s.Setters.Add(new Setter(Control.TemplateProperty, t));
+            s.Setters.Add(new Setter(Control.BorderThicknessProperty, new Thickness(0)));
+            s.Setters.Add(new Setter(Control.PaddingProperty, new Thickness(0)));
+            s.Setters.Add(new Setter(Control.BackgroundProperty, Brushes.Transparent));
+            s.Setters.Add(new Setter(FrameworkElement.FocusVisualStyleProperty, null));
+            s.Setters.Add(new Setter(Control.VerticalContentAlignmentProperty, VerticalAlignment.Center));
+            s.Setters.Add(new Setter(FrameworkElement.MinHeightProperty, 0.0));
+            s.Setters.Add(Ui.Dyn(Control.ForegroundProperty, Tokens.InputForeground));
+            s.Setters.Add(Ui.Dyn(TextBoxBase.CaretBrushProperty, Tokens.InputForeground));
+            s.Setters.Add(Ui.Dyn(TextBoxBase.SelectionBrushProperty, Tokens.Accent));
+            s.Setters.Add(Ui.Dyn(Control.FontSizeProperty, Tokens.FontSizeBody));
             return s;
         }
 

@@ -66,6 +66,8 @@ namespace UEToVS.Host.Settings
                     return await RebuildAsync(engine, EngineClient.ScopeEngine);
                 case HostSettingsSchema.WindowActions.RebuildBlueprintIndex:
                     return await RebuildAsync(engine, RebuildScope.Assets);
+                case HostSettingsSchema.WindowActions.RebuildAllIndexes:
+                    return await RebuildAsync(engine, RebuildScope.All);
                 case HostSettingsSchema.WindowActions.ToggleIntelliSense:
                 {
                     var svc = _package.IntelliSense;
@@ -114,12 +116,37 @@ namespace UEToVS.Host.Settings
             }
         }
 
+        public IndexStatusInput IndexStatus()
+        {
+            var s = _package.Settings.Effective;
+            int cores = Environment.ProcessorCount;
+            var engine = _package.Engine;
+            var st = engine?.LastStatus;
+            return new IndexStatusInput
+            {
+                HasEngine = engine != null,
+                EngineState = engine?.State.ToString(),
+                EngineError = engine?.LastError,
+                HasStatus = st != null,
+                Phase = st == null ? 0 : (int)st.Phase,
+                FilesParsed = st?.FilesParsed ?? 0,
+                FilesToParse = st?.FilesToParse ?? 0,
+                SymbolCount = st?.SymbolCount ?? 0,
+                AssetCount = st?.AssetCount ?? 0,
+                LastError = st?.LastError,
+                CppThreads = HostSettingsSchema.EffectiveThreads(s.CppIndexThreads, cores),
+                BlueprintThreads = HostSettingsSchema.EffectiveThreads(s.BlueprintIndexThreads, cores),
+                Cores = cores,
+            };
+        }
+
         public ISettingsCustomPage CreateCustomPage(string categoryId)
         {
             switch (categoryId)
             {
                 case HostSettingsSchema.Appearance:
                     var provider = HostIntegration.Appearance;
+                    if (provider == null) L.Warn("settings.custom.noProvider", "appearance provider slot is empty (integration.slots failed?)", ("category", categoryId));
                     return provider == null ? null : new AppearancePage(provider);
                 case HostSettingsSchema.Keymap:
                     return new KeymapPage(_package);
@@ -136,8 +163,10 @@ namespace UEToVS.Host.Settings
             public AppearancePage(IAppearancePageContentProvider provider)
             {
                 _provider = provider;
-                Element = provider.CreateContent();
+                Element = provider.CreateContent() ?? throw new InvalidOperationException("appearance provider returned no content");
                 provider.Activate();
+                // Inside the settings window the footer owns "恢复默认"; the panel's own reset button would duplicate it.
+                if (Element is UEToVS.UI.Settings.AppearanceSettingsPanel panel) panel.EmbeddedInSettingsWindow = true;
             }
 
             public UIElement Element { get; }
