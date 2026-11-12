@@ -74,6 +74,9 @@ namespace UEToVS.Engine.Indexing
             private readonly Action<T, WorkerState, CancellationToken> _process;
             private readonly string _threadName;
             private readonly CancellationTokenSource _cts;
+
+            /// <summary>Cancelled when every item is claimed (or the run is cancelled): parked workers stop waiting and exit.</summary>
+            private readonly CancellationTokenSource _exhausted;
             private readonly TaskCompletionSource<bool> _done = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             private readonly object _gate = new object();
             private int _next;
@@ -89,6 +92,7 @@ namespace UEToVS.Engine.Indexing
                 _process = process;
                 _threadName = threadName;
                 _cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                _exhausted = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token);
             }
 
             public Task Start()
@@ -129,11 +133,23 @@ namespace UEToVS.Engine.Indexing
                 {
                     while (!ct.IsCancellationRequested)
                     {
-                        long waited = _throttle.WaitForTurn(index, ct);
+                        long waited;
+                        try
+                        {
+                            waited = _throttle.WaitForTurn(index, _exhausted.Token);
+                        }
+                        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+                        {
+                            break; // all items taken by other workers while this one was parked
+                        }
                         throttled += waited;
                         SetPriority(_throttle.Priority);
                         int start = Interlocked.Add(ref _next, ClaimSize) - ClaimSize;
-                        if (start >= _items.Count) break;
+                        if (start >= _items.Count)
+                        {
+                            _exhausted.Cancel();
+                            break;
+                        }
                         int end = Math.Min(start + ClaimSize, _items.Count);
                         long t0 = Stopwatch.GetTimestamp();
                         for (int i = start; i < end; i++)
@@ -170,6 +186,7 @@ namespace UEToVS.Engine.Indexing
                 if (error != null) _done.TrySetException(error);
                 else if (_cts.IsCancellationRequested) _done.TrySetCanceled();
                 else _done.TrySetResult(true);
+                _exhausted.Dispose();
                 _cts.Dispose();
             }
 

@@ -186,8 +186,10 @@ namespace UEToVS.Engine.Index
                     var others = s1.Bases.Where(b => b.Segment.Kind != kind).ToList();
                     var views = new List<SegmentView>();
                     var seen = new HashSet<string>(StringComparer.Ordinal);
-                    foreach (var seg in segs)
+                    // later segments are newer (append order): walk backwards so the newest copy of a file stays live
+                    for (int si = segs.Count - 1; si >= 0; si--)
                     {
+                        var seg = segs[si];
                         var dead = new List<int>();
                         var segFiles = seg.Files;
                         for (int fi = 0; fi < segFiles.Length; fi++)
@@ -204,7 +206,7 @@ namespace UEToVS.Engine.Index
                             }
                             if (superseded) dead.Add(fi);
                         }
-                        views.Add(WithTombstones(new SegmentView(seg, null, 0), dead));
+                        views.Insert(0, WithTombstones(new SegmentView(seg, null, 0), dead));
                     }
                     var bases = kind == SegmentKind.Engine ? views.Concat(others) : others.Concat(views);
                     published = new Snapshot(bases.ToArray(), s1.Delta, s1.Version + 1);
