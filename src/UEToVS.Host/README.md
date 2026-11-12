@@ -11,16 +11,18 @@
 
 ## 命令（扩展 > UEToVS）
 
+v0.3.0 起顶层菜单只保留 搜索组、导航组、性能面板 和 设置…；下表中 重启引擎 / IntelliSense / 日志 / 诊断包 / 组件画廊 没有菜单位置，在设置窗口里以按钮出现，Find Action 可搜，也可以绑快捷键。快捷键统一在 设置 > 快捷键 中管理。
+
 | 命令 | Action ID | 说明 |
 | --- | --- | --- |
-| 查找操作… | `uetovs.findAction` | 命令面板（UI 组件库的 `CommandPalette`），列出当前可用的全部操作；可在 工具 > 选项 > 环境 > 键盘 中为 `UEToVS.FindAction` 绑定快捷键 |
+| 查找操作… | `uetovs.findAction` | 命令面板（UI 组件库的 `CommandPalette`），列出当前可用的全部操作；默认 Ctrl+Shift+Alt+A |
 | 重启引擎 | `uetovs.engine.restart` | 手动重启，同时重置自动重启次数 |
 | 接管 VS C++ IntelliSense / 恢复 VS 自带 C++ IntelliSense | `uetovs.intellisense.takeOver` / `uetovs.intellisense.restore` | 菜单里只有一项，按当前状态切换：还没接管（没有备份）时显示“接管”，立即执行接管（会先备份）；已接管（存在备份）时显示“恢复”，按备份逐项还原。Find Action 里两个操作都在 |
 | 打开日志文件夹 / 打开当前日志 | `uetovs.diagnostics.openLogFolder` / `openCurrentLog` | |
 | 生成诊断包 | `uetovs.diagnostics.createPackage` | zip：日志、脱敏设置、索引 manifest、环境/引擎/IntelliSense/性能快照 |
-| 性能面板 | `uetovs.diagnostics.performancePanel` | 工具窗口“UEToVS 性能”，仅可见时每秒采样 |
+| 性能面板 | `uetovs.diagnostics.performancePanel` | 浮动窗口“UEToVS 性能”（记住位置和大小），仅打开时采样，间隔见 设置 > 性能 |
 | 组件画廊 | `uetovs.ui.componentGallery` | UI 组件库的 `ComponentGallery` 窗口（开发用），父窗口为 VS 主窗口 |
-| 设置… | `uetovs.settings.open` | 打开 工具 > 选项 > UEToVS |
+| 设置… | `uetovs.settings.open` | 打开 UEToVS 设置窗口（`Settings/SettingsWindow.cs`）；工具栏最左侧的 UEToVS 图标同样打开它。工具 > 选项 > UEToVS 只剩一个跳转按钮 |
 
 ### 导航（M2，扩展 > UEToVS 与编辑器右键 > UEToVS）
 
