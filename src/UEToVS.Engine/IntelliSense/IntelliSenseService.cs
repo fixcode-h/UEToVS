@@ -56,6 +56,37 @@ namespace UEToVS.Engine.IntelliSense
 
         public double QuickInfoBudgetMs { get; set; } = 50;
 
+        // ---- v0.4.5 heavy features: generic template instantiation (switch + LRU capacity from the settings window) ----
+        private readonly TemplateInstantiator _templates = new TemplateInstantiator();
+        private volatile bool _templatesEnabled = true;
+
+        /// <summary>The (template, arguments) binding cache: hit rate in the log as <c>intellisense.templates</c>.</summary>
+        public TemplateInstanceCache TemplateCache => _templates.Cache;
+
+        public bool TemplateInstantiationEnabled => _templatesEnabled;
+
+        /// <summary>Turns generic template instantiation on / off and sets the cache capacity. Off drops the cache (no memory kept).</summary>
+        public void ConfigureTemplates(bool enabled, int cacheCapacity)
+        {
+            bool changed = enabled != _templatesEnabled || (cacheCapacity > 0 && cacheCapacity != _templates.Cache.Capacity);
+            _templatesEnabled = enabled;
+            if (cacheCapacity > 0) _templates.Cache.Capacity = cacheCapacity;
+            if (!enabled) _templates.Cache.Clear();
+            if (changed)
+                L.Info("intellisense.templates.config", null, ("enabled", enabled), ("capacity", _templates.Cache.Capacity), ("maxDepth", _templates.MaxDepth));
+        }
+
+        /// <summary>A diagnostics provider configured like the squiggle one (gameplay tags, assets, index readiness), for whole-project inspection.</summary>
+        internal DiagnosticsProvider CreateDiagnosticsProvider() => new DiagnosticsProvider
+        {
+            Strings = _completion.Strings,
+            IndexReady = _indexReady,
+            GamePackageExists = _completion.GamePackageExists,
+        };
+
+        internal ISymbolIndexBackend Backend => _backend;
+        internal FileTable Files => _files;
+
         private IsSession Session(CaretRequest caret, CancellationToken ct, out DocumentModel doc)
         {
             doc = null;
@@ -63,7 +94,7 @@ namespace UEToVS.Engine.IntelliSense
             doc = Documents.Get(caret.FilePath, caret.Text, caret.TextVersion);
             if (doc == null) return null;
             var ctx = new NavContext(_backend, _files, doc, ct);
-            return new IsSession(ctx, doc, Documents, _members, Knowledge);
+            return new IsSession(ctx, doc, Documents, _members, Knowledge) { Templates = _templatesEnabled ? _templates : null };
         }
 
         private static int Offset(DocumentModel doc, CaretRequest caret) => doc.OffsetOf(Math.Max(0, caret.Line), Math.Max(0, caret.Column));

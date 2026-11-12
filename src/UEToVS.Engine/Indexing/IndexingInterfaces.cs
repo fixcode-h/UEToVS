@@ -174,4 +174,16 @@ namespace UEToVS.Engine.Indexing
         /// <summary>Distinct files that contain an occurrence of <paramref name="name"/> (streamed, may be large).</summary>
         IEnumerable<string> FindOccurrenceFiles(string name, CancellationToken ct) => Array.Empty<string>();
     }
+
+    // ---- v0.4.5 heavy features
+    /// <summary>
+    /// Optional backend capability (the segmented index has it): deprecation markers stored at index time and project-only
+    /// occurrence lookups. Used by the upgrade assistant; a backend without it reports "no deprecation data".
+    /// </summary>
+    public interface IDeprecationIndex
+    {
+        IReadOnlyList<UEToVS.Engine.Index.DeprecatedSymbol> ListDeprecated(CancellationToken ct);
+
+        IReadOnlyList<UEToVS.Engine.Index.OccurrenceHit> FindProjectOccurrences(string name, bool includePlugins, CancellationToken ct);
+    }
 }

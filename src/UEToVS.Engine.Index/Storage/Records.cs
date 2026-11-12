@@ -10,6 +10,8 @@ namespace UEToVS.Engine.Index.Storage
         None = 0,
         IsDefinition = 1 << 0,
         IsConditional = 1 << 1,
+        /// <summary>v0.4.5: the declaration carries a deprecation marker (details in the DeprecationEntries section).</summary>
+        IsDeprecated = 1 << 2,
     }
 
     /// <summary>
@@ -42,6 +44,7 @@ namespace UEToVS.Engine.Index.Storage
         public UeFlags UeFlags => (UeFlags)Ue;
         public bool IsDefinition => (Flags & (byte)SymbolFlags.IsDefinition) != 0;
         public bool IsConditional => (Flags & (byte)SymbolFlags.IsConditional) != 0;
+        public bool IsDeprecated => (Flags & (byte)SymbolFlags.IsDeprecated) != 0;
 
         public static uint PackLineColumn(int line, int column)
         {
@@ -94,6 +97,15 @@ namespace UEToVS.Engine.Index.Storage
         public uint Symbol;
         public uint First;
         public uint Count;
+    }
+
+    /// <summary>v0.4.5: deprecation of one symbol, 12 bytes. Version and message are string-pool ids (0 = none).</summary>
+    [StructLayout(LayoutKind.Sequential, Pack = 4)]
+    internal struct DeprecationEntry
+    {
+        public uint Symbol;
+        public uint VersionId;
+        public uint MessageId;
     }
 
     internal static class Varint

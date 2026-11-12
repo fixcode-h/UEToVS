@@ -240,14 +240,17 @@ namespace UEToVS.Engine.IntelliSense
             while (left >= 0 && doc.Tokens[left].Kind == TokenKind.DocComment) left--;
             string leftType = types.TypeOf(left);
             if (leftType == null) return null;
+            leftType = types.Expand(leftType); // v0.4.5: alias templates / dependent member types (template instantiation on)
             var shape = Canonical(s, TypeShape.Parse(leftType));
 
             string listType;
             bool wrapperApi = false;
             var op = doc.Tokens[site.OperatorToken];
+            string viaArrowOperator = site.Arrow && shape.Shape == AccessShape.Value ? types.ArrowOperatorTarget(leftType) : null;
             if (site.Arrow)
             {
                 if (shape.IsPointerLike) listType = shape.Pointee();
+                else if (viaArrowOperator != null) listType = viaArrowOperator;
                 else
                 {
                     listType = leftType;

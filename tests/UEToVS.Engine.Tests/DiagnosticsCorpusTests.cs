@@ -42,7 +42,7 @@ namespace UEToVS.Engine.Tests
             }
             _out.WriteLine($"checked {total}, uncertain {uncertain}, reported {items}");
             Assert.True(total > 20);
-            Assert.Equal(9, items);
+            Assert.Equal(14, items); // v0.4.5: +5 unfinished words at GameTemplates.cpp completion markers
         }
     }
 }

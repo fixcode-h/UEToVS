@@ -16,7 +16,7 @@ namespace UEToVS.Engine.Indexing
     /// knowledge-base version, so a parser/format change automatically invalidates them. Compaction runs in the
     /// background whenever the delta grows past its threshold; <see cref="Save"/> compacts so nothing is lost on exit.
     /// </summary>
-    public sealed class SegmentedIndexBackend : ISymbolIndexBackend
+    public sealed class SegmentedIndexBackend : ISymbolIndexBackend, IDeprecationIndex
     {
         private static readonly Logger L = Log.For("Index");
         private readonly object _gate = new object();
@@ -26,7 +26,7 @@ namespace UEToVS.Engine.Indexing
 
         public string Name => "segmented";
 
-        public string FormatVersion => "2"; // 2: inheritance sections (segment format 2)
+        public string FormatVersion => "3"; // 2: inheritance sections (segment format 2); 3: deprecation markers (segment format 3, v0.4.5)
 
         private SymbolIndex Current => Volatile.Read(ref _index);
 
@@ -114,6 +114,13 @@ namespace UEToVS.Engine.Indexing
 
         public IReadOnlyList<TypeEntry> FindDerivedTypes(string simpleBaseName) =>
             Current?.FindDerived(simpleBaseName) ?? (IReadOnlyList<TypeEntry>)Array.Empty<TypeEntry>();
+
+        // ---- v0.4.5 heavy features: deprecation markers (upgrade assistant) ----
+
+        public IReadOnlyList<DeprecatedSymbol> ListDeprecated(CancellationToken ct) => Current?.ListDeprecated(ct) ?? (IReadOnlyList<DeprecatedSymbol>)Array.Empty<DeprecatedSymbol>();
+
+        public IReadOnlyList<OccurrenceHit> FindProjectOccurrences(string name, bool includePlugins, CancellationToken ct) =>
+            Current?.FindProjectOccurrences(name, includePlugins, ct) ?? (IReadOnlyList<OccurrenceHit>)Array.Empty<OccurrenceHit>();
 
         public IEnumerable<string> FindOccurrenceFiles(string name, CancellationToken ct)
         {

@@ -518,6 +518,18 @@ namespace UEToVS.Engine.Index
                 foreach (var h in s.FindOccurrences(name, ct)) yield return h;
         }
 
+        /// <summary>v0.4.5: every deprecated symbol (see <see cref="IndexSnapshot.ListDeprecated"/>).</summary>
+        public IReadOnlyList<DeprecatedSymbol> ListDeprecated(CancellationToken ct = default)
+        {
+            using (var s = AcquireSnapshot()) return s.ListDeprecated(ct);
+        }
+
+        /// <summary>v0.4.5: occurrences of a name in project files only (see <see cref="IndexSnapshot.FindProjectOccurrences"/>). Materialised.</summary>
+        public List<OccurrenceHit> FindProjectOccurrences(string name, bool includePlugins, CancellationToken ct = default)
+        {
+            using (var s = AcquireSnapshot()) return new List<OccurrenceHit>(s.FindProjectOccurrences(name, includePlugins, ct));
+        }
+
         public IEnumerable<IndexedFile> ListFiles(CancellationToken ct = default)
         {
             using (var s = AcquireSnapshot())
