@@ -54,8 +54,22 @@ namespace UEToVS.UI.Logic
         public const string ButtonSecondaryBorder = "Button.Secondary.Border";
         public const string ButtonGhostHover = "Button.Ghost.Hover";
         public const string ButtonGhostPressed = "Button.Ghost.Pressed";
+        /// <summary>Toggle switch, off: track fill at rest (transparent, Fluent outline style).</summary>
         public const string ToggleTrackOff = "Toggle.Track.Off";
+        /// <summary>Toggle switch, off + hover: faint fill.</summary>
+        public const string ToggleTrackOffHover = "Toggle.Track.OffHover";
+        /// <summary>Toggle switch, off + pressed.</summary>
+        public const string ToggleTrackOffPressed = "Toggle.Track.OffPressed";
+        /// <summary>Toggle switch, on + disabled: neutral (no accent) fill.</summary>
+        public const string ToggleTrackOnDisabled = "Toggle.Track.OnDisabled";
+        /// <summary>Toggle switch, off: track border and knob (Fluent ControlStrongStroke ≈ secondary text).</summary>
+        public const string ToggleStroke = "Toggle.Stroke";
+        /// <summary>Toggle switch, off + disabled: border and knob.</summary>
+        public const string ToggleStrokeDisabled = "Toggle.StrokeDisabled";
+        /// <summary>Toggle switch, on: knob (text-on-accent color).</summary>
         public const string ToggleThumb = "Toggle.Thumb";
+        /// <summary>Toggle switch, on + disabled: knob.</summary>
+        public const string ToggleThumbDisabled = "Toggle.ThumbDisabled";
 
         // ---- misc chrome
         public const string ScrollThumb = "ScrollBar.Thumb";

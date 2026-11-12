@@ -47,6 +47,7 @@ namespace UEToVS.UI.Theming
                     Border = Get(app, EnvironmentColors.ToolWindowBorderColorKey),
                     GrayText = Get(app, EnvironmentColors.SystemGrayTextColorKey),
                     Accent = Get(app, EnvironmentColors.SystemHighlightColorKey),
+                    SystemAccent = ReadWindowsAccent(),
                     InputBackground = Get(app, CommonControlsColors.TextBoxBackgroundColorKey),
                     InputText = Get(app, CommonControlsColors.TextBoxTextColorKey),
                     InputBorder = Get(app, CommonControlsColors.TextBoxBorderColorKey),
@@ -66,6 +67,30 @@ namespace UEToVS.UI.Theming
                 palette = null;
                 return false;
             }
+        }
+
+        /// <summary>
+        /// Windows accent color (what Windows 11 Fluent controls use): HKCU\Software\Microsoft\Windows\DWM\AccentColor,
+        /// a DWORD in 0xAABBGGRR order. Null when missing or unreadable (the VS theme accent is used then).
+        /// </summary>
+        internal static Rgba? ReadWindowsAccent()
+        {
+            try
+            {
+                using (var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\DWM"))
+                {
+                    if (key?.GetValue("AccentColor") is int abgr)
+                    {
+                        uint v = unchecked((uint)abgr);
+                        return new Rgba((byte)(v & 0xFF), (byte)((v >> 8) & 0xFF), (byte)((v >> 16) & 0xFF), 255);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                L.Debug("ui.theme.system_accent_failed", "Reading the Windows accent color failed: " + ex.GetType().Name);
+            }
+            return null;
         }
 
         private static Rgba? Get(Application app, object key)

@@ -159,7 +159,7 @@ namespace UEToVS.Host.Settings
                 var row = new StackPanel { Orientation = Orientation.Horizontal };
                 row.Children.Add(indicator);
                 row.Children.Add(text);
-                var item = new Border { Child = row, Padding = new Thickness(4, 0, 8, 0), Margin = new Thickness(0, 1, 0, 1), Cursor = Cursors.Hand, Focusable = true, FocusVisualStyle = null };
+                var item = new Border { Child = row, Padding = new Thickness(2, 0, 6, 0), Margin = new Thickness(0, 1, 0, 1), Cursor = Cursors.Hand, Focusable = true, FocusVisualStyle = null };
                 item.Bind(FrameworkElement.HeightProperty, Tokens.ControlHeight);
                 item.Bind(Border.CornerRadiusProperty, Tokens.CornerRadiusControl);
                 if (selected) item.Bind(Border.BackgroundProperty, Tokens.SelectionBackground);
@@ -169,6 +169,15 @@ namespace UEToVS.Host.Settings
                 item.MouseEnter += (s, e) => { if (!selected) item.Bind(Border.BackgroundProperty, Tokens.SurfaceHover); };
                 item.MouseLeave += (s, e) => { if (!selected) item.Background = Brushes.Transparent; };
                 item.MouseLeftButtonUp += (s, e) => Safe.Execute(L, "settings.nav", () => ShowCategory(cat.Id));
+                // Fluent focus visual: a ring only when the item was reached with the keyboard.
+                // The 2px border is always there (transparent) so focusing never shifts the text.
+                item.BorderThickness = new Thickness(2);
+                item.BorderBrush = Brushes.Transparent;
+                item.GotKeyboardFocus += (s, e) =>
+                {
+                    if (InputManager.Current.MostRecentInputDevice is KeyboardDevice) item.Bind(Border.BorderBrushProperty, Tokens.FocusStroke);
+                };
+                item.LostKeyboardFocus += (s, e) => item.BorderBrush = Brushes.Transparent;
                 item.KeyDown += (s, e) => Safe.Execute(L, "settings.nav.key", () =>
                 {
                     if (e.Key == Key.Enter || e.Key == Key.Space) { ShowCategory(cat.Id); e.Handled = true; }
@@ -248,30 +257,15 @@ namespace UEToVS.Host.Settings
 
         private UIElement BuildRow(SettingDescriptor d)
         {
-            var grid = new Grid { Margin = new Thickness(0, 2, 0, 2) };
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            var labels = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 6, 16, 6) };
+            var labels = new StackPanel();
             labels.Children.Add(new UiText(d.Title(English), TextVariant.Body) { TextWrapping = TextWrapping.Wrap, TextTrimming = TextTrimming.None });
             var desc = d.Description(English);
             if (!string.IsNullOrEmpty(desc))
                 labels.Children.Add(new UiText(desc, TextVariant.Secondary) { TextWrapping = TextWrapping.Wrap, TextTrimming = TextTrimming.None, Margin = new Thickness(0, 2, 0, 0) });
             if (d.RequiresRestart)
-                labels.Children.Add(new UiText(SettingsText.RestartHint, TextVariant.Caption));
-            grid.Children.Add(labels);
-
-            var editor = BuildEditor(d, labels);
-            if (editor != null)
-            {
-                if (editor is FrameworkElement fe) fe.VerticalAlignment = VerticalAlignment.Center;
-                Grid.SetColumn(editor, 1);
-                grid.Children.Add(editor);
-            }
-            var card = new Border { Child = grid, Padding = new Thickness(14, 4, 14, 4), Margin = new Thickness(0, 0, 0, 4), BorderThickness = new Thickness(1) };
-            card.Bind(Border.BackgroundProperty, Tokens.SurfaceRaised);
-            card.Bind(Border.BorderBrushProperty, Tokens.BorderSubtle);
-            card.Bind(Border.CornerRadiusProperty, Tokens.CornerRadiusControl);
-            return card;
+                labels.Children.Add(new UiText(SettingsText.RestartHint, TextVariant.Caption) { Margin = new Thickness(0, 2, 0, 0) });
+            // VS 2026 settings card: 8px corners, editor right-aligned and vertically centred at its natural size.
+            return new SettingsCard(labels, BuildEditor(d, labels));
         }
 
         private string Value(SettingDescriptor d) => _working.TryGetValue(d.Key, out var v) && v != null ? v : d.Default;

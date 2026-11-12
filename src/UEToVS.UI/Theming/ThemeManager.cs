@@ -171,7 +171,8 @@ namespace UEToVS.UI.Theming
                 {
                     try
                     {
-                        if (e.PropertyName == nameof(SystemParameters.HighContrast)) OnHostThemeChanged();
+                        // WindowGlassColor changes with the Windows accent color (Fluent controls follow it).
+                        if (e.PropertyName == nameof(SystemParameters.HighContrast) || e.PropertyName == nameof(SystemParameters.WindowGlassColor)) OnHostThemeChanged();
                     }
                     catch (Exception ex)
                     {
@@ -231,6 +232,7 @@ namespace UEToVS.UI.Theming
                     tokens = TokenDerivation.Derive(ThemePalette.FallbackDark(), new AppearanceSettings());
                 }
                 Current = tokens;
+                LogAccent(palette, tokens);
                 var values = BuildValues(tokens, uiFont);
                 Push(values);
             }
@@ -242,6 +244,25 @@ namespace UEToVS.UI.Theming
             {
                 L.Error("ui.theme.changed_handler_failed", "A ThemeManager.Changed handler threw", ex);
             }
+        }
+
+        private string _lastAccentLog;
+
+        /// <summary>Logs where the accent came from (once per distinct result) so a wrong accent color can be traced.</summary>
+        private void LogAccent(ThemePalette palette, TokenSet t)
+        {
+            string accent = t.Color(TokenNames.Accent).ToHex();
+            string key = palette.Name + "|" + accent + "|" + t.AccentSource;
+            if (key == _lastAccentLog) return;
+            _lastAccentLog = key;
+            L.Info("ui.theme.accent", null,
+                ("palette", palette.Name),
+                ("source", t.AccentSource.ToString()),
+                ("accent", accent),
+                ("vsAccent", palette.Accent?.ToHex()),
+                ("systemAccent", palette.SystemAccent?.ToHex()),
+                ("dark", t.IsDark),
+                ("highContrast", t.IsHighContrast));
         }
 
         private Dictionary<object, object> BuildValues(TokenSet t, FontFamily uiFont)

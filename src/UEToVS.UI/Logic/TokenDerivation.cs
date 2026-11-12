@@ -9,6 +9,8 @@ namespace UEToVS.UI.Logic
         public bool IsDark { get; internal set; }
         public bool IsHighContrast { get; internal set; }
         public string PaletteName { get; internal set; }
+        /// <summary>Where <see cref="TokenNames.Accent"/> came from (logged by the theme manager).</summary>
+        public AccentSource AccentSource { get; internal set; }
         public AppearanceSettings Settings { get; internal set; }
 
         public Dictionary<string, Rgba> Colors { get; } = new Dictionary<string, Rgba>(StringComparer.Ordinal);
@@ -95,10 +97,8 @@ namespace UEToVS.UI.Logic
             var popupFg = fg.EnsureContrast(popup, 7);
 
             // ---- accent
-            Rgba accent;
-            if (settings.AccentMode == AccentMode.Custom && Rgba.TryParse(settings.CustomAccent, out var custom)) accent = custom.Opaque();
-            else accent = (palette.Accent ?? Rgba.FromHex(0x0078D4)).Opaque();
-            if (hc) accent = (palette.Accent ?? fg).Opaque();
+            var accent = AccentResolver.Resolve(palette, settings, out var accentSource);
+            t.AccentSource = accentSource;
 
             // ---- surfaces
             C[TokenNames.SurfaceBase] = bg;
@@ -127,8 +127,10 @@ namespace UEToVS.UI.Logic
             // ---- accent family
             var accentReadable = accent.EnsureContrast(popup, 3);
             C[TokenNames.Accent] = accent;
-            C[TokenNames.AccentHover] = hc ? accent : accent.WithLightness(Rgba.Clamp01(accent.Lightness + (dark ? 0.07 : -0.06)));
-            C[TokenNames.AccentPressed] = hc ? accent : accent.WithLightness(Rgba.Clamp01(accent.Lightness + (dark ? -0.06 : -0.12)));
+            // Fluent: AccentFillColorSecondary/Tertiary = the accent at 90% / 80% opacity over the surface, i.e. a bit
+            // darker on dark themes and a bit lighter on light themes.
+            C[TokenNames.AccentHover] = hc ? accent : AccentHoverOf(accent, popup);
+            C[TokenNames.AccentPressed] = hc ? accent : AccentPressedOf(accent, popup);
             C[TokenNames.AccentSubtle] = hc ? popup : Rgba.Mix(popup, accent, dark ? 0.22 : 0.12);
             C[TokenNames.TextOnAccent] = Rgba.Contrast(Rgba.White, accent) >= 3.0 ? Rgba.White : Rgba.FromHex(0x111111);
 
@@ -178,8 +180,16 @@ namespace UEToVS.UI.Logic
             C[TokenNames.ButtonSecondaryBorder] = hc ? (palette.Border ?? fg) : Rgba.Mix(popup, popupFg, dark ? 0.18 : 0.2);
             C[TokenNames.ButtonGhostHover] = C[TokenNames.SurfaceHover];
             C[TokenNames.ButtonGhostPressed] = C[TokenNames.SurfacePressed];
-            C[TokenNames.ToggleTrackOff] = hc ? popup : Rgba.Mix(popup, popupFg, dark ? 0.28 : 0.30);
-            C[TokenNames.ToggleThumb] = hc ? fg : Rgba.White;
+            // Fluent ToggleSwitch: off = outline track + knob in the strong control stroke (secondary text), on = accent
+            // fill + on-accent knob; disabled uses the disabled text color (≈ 40% emphasis) and never the accent.
+            C[TokenNames.ToggleTrackOff] = Rgba.Transparent;
+            C[TokenNames.ToggleTrackOffHover] = hc ? popup : Rgba.Mix(popup, popupFg, dark ? 0.06 : 0.04);
+            C[TokenNames.ToggleTrackOffPressed] = hc ? popup : Rgba.Mix(popup, popupFg, dark ? 0.10 : 0.08);
+            C[TokenNames.ToggleStroke] = C[TokenNames.TextSecondary];
+            C[TokenNames.ToggleStrokeDisabled] = C[TokenNames.TextDisabled];
+            C[TokenNames.ToggleTrackOnDisabled] = C[TokenNames.TextDisabled];
+            C[TokenNames.ToggleThumb] = hc ? popup : C[TokenNames.TextOnAccent];
+            C[TokenNames.ToggleThumbDisabled] = popup;
 
             // ---- misc chrome
             C[TokenNames.ScrollThumb] = hc ? fg : popupFg.WithAlpha(dark ? 0.30 : 0.32);
@@ -307,6 +317,12 @@ namespace UEToVS.UI.Logic
             N[TokenNames.MatchBold] = (s.MatchStyle & MatchHighlightStyle.Bold) != 0 ? 1 : 0;
             N[TokenNames.MatchUnderline] = (s.MatchStyle & MatchHighlightStyle.Underline) != 0 ? 1 : 0;
         }
+
+        /// <summary>Fluent hover fill of an accent control: 90% accent over the surface.</summary>
+        public static Rgba AccentHoverOf(Rgba accent, Rgba surface) => Rgba.Mix(surface.Opaque(), accent.Opaque(), 0.90);
+
+        /// <summary>Fluent pressed fill of an accent control: 80% accent over the surface.</summary>
+        public static Rgba AccentPressedOf(Rgba accent, Rgba surface) => Rgba.Mix(surface.Opaque(), accent.Opaque(), 0.80);
 
         private static double Snap(double v) => Math.Max(0, Math.Round(v));
     }

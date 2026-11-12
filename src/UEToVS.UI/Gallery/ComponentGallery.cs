@@ -186,6 +186,16 @@ namespace UEToVS.UI.Gallery
 
         private static UiText Heading(Func<string> t) => new UiText(t, TextVariant.Title) { Margin = new Thickness(0, 14, 0, 8) };
 
+        /// <summary>A toggle (or a bare track frozen in one pointer state) above a caption, for the state matrix.</summary>
+        private static UIElement ToggleSample(Func<string> caption, FrameworkElement toggle)
+        {
+            var sp = new StackPanel { Margin = new Thickness(0, 0, 20, 0) };
+            toggle.HorizontalAlignment = HorizontalAlignment.Left;
+            sp.Children.Add(toggle);
+            sp.Children.Add(new UiText(caption, TextVariant.Caption) { Margin = new Thickness(0, 6, 0, 0) });
+            return sp;
+        }
+
         private static WrapPanel Row(params UIElement[] items)
         {
             var w = new WrapPanel { Margin = new Thickness(0, 2, 0, 6) };
@@ -260,6 +270,15 @@ namespace UEToVS.UI.Gallery
             chip.Count = 12;
             sp.Children.Add(Row(new UiToggle(() => Loc.T("实时预览", "Live preview"), true), new UiCheckBox(() => Loc.T("包含非项目项", "Include non-project items")),
                 chip, new Chip(() => "C++"), new SegmentedControl("VS 2026", "Compact", "Comfortable")));
+            sp.Children.Add(Heading(() => Loc.T("开关状态（Fluent）", "Toggle switch states (Fluent)")));
+            sp.Children.Add(Row(
+                ToggleSample(() => Loc.T("关", "Off"), new UiToggle((string)null, false)),
+                ToggleSample(() => Loc.T("开", "On"), new UiToggle((string)null, true)),
+                ToggleSample(() => Loc.T("关·悬停", "Off · hover"), new ToggleSwitchTrack { IsOn = false, IsHovered = true }),
+                ToggleSample(() => Loc.T("开·悬停", "On · hover"), new ToggleSwitchTrack { IsOn = true, IsHovered = true }),
+                ToggleSample(() => Loc.T("开·按下", "On · pressed"), new ToggleSwitchTrack { IsOn = true, IsPressed = true }),
+                ToggleSample(() => Loc.T("关·禁用", "Off · disabled"), new UiToggle((string)null, false) { IsEnabled = false }),
+                ToggleSample(() => Loc.T("开·禁用", "On · disabled"), new UiToggle((string)null, true) { IsEnabled = false })));
             sp.Children.Add(Heading(() => Loc.T("输入", "Inputs")));
             var input = new TextInput { Width = 260 };
             Strings.Track(input, () => input.Placeholder = Loc.T("类名", "Class name"));
