@@ -58,6 +58,7 @@ namespace UEToVS.Engine.Index.Tests
         {
             Assert.Equal(32, System.Runtime.CompilerServices.Unsafe.SizeOf<SymbolRecord>());
             Assert.Equal(56, System.Runtime.CompilerServices.Unsafe.SizeOf<FileRecord>());
+            Assert.Equal(20, System.Runtime.CompilerServices.Unsafe.SizeOf<NameEntry>());
         }
 
         private static FileSymbols[] Sample() => new[]

@@ -82,7 +82,7 @@ namespace UEToVS.Engine.Index.Storage
     {
         public uint SymStart;
         public uint SymCount;
-        public ulong OccOffset;
+        public uint OccOffset;
         public uint OccLength;
         public uint OccCount;
     }

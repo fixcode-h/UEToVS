@@ -147,6 +147,8 @@ namespace UEToVS.Engine.Index.Storage
                 // 6. lowercase names, trigram + initials postings over names that have symbols.
                 var lowerOffsets = new uint[nameCount + 1];
                 var lowerData = new MemoryStream();
+                var lowerBytes = new byte[nameCount][];
+                var searchable = new List<uint>();
                 var tri = new Dictionary<ulong, List<uint>>();
                 var ini = new Dictionary<uint, List<uint>>();
                 var triSet = new HashSet<ulong>();
@@ -158,6 +160,8 @@ namespace UEToVS.Engine.Index.Storage
                     lowerData.Write(bytes, 0, bytes.Length);
                     lowerOffsets[n + 1] = (uint)lowerData.Length;
                     if (nameEntries[n].SymCount == 0) continue;
+                    lowerBytes[n] = bytes;
+                    searchable.Add((uint)n);
                     NameKeys.Trigrams(lower, triSet);
                     foreach (var k in triSet)
                     {
@@ -171,7 +175,15 @@ namespace UEToVS.Engine.Index.Storage
                         list.Add((uint)n);
                     }
                 }
-                Flatten(tri, out ulong[] triKeys, out uint[] triOffsets, out uint[] triPostings);
+                // names with symbols ordered by lowercase UTF-8 bytes: prefix ranges by binary search
+                var lowerOrder = searchable.ToArray();
+                Array.Sort(lowerOrder, (a, b) =>
+                {
+                    int c = lowerBytes[a].AsSpan().SequenceCompareTo(lowerBytes[b]);
+                    return c != 0 ? c : a.CompareTo(b);
+                });
+                lowerBytes = null;
+                FlattenCompressed(tri, out ulong[] triKeys, out uint[] triOffsets, out byte[] triPostings);
                 Flatten(ini, out uint[] iniKeys, out uint[] iniOffsets, out uint[] iniPostings);
                 tri = null;
                 ini = null;
@@ -201,7 +213,7 @@ namespace UEToVS.Engine.Index.Storage
                     (SectionId.Occurrences, occBlob),
                     (SectionId.TrigramKeys, Bytes(triKeys)),
                     (SectionId.TrigramOffsets, Bytes(triOffsets)),
-                    (SectionId.TrigramPostings, Bytes(triPostings)),
+                    (SectionId.TrigramPostings, triPostings),
                     (SectionId.InitialKeys, Bytes(iniKeys)),
                     (SectionId.InitialOffsets, Bytes(iniOffsets)),
                     (SectionId.InitialPostings, Bytes(iniPostings)),
@@ -210,6 +222,7 @@ namespace UEToVS.Engine.Index.Storage
                     (SectionId.FileNameLowerOffsets, Bytes(fnOffsets)),
                     (SectionId.FileNameLowerData, fnData.ToArray()),
                     (SectionId.Includes, Bytes(includes.ToArray())),
+                    (SectionId.NameLowerOrder, Bytes(lowerOrder)),
                 };
 
                 var info = new WriteInfo { Files = files.Length, Symbols = symArr.Length, Names = nameCount, Occurrences = totalOcc };
@@ -267,7 +280,8 @@ namespace UEToVS.Engine.Index.Storage
             var ms = new MemoryStream();
             for (int n = 0; n < nameCount; n++)
             {
-                entries[n].OccOffset = (ulong)ms.Length;
+                if (ms.Length > uint.MaxValue) throw new InvalidOperationException("occurrence stream exceeds 4 GB in one segment");
+                entries[n].OccOffset = (uint)ms.Length;
                 entries[n].OccCount = countPerName[n];
                 uint prevFile = 0;
                 int prevOffset = 0;
@@ -280,7 +294,7 @@ namespace UEToVS.Engine.Index.Storage
                     prevFile = occFile[i];
                     prevOffset = occOffset[i];
                 }
-                entries[n].OccLength = (uint)((ulong)ms.Length - entries[n].OccOffset);
+                entries[n].OccLength = (uint)(ms.Length - entries[n].OccOffset);
             }
             return ms.ToArray();
         }
@@ -299,6 +313,26 @@ namespace UEToVS.Engine.Index.Storage
             }
             postings = new uint[total];
             for (int i = 0; i < keys.Length; i++) map[keys[i]].CopyTo(postings, (int)offsets[i]);
+        }
+
+        /// <summary>Postings as delta + varint byte streams; offsets are byte offsets.</summary>
+        private static void FlattenCompressed(Dictionary<ulong, List<uint>> map, out ulong[] keys, out uint[] offsets, out byte[] postings)
+        {
+            keys = map.Keys.ToArray();
+            Array.Sort(keys);
+            offsets = new uint[keys.Length + 1];
+            var ms = new MemoryStream();
+            for (int i = 0; i < keys.Length; i++)
+            {
+                uint prev = 0;
+                foreach (var v in map[keys[i]])
+                {
+                    Varint.Write(ms, v - prev);
+                    prev = v;
+                }
+                offsets[i + 1] = (uint)ms.Length;
+            }
+            postings = ms.ToArray();
         }
 
         private static uint[] BuildFileBuckets(string[] sortedKeys)

@@ -25,6 +25,7 @@ namespace UEToVS.Engine.Index.Storage
         FileNameLowerOffsets = 18,
         FileNameLowerData = 19,
         Includes = 20,
+        NameLowerOrder = 21,
     }
 
     /// <summary>

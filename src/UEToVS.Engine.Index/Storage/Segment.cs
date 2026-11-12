@@ -47,6 +47,11 @@ namespace UEToVS.Engine.Index.Storage
         public int NameCount { get; private set; }
         public long OccurrenceCount { get; private set; }
 
+        /// <summary>Whether any file has Project/ProjectPlugin origin (lets searches skip engine-only segments cheaply).</summary>
+        public bool HasProjectFiles { get; private set; }
+
+        public bool HasNonProjectFiles { get; private set; }
+
         // ---------------------------------------------------------------- open / validate
 
         public static SegmentLoadStatus TryOpen(string path, string expectedKb, string expectedEngineBuild, bool verifyChecksums,
@@ -189,6 +194,11 @@ namespace UEToVS.Engine.Index.Storage
                 detail = "count mismatch between header and sections";
                 return SegmentLoadStatus.Corrupt;
             }
+            foreach (ref readonly var f in Files)
+            {
+                if (f.IsProject) HasProjectFiles = true;
+                else HasNonProjectFiles = true;
+            }
             return SegmentLoadStatus.Ok;
         }
 
@@ -210,6 +220,13 @@ namespace UEToVS.Engine.Index.Storage
 
         public string GetString(uint id) => Strings.GetString(id);
 
+        /// <summary>Section sizes in bytes (diagnostics).</summary>
+        public IEnumerable<(SectionId Id, long Bytes)> SectionSizes()
+        {
+            for (int i = 1; i < _sections.Length; i++)
+                if (_sections[i].off != 0) yield return ((SectionId)i, _sections[i].len);
+        }
+
         public ReadOnlySpan<byte> NameLower(int nameIndex)
         {
             var offs = Get<uint>(SectionId.NameLowerOffsets);
@@ -224,20 +241,48 @@ namespace UEToVS.Engine.Index.Storage
             return Get<byte>(SectionId.FileNameLowerData).Slice((int)s, (int)(offs[fileIndex + 1] - s));
         }
 
+        /// <summary>Indices of names that have symbols, sorted by lowercase UTF-8 bytes.</summary>
+        public ReadOnlySpan<uint> NameLowerOrder => Get<uint>(SectionId.NameLowerOrder);
+
+        /// <summary>The slice of <see cref="NameLowerOrder"/> whose lowercase names start with <paramref name="lowerPrefix"/>.</summary>
+        public ReadOnlySpan<uint> NamesWithLowerPrefix(ReadOnlySpan<byte> lowerPrefix)
+        {
+            var order = NameLowerOrder;
+            int lo = 0, hi = order.Length;
+            while (lo < hi)
+            {
+                int mid = (lo + hi) >>> 1;
+                if (NameLower((int)order[mid]).SequenceCompareTo(lowerPrefix) < 0) lo = mid + 1;
+                else hi = mid;
+            }
+            int start = lo;
+            hi = order.Length;
+            while (lo < hi)
+            {
+                int mid = (lo + hi) >>> 1;
+                if (NameLower((int)order[mid]).StartsWith(lowerPrefix)) lo = mid + 1;
+                else hi = mid;
+            }
+            return order.Slice(start, lo - start);
+        }
+
         public ReadOnlySpan<uint> SymbolsOfName(int nameIndex)
         {
             var e = Names[nameIndex];
             return NameSymbols.Slice((int)e.SymStart, (int)e.SymCount);
         }
 
-        /// <summary>Name indices (0-based, ascending) whose lowercase form contains the trigram.</summary>
-        public ReadOnlySpan<uint> TrigramPostings(ulong key)
+        /// <summary>
+        /// Delta + varint encoded, ascending name indices (0-based) whose lowercase form contains the trigram.
+        /// Empty when the trigram does not occur. Decode with <see cref="Varint.Read"/>, summing deltas.
+        /// </summary>
+        public ReadOnlySpan<byte> TrigramPostings(ulong key)
         {
             var keys = Get<ulong>(SectionId.TrigramKeys);
             int i = keys.BinarySearch(key);
             if (i < 0) return default;
             var offs = Get<uint>(SectionId.TrigramOffsets);
-            return Get<uint>(SectionId.TrigramPostings).Slice((int)offs[i], (int)(offs[i + 1] - offs[i]));
+            return Get<byte>(SectionId.TrigramPostings).Slice((int)offs[i], (int)(offs[i + 1] - offs[i]));
         }
 
         /// <summary>Name indices (0-based, ascending) having a word start with this lowercase character.</summary>

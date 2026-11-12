@@ -19,6 +19,9 @@ namespace UEToVS.Engine.Index.Query
     {
         private const int CancelCheckMask = 255;
 
+        /// <summary>Non-project hits are counted exactly up to this many, then the count is a lower bound.</summary>
+        internal const int NonProjectCountCap = 1000;
+
         private readonly Snapshot _snap;
         private readonly SearchRequest _req;
         private readonly CancellationToken _ct;
@@ -27,6 +30,9 @@ namespace UEToVS.Engine.Index.Query
         private readonly bool _wildcard;
         private readonly string _filter;
         private readonly byte[] _filterUtf8;
+
+        /// <summary>Pattern without wildcards, original case; null when it has non-ASCII characters.</summary>
+        private readonly byte[] _caseFilter;
         private readonly Dictionary<string, int> _recent;
         private readonly int _max;
         private readonly TopN _types;
@@ -37,6 +43,8 @@ namespace UEToVS.Engine.Index.Query
         // per-segment state
         private Dictionary<uint, int> _segRecent;
         private Dictionary<uint, MatchResult> _segContainer;
+        private bool _countOnly;
+        private ulong[] _visited;
         private readonly List<uint> _scratchA = new List<uint>();
         private readonly List<uint> _scratchB = new List<uint>();
 
@@ -68,6 +76,10 @@ namespace UEToVS.Engine.Index.Query
                 if (c != '*' && c != ' ') sb.Append(char.ToLowerInvariant(c));
             _filter = sb.ToString();
             _filterUtf8 = Encoding.UTF8.GetBytes(_filter);
+            string raw = pattern.Replace("*", string.Empty).Replace(" ", string.Empty);
+            bool ascii = true;
+            foreach (char c in raw) ascii &= c < 128;
+            _caseFilter = ascii ? Encoding.ASCII.GetBytes(raw) : null;
             _recent = BuildRecentMap(req.RecentPaths);
             _max = Math.Max(1, req.MaxResultsPerCategory);
             _types = new TopN(_max * 3);
@@ -138,20 +150,41 @@ namespace UEToVS.Engine.Index.Query
         private void SearchSegmentSymbols(int si, SegmentView view)
         {
             var seg = view.Segment;
+            _countOnly = !_req.IncludeNonProject && !seg.HasProjectFiles;
+            _visited = null;
             if (_wildcard || _filter.Length == 0)
             {
-                for (int n = 0; n < seg.NameCount; n++) ProcessName(si, view, n, n);
+                for (int n = 0; n < seg.NameCount; n++)
+                {
+                    if (CountCapReached()) return;
+                    ProcessName(si, view, n, n);
+                }
                 return;
             }
 
+            // Phase 1: exact / prefix candidates (also "A" + pattern etc. for UE type prefixes) from the
+            // lowercase-sorted name order. Once the TopN holds enough prefix-quality candidates nothing outside these
+            // ranges (at best a camel-hump match, scored ~15000 lower) can enter the results.
+            _visited = new ulong[(seg.NameCount + 63) / 64];
+            int counter = 0;
+            ProcessPrefixRange(si, view, _filterUtf8, ref counter);
+            var buf = new byte[_filterUtf8.Length + 1];
+            _filterUtf8.CopyTo(buf, 1);
+            foreach (char p in UnrealNaming.TypePrefixes)
+            {
+                buf[0] = (byte)char.ToLowerInvariant(p);
+                ProcessPrefixRange(si, view, buf, ref counter);
+            }
+            if (HasEnoughPrefixResults() || CountCapReached()) return;
+
+            // Phase 2: word-start initials (exact, prefix, camel hump) united with trigram intersection (substrings).
             _scratchA.Clear();
             foreach (var n in seg.InitialPostings(_filter[0])) _scratchA.Add(n);
 
             if (_filter.Length >= 3)
             {
                 IntersectTrigrams(seg, _scratchB);
-                // union of two ascending lists
-                int i = 0, j = 0, count = 0;
+                int i = 0, j = 0;
                 while (i < _scratchA.Count || j < _scratchB.Count)
                 {
                     uint n;
@@ -162,14 +195,22 @@ namespace UEToVS.Engine.Index.Query
                         n = _scratchA[i++];
                         j++;
                     }
-                    ProcessName(si, view, (int)n, count++);
+                    if (IsVisited(n)) continue;
+                    if (CountCapReached()) return;
+                    ProcessName(si, view, (int)n, counter++);
                 }
                 return;
             }
 
             // Short pattern: word-start candidates first; non word-start (substring-only) matches score below any
             // camel-hump match, so the full scan is needed only when there are not enough strong results yet.
-            for (int k = 0; k < _scratchA.Count; k++) ProcessName(si, view, (int)_scratchA[k], k);
+            for (int k = 0; k < _scratchA.Count; k++)
+            {
+                uint n = _scratchA[k];
+                if (IsVisited(n)) continue;
+                if (CountCapReached()) return;
+                ProcessName(si, view, (int)n, counter++);
+            }
             if (HasEnoughStrongResults()) return;
             int a = 0;
             for (int n = 0; n < seg.NameCount; n++)
@@ -179,8 +220,38 @@ namespace UEToVS.Engine.Index.Query
                     a++;
                     continue;
                 }
-                ProcessName(si, view, n, n);
+                if (IsVisited((uint)n)) continue;
+                if (CountCapReached()) return;
+                ProcessName(si, view, n, counter++);
             }
+        }
+
+        private void ProcessPrefixRange(int si, SegmentView view, byte[] lowerPrefix, ref int counter)
+        {
+            var range = view.Segment.NamesWithLowerPrefix(lowerPrefix);
+            for (int k = 0; k < range.Length; k++)
+            {
+                uint n = range[k];
+                if (IsVisited(n)) continue;
+                _visited[n >> 6] |= 1UL << (int)(n & 63);
+                if (CountCapReached()) return;
+                ProcessName(si, view, (int)n, counter++, caseAware: false);
+            }
+        }
+
+        private bool IsVisited(uint n) => _visited != null && (_visited[n >> 6] & (1UL << (int)(n & 63))) != 0;
+
+        /// <summary>
+        /// For a segment without project files searched with IncludeNonProject=false only the non-project count is
+        /// needed; stop counting at a cap (NonProjectHitCount is then a lower bound).
+        /// </summary>
+        private bool CountCapReached() => _countOnly && _nonProject >= NonProjectCountCap;
+
+        private bool HasEnoughPrefixResults()
+        {
+            bool types = !_req.IncludeTypes || _types.PrefixAdds >= _types.Capacity;
+            bool syms = !_req.IncludeSymbols || _symbols.PrefixAdds >= _symbols.Capacity;
+            return types && syms;
         }
 
         private bool HasEnoughStrongResults()
@@ -203,24 +274,53 @@ namespace UEToVS.Engine.Index.Query
                 ordered.Add((k, len));
             }
             ordered.Sort((x, y) => x.len.CompareTo(y.len));
-            foreach (var n in seg.TrigramPostings(ordered[0].key)) result.Add(n);
+            var first = seg.TrigramPostings(ordered[0].key);
+            int pos = 0;
+            uint value = 0;
+            while (pos < first.Length)
+            {
+                value += Varint.Read(first, ref pos);
+                result.Add(value);
+            }
             for (int t = 1; t < ordered.Count && result.Count > 0; t++)
             {
+                // merge-intersect with the next (longer) stream, decoding it lazily
                 var other = seg.TrigramPostings(ordered[t].key);
-                int w = 0;
+                int w = 0, p = 0;
+                uint cur = 0;
+                bool has = false;
                 for (int r = 0; r < result.Count; r++)
-                    if (other.BinarySearch(result[r]) >= 0) result[w++] = result[r];
+                {
+                    uint want = result[r];
+                    while ((!has || cur < want) && p < other.Length)
+                    {
+                        cur = has ? cur + Varint.Read(other, ref p) : Varint.Read(other, ref p);
+                        has = true;
+                    }
+                    if (has && cur == want) result[w++] = want;
+                    else if (cur < want) break; // stream exhausted
+                }
                 result.RemoveRange(w, result.Count - w);
             }
         }
 
-        private void ProcessName(int si, SegmentView view, int n, int counter)
+        /// <param name="caseAware">
+        /// True outside the exact/prefix phase: every remaining match kind compares with FuzzyMatcher's CharEq, where an
+        /// uppercase pattern character only matches the same uppercase character, so a case-aware subsequence test on
+        /// the original name is a valid (and much tighter) filter. Exact matches are case-insensitive, which is why the
+        /// prefix phase uses the lowercase test.
+        /// </param>
+        private void ProcessName(int si, SegmentView view, int n, int counter, bool caseAware = true)
         {
             if ((counter & CancelCheckMask) == 0) _ct.ThrowIfCancellationRequested();
             var seg = view.Segment;
             var entry = seg.Names[n];
             if (entry.SymCount == 0) return;
-            if (!Subsequence(seg.NameLower(n), _filterUtf8)) return;
+            if (caseAware && _caseFilter != null)
+            {
+                if (!CaseAwareSubsequence(seg.Strings.GetBytes((uint)n + 1), _caseFilter)) return;
+            }
+            else if (!Subsequence(seg.NameLower(n), _filterUtf8)) return;
 
             string name = null;
             MatchResult plain = null, unreal = null;
@@ -330,6 +430,7 @@ namespace UEToVS.Engine.Index.Query
             {
                 if ((fi & 1023) == 0) _ct.ThrowIfCancellationRequested();
                 if (view.IsDead((uint)fi)) continue;
+                if (!_req.IncludeNonProject && !seg.HasProjectFiles && _nonProject >= NonProjectCountCap) return;
                 if (!Subsequence(seg.FileNameLower(fi), _filterUtf8)) continue;
                 ref readonly var f = ref files[fi];
                 string name = seg.GetString(f.FileNameId);
@@ -473,6 +574,27 @@ namespace UEToVS.Engine.Index.Query
             return false;
         }
 
+        /// <summary>
+        /// Subsequence test with <see cref="FuzzyMatcher"/>'s CharEq semantics on ASCII: a lowercase pattern letter
+        /// matches either case, anything else matches only itself. Non-ASCII name bytes never match.
+        /// </summary>
+        internal static bool CaseAwareSubsequence(ReadOnlySpan<byte> name, ReadOnlySpan<byte> pattern)
+        {
+            if (pattern.Length == 0) return true;
+            int j = 0;
+            byte p = pattern[0];
+            byte alt = p >= (byte)'a' && p <= (byte)'z' ? (byte)(p - 32) : p;
+            for (int i = 0; i < name.Length; i++)
+            {
+                byte b = name[i];
+                if (b != p && b != alt) continue;
+                if (++j == pattern.Length) return true;
+                p = pattern[j];
+                alt = p >= (byte)'a' && p <= (byte)'z' ? (byte)(p - 32) : p;
+            }
+            return false;
+        }
+
         internal static bool Subsequence(string text, string sub)
         {
             if (sub.Length == 0) return true;
@@ -515,8 +637,13 @@ namespace UEToVS.Engine.Index.Query
 
             public TopN(int n) => _n = n;
 
+            public int Capacity => _n;
+
             /// <summary>Number of exact/prefix/camel-hump candidates offered so far.</summary>
             public int StrongAdds { get; private set; }
+
+            /// <summary>Number of exact/prefix candidates offered so far.</summary>
+            public int PrefixAdds { get; private set; }
 
             public List<Candidate> Items
             {
@@ -530,6 +657,7 @@ namespace UEToVS.Engine.Index.Query
             public void Add(in Candidate c)
             {
                 if (c.Match.Kind >= MatchKind.CamelHump) StrongAdds++;
+                if (c.Match.Kind >= MatchKind.Prefix) PrefixAdds++;
                 if (_items.Count >= _n && c.Score <= _minScore) return;
                 _items.Add(c);
                 if (_items.Count > _n * 2) Trim();
