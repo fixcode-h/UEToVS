@@ -1,6 +1,9 @@
+using System.Threading.Tasks;
 using UEToVS.Core.Diagnostics;
+using UEToVS.Host.Editor;
 using UEToVS.Host.Logic.Actions;
 using UEToVS.Host.Logic.Localization;
+using UEToVS.Host.Shell;
 
 namespace UEToVS.Host.Editing
 {
@@ -15,7 +18,22 @@ namespace UEToVS.Host.Editing
         {
             registry.Register(new DelegateAction(EditorFeatureIds.SurroundWith, EditorFeatureStrings.CmdSurroundWith, ActionCategory.Refactoring,
                 ctx => SurroundWithFeature.ExecuteAsync(), ctx => ctx.ActiveDocumentPath != null, null, EditorFeatureStrings.KwSurround));
-            L.Debug("editor.actions.registered", null, ("count", 1));
+            registry.Register(new DelegateAction(EditorFeatureIds.ToggleInlayHints, EditorFeatureStrings.CmdToggleInlayHints, ActionCategory.Settings,
+                ctx => ToggleInlayHintsAsync(), null, null, EditorFeatureStrings.KwInlay));
+            L.Debug("editor.actions.registered", null, ("count", 2));
+        }
+
+        private static Task ToggleInlayHintsAsync()
+        {
+            if (!InlayHintsTagger.AnyEnabledInSettings)
+            {
+                VsStatusBar.SetText(EditorFeatureStrings.InlayAllOff);
+                return Task.CompletedTask;
+            }
+            InlayHintsTagger.Hidden = !InlayHintsTagger.Hidden;
+            VsStatusBar.SetText(InlayHintsTagger.Hidden ? EditorFeatureStrings.InlayOff : EditorFeatureStrings.InlayOn);
+            L.Info("editor.inlayHints.toggle", null, ("hidden", InlayHintsTagger.Hidden));
+            return Task.CompletedTask;
         }
     }
 }

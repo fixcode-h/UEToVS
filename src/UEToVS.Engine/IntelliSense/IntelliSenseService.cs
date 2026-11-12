@@ -201,6 +201,45 @@ namespace UEToVS.Engine.IntelliSense
             return resp;
         }
 
+        // ================================================================== v0.4.5 inlay hints
+
+        /// <summary>Inlay hints budget for a viewport (~100 lines): they run after a scroll / edit pause, never per keystroke.</summary>
+        public double InlayHintsBudgetMs { get; set; } = 40;
+
+        public InlayHintsResponse GetInlayHints(InlayHintsRequest request, CancellationToken ct)
+        {
+            var sw = Stopwatch.StartNew();
+            var s = Session(request?.Document, ct, out var doc);
+            if (s == null) return new InlayHintsResponse { TextVersion = request?.Document?.TextVersion ?? 0, ElapsedMs = Ms(sw) };
+            int lineCount = doc.Lines.LineCount;
+            int from = Math.Max(0, request.StartLine);
+            int to = Math.Min(lineCount - 1, Math.Max(from, request.EndLine));
+            var stats = new InlayHintsStats();
+            var items = InlayHintsProvider.Run(s, from, to, request.ParameterNames, request.AutoTypes, stats);
+            var resp = new InlayHintsResponse
+            {
+                TextVersion = request.Document.TextVersion != 0 ? request.Document.TextVersion : doc.Version,
+                StartLine = from,
+                EndLine = to,
+                Items = items,
+                Calls = stats.Calls,
+                Resolved = stats.Resolved,
+                AutoVariables = stats.AutoVariables,
+                ElapsedMs = Ms(sw),
+            };
+            var data = new (string, object)[]
+            {
+                ("file", FileName(doc.Path)), ("lines", from + ".." + to), ("version", request.Document.TextVersion), ("items", items.Count),
+                ("parameterNames", request.ParameterNames), ("autoTypes", request.AutoTypes), ("calls", stats.Calls), ("resolved", stats.Resolved),
+                ("ambiguous", stats.Ambiguous), ("autoVariables", stats.AutoVariables), ("autoDeduced", stats.AutoDeduced), ("indexQueries", s.Ctx.IndexQueries),
+                ("ms", resp.ElapsedMs),
+            };
+            double budget = InlayHintsBudgetMs * Math.Max(1.0, (to - from + 1) / 100.0);
+            if (resp.ElapsedMs > budget) L.Warn("editor.inlayHints", "Inlay hints over budget", data);
+            else L.Debug("editor.inlayHints", null, data);
+            return resp;
+        }
+
         private static double Ms(Stopwatch sw) => Math.Round(sw.Elapsed.TotalMilliseconds, 2);
 
         private static string FileName(string path) => string.IsNullOrEmpty(path) ? null : System.IO.Path.GetFileName(path);

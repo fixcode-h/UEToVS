@@ -92,6 +92,11 @@ namespace UEToVS.Contracts
 
         /// <summary>Virtual functions of a class's bases (engine classes included) that it does not override yet.</summary>
         Task<OverridableMethodsResponse> GetOverridableMethodsAsync(OverridableMethodsRequest request, CancellationToken ct);
+
+        // ---- v0.4.5 编辑体验 (see InlayHints.cs) ----
+
+        /// <summary>Inlay hints (parameter names before literal arguments, deduced auto types) for a line range of a document.</summary>
+        Task<InlayHintsResponse> GetInlayHintsAsync(InlayHintsRequest request, CancellationToken ct);
     }
 
     /// <summary>Notifications engine → host.</summary>
