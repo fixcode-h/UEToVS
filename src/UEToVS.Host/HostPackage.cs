@@ -159,6 +159,8 @@ namespace UEToVS.Host
                 });
                 _settings.Changed += (sender, e) => Safe.RunAsync(L, "settings.changed", () => OnSettingsChangedAsync(e.Old, e.New));
                 HostActions.Register(this, Actions);
+                // v0.4.5 编辑体验: debug step filter (Documents\Visual Studio *\Visualizers), deployed / removed per setting.
+                _ = Safe.RunInBackgroundAsync(L, "editor.stepFilter", () => Editing.StepFilterDeployer.SyncAsync(s, "startup"));
                 _commands = new CommandRouter(this, Actions);
                 if (await GetServiceAsync(typeof(System.ComponentModel.Design.IMenuCommandService)) is OleMenuCommandService mcs) _commands.Register(mcs);
                 else L.Error("package.commands.unavailable", "IMenuCommandService unavailable; menu commands not registered", null);
@@ -545,6 +547,8 @@ namespace UEToVS.Host
                     ToolbarController.Apply(await GetServiceAsync(typeof(DTE)) as DTE, now.ShowToolbar, "settingsChanged");
                 Safe.Execute(L, "toolbar.refresh", RefreshCommandUi);
             }
+            if (old.DebugStepFilter != now.DebugStepFilter) // v0.4.5 编辑体验
+                _ = Safe.RunInBackgroundAsync(L, "editor.stepFilter", () => Editing.StepFilterDeployer.SyncAsync(now, "settingsChanged"));
             await _intelliSense.OnSettingsChangedAsync(old, now, _unreal.IsUnreal);
             if (_fonts != null) await _fonts.OnSettingsChangedAsync(old, now);
             if (old.EnableMcpServer != now.EnableMcpServer && _unreal.IsUnreal)

@@ -19,6 +19,16 @@ namespace UEToVS.Host.Logic.Settings
         FullSpeed = 2,
     }
 
+    /// <summary>v0.4.5: what Ctrl+R, Ctrl+R does in a C++ editor.</summary>
+    public enum RenameMode
+    {
+        /// <summary>Edit every occurrence in the current file in place; Enter opens the project-wide preview, Esc cancels.</summary>
+        Inline = 0,
+
+        /// <summary>The preview dialog right away (v0.4.2 behaviour).</summary>
+        Dialog = 1,
+    }
+
     /// <summary>
     /// Effective host settings. Layers (§10.3): built-in defaults (the initializers below) &lt; user settings (Tools &gt;
     /// Options &gt; UEToVS, persisted in the VS settings store) &lt; solution settings (&lt;solution&gt;/.uetovs/settings.json,
@@ -203,6 +213,31 @@ namespace UEToVS.Host.Logic.Settings
 
         /// <summary>Inlay hints: deduced type after <c>auto</c> variables.</summary>
         public bool InlayAutoTypes { get; set; }
+
+        // ---- v0.4.5 编辑体验（rows: Logic/Settings/EditorFeatureSettings.cs）----
+        /// <summary>Surround With (Ctrl+Shift+Alt+U, 1 / Rider Ctrl+Alt+J).</summary>
+        public bool SurroundWithEnabled { get; set; } = true;
+
+        /// <summary>Deprecated API squiggles / strikethrough / Quick Info note / Alt+Enter fix in the current file (UE0011).</summary>
+        public bool DeprecationHints { get; set; } = true;
+
+        /// <summary>UE naming convention suggestions for types and bool members declared in the current file (UE0012).</summary>
+        public bool NamingConventionCheck { get; set; } = false;
+
+        /// <summary>Deploy UEToVS.natstepfilter to the user's Visualizers folder (removed when off).</summary>
+        public bool DebugStepFilter { get; set; } = true;
+
+        /// <summary>Ctrl+R, Ctrl+R: edit the name in place (Inline) or open the preview dialog right away (Dialog).</summary>
+        public RenameMode RenameMode { get; set; } = RenameMode.Inline;
+
+        /// <summary>Remember copied / cut text for Ctrl+Shift+V (paste from history).</summary>
+        public bool ClipboardHistoryEnabled { get; set; } = true;
+
+        /// <summary>Entries kept in the clipboard history.</summary>
+        public int ClipboardHistorySize { get; set; } = 16;
+
+        /// <summary>#tag bookmarks: collect #tags written in comments of the open files.</summary>
+        public bool HashtagsEnabled { get; set; } = true;
 
         // ---- 字体（设置 > 外观 > 字体；值见 UEToVS.UI.Logic.FontChoice，VS 类别见 Logic/Fonts/VsFontCategories）----
         /// <summary>英文字体: Latin part of the UEToVS UI font ("bundled:IBM Plex Sans", "vs" or an installed family).</summary>

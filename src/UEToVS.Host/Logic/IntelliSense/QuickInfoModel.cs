@@ -278,8 +278,11 @@ namespace UEToVS.Host.Logic.IntelliSense
 
         public const int MaxGeneratedLines = 400;
 
+        /// <summary>v0.4.5: "已弃用（5.1）：Use X instead" when the symbol is deprecated, or null.</summary>
+        public string Deprecation { get; set; }
+
         public bool IsEmpty => Declaration.Count == 0 && Documentation == null && MacroExpansion == null && Reflection == null &&
-                               GeneratedCode == null && GeneratedNote == null;
+                               GeneratedCode == null && GeneratedNote == null && Deprecation == null;
 
         public static QuickInfoModel Build(QuickInfoResponse r)
         {
@@ -296,6 +299,7 @@ namespace UEToVS.Host.Logic.IntelliSense
                 m.Location = LocationText(r.Symbol);
             }
             m.Documentation = Trim(CleanDocumentation(r.Documentation), MaxDocumentationChars);
+            if (r.IsDeprecated) m.Deprecation = UEToVS.Host.Logic.Localization.EditorFeatureStrings.DeprecatedQuickInfo(r.DeprecatedVersion, r.DeprecationMessage);
             m.Reflection = string.IsNullOrWhiteSpace(r.Reflection) ? null : r.Reflection.Trim();
             m.ReflectionTags.AddRange(ReflectionTagsOf(r.Reflection ?? r.Symbol?.Specifiers));
             if (!string.IsNullOrWhiteSpace(r.MacroExpansion) || !string.IsNullOrWhiteSpace(r.MacroExpansionOneLevel))

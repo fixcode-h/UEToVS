@@ -241,6 +241,9 @@ namespace UEToVS.Engine.IntelliSense
             return null;
         }
 
+        /// <summary>v0.4.5 inlay hints: the type of a local as written, or deduced from its <c>auto</c> initializer / range (null when unknown).</summary>
+        public string DeducedType(LocalVariable l) => l == null ? null : LocalType(l, 0);
+
         private string LocalType(LocalVariable l, int depth)
         {
             string t = l.Type;

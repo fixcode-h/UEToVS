@@ -293,6 +293,13 @@ namespace UEToVS.Engine.Rpc
                 return _host.Scheduler.RunAsync(WorkPriority.Visible, "rpc.getCallHierarchy", t => _host.Navigation.GetCallHierarchy(request, t), c);
             }, ct, ("direction", request?.Direction.ToString()), ("file", request?.Caret?.FilePath), ("line", request?.Caret?.Line),
                 ("function", request?.Function?.Name), ("nonProject", request?.IncludeNonProject));
+        // ---- v0.4.5 编辑体验: Visible lane (viewport work, superseded by newer requests) ----
+
+        public Task<InlayHintsResponse> GetInlayHintsAsync(InlayHintsRequest request, CancellationToken ct) =>
+            InvokeAsync("rpc.getInlayHints", c => request?.Document == null
+                    ? Task.FromResult(new InlayHintsResponse { TextVersion = request?.Document?.TextVersion ?? 0 })
+                    : _host.Scheduler.RunAsync(WorkPriority.Visible, "rpc.getInlayHints", t => _host.IntelliSense.GetInlayHints(request, t), c),
+                ct, ("file", request?.Document?.FilePath), ("from", request?.StartLine), ("to", request?.EndLine), ("version", request?.Document?.TextVersion));
 
         private static LocalRpcException Error(int code, string message) => new LocalRpcException(message) { ErrorCode = code };
 

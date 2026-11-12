@@ -55,6 +55,9 @@ namespace UEToVS.Host.Logic.Refactoring
         public SymbolInfo Symbol => Engine?.Symbol;
 
         public string Word => Engine?.Word;
+
+        /// <summary>v0.4.5: squiggles (UE0011 deprecated API, UE0012 naming, spelling) under the caret, for the Alt+Enter fixes.</summary>
+        public List<CodeDiagnostic> Diagnostics { get; set; } = new List<CodeDiagnostic>();
     }
 
     /// <summary>One entry of the Alt+Enter menu / light bulb: runs <see cref="ActionId"/> through the action hub with <see cref="Argument"/>.</summary>

@@ -144,6 +144,15 @@ namespace UEToVS.Contracts
 
         public ResolutionConfidence Confidence { get; set; }
         public double ElapsedMs { get; set; }
+
+        /// <summary>v0.4.5: the symbol is deprecated (UE_DEPRECATED / [[deprecated]] / DeprecatedFunction meta / _DEPRECATED).</summary>
+        public bool IsDeprecated { get; set; }
+
+        /// <summary>Engine version it was deprecated in ("5.1"), or null.</summary>
+        public string DeprecatedVersion { get; set; }
+
+        /// <summary>The deprecation message, or null.</summary>
+        public string DeprecationMessage { get; set; }
     }
 
     public sealed class SignatureParameter

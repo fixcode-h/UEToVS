@@ -938,6 +938,41 @@
           <LocCanonicalName>UEToVS.Toolbar.GenerateProjectFiles</LocCanonicalName>
         </Strings>
       </Button>
+      <!-- ===== v0.4.5 编辑体验 (0x0180-0x019F, Editing/EditorFeatureActions.cs) ===== -->
+      <Button guid="guidUEToVSHostCmdSet" id="cmdSurroundWith" priority="0x0120" type="Button">
+        <CommandFlag>TextChanges</CommandFlag>
+        <CommandFlag>DefaultDisabled</CommandFlag>
+        <Strings>
+          <ButtonText>Surround With...</ButtonText>
+          <CanonicalName>UEToVS.SurroundWith</CanonicalName>
+          <LocCanonicalName>UEToVS.SurroundWith</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdToggleInlayHints" priority="0x0121" type="Button">
+        <CommandFlag>DefaultDisabled</CommandFlag>
+        <Strings>
+          <ButtonText>Toggle Inlay Hints</ButtonText>
+          <CanonicalName>UEToVS.ToggleInlayHints</CanonicalName>
+          <LocCanonicalName>UEToVS.ToggleInlayHints</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdShowHashtags" priority="0x0122" type="Button">
+        <CommandFlag>DefaultDisabled</CommandFlag>
+        <Strings>
+          <ButtonText>#tag Bookmarks</ButtonText>
+          <CanonicalName>UEToVS.ShowHashtags</CanonicalName>
+          <LocCanonicalName>UEToVS.ShowHashtags</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdPasteFromHistory" priority="0x0123" type="Button">
+        <CommandFlag>TextChanges</CommandFlag>
+        <CommandFlag>DefaultDisabled</CommandFlag>
+        <Strings>
+          <ButtonText>Paste from Clipboard History...</ButtonText>
+          <CanonicalName>UEToVS.PasteFromHistory</CanonicalName>
+          <LocCanonicalName>UEToVS.PasteFromHistory</LocCanonicalName>
+        </Strings>
+      </Button>
     </Buttons>
 
     <Bitmaps>
@@ -1049,6 +1084,11 @@
     <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdNewUeClass" editor="guidVSStd97" key1="U" mod1="Control Shift Alt" key2="N" />
     <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdNextBuildError" editor="guidVSStd97" key1="U" mod1="Control Shift Alt" key2="Q" />
     <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdClearBuildErrors" editor="guidVSStd97" key1="U" mod1="Control Shift Alt" key2="X" />
+    <!-- v0.4.5 编辑体验 -->
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdSurroundWith" editor="guidTextEditorFactory" key1="U" mod1="Control Shift Alt" key2="1" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdToggleInlayHints" editor="guidTextEditorFactory" key1="U" mod1="Control Shift Alt" key2="2" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdShowHashtags" editor="guidVSStd97" key1="U" mod1="Control Shift Alt" key2="3" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdPasteFromHistory" editor="guidTextEditorFactory" key1="V" mod1="Control Shift" />
   </KeyBindings>
 
   <Symbols>
@@ -1182,6 +1222,11 @@
       <IDSymbol name="grpProjNodeUnreal" value="0x1171" />
       <IDSymbol name="grpItemNodeUnreal" value="0x1172" />
       <IDSymbol name="grpFolderNodeUnreal" value="0x1173" />
+      <!-- v0.4.5 编辑体验 (Editing/EditorFeatureActions.cs) -->
+      <IDSymbol name="cmdSurroundWith" value="0x0180" />
+      <IDSymbol name="cmdToggleInlayHints" value="0x0181" />
+      <IDSymbol name="cmdShowHashtags" value="0x0182" />
+      <IDSymbol name="cmdPasteFromHistory" value="0x0183" />
     </GuidSymbol>
   </Symbols>
 </CommandTable>

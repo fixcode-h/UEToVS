@@ -92,7 +92,8 @@ namespace UEToVS.Engine.IntelliSense
         private readonly ConditionalWeakTable<DocumentModel, Dictionary<int, string>> _bodyScans = new ConditionalWeakTable<DocumentModel, Dictionary<int, string>>();
 
         /// <summary>Diagnostics for lines [<paramref name="startLine"/>, <paramref name="endLine"/>]; <paramref name="caretOffset"/> (or -1) is the word being typed.</summary>
-        public List<CodeDiagnostic> Run(IsSession s, int startLine, int endLine, int caretOffset, DiagnosticsStats stats, IEnumerable<string> unsavedFiles = null)
+        public List<CodeDiagnostic> Run(IsSession s, int startLine, int endLine, int caretOffset, DiagnosticsStats stats, IEnumerable<string> unsavedFiles = null,
+                                        DiagnosticsOptions options = null)
         {
             var result = new List<CodeDiagnostic>();
             var doc = s.Doc;
@@ -106,6 +107,10 @@ namespace UEToVS.Engine.IntelliSense
             run.Members(start, end, result);
             run.GeneratedBody(start, end, result);
             run.UeRules(start, end, result);
+            // v0.4.5 编辑体验 (opt-in)
+            options ??= DiagnosticsOptions.Default;
+            if (options.CheckDeprecated) run.Deprecated(start, end, result);
+            if (options.CheckNaming) run.Naming(start, end, result);
             result.Sort((a, b) => a.Line != b.Line ? a.Line.CompareTo(b.Line) : a.Column.CompareTo(b.Column));
             return result;
         }

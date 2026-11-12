@@ -108,6 +108,7 @@ namespace UEToVS.Engine.IntelliSense
             var s = Session(caret, ct, out var doc);
             if (s == null) return new QuickInfoResponse { ElapsedMs = Ms(sw) };
             var resp = QuickInfoProvider.Get(s, Offset(doc, caret));
+            AddDeprecation(s, resp);
             resp.ElapsedMs = Ms(sw);
             var data = new (string, object)[]
             {
@@ -118,6 +119,28 @@ namespace UEToVS.Engine.IntelliSense
             if (resp.ElapsedMs > QuickInfoBudgetMs) L.Warn("is.quickinfo", "Quick Info over budget", data);
             else L.Debug("is.quickinfo", null, data);
             return resp;
+        }
+
+        /// <summary>v0.4.5: Quick Info names the deprecation of the hovered symbol (<see cref="DeprecationInfo"/>).</summary>
+        private static void AddDeprecation(IsSession s, QuickInfoResponse resp)
+        {
+            if (resp?.Symbol == null) return;
+            try
+            {
+                var info = DeprecationInfo.Of(s, resp.Symbol);
+                if (info == null) return;
+                resp.IsDeprecated = true;
+                resp.DeprecatedVersion = info.Version;
+                resp.DeprecationMessage = info.Message;
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                L.Warn("is.quickinfo.deprecation.failed", "Deprecation lookup failed", ex, ("symbol", resp.Symbol.Name));
+            }
         }
 
         // ================================================================== signature help
@@ -177,7 +200,8 @@ namespace UEToVS.Engine.IntelliSense
             int to = Math.Min(lineCount - 1, Math.Max(from, request.EndLine));
             int caret = request.Document.Line > 0 || request.Document.Column > 0 ? Offset(doc, request.Document) : -1;
             var stats = new DiagnosticsStats();
-            var items = _diagnostics.Run(s, from, to, caret, stats, request.UnsavedFiles);
+            var options = new DiagnosticsOptions { CheckDeprecated = request.CheckDeprecated, CheckNaming = request.CheckNaming };
+            var items = _diagnostics.Run(s, from, to, caret, stats, request.UnsavedFiles, options);
             var resp = new CodeDiagnosticsResponse
             {
                 TextVersion = request.Document.TextVersion != 0 ? request.Document.TextVersion : doc.Version,
@@ -198,6 +222,45 @@ namespace UEToVS.Engine.IntelliSense
             if (resp.ElapsedMs > budget) L.Warn("intellisense.diagnostics", "Diagnostics over budget", data);
             else if (items.Count > 0) L.Info("intellisense.diagnostics", null, data);
             else L.Debug("intellisense.diagnostics", null, data);
+            return resp;
+        }
+
+        // ================================================================== v0.4.5 inlay hints
+
+        /// <summary>Inlay hints budget for a viewport (~100 lines): they run after a scroll / edit pause, never per keystroke.</summary>
+        public double InlayHintsBudgetMs { get; set; } = 40;
+
+        public InlayHintsResponse GetInlayHints(InlayHintsRequest request, CancellationToken ct)
+        {
+            var sw = Stopwatch.StartNew();
+            var s = Session(request?.Document, ct, out var doc);
+            if (s == null) return new InlayHintsResponse { TextVersion = request?.Document?.TextVersion ?? 0, ElapsedMs = Ms(sw) };
+            int lineCount = doc.Lines.LineCount;
+            int from = Math.Max(0, request.StartLine);
+            int to = Math.Min(lineCount - 1, Math.Max(from, request.EndLine));
+            var stats = new InlayHintsStats();
+            var items = InlayHintsProvider.Run(s, from, to, request.ParameterNames, request.AutoTypes, stats);
+            var resp = new InlayHintsResponse
+            {
+                TextVersion = request.Document.TextVersion != 0 ? request.Document.TextVersion : doc.Version,
+                StartLine = from,
+                EndLine = to,
+                Items = items,
+                Calls = stats.Calls,
+                Resolved = stats.Resolved,
+                AutoVariables = stats.AutoVariables,
+                ElapsedMs = Ms(sw),
+            };
+            var data = new (string, object)[]
+            {
+                ("file", FileName(doc.Path)), ("lines", from + ".." + to), ("version", request.Document.TextVersion), ("items", items.Count),
+                ("parameterNames", request.ParameterNames), ("autoTypes", request.AutoTypes), ("calls", stats.Calls), ("resolved", stats.Resolved),
+                ("ambiguous", stats.Ambiguous), ("autoVariables", stats.AutoVariables), ("autoDeduced", stats.AutoDeduced), ("indexQueries", s.Ctx.IndexQueries),
+                ("ms", resp.ElapsedMs),
+            };
+            double budget = InlayHintsBudgetMs * Math.Max(1.0, (to - from + 1) / 100.0);
+            if (resp.ElapsedMs > budget) L.Warn("editor.inlayHints", "Inlay hints over budget", data);
+            else L.Debug("editor.inlayHints", null, data);
             return resp;
         }
 

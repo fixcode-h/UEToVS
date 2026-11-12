@@ -109,6 +109,11 @@ namespace UEToVS.Host.Logic.Commands
         public const int NewUeClass = 0x0170;
         public const int NextBuildError = 0x0171;
         public const int ClearBuildErrors = 0x0172;
+        // ---- v0.4.5 编辑体验 (0x0180–0x019F): Editing/EditorFeatureActions.cs
+        public const int SurroundWith = 0x0180;
+        public const int ToggleInlayHints = 0x0181;
+        public const int ShowHashtags = 0x0182;
+        public const int PasteFromHistory = 0x0183;
 
         // ---- M2 navigation (0x0200–0x02FF): Navigation/NavigationActions.cs
         public const int GoToDefinition = 0x0200;
@@ -294,6 +299,11 @@ namespace UEToVS.Host.Logic.Commands
             C(H, NewUeClass, "NewUeClass", ActionIds.NewUeClass, "新建 UE 类…", "New Unreal Class...", "unreal", Gl, "Ctrl+Shift+Alt+U, N", null, null),
             C(H, NextBuildError, "NextBuildError", ActionIds.NextBuildError, "下一个编译错误", "Next Build Error", "tools", Gl, "Ctrl+Shift+Alt+U, Q", null, null),
             C(H, ClearBuildErrors, "ClearBuildErrors", ActionIds.ClearBuildErrors, "清除编译错误标记", "Clear Build Error Marks", "tools", Gl, "Ctrl+Shift+Alt+U, X", null, null),
+            // ---- v0.4.5 编辑体验 (host; Editing/EditorFeatureActions.cs)
+            C(H, SurroundWith, "SurroundWith", "uetovs.edit.surroundWith", "Surround With…", "Surround With...", "refactor", Ed, "Ctrl+Shift+Alt+U, 1", "Ctrl+Alt+J", null),
+            C(H, ToggleInlayHints, "ToggleInlayHints", "uetovs.edit.toggleInlayHints", "显示 / 隐藏内嵌提示", "Toggle Inlay Hints", "tools", Ed, "Ctrl+Shift+Alt+U, 2", null, null),
+            C(H, ShowHashtags, "ShowHashtags", "uetovs.edit.hashtags", "#tag 书签", "#tag Bookmarks", "bookmarks", Gl, "Ctrl+Shift+Alt+U, 3", null, null),
+            C(H, PasteFromHistory, "PasteFromHistory", "uetovs.edit.pasteFromHistory", "从剪贴板历史粘贴…", "Paste from Clipboard History...", "tools", Ed, "Ctrl+Shift+V", "Ctrl+Shift+V", null),
         };
 
         public static CommandInfo ById(int id)

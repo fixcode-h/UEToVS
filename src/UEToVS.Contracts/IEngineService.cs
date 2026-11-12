@@ -97,6 +97,10 @@ namespace UEToVS.Contracts
 
         /// <summary>One level of the call hierarchy: direct callers (delegate bindings included) or direct callees of a function.</summary>
         Task<CallHierarchyResponse> GetCallHierarchyAsync(CallHierarchyRequest request, CancellationToken ct);
+        // ---- v0.4.5 编辑体验 (see InlayHints.cs) ----
+
+        /// <summary>Inlay hints (parameter names before literal arguments, deduced auto types) for a line range of a document.</summary>
+        Task<InlayHintsResponse> GetInlayHintsAsync(InlayHintsRequest request, CancellationToken ct);
     }
 
     /// <summary>Notifications engine → host.</summary>

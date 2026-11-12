@@ -108,6 +108,8 @@ namespace UEToVS.Host.IntelliSense
                 foreach (var b in m.Badges) meta.Add(new ClassifiedTextRun(SemanticClassificationNames.UeMacro, b + "  "));
                 if (m.Location != null) meta.Add(new ClassifiedTextRun(PredefinedClassificationTypeNames.Comment, m.Location));
                 if (meta.Count > 0) parts.Add(new ClassifiedTextElement(meta));
+                if (m.Deprecation != null && IntelliSenseContext.Settings?.DeprecationHints != false) // v0.4.5 编辑体验
+                    parts.Add(new ClassifiedTextElement(new ClassifiedTextRun(PredefinedClassificationTypeNames.Keyword, "⚠ " + m.Deprecation)));
                 if (m.Documentation != null)
                     parts.Add((object)TranslatedDoc(m.Documentation, showOriginal: true) ??
                               new ClassifiedTextElement(new ClassifiedTextRun(PredefinedClassificationTypeNames.NaturalLanguage, m.Documentation)));
