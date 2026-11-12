@@ -819,7 +819,7 @@ IAction
 
 - `UEToVS.UI.Logic.SettingsModel`（无 WPF 依赖，有单元测试）：`SettingDescriptor`（Key、分类、分组、类型 Bool/Int/Choice/Text/Path/Action/Info、默认值、范围、选项、“自动”标签、关键字）与 `Normalize / Matches / Diff / Defaults / Validate`。
 - `UEToVS.Host.Logic.Settings.HostSettingsSchema`：所有描述（键如 `indexing.cppThreads`、`nav.ctrlClick`）和 `Codec`（`HostSettings` ⇄ 字符串值，`ToIndexing` 生成推给引擎的 `IndexingSettings`）。单元测试保证每个 `HostSettings` 属性都能在窗口里改到。
-- 持久化：VS 用户设置 `UEToVS\Settings`（`SettingsStore`）。首次运行从旧的 选项页（General / Logging DialogPage）迁移一次并记日志 `settings.migrated`；解决方案级覆盖（`.vs/UEToVS/settings.json`）不变。“应用 / 确定”调用 `SettingsService.ApplyUserValues`，引发 `Changed`，各服务实时生效（日志级别、索引线程推给引擎、工具栏显隐、导航 / M1 设置等）。
+- 持久化：VS 用户设置 `UEToVS\Settings`（`SettingsStore`）。首次运行从旧的 选项页（General / Logging DialogPage）迁移一次并记日志 `settings.migrated`；解决方案级覆盖（`<解决方案>\.uetovs\settings.json`）不变。“应用 / 确定”调用 `SettingsService.ApplyUserValues`，引发 `Changed`，各服务实时生效（日志级别、索引线程推给引擎、工具栏显隐、导航 / M1 设置等）。
 - 工具 > 选项 > UEToVS 只剩一个说明页和“打开 UEToVS 设置”按钮。所有原来打开选项页的入口（菜单、Find Action、IntelliSense 提示条的“设置”链接）都打开新窗口。
 - 自定义页：外观（沿用 `AppearanceSettingsPanel`，应用 / 取消与窗口一致）和快捷键（`KeymapPage`）。
 
