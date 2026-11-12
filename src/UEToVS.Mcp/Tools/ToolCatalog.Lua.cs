@@ -87,7 +87,8 @@ namespace UEToVS.Mcp.Tools
 
         private ToolDefinition SearchLuaTool() => Define(
             "search_lua", "Search Lua symbols",
-            "Search the UEToVS index of the project's Lua scripts (UnLua / sluaunreal / plain Lua, folders set in the UEToVS settings): " +
+            "Use this first, instead of grep, to find Lua code by name: where a Lua function, method or class is defined. " +
+            "Searches the UEToVS index of the project's Lua scripts (UnLua / sluaunreal / plain Lua, folders set in the UEToVS settings): " +
             "functions, methods (M:Foo), classes (---@class, class(...), UnLua.Class()), module tables, fields and file-level variables. " +
             "Fuzzy by default (prefix, CamelHumps like 'OBC' → OnButtonClicked, substring); 'M:Fire' or 'UI.MainPanel.Show' restricts the container. " +
             "Results: name, kind, container, file, line/col (1-based), sig, module (require name), local.",
@@ -127,6 +128,7 @@ namespace UEToVS.Mcp.Tools
 
         private ToolDefinition SearchLuaFilesTool() => Define(
             "search_lua_files", "Search Lua script files",
+            "Find a Lua script by file name or require path: use this instead of Glob/find. " +
             "Find indexed Lua script files by file name (fuzzy: 'MainPan' → MainPanel.lua) or by require/module path ('UI.MainPanel', 'UI/MainPanel'). " +
             "Results: name, path (absolute), module (require name), symbols (declaration count).",
             Schema(
@@ -160,7 +162,7 @@ namespace UEToVS.Mcp.Tools
 
         private ToolDefinition LuaOutlineTool() => Define(
             "get_lua_outline", "Lua file outline",
-            "Declarations of one Lua script in source order (classes, tables, functions, methods, fields, file-level variables) with 1-based line/col and signature. " +
+            "Use it before reading a large Lua script. Declarations of one Lua script in source order (classes, tables, functions, methods, fields, file-level variables) with 1-based line/col and signature. " +
             "Accepts an absolute path, a path relative to a Lua script folder or the project, or a module name ('UI.MainPanel').",
             Schema(
                 "\"path\":{\"type\":\"string\",\"description\":\"Lua file path or module name.\"}," +

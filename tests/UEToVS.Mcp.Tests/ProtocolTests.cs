@@ -64,6 +64,12 @@ namespace UEToVS.Mcp.Tests
             var c = m.Client;
             Assert.Equal("uetovs", c.ServerInfo.Name);
             Assert.Contains("search_symbols", c.ServerInstructions);
+            // The instructions are what makes agents pick these tools over grep: every search tool must be named, and they must fit
+            // in the 2 KB some clients (Claude Code) keep.
+            foreach (var name in new[] { "search_files", "search_assets", "find_references", "search_lua", "search_lua_files", "get_lua_outline" })
+                Assert.Contains(name, c.ServerInstructions);
+            Assert.Contains("Grep", c.ServerInstructions);
+            Assert.True(c.ServerInstructions.Length < 2000, "instructions are long: " + c.ServerInstructions.Length);
             Assert.NotNull(c.ServerCapabilities.Tools);
             Assert.NotNull(c.ServerCapabilities.Resources);
             Assert.NotNull(c.ServerCapabilities.Prompts);
