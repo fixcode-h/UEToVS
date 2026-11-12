@@ -75,6 +75,8 @@ namespace UEToVS.Engine.Rpc
             ["rpc.getSignatureHelp"] = 50,
             ["rpc.classify"] = 30,         // viewport (~100 lines) p95 < 15 ms
             ["rpc.getDiagnostics"] = 100,  // viewport ± 50 lines, after an edit pause (squiggles)
+            ["rpc.getRefactoringContext"] = 100,   // M4 Alt+Enter / light bulb (include walk bounded, cached)
+            ["rpc.getOverridableMethods"] = 500,   // M4 Implement Virtual dialog
         };
 
         public static double For(string evt) => ByEvent.TryGetValue(evt, out var b) ? b : double.MaxValue;
