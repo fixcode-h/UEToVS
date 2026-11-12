@@ -103,6 +103,8 @@ namespace UEToVS.Host.Logic.Commands
         /// <summary>v0.4.2 Smart Select (Editing/SmartSelectActions.cs).</summary>
         public const int ExpandSelection = 0x0163;
         public const int ShrinkSelection = 0x0164;
+        /// <summary>注释翻译 (Translation/TranslationActions.cs): editor context menu.</summary>
+        public const int TranslateSelection = 0x0165;
 
         // ---- M2 navigation (0x0200–0x02FF): Navigation/NavigationActions.cs
         public const int GoToDefinition = 0x0200;
@@ -269,6 +271,7 @@ namespace UEToVS.Host.Logic.Commands
             C(H, GenerateRpc, "GenerateRpc", "uetovs.generate.rpc", "生成 RPC（_Implementation / _Validate）", "Generate RPC (Implementation / Validate)", "unreal", Gl, "Ctrl+Shift+Alt+U, W", null, null),
             C(H, ExpandSelection, "ExpandSelection", "uetovs.edit.expandSelection", "扩大选区", "Extend Selection", "navigation", Ed, "Shift+Alt+W", null, null),
             C(H, ShrinkSelection, "ShrinkSelection", "uetovs.edit.shrinkSelection", "缩小选区", "Shrink Selection", "navigation", Ed, "Ctrl+Shift+Alt+W", null, null),
+            C(H, TranslateSelection, "TranslateSelection", "uetovs.translate.selection", "翻译选中内容", "Translate Selection", "tools", Gl, "Ctrl+Shift+Alt+U, T", null, null),
         };
 
         public static CommandInfo ById(int id)

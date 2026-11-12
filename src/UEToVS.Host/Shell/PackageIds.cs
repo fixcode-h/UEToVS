@@ -61,6 +61,9 @@ namespace UEToVS.Host.Shell
         public const int GenerateRpc = 0x0162;
         public const int ExpandSelection = 0x0163;
         public const int ShrinkSelection = 0x0164;
+
+        // ---- 注释翻译 (Translation/TranslationActions.cs) ----
+        public const int TranslateSelection = 0x0165;
     }
 
     /// <summary>Stable action ids (§7.4). Commands dispatch to these.</summary>
@@ -86,5 +89,9 @@ namespace UEToVS.Host.Shell
         public const string GenerateRpc = "uetovs.generate.rpc";
         public const string ExpandSelection = "uetovs.edit.expandSelection";
         public const string ShrinkSelection = "uetovs.edit.shrinkSelection";
+
+        // ---- 注释翻译 (Translation/TranslationActions.cs) ----
+        public const string TranslateSelection = "uetovs.translate.selection";
+        public const string ClearTranslationCache = Logic.Translation.TranslationSettingsSchema.ClearCacheAction;
     }
 }

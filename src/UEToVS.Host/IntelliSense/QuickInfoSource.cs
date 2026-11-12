@@ -109,7 +109,14 @@ namespace UEToVS.Host.IntelliSense
                 if (m.Location != null) meta.Add(new ClassifiedTextRun(PredefinedClassificationTypeNames.Comment, m.Location));
                 if (meta.Count > 0) parts.Add(new ClassifiedTextElement(meta));
                 if (m.Documentation != null)
-                    parts.Add(new ClassifiedTextElement(new ClassifiedTextRun(PredefinedClassificationTypeNames.NaturalLanguage, m.Documentation)));
+                    parts.Add((object)TranslatedDoc(m.Documentation, showOriginal: true) ??
+                              new ClassifiedTextElement(new ClassifiedTextRun(PredefinedClassificationTypeNames.NaturalLanguage, m.Documentation)));
+            }
+            else if (m.Documentation != null)
+            {
+                // VS's own tooltip already shows the comment: add only its translation
+                var translation = TranslatedDoc(m.Documentation, showOriginal: false);
+                if (translation != null) parts.Add(translation);
             }
             if (m.Reflection != null)
             {
@@ -138,6 +145,21 @@ namespace UEToVS.Host.IntelliSense
             if (!ueOnly && m.ConfidenceNote != null)
                 parts.Add(new ClassifiedTextElement(new ClassifiedTextRun(PredefinedClassificationTypeNames.Comment, m.ConfidenceNote)));
             return parts.Count == 0 ? null : new ContainerElement(ContainerElementStyle.Stacked, parts);
+        }
+
+        /// <summary>The doc comment with its translation (async, cached), or null when translation is off / not needed.</summary>
+        private static Translation.TranslatedTextElement TranslatedDoc(string doc, bool showOriginal)
+        {
+            if (!Translation.TranslationContext.Enabled) return null;
+            try
+            {
+                return Translation.TranslatedTextElement.Create(Translation.TranslationContext.Service, doc, showOriginal);
+            }
+            catch (Exception ex)
+            {
+                L.Warn("translate.quickInfo.failed", "Starting the translation failed", ex);
+                return null;
+            }
         }
 
         /// <summary>UFUNCTION(BlueprintCallable, Category="X"): macro, specifiers and values coloured like the editor.</summary>

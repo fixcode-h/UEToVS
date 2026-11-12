@@ -284,6 +284,7 @@ namespace UEToVS.Host.Logic.Settings
                 "声明、文档注释、UE 反射摘要与宏展开（也可 Ctrl+K,I）。", "Declaration, docs, UE reflection summary and macro expansion (also Ctrl+K,I).", "true", gQi, gQiEn));
             list.Add(D(IntelliSense, "signatureHelp.enabled", SettingKind.Bool, "参数信息", "Parameter info",
                 "输入 ( 或 , 时显示（也可 Ctrl+Shift+Space）。", "Shown on ( and , (also Ctrl+Shift+Space).", "true", gQi, gQiEn));
+            UEToVS.Host.Logic.Translation.TranslationSettingsSchema.AddDescriptors(list, IntelliSense);
             const string gCol = "语义着色", gColEn = "Semantic coloring";
             list.Add(D(IntelliSense, "coloring.enabled", SettingKind.Bool, "VA 风格语义着色", "VA-style semantic coloring",
                 "类型、函数、变量、宏、枚举值等分别着色；颜色可在 VS 字体和颜色（“UEToVS …”）中修改。",
@@ -455,6 +456,7 @@ namespace UEToVS.Host.Logic.Settings
                 foreach (var b in ToolbarButtons.All)
                     if (b.Key != "settings") d["toolbar.button." + b.Key] = B(!hidden.Contains(b.Key));
                 UEToVS.Host.Logic.Fonts.FontSettingsSchema.ToValues(s, d);
+                UEToVS.Host.Logic.Translation.TranslationSettingsSchema.ToValues(s, d);
                 return d;
             }
 
@@ -553,6 +555,7 @@ namespace UEToVS.Host.Logic.Settings
                         case "inlay.autoTypes": s.InlayAutoTypes = PB(v); break;
                         default:
                             if (UEToVS.Host.Logic.Fonts.FontSettingsSchema.TrySet(s, d.Key, v)) break;
+                            if (UEToVS.Host.Logic.Translation.TranslationSettingsSchema.TrySet(s, d.Key, v)) break;
                             if (d.Key.StartsWith("toolbar.button.", StringComparison.Ordinal))
                             {
                                 string key = d.Key.Substring("toolbar.button.".Length);

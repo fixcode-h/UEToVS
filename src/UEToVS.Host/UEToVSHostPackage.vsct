@@ -100,6 +100,10 @@
       <Group guid="guidUEToVSHostCmdSet" id="grpToolbarTools" priority="0x0300">
         <Parent guid="guidUEToVSHostCmdSet" id="tbUEToVS" />
       </Group>
+      <!-- 注释翻译 (Translation/TranslationActions.cs): directly on the editor context menu (every text editor) -->
+      <Group guid="guidUEToVSHostCmdSet" id="grpCodeWinTranslate" priority="0x0600">
+        <Parent guid="guidSHLMainMenu" id="IDM_VS_CTXT_CODEWIN" />
+      </Group>
       <!-- v0.4.2 Generate (Generate/GenerateActions.cs): editor context menu > UEToVS -->
       <Group guid="guidUEToVSHostCmdSet" id="grpContextGenerate" priority="0x0200">
         <Parent guid="guidUEToVSHostCmdSet" id="menuUEToVSContext" />
@@ -827,6 +831,16 @@
           <LocCanonicalName>UEToVS.ShrinkSelection</LocCanonicalName>
         </Strings>
       </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdTranslateSelection" priority="0x0100" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpCodeWinTranslate" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <CommandFlag>DefaultDisabled</CommandFlag>
+        <Strings>
+          <ButtonText>Translate Selection</ButtonText>
+          <CanonicalName>UEToVS.TranslateSelection</CanonicalName>
+          <LocCanonicalName>UEToVS.TranslateSelection</LocCanonicalName>
+        </Strings>
+      </Button>
     </Buttons>
 
     <Bitmaps>
@@ -913,6 +927,7 @@
     <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdRename" editor="guidTextEditorFactory" key1="R" mod1="Control" key2="R" mod2="Control" />
     <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdImplementVirtual" editor="guidTextEditorFactory" key1="U" mod1="Control Shift Alt" key2="V" />
     <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdGenerateConstructor" editor="guidVSStd97" key1="U" mod1="Control Shift Alt" key2="K" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdTranslateSelection" editor="guidVSStd97" key1="U" mod1="Control Shift Alt" key2="T" />
     <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdGenerateReplication" editor="guidVSStd97" key1="U" mod1="Control Shift Alt" key2="Y" />
     <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdGenerateRpc" editor="guidVSStd97" key1="U" mod1="Control Shift Alt" key2="W" />
     <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdExpandSelection" editor="guidTextEditorFactory" key1="W" mod1="Alt Shift" />
@@ -1034,6 +1049,9 @@
       <IDSymbol name="cmdGenerateRpc" value="0x0162" />
       <IDSymbol name="cmdExpandSelection" value="0x0163" />
       <IDSymbol name="cmdShrinkSelection" value="0x0164" />
+      <!-- 注释翻译 (Translation/TranslationActions.cs) -->
+      <IDSymbol name="grpCodeWinTranslate" value="0x1070" />
+      <IDSymbol name="cmdTranslateSelection" value="0x0165" />
     </GuidSymbol>
   </Symbols>
 </CommandTable>

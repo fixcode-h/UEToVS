@@ -57,6 +57,7 @@ namespace UEToVS.Host.Actions
                 ctx => Mcp.McpRegistration.WriteSolutionConfigAsync(ctx.SolutionDirectory), ctx => ctx.IsUnrealSolution, null, McpStrings.KwMcp));
             Generate.GenerateActions.Register(registry, package);
             Editing.SmartSelectActions.Register(registry);
+            Translation.TranslationActions.Register(registry);
             L.Info("actions.registered", null, ("count", registry.Count));
         }
 
