@@ -13,6 +13,7 @@ using UEToVS.Core.Diagnostics;
 using UEToVS.Host.Diagnostics;
 using UEToVS.Host.Logic.Navigation;
 using UEToVS.Host.Navigation;
+using UEToVS.Host.Options;
 
 namespace UEToVS.Host.Editor
 {
@@ -44,6 +45,7 @@ namespace UEToVS.Host.Editor
     /// <summary>Ctrl press / release while the mouse rests over a word (keyboard side: show / hide the underline).</summary>
     [Export(typeof(IKeyProcessorProvider))]
     [Name("UEToVS.CtrlClickKeys")]
+    [Order(Before = "GoToDefinition")]
     [ContentType(EditorContentTypes.Cpp)]
     [TextViewRole(PredefinedTextViewRoles.Document)]
     internal sealed class CtrlClickKeyProcessorProvider : IKeyProcessorProvider
@@ -99,12 +101,39 @@ namespace UEToVS.Host.Editor
             _view.LayoutChanged += OnLayoutChanged;
             _view.LostAggregateFocus += OnLostFocus;
             _view.Closed += OnClosed;
+            _view.GotAggregateFocus += OnGotFocus; // the solution kind / setting may have changed since the view opened
+            NavigationContext.SettingsChanged += OnSettingsChanged;
+            Safe.Execute(L, "ctrlClick.init", () => SyncVsClickGoToDefinition(Enabled));
         }
 
         public static CtrlClickController For(IWpfTextView view) =>
             view.Properties.GetOrCreateSingletonProperty(typeof(CtrlClickController), () => new CtrlClickController(view));
 
         private bool Enabled => NavigationContext.IsUnrealSolution && NavigationContext.Settings.CtrlClickNavigation;
+
+        private bool? _vsClickGoToDefSuppressed;
+
+        /// <summary>
+        /// VS's own "Enable mouse click to perform Go To Definition" draws a second underline (and link colour) on Ctrl+hover
+        /// over the same word as ours. While UEToVS handles Ctrl+click in this view, turn VS's off for this view only
+        /// (a view-local editor option: the user's global VS setting is untouched); give it back when ours is off.
+        /// </summary>
+        private void SyncVsClickGoToDefinition(bool oursEnabled)
+        {
+            if (_vsClickGoToDefSuppressed == oursEnabled) return;
+            try
+            {
+                if (oursEnabled) _view.Options.SetOptionValue(DefaultWpfViewOptions.ClickGoToDefEnabledId, false);
+                else _view.Options.ClearOptionValue(DefaultWpfViewOptions.ClickGoToDefEnabledId.Name);
+                _vsClickGoToDefSuppressed = oursEnabled;
+                L.Debug("ctrlClick.vsClickGoToDef", null, ("suppressed", oursEnabled));
+            }
+            catch (Exception ex)
+            {
+                _vsClickGoToDefSuppressed = oursEnabled; // do not retry on every mouse move
+                L.Warn("ctrlClick.vsClickGoToDef.failed", "Could not switch VS's own Ctrl+click Go To Definition for this view", ex);
+            }
+        }
 
         private static KeyMods Mods()
         {
@@ -127,6 +156,7 @@ namespace UEToVS.Host.Editor
             {
                 var pos = e.GetPosition(_view.VisualElement);
                 _gesture.Enabled = Enabled;
+                SyncVsClickGoToDefinition(_gesture.Enabled);
                 var hit = HitTest(pos);
                 Apply(_gesture.OnMove(mods, hit.HasValue, pos.X, pos.Y), hit);
             }
@@ -189,6 +219,7 @@ namespace UEToVS.Host.Editor
 
         public void OnModifiersChanged() => Safe.Execute(L, "ctrlClick.keys", () =>
         {
+            SyncVsClickGoToDefinition(Enabled); // before VS's own key processor reacts to Ctrl
             if (_view.IsClosed || !_view.VisualElement.IsMouseOver)
             {
                 if (_hover != null) ClearHover();
@@ -237,8 +268,17 @@ namespace UEToVS.Host.Editor
         {
             _view.LayoutChanged -= OnLayoutChanged;
             _view.LostAggregateFocus -= OnLostFocus;
+            _view.GotAggregateFocus -= OnGotFocus;
+            NavigationContext.SettingsChanged -= OnSettingsChanged;
             _view.Closed -= OnClosed;
         }
+
+        private void OnGotFocus(object sender, EventArgs e) => Safe.Execute(L, "ctrlClick.focus", () => SyncVsClickGoToDefinition(Enabled));
+
+        private void OnSettingsChanged(object sender, SettingsChangedEventArgs e) => Safe.Execute(L, "ctrlClick.settings", () =>
+        {
+            if (!_view.IsClosed) SyncVsClickGoToDefinition(Enabled);
+        });
 
         // ---------------------------------------------------------------- hover visuals
 
