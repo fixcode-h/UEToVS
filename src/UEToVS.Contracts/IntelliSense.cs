@@ -195,6 +195,8 @@ namespace UEToVS.Contracts
         Deprecated = 8,
         /// <summary>Name could not be resolved (shown without colour or with a squiggle when enabled).</summary>
         Unresolved = 16,
+        /// <summary>Symbol declared in engine / engine plugin / third-party code (VA "stable symbols in italic").</summary>
+        External = 32,
     }
 
     public sealed class SemanticSpan

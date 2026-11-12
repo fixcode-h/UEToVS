@@ -215,19 +215,33 @@ namespace UEToVS.Engine.Rpc
         public Task RebuildIndexAsync(RebuildScope scope, CancellationToken ct) =>
             InvokeAsync("rpc.rebuildIndex", _ => Task.CompletedTask, ct, ("scope", scope.ToString()));
 
-        // ---- M3 IntelliSense: stubs, implemented by the IntelliSense service ----
+        // ---- M3 IntelliSense (IntelliSenseService): completion / Quick Info / parameter info Interactive, colouring Visible ----
 
         public Task<CompletionResponse> GetCompletionsAsync(CompletionRequest request, CancellationToken ct) =>
-            InvokeAsync("rpc.getCompletions", _ => Task.FromResult(new CompletionResponse()), ct);
+            InvokeAsync("rpc.getCompletions", c =>
+            {
+                if (request?.Caret == null) throw Error(RpcErrorCodes.InvalidArgument, "GetCompletions needs a caret");
+                return _host.Scheduler.RunAsync(WorkPriority.Interactive, "rpc.getCompletions", t => _host.IntelliSense.GetCompletions(request, t), c);
+            }, ct, ("file", request?.Caret?.FilePath), ("line", request?.Caret?.Line), ("col", request?.Caret?.Column), ("trigger", request?.TriggerChar.ToString()),
+                ("explicit", request?.Explicit), ("version", request?.Caret?.TextVersion));
 
         public Task<QuickInfoResponse> GetQuickInfoAsync(CaretRequest caret, CancellationToken ct) =>
-            InvokeAsync("rpc.getQuickInfo", _ => Task.FromResult(new QuickInfoResponse()), ct);
+            InvokeAsync("rpc.getQuickInfo", c => caret == null
+                    ? Task.FromResult(new QuickInfoResponse())
+                    : _host.Scheduler.RunAsync(WorkPriority.Interactive, "rpc.getQuickInfo", t => _host.IntelliSense.GetQuickInfo(caret, t), c),
+                ct, ("file", caret?.FilePath), ("line", caret?.Line), ("col", caret?.Column));
 
         public Task<SignatureHelpResponse> GetSignatureHelpAsync(CaretRequest caret, CancellationToken ct) =>
-            InvokeAsync("rpc.getSignatureHelp", _ => Task.FromResult(new SignatureHelpResponse()), ct);
+            InvokeAsync("rpc.getSignatureHelp", c => caret == null
+                    ? Task.FromResult(new SignatureHelpResponse())
+                    : _host.Scheduler.RunAsync(WorkPriority.Interactive, "rpc.getSignatureHelp", t => _host.IntelliSense.GetSignatureHelp(caret, t), c),
+                ct, ("file", caret?.FilePath), ("line", caret?.Line), ("col", caret?.Column));
 
         public Task<ClassifyResponse> ClassifyAsync(ClassifyRequest request, CancellationToken ct) =>
-            InvokeAsync("rpc.classify", _ => Task.FromResult(new ClassifyResponse { TextVersion = request?.Document?.TextVersion ?? 0 }), ct);
+            InvokeAsync("rpc.classify", c => request?.Document == null
+                    ? Task.FromResult(new ClassifyResponse { TextVersion = request?.Document?.TextVersion ?? 0 })
+                    : _host.Scheduler.RunAsync(WorkPriority.Visible, "rpc.classify", t => _host.IntelliSense.Classify(request, t), c),
+                ct, ("file", request?.Document?.FilePath), ("from", request?.StartLine), ("to", request?.EndLine), ("version", request?.Document?.TextVersion));
 
         public Task ShutdownAsync(CancellationToken ct) =>
             InvokeAsync("rpc.shutdown", _ =>

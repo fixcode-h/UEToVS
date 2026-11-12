@@ -43,6 +43,7 @@ namespace UEToVS.Engine
             Index = new IndexOrchestrator(Paths.Index, Scheduler, backend ?? new SegmentedIndexBackend(), parser ?? new SyntaxFileParser());
             Search = new SearchService(Index);
             Navigation = new Navigation.NavigationService(Index.Backend, Index.Files, () => Index.Phase == IndexPhase.Ready);
+            IntelliSense = new IntelliSense.IntelliSenseService(Index.Backend, Index.Files, () => Index.Phase == IndexPhase.Ready, Navigation.Documents);
             Changes = new FileChangeTracker(batch => Index.ApplyChangesAsync(batch, _shutdown.Token));
             Watchdog = new Watchdog { Context = () => QueueContext() };
             Performance = new PerformanceMonitor();
@@ -55,6 +56,7 @@ namespace UEToVS.Engine
         public IndexOrchestrator Index { get; }
         public SearchService Search { get; }
         public Navigation.NavigationService Navigation { get; }
+        public IntelliSense.IntelliSenseService IntelliSense { get; }
         public FileChangeTracker Changes { get; }
         public Watchdog Watchdog { get; }
         public PerformanceMonitor Performance { get; }
