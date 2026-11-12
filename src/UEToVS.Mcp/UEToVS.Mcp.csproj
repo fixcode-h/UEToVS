@@ -33,6 +33,7 @@
     <ProjectReference Include="..\UEToVS.Core\UEToVS.Core.csproj" />
     <ProjectReference Include="..\UEToVS.Engine.Index\UEToVS.Engine.Index.csproj" />
     <ProjectReference Include="..\UEToVS.Engine.Unreal\UEToVS.Engine.Unreal.csproj" />
+    <ProjectReference Include="..\UEToVS.Engine\UEToVS.Engine.csproj" />
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="UEToVS.Mcp.Tests" />

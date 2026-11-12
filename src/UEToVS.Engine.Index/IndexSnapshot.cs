@@ -248,6 +248,34 @@ namespace UEToVS.Engine.Index
         }
 
         /// <summary>
+        /// One indexed file per module name (module → path of its first live file; case-insensitive keys), for finding a
+        /// module's folder (and so its Build.cs) by name. Reads only the file table's path and module ids: no includes,
+        /// symbols or occurrences are decoded.
+        /// </summary>
+        public Dictionary<string, string> ModuleSampleFiles(CancellationToken ct = default)
+        {
+            var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            var snap = Inner;
+            foreach (var view in snap.Bases)
+            {
+                var seg = view.Segment;
+                var seen = new HashSet<uint>();
+                for (int fi = 0; fi < seg.FileCount; fi++)
+                {
+                    if ((fi & 4095) == 0) ct.ThrowIfCancellationRequested();
+                    if (view.IsDead((uint)fi)) continue;
+                    ref readonly var f = ref seg.Files[fi];
+                    if (!seen.Add(f.ModuleId)) continue;
+                    string module = seg.GetString(f.ModuleId);
+                    if (!string.IsNullOrEmpty(module) && !result.ContainsKey(module)) result[module] = seg.GetString(f.PathId);
+                }
+            }
+            foreach (var df in snap.DeltaSorted)
+                if (!string.IsNullOrEmpty(df.Source.Module) && !result.ContainsKey(df.Source.Module)) result[df.Source.Module] = df.Source.Path;
+            return result;
+        }
+
+        /// <summary>
         /// Occurrences of a name, streamed: per base segment in FileId order (engine first), then delta files in path
         /// order; offsets ascending within a file. Decoding is lazy, a batch at a time.
         /// </summary>

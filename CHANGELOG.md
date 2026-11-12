@@ -9,8 +9,15 @@
 ## v0.4.2
 
 ### 新功能
+- **MCP：`get_reflection_info`** — 类/结构体的全部 UPROPERTY / UFUNCTION，说明符拆成标志、键值和 meta，标出复制（Replicated / ReplicatedUsing=OnRep_X）和 RPC（Server/Client/NetMulticast、Reliable、WithValidation），可按说明符（如 `BlueprintReadWrite` 或 meta 键）、属性/函数、只看复制过滤；UFUNCTION 附带同名 Lua 函数（UnLua 覆盖）
+- **MCP：`get_module_info` / `suggest_include`** — 文件所属模块、模块类型（来自 .uproject/.uplugin，否则按目录推断）、插件、Build.cs Public/Private 依赖；给一个头文件（`GameFramework/Actor.h` 或路径）回答“它属于哪个模块、当前模块是否已能包含、应加到 Public 还是 Private 依赖”。`suggest_include` 给出类型应写的 UE 风格 `#include` 路径和需要的模块依赖
+- **MCP：`search_config`** — 查 ini 键值（项目 Config 和项目插件，scope=all 加引擎 Config，带行号）、`UPROPERTY(config)` 与 `Default<Config>.ini [/Script/模块.类] 键` 的对应及当前值（ini 键也反查到对应 UPROPERTY）、项目代码里的控制台变量（`TAutoConsoleVariable` / `FAutoConsoleVariableRef` / `FAutoConsoleCommand`：名字、变量、帮助文本、位置）和 GameplayTag（ini 与 `UE_DEFINE_GAMEPLAY_TAG`）。ini 解析复用 Engine 的 ConfigCatalog；C++ 只读索引里出现这些标识符的文件，按文件时间戳缓存
+- **MCP：`find_delegate_bindings`** — 函数被哪些 `AddDynamic` / `AddUObject` / `BindUObject` / `BindRaw` / `BindSP` / `BindUFunction`（含字符串名和 `GET_FUNCTION_NAME_CHECKED`）、`BindAction` / `BindAxis`、`SetTimer` 绑定，给出委托表达式、绑定方式和所在行；`Class::Func` 只保留指明该类的绑定。不改索引格式：成员指针绑定来自函数名的引用位置，字符串名绑定只扫描调用了 BindUFunction 等的文件
+- **MCP：Lua ↔ C++ 关联** — `find_references` 查 UFUNCTION 时附带同名 Lua 函数定义（UnLua 同名覆盖），说明 Lua 调用点不在索引里
+
 
 ### 改进
+- **MCP 提示与说明** — 去掉没有数据支撑的 `find_blueprint_usage` 提示词（`explain_ue_class` 改用 `get_reflection_info`）；`uetovs://guide` 增加“索引未就绪时如何退回 grep”；服务说明列出新工具
 - **共享的 .mcp.json 不再含本机路径** — “写入 .mcp.json 到项目根目录”改为写 `cmd /c %LOCALAPPDATA%\UEToVS\Mcp\uetovs-mcp.cmd --solution-dir <相对 .mcp.json 的路径>`：启动器脚本由每台装了 UEToVS 的机器在打开 UE 解决方案时自动更新（指向当前 VSIX 里的 UEToVS.Mcp.exe，找不到时在 `%LOCALAPPDATA%\Microsoft\VisualStudio\*\Extensions` 下查找），环境变量由 cmd 自己展开，不依赖客户端是否支持；提交到版本库后同事机器上也能直接用。旧版本写的绝对路径条目在打开解决方案时自动迁移，用户自己加的参数和 `env` 保留；`.vs\mcp.json`（VS 自己读，每人一份）仍写本机路径。MCP 服务的相对 `--solution-dir` 找不到解决方案时回退为从工作目录向上查找
 - **关闭解决方案时保存未落盘的索引改动** — Engine 正常退出时先把内存里尚未压实的增量（最近编辑过的文件）写成一个小的附加段（只写增量，不重写整个工程段，上限 5 秒），离线 MCP 立即能查到最新结果；宿主停止 Engine 时最多等 7 秒（后台进行，不阻塞 VS 关闭）。日志 `index.shutdown.flush`（文件数、耗时）/ `index.shutdown.flush.timeout`、`index.delta.persisted`
 
