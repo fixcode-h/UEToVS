@@ -240,10 +240,14 @@ namespace UEToVS.Engine.Tests
             using var c = await ConnectReadyAsync();
             await c.Engine.SearchAsync(new SearchRequest { Pattern = "MyChar" }, CancellationToken.None);
             _host.Performance.Sample();
+            _host.Scheduler.BuildPolicy = UEToVS.Engine.Indexing.BuildPolicy.Pause; // default (single thread) keeps indexing during builds
             _host.Scheduler.SetBuildInProgress(true);
             try
             {
                 var p = await c.Engine.GetPerformanceSnapshotAsync(CancellationToken.None);
+                Assert.Contains(p.Throughput, t => t.Stage == "parse.project" && t.FilesTotal > 0 && !t.Running);
+                Assert.NotNull(p.IndexingSettings);
+                Assert.True(p.IndexingSettings.CppThreads >= 1);
                 Assert.Equal(Environment.ProcessId, p.ProcessId);
                 Assert.True(p.UptimeSeconds > 0);
                 Assert.InRange(p.CpuPercent, 0, 100);

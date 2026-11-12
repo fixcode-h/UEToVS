@@ -34,6 +34,11 @@ namespace UEToVS.Engine.Indexing
         /// segmented index). Backends that don't understand it ignore it.
         /// </summary>
         public object Payload { get; set; }
+
+        /// <summary>File state the result was parsed from (set by the indexer; stored by backends that keep it).</summary>
+        public long MtimeTicks { get; set; }
+        public long Length { get; set; }
+        public ulong ContentHash { get; set; }
     }
 
     /// <summary>Turns one file into declarations. Must be thread-safe; called in parallel on BelowNormal threads.</summary>
@@ -114,6 +119,25 @@ namespace UEToVS.Engine.Indexing
         void UpdateParsed(string filePath, ParseResult result) => UpdateFile(filePath, result.Symbols);
 
         void RemoveFile(string filePath);
+
+        /// <summary>
+        /// Bulk path for initial indexing / rebuilds: stores a batch of parsed files at once (the segmented backend
+        /// writes one segment instead of pushing every file through the delta). Default: <see cref="UpdateParsed"/> per file.
+        /// </summary>
+        void AppendBatch(bool engine, IReadOnlyList<(string Path, ParseResult Result)> batch, CancellationToken ct)
+        {
+            foreach (var (path, result) in batch) UpdateParsed(path, result);
+        }
+
+        /// <summary>End of a bulk stage: the backend may merge what <see cref="AppendBatch"/> produced.</summary>
+        void FinishBulk(bool engine, CancellationToken ct)
+        {
+        }
+
+        /// <summary>Drops the project part, the engine part or both (rebuild). Default: nothing (re-adding replaces files).</summary>
+        void Reset(bool project, bool engine)
+        {
+        }
 
         bool ContainsFile(string filePath);
 

@@ -177,8 +177,7 @@ namespace UEToVS.Engine.Indexing
             double elapsed = ElapsedMs;
             double read = Ms(Interlocked.Read(ref _readTicks)), parse = Ms(Interlocked.Read(ref _parseTicks)), apply = Ms(Interlocked.Read(ref _applyTicks));
             double busyWork = read + parse + apply;
-            long available = Interlocked.Read(ref _availableTicks);
-            long busy = Interlocked.Read(ref _busyTicks);
+            double available = Ms(Interlocked.Read(ref _availableTicks));
             long bytes = Interlocked.Read(ref _bytes);
             int done = FilesDone;
             var t = new IndexThroughput
@@ -203,7 +202,7 @@ namespace UEToVS.Engine.Indexing
                 ParseMs = Math.Round(parse, 1),
                 ApplyMs = Math.Round(apply, 1),
                 IoShare = busyWork > 0 ? Math.Round(read / busyWork, 3) : 0,
-                ThreadUtilization = available > 0 ? Math.Round(Math.Min(1.0, (double)busy / available), 3) : 0,
+                ThreadUtilization = available > 0 ? Math.Round(Math.Min(1.0, busyWork / available), 3) : 0,
                 ThrottledMs = Math.Round(Ms(Interlocked.Read(ref _throttledTicks)), 1),
                 SegmentsWritten = Volatile.Read(ref _segments),
                 SegmentWriteMs = Math.Round(Ms(Interlocked.Read(ref _segmentTicks)), 1),

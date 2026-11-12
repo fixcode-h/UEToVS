@@ -60,13 +60,18 @@ namespace UEToVS.Engine.Tests
 
         private double Run(string projectRoot, string label, out EngineStatus status)
         {
-            var options = EngineOptions.Parse(new[] { "--status", "--solution-dir", projectRoot, "--project", Path.Combine(projectRoot, "BenchGame.uproject"), "--no-watch" }, out _);
+            var args = new System.Collections.Generic.List<string> { "--status", "--solution-dir", projectRoot, "--project", Path.Combine(projectRoot, "BenchGame.uproject"), "--no-watch" };
+            string threads = Environment.GetEnvironmentVariable("UETOVS_BENCH_THREADS");
+            if (!string.IsNullOrEmpty(threads)) args.AddRange(new[] { "--cpp-threads", threads });
+            var options = EngineOptions.Parse(args, out _);
             using var host = new EngineHost(options);
             var sw = Stopwatch.StartNew();
             host.StartIndexing();
             Assert.True(host.Index.WaitForReadyAsync(CancellationToken.None).Wait(TimeSpan.FromMinutes(30)));
             double ms = sw.Elapsed.TotalMilliseconds;
             status = host.GetStatus();
+            using var proc = System.Diagnostics.Process.GetCurrentProcess();
+            _out.WriteLine($"[{label}] peak working set {proc.PeakWorkingSet64 / 1048576} MB, managed {GC.GetTotalMemory(false) / 1048576} MB");
             _out.WriteLine($"[{label}] {ms / 1000:F2}s  files={status.FileCount} parsed={status.FilesParsed}/{status.FilesToParse} symbols={status.SymbolCount}");
             var snap = host.GetPerformanceSnapshot();
             foreach (var p in snap.Phases.AsEnumerable().Reverse())

@@ -186,10 +186,20 @@ namespace UEToVS.Engine.Rpc
         // ---- indexing settings: stubs, implemented by the indexing work ----
 
         public Task SetIndexingSettingsAsync(IndexingSettings settings, CancellationToken ct) =>
-            InvokeAsync("rpc.setIndexingSettings", _ => Task.CompletedTask, ct);
+            InvokeAsync("rpc.setIndexingSettings", _ =>
+            {
+                if (settings == null) throw Error(RpcErrorCodes.InvalidArgument, "Indexing settings are missing");
+                _host.ApplyIndexingSettings(settings);
+                return Task.CompletedTask;
+            }, ct, ("cppThreads", settings?.CppThreads), ("assetThreads", settings?.AssetThreads), ("duringBuild", settings?.DuringBuild),
+                ("includeEngine", settings?.IncludeEngine), ("sharedEngineCache", settings?.SharedEngineCache));
 
         public Task RebuildIndexAsync(RebuildScope scope, CancellationToken ct) =>
-            InvokeAsync("rpc.rebuildIndex", _ => Task.CompletedTask, ct, ("scope", scope.ToString()));
+            InvokeAsync("rpc.rebuildIndex", _ =>
+            {
+                _host.RebuildIndex(scope);
+                return Task.CompletedTask;
+            }, ct, ("scope", scope.ToString()));
 
         public Task ShutdownAsync(CancellationToken ct) =>
             InvokeAsync("rpc.shutdown", _ =>

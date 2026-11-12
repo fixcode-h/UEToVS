@@ -268,10 +268,15 @@ namespace UEToVS.Contracts
         public bool IncludeEngine { get; set; } = true;
 
         /// <summary>
-        /// Share the engine part of the index between projects using the same engine install
-        /// (%LocalAppData%\UEToVS\EngineIndex\&lt;engine id&gt;): the second project on an engine opens in seconds.
+        /// Off (default): the engine part of the index lives in the solution, &lt;solution&gt;\.vs\UEToVS\Index\engine
+        /// (project part in Index\project). On: engine segments are kept in a folder shared by every project using the
+        /// same engine install and build (<see cref="EngineCacheDirectory"/>, default
+        /// %LocalAppData%\UEToVS\EngineIndex\&lt;engine id&gt;), so the second project on an engine opens in seconds.
         /// </summary>
-        public bool SharedEngineCache { get; set; } = true;
+        public bool SharedEngineCache { get; set; }
+
+        /// <summary>Root folder of the shared engine index; null or empty = %LocalAppData%\UEToVS\EngineIndex.</summary>
+        public string EngineCacheDirectory { get; set; }
 
         /// <summary>
         /// Folder names never listed or indexed. Null or empty = defaults (Intermediate, Binaries, Saved, DerivedDataCache,
@@ -282,8 +287,15 @@ namespace UEToVS.Contracts
 
     public enum RebuildScope : byte
     {
+        /// <summary>Project and engine C++ index.</summary>
         Cpp = 0,
+        /// <summary>Blueprint / asset index.</summary>
         Assets = 1,
+        /// <summary>Everything.</summary>
         All = 2,
+        /// <summary>Project C++ index only (project segments + delta); the engine part is kept.</summary>
+        Project = 3,
+        /// <summary>Engine C++ index only; project data is kept.</summary>
+        Engine = 4,
     }
 }

@@ -40,7 +40,12 @@ namespace UEToVS.Engine
             Options = options;
             Paths = StoragePaths.ForSolution(options.SolutionDir).EnsureCreated();
             Scheduler = new RequestScheduler(options.MaxParallelism);
-            Index = new IndexOrchestrator(Paths.Index, Scheduler, backend ?? new SegmentedIndexBackend(), parser ?? new SyntaxFileParser());
+            var config = IndexingConfig.From(options.InitialIndexingSettings());
+            FileLister.SkippedDirectories = config.ExcludedFolders?.ToList();
+            Scheduler.BuildPolicy = config.DuringBuild;
+            Index = new IndexOrchestrator(Paths.Index, Scheduler, backend ?? new SegmentedIndexBackend(), parser ?? new SyntaxFileParser(), config);
+            Scheduler.StateChanged += SyncThrottles;
+            L.Info("index.settings.initial", null, ("settings", config.ToString()), ("cores", Environment.ProcessorCount));
             Search = new SearchService(Index);
             Changes = new FileChangeTracker(batch => Index.ApplyChangesAsync(batch, _shutdown.Token));
             Watchdog = new Watchdog { Context = () => QueueContext() };
@@ -77,8 +82,46 @@ namespace UEToVS.Engine
             SolutionDir = Options.SolutionDir,
             ProjectFile = projectFile ?? Options.ProjectFile,
             EngineRootOverride = engineRoot ?? Options.EngineRoot,
-            IncludeEngine = !Options.SkipEngine,
+            IncludeEngine = !Options.SkipEngine && Index.Config.IncludeEngine,
         };
+
+        /// <summary>Scheduler build flag / user pause → the C++ and asset worker throttles.</summary>
+        private void SyncThrottles()
+        {
+            bool building = Scheduler.IsBuildInProgress, paused = Scheduler.IsUserPaused;
+            foreach (var t in new[] { Index.CppThrottle, Index.AssetThrottle })
+            {
+                t.SetBuilding(building);
+                t.SetUserPaused(paused);
+            }
+        }
+
+        /// <summary>
+        /// Settings window → engine, at runtime: thread counts and the build policy apply immediately (running workers
+        /// adapt at their next file); engine on/off, excluded folders and the engine cache location restart the run.
+        /// </summary>
+        public void ApplyIndexingSettings(IndexingSettings settings)
+        {
+            var config = IndexingConfig.From(settings);
+            Scheduler.BuildPolicy = config.DuringBuild;
+            bool restart = Index.ApplyConfig(config);
+            if (restart && CurrentWorkspaceOptions != null)
+            {
+                CurrentWorkspaceOptions = BuildWorkspaceOptions(CurrentWorkspaceOptions.ProjectFile, CurrentWorkspaceOptions.EngineRootOverride);
+                _ = Index.Start(CurrentWorkspaceOptions, _shutdown.Token);
+            }
+        }
+
+        /// <summary>Rebuild (project / engine / both C++ parts, assets, all). Returns at once; progress via status.</summary>
+        public void RebuildIndex(RebuildScope scope)
+        {
+            if (Index.Options == null && CurrentWorkspaceOptions == null)
+            {
+                L.Warn("index.rebuild.not_started", "Rebuild requested before indexing started", ("scope", scope.ToString()));
+                return;
+            }
+            Index.Rebuild(scope, _shutdown.Token);
+        }
 
         public Task StartIndexing()
         {
@@ -179,6 +222,7 @@ namespace UEToVS.Engine
                 ScheduledInteractive = Scheduler.QueueLength(WorkPriority.Interactive) + Scheduler.QueueLength(WorkPriority.Visible),
                 ScheduledBackground = Scheduler.QueueLength(WorkPriority.Background),
                 BackgroundPaused = Scheduler.IsBackgroundPaused,
+                IndexingSettings = Index.Config.ToSettings(),
             };
             snap.Resources = snap.Status.Resources;
             snap.Throughput.AddRange(Index.Throughput());
@@ -228,7 +272,9 @@ namespace UEToVS.Engine
                 ("queueInteractive", Scheduler.QueueLength(WorkPriority.Interactive)),
                 ("queueVisible", Scheduler.QueueLength(WorkPriority.Visible)),
                 ("queueBackground", Scheduler.QueueLength(WorkPriority.Background)),
-                ("buildPaused", Scheduler.IsBuildInProgress),
+                ("buildInProgress", Scheduler.IsBuildInProgress),
+                ("cppThreads", Index.CppThrottle.Effective),
+                ("assetThreads", Index.AssetThrottle.Effective),
                 ("connections", Volatile.Read(ref Connections)),
                 ("inFlight", Watchdog.InFlight),
             };
