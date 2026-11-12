@@ -45,6 +45,10 @@ namespace UEToVS.Host.Logic.Settings
             public const string VsUnrealIntegration = "settings.general.vsUnrealIntegration";
             /// <summary>"检查更新": latest GitHub release → download VSIX → start VSIXInstaller.</summary>
             public const string CheckForUpdates = "settings.general.checkForUpdates";
+            // ---- v0.4.5 UE editor link: UEToVSLink status card / install / uninstall (Link/LinkPluginManager.cs)
+            public const string LinkPluginStatus = "settings.link.pluginStatus";
+            public const string LinkPluginInstall = "settings.link.pluginInstall";
+            public const string LinkPluginUninstall = "settings.link.pluginUninstall";
         }
 
         public static IReadOnlyList<SettingCategory> Categories { get; } = new[]
@@ -171,6 +175,30 @@ namespace UEToVS.Host.Logic.Settings
                 "勾选“自动”时读取 <项目>/Saved/UEToVSLink/port.txt。", "“Auto” reads <Project>/Saved/UEToVSLink/port.txt.", "0", gUe, gUeEn);
             port.Min = 0; port.Max = 65535; port.AutoLabelZh = "自动"; port.AutoLabelEn = "Auto";
             list.Add(port);
+
+            // ---- v0.4.5 UE editor link
+            const string gLink = "UE 编辑器联动（UEToVSLink）", gLinkEn = "Unreal Editor link (UEToVSLink)";
+            list.Add(A(General, "link.pluginStatus", WindowActions.LinkPluginStatus, "UEToVSLink 插件", "UEToVSLink plugin", null, null, gLink, gLinkEn, SettingKind.Info));
+            list.Add(A(General, "link.pluginInstall", WindowActions.LinkPluginInstall, "安装 / 更新 UEToVSLink", "Install / update UEToVSLink",
+                "把扩展自带的插件复制到 <项目>/Plugins/UEToVSLink（更新时先删掉旧的 Binaries / Intermediate），重新打开 UE 编辑器后生效。",
+                "Copies the bundled plugin to <Project>/Plugins/UEToVSLink (an update removes the old Binaries / Intermediate first); reopen the Unreal Editor to load it.",
+                gLink, gLinkEn));
+            list.Add(A(General, "link.pluginUninstall", WindowActions.LinkPluginUninstall, "卸载 UEToVSLink", "Uninstall UEToVSLink",
+                "删除插件目录（含 Binaries / Intermediate）并从 .uproject 的 Plugins 列表移除；UE 编辑器运行中（DLL 被占用）时不会删除。",
+                "Deletes the plugin folder (including Binaries / Intermediate) and removes it from the .uproject Plugins list; nothing is deleted while the Unreal Editor holds the DLL.",
+                gLink, gLinkEn));
+            var logLines = D(General, "link.logMaxLines", SettingKind.Int, "UE 日志窗口最多保留行数", "UE log window: max lines kept",
+                "超过后丢弃最旧的行，避免内存增长。", "Older lines are dropped beyond this, so memory stays bounded.", "20000", gLink, gLinkEn);
+            logLines.Min = 1000; logLines.Max = 500000; logLines.Keywords = "log 日志 buffer 缓冲 memory 内存";
+            list.Add(logLines);
+            list.Add(D(General, "link.logKeepReceiving", SettingKind.Bool, "关闭日志窗口后继续接收日志", "Keep receiving the log after closing the window",
+                "打开过一次 UE 日志窗口后，关闭窗口也继续接收（再打开时能看到期间的日志）；关闭此项则窗口关闭时停止接收。",
+                "Once the UE log window was opened, keep receiving lines while it is closed (they show when it reopens); off stops receiving when it closes.",
+                "true", gLink, gLinkEn));
+            list.Add(D(General, "link.liveCodingErrors", SettingKind.Bool, "Live Coding 错误映射到 VS", "Report Live Coding errors in VS",
+                "从编辑器收集 Live Coding 的编译输出，把错误交给 VS 显示（状态栏 / 信息栏，跳到第一个错误）。",
+                "Collects the Live Coding compiler output from the editor and reports its errors in VS (status bar / info bar, go to the first error).",
+                "true", gLink, gLinkEn));
 
             // ================= 索引
             const string gIdx = "索引", gIdxEn = "Indexing";
@@ -384,6 +412,8 @@ namespace UEToVS.Host.Logic.Settings
             ["diagnostics.createPackage"] = ("生成", "Create"),
             ["diagnostics.componentGallery"] = ("打开", "Open"),
             ["perf.open"] = ("打开", "Open"),
+            ["link.pluginInstall"] = ("安装 / 更新", "Install / Update"),
+            ["link.pluginUninstall"] = ("卸载", "Uninstall"),
         };
 
         /// <summary>HostSettings ⇄ invariant string values, keyed by descriptor key.</summary>
@@ -415,6 +445,9 @@ namespace UEToVS.Host.Logic.Settings
                     ["unreal.checkIncludesOnSave"] = B(s.CheckIncludesOnSave),
                     ["mcp.enable"] = B(s.EnableMcpServer),
                     ["unreal.editorLinkPort"] = I(s.EditorLinkPort),
+                    ["link.logMaxLines"] = I(s.LinkLogMaxLines),
+                    ["link.logKeepReceiving"] = B(s.LinkLogKeepReceiving),
+                    ["link.liveCodingErrors"] = B(s.LinkLiveCodingErrors),
                     ["indexing.cppThreads"] = I(s.CppIndexThreads),
                     ["indexing.blueprintThreads"] = I(s.BlueprintIndexThreads),
                     ["indexing.duringBuild"] = s.IndexDuringBuild.ToString(),
@@ -515,6 +548,9 @@ namespace UEToVS.Host.Logic.Settings
                         case "unreal.checkIncludesOnSave": s.CheckIncludesOnSave = PB(v); break;
                         case "mcp.enable": s.EnableMcpServer = PB(v); break;
                         case "unreal.editorLinkPort": s.EditorLinkPort = PI(v, 0); break;
+                        case "link.logMaxLines": s.LinkLogMaxLines = PI(v, 20000); break;
+                        case "link.logKeepReceiving": s.LinkLogKeepReceiving = PB(v); break;
+                        case "link.liveCodingErrors": s.LinkLiveCodingErrors = PB(v); break;
                         case "indexing.cppThreads": s.CppIndexThreads = PI(v, 0); break;
                         case "indexing.blueprintThreads": s.BlueprintIndexThreads = PI(v, 0); break;
                         case "indexing.duringBuild": s.IndexDuringBuild = PE(v, IndexDuringBuild.SingleThread); break;

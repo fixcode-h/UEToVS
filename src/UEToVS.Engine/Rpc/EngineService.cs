@@ -283,6 +283,14 @@ namespace UEToVS.Engine.Rpc
                     : _host.Scheduler.RunAsync(WorkPriority.Interactive, "rpc.getOverridableMethods", t => _host.Refactoring.GetOverridableMethods(request, t), c),
                 ct, ("type", request?.TypeName), ("file", request?.Caret?.FilePath), ("line", request?.Caret?.Line));
 
+        // ---- v0.4.5 UE editor link (UeCodeService): the user is waiting (test runner, double-clicked log line) ----
+
+        public Task<AutomationTestsResponse> FindAutomationTestsAsync(AutomationTestsRequest request, CancellationToken ct) =>
+            InvokeAsync("rpc.findAutomationTests", c => _host.UeCode.FindAutomationTestsAsync(request, c), ct, ("includeEngine", request?.IncludeEngine));
+
+        public Task<LogSitesResponse> FindLogSitesAsync(LogSitesRequest request, CancellationToken ct) =>
+            InvokeAsync("rpc.findLogSites", c => _host.UeCode.FindLogSitesAsync(request, c), ct, ("category", request?.Category), ("includeEngine", request?.IncludeEngine));
+
         private static LocalRpcException Error(int code, string message) => new LocalRpcException(message) { ErrorCode = code };
 
         private static bool SamePath(string a, string b)

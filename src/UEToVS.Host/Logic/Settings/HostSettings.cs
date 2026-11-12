@@ -82,6 +82,16 @@ namespace UEToVS.Host.Logic.Settings
         /// <summary>UEToVSLink editor plugin TCP port; 0 = read &lt;Project&gt;/Saved/UEToVSLink/port.txt.</summary>
         public int EditorLinkPort { get; set; } = 0;
 
+        // ---- v0.4.5 UE editor link (log window, test runner, Live Coding errors)
+        /// <summary>UE log window ring buffer size (lines); older lines are dropped.</summary>
+        public int LinkLogMaxLines { get; set; } = 20000;
+
+        /// <summary>Keep receiving editor log lines after the log window is closed (it was opened once this session).</summary>
+        public bool LinkLogKeepReceiving { get; set; } = true;
+
+        /// <summary>Collect Live Coding compiler output from the editor and report its errors in VS.</summary>
+        public bool LinkLiveCodingErrors { get; set; } = true;
+
         // ---- 导航（M2）----
         /// <summary>Ctrl+left-click on an identifier = go to definition (hover with Ctrl underlines it).</summary>
         public bool CtrlClickNavigation { get; set; } = true;
