@@ -6,6 +6,12 @@
 - 节内用 `### 新功能`、`### 改进`、`### Bug 修复`、`### 注意` 等小标题，条目写成 `- **短标题** — 说明`。
 - 改了 `src/` 的 PR 必须在最上面加一个新版本节（PR 检查会验证），这样每次合并都会出一个带更新日志的包。
 
+## v0.3.5
+
+### 新功能
+- **索引 Lua 脚本，MCP 可以直接查找 Lua** — 设置 > 索引 > Lua 脚本 新增“Lua 脚本路径”（如 `Content/Script`，多个用 `;` 分隔，相对路径相对于 .uproject 所在目录）、Lua 索引状态和“索引 Lua 脚本”按钮。识别 `function M:Foo()`、`local function`、`M.Foo = function`、模块表及其字段、`class(...)` / `UnLua.Class()` / `---@class` 类和文件级变量。MCP 新增 `search_lua`（模糊/精确，`M:Fire` 限定所属表，按种类过滤）、`search_lua_files`（文件名或 require 路径 `UI.MainPanel`）、`get_lua_outline`，`index_status` 里有 Lua 状态
+- **Lua 索引增量更新** — 和 C++ 项目索引一样：打开解决方案时复用已保存的索引，只重新读取大小或时间戳变了的文件、只重新解析内容哈希变了的文件；之后 .lua 文件保存、新增、删除、重命名（含整个文件夹）由文件监视自动增量更新。“索引 Lua 脚本”按钮会丢弃缓存全部重新解析。索引保存在 `.vs\UEToVS\Lua\lua-index.json`，VS 没开时 MCP 也能查
+
 ## v0.3.4
 
 ### 新功能

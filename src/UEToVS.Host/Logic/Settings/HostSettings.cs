@@ -125,6 +125,12 @@ namespace UEToVS.Host.Logic.Settings
         /// <summary>Shared engine index folder, used only when <see cref="ShareEngineIndex"/> is on. Empty = default location.</summary>
         public string EngineIndexPath { get; set; } = string.Empty;
 
+        /// <summary>
+        /// Lua script folders to index, separated by ';' (absolute, or relative to the project folder, e.g. Content/Script).
+        /// Empty = no Lua index. Pushed to the engine as <c>IndexingSettings.LuaScriptPaths</c>.
+        /// </summary>
+        public string LuaScriptPaths { get; set; } = string.Empty;
+
         // ---- 工具栏 ----
         public bool ShowToolbar { get; set; } = true;
 

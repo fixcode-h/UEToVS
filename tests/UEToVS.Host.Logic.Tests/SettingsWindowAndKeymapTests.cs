@@ -39,6 +39,7 @@ namespace UEToVS.Host.Logic.Tests
                 IntelliSenseTakeover = true, IntelliSenseTakeoverMode = IntelliSenseTakeoverMode.UnrealSolutionOnly, DisableDatabase = false,
                 DisableBackgroundCodeAnalysis = true, LogRetentionDays = 3, LogMaxTotalMB = 50, CppIndexThreads = 6, BlueprintIndexThreads = 2,
                 IndexDuringBuild = IndexDuringBuild.Pause, IndexEngineSource = false, ShareEngineIndex = true, EngineIndexPath = @"D:\Idx",
+                LuaScriptPaths = @"Content/Script; D:\Shared\Lua",
                 ShowToolbar = false, HiddenToolbarButtons = "back,performance", PerformanceSampleSeconds = 5,
                 // M1 / M2 fields
                 DoubleShiftEnabled = false, DoubleShiftIntervalMs = 450, DoubleShiftLeftOnly = true, SearchMaxResultsPerCategory = 80,
@@ -54,6 +55,22 @@ namespace UEToVS.Host.Logic.Tests
             Assert.Equal("#80FF0000", back.ReferenceHighlightWriteColor);
             Assert.False(back.NavigationBar);
             Assert.False(back.SyncSolutionExplorer);
+            Assert.Equal(@"Content/Script; D:\Shared\Lua", back.LuaScriptPaths);
+        }
+
+        [Fact]
+        public void LuaScriptPaths_SplitAndPushedToTheEngine()
+        {
+            Assert.Empty(HostSettingsSchema.Codec.SplitPaths("  "));
+            Assert.Equal(new[] { "Content/Script", @"D:\Lua, Shared", "x" },
+                HostSettingsSchema.Codec.SplitPaths(" Content/Script ;;\"D:\\Lua, Shared\";content/script\nx"));
+            var push = HostSettingsSchema.Codec.ToIndexing(new HostSettings { LuaScriptPaths = "Content/Script" });
+            Assert.Equal(new[] { "Content/Script" }, push.LuaScriptPaths);
+            Assert.Empty(HostSettingsSchema.Codec.ToIndexing(new HostSettings()).LuaScriptPaths);
+            var actions = Schema.Where(d => d.Category == HostSettingsSchema.Indexing).Select(d => d.ActionId).ToList();
+            Assert.Contains(HostSettingsSchema.WindowActions.IndexLua, actions);
+            Assert.Contains(HostSettingsSchema.WindowActions.LuaIndexStatus, actions);
+            Assert.Equal("索引", Schema.Single(d => d.Key == "indexing.indexLua").ActionLabelZh);
         }
 
         /// <summary>Every public settable HostSettings property is either in the settings window or deliberately left out.</summary>

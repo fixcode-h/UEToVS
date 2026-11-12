@@ -20,8 +20,8 @@ namespace UEToVS.Mcp.Tests
     {
         private static readonly string[] ExpectedTools =
         {
-            "find_references", "get_file_outline", "get_members", "get_type_hierarchy", "go_to_definition", "index_status",
-            "search_assets", "search_files", "search_symbols",
+            "find_references", "get_file_outline", "get_lua_outline", "get_members", "get_type_hierarchy", "go_to_definition", "index_status",
+            "search_assets", "search_files", "search_lua", "search_lua_files", "search_symbols",
         };
 
         private readonly OfflineFixture _f;
@@ -126,7 +126,7 @@ namespace UEToVS.Mcp.Tests
             await using var client = await McpClient.CreateAsync(transport);
             Assert.Equal("uetovs", client.ServerInfo.Name);
             var tools = await client.ListToolsAsync();
-            Assert.Equal(9, tools.Count);
+            Assert.Equal(ExpectedTools.Length, tools.Count);
             var r = await client.CallToolAsync("search_files", new Dictionary<string, object> { ["query"] = "MyHero", ["extensions"] = new[] { ".cpp" } });
             var text = Assert.IsType<TextContentBlock>(r.Content.Single()).Text;
             Assert.Contains("MyHero.cpp", text);

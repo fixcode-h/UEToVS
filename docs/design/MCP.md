@@ -80,12 +80,25 @@ UEToVS.Mcp.exe（每个 Agent 会话一个进程，.NET 8，ModelContextProtocol
 | `find_references` | 查引用/调用者，按文件分组并带行文本 | `symbol` 或位置、`include_declarations`、`scope` |
 | `get_type_hierarchy` | 基类链 / 派生类 | `type_name`、`direction`（bases/derived/both）、`max_depth`、`max_nodes`、`scope` |
 | `get_members` | 类型成员 | `type_name`、`include_inherited`、`kinds`、`ue` |
-| `index_status` | 索引是否就绪、数据源、文件数、Engine 状态 | 无 |
+| `index_status` | 索引是否就绪、数据源、文件数、Engine 状态、Lua 索引状态（`lua`） | 无 |
+| `search_lua` | 找 Lua 函数 / 方法 / 类 / 模块表 / 字段 / 文件级变量 | `query`（`M:Fire`、`UI.MainPanel.Show` 限定所属表）、`match`、`kinds`（function/method/class/table/field/variable）、`container`、`include_locals` |
+| `search_lua_files` | 按文件名或 require 路径找 Lua 脚本 | `query`（`MainPanel`、`UI.MainPanel`、`UI/MainPanel`） |
+| `get_lua_outline` | Lua 文件大纲 | `path`（绝对路径、相对 Lua 目录/项目的路径，或模块名） |
 
 错误返回 `isError: true` 和 `{"error": "<code>", "message": "..."}`，`code` 有 `invalid_argument`、`unknown_tool`、`file_not_found`、`no_index`、`engine_unavailable`。
 
 资源：`uetovs://index/status`（同 `index_status`）、`uetovs://guide`（给 Agent 的使用说明：什么时候用哪个工具）。
 提示：`explain_ue_class`（讲解一个 UE 类：层次、成员、反射标记）、`find_blueprint_usage`（找一个 C++ 类被哪些蓝图使用）。
+
+### 3.1 Lua 脚本索引
+
+UnLua / sluaunreal 等项目的 Lua 不在 C++ 索引里，单独建一份：
+
+- **配置**：UEToVS 设置 > 索引 > Lua 脚本 > Lua 脚本路径（`HostSettings.LuaScriptPaths`，`;` 分隔；相对路径先按 .uproject 所在目录、再按解决方案目录解析）。宿主通过 `IndexingSettings.LuaScriptPaths` 推给 Engine，改了立即重新扫描；留空则删除 Lua 索引。命令行：`UEToVS.Engine --lua-dir <dir>`（可重复）。
+- **解析**（`src/UEToVS.Engine.Index/Lua/LuaParser.cs`）：容错的词法扫描 + 嵌套跟踪，不是完整语法分析。识别 `function a.b:c()`、`local function f()`（任意深度）；文件级的 `[local] a.b = function/{...}/class(...)/值`；赋给具名表的表构造器字段（含嵌套表）；`---@class Name`。`self.x = …` 这类函数体内的赋值和块内 `local` 不收录，避免噪声。`class(...)`、`UnLua.Class()`、`Base:extend()` 等记为 class。
+- **增量**（`LuaIndexer` + `Engine/Indexing/LuaIndexService.cs`，与 C++ 索引同样的思路）：首次扫描复用已保存索引里大小和时间戳都没变的文件；时间戳变了但 xxHash64 相同只更新戳不重新解析；之后 Lua 目录上的 FileSystemWatcher（`.lua` 文件和文件夹事件，300 ms 防抖）和宿主的保存通知只更新涉及的文件，文件夹删除/重命名整体移除，监视器溢出时增量重扫。“索引 Lua 脚本”按钮（`RebuildScope.Lua`）丢弃缓存全部重新解析。所有工作在单独的后台通道，不占 RPC 线程。
+- **存储**：`<解决方案目录>\.vs\UEToVS\Lua\lua-index.json`（临时文件 + 替换，原子写入）。MCP 不经过 Engine，直接读这个文件（每秒最多检查一次时间戳，变了就重新加载），所以 VS 没开也能查；结果的 `source` 是 `lua-index`。状态在 `EngineStatus.Lua*` 和 `index_status.lua`。
+- **日志**：`lua.index.scan.start/done`（文件数、解析/复用/未变/删除数、耗时）、`lua.index.update`、`lua.index.rebuild.requested`、`lua.index.disabled`、`lua.fs.watching`、失败时 `lua.index.*.failed`；MCP 端 `mcp.lua.loaded`。
 
 ## 4. 各客户端配置示例
 

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using UEToVS.Core.Diagnostics;
 using UEToVS.Host.Logic.Commands;
 using UEToVS.UI.Logic;
@@ -34,6 +35,9 @@ namespace UEToVS.Host.Logic.Settings
             public const string RebuildAllIndexes = "settings.indexing.rebuildAll";
             public const string ToggleIntelliSense = "settings.intelliSense.toggle";
             public const string IndexStatus = "settings.indexing.status";
+            /// <summary>"索引 Lua 脚本": applies pending settings, then drops and re-parses the Lua index.</summary>
+            public const string IndexLua = "settings.indexing.indexLua";
+            public const string LuaIndexStatus = "settings.indexing.luaStatus";
             public const string IntelliSenseStatus = "settings.intelliSense.status";
             public const string LogDirectory = "settings.logging.directory";
             public const string VsUnrealIntegration = "settings.general.vsUnrealIntegration";
@@ -183,6 +187,18 @@ namespace UEToVS.Host.Logic.Settings
                 "false", gEi, gEiEn));
             list.Add(D(Indexing, "indexing.engineIndexPath", SettingKind.Path, "共享引擎索引位置", "Shared engine index location",
                 "仅在共享时使用；留空 = %LocalAppData%\\UEToVS\\EngineIndex\\<引擎版本>。", "Used only when sharing; empty = %LocalAppData%\\UEToVS\\EngineIndex\\<engine version>.", "", gEi, gEiEn));
+            const string gLua = "Lua 脚本", gLuaEn = "Lua scripts";
+            var lua = D(Indexing, "indexing.luaScriptPaths", SettingKind.Text, "Lua 脚本路径", "Lua script folders",
+                "要索引的 Lua 脚本文件夹（UnLua / sluaunreal 等），多个用 ; 分隔；相对路径相对于 .uproject 所在目录，如 Content/Script。留空不索引 Lua。" +
+                "索引后 MCP 的 search_lua / search_lua_files / get_lua_outline 可以直接查找 Lua，脚本保存、新增、删除时自动增量更新。",
+                "Lua script folders to index (UnLua, sluaunreal…), separated by ';'; relative paths are relative to the .uproject folder, e.g. Content/Script. " +
+                "Empty = no Lua index. Lets the MCP tools search_lua / search_lua_files / get_lua_outline find Lua code; saved, added and deleted scripts update incrementally.",
+                "", gLua, gLuaEn);
+            lua.Keywords = "lua unlua slua script 脚本 mcp";
+            list.Add(lua);
+            list.Add(A(Indexing, "indexing.luaStatus", WindowActions.LuaIndexStatus, "Lua 索引状态", "Lua index status", null, null, gLua, gLuaEn, SettingKind.Info));
+            list.Add(A(Indexing, "indexing.indexLua", WindowActions.IndexLua, "索引 Lua 脚本", "Index Lua scripts",
+                "先应用未保存的设置，然后重新解析上面文件夹里的全部 .lua 文件。", "Applies pending settings, then re-parses every .lua file in the folders above.", gLua, gLuaEn));
             const string gRb = "重建", gRbEn = "Rebuild";
             list.Add(A(Indexing, "indexing.rebuildProject", WindowActions.RebuildProjectIndex, "重建项目索引", "Rebuild project index",
                 "丢弃项目（游戏/插件）C++ 索引并在后台重新解析。", "Drops the project (game / plugin) C++ index and re-parses it in the background.", gRb, gRbEn));
@@ -323,6 +339,7 @@ namespace UEToVS.Host.Logic.Settings
             ["indexing.rebuildProject"] = ("重建", "Rebuild"),
             ["indexing.rebuildEngine"] = ("重建", "Rebuild"),
             ["indexing.rebuildBlueprint"] = ("重建", "Rebuild"),
+            ["indexing.indexLua"] = ("索引", "Index"),
             ["coloring.importVa"] = ("导入…", "Import…"),
             ["coloring.reset"] = ("恢复", "Reset"),
             ["log.openFolder"] = ("打开", "Open"),
@@ -366,6 +383,7 @@ namespace UEToVS.Host.Logic.Settings
                     ["indexing.includeEngine"] = B(s.IndexEngineSource),
                     ["indexing.engineIndexPath"] = s.EngineIndexPath ?? "",
                     ["indexing.shareEngineIndex"] = B(s.ShareEngineIndex),
+                    ["indexing.luaScriptPaths"] = s.LuaScriptPaths ?? "",
                     ["nav.ctrlClick"] = B(s.CtrlClickNavigation),
                     ["nav.highlightReferences"] = B(s.ReferenceHighlighting),
                     ["nav.highlightReadColor"] = s.ReferenceHighlightReadColor ?? "",
@@ -405,7 +423,21 @@ namespace UEToVS.Host.Logic.Settings
                 IncludeEngine = s.IndexEngineSource,
                 SharedEngineCache = s.ShareEngineIndex,
                 EngineCacheDirectory = string.IsNullOrWhiteSpace(s.EngineIndexPath) ? null : s.EngineIndexPath,
+                LuaScriptPaths = SplitPaths(s.LuaScriptPaths),
             };
+
+            /// <summary>"a; b;;c" → [a, b, c]. ';' (or a new line) separates; ',' does not, folder names may contain it.</summary>
+            public static List<string> SplitPaths(string value)
+            {
+                var list = new List<string>();
+                if (string.IsNullOrWhiteSpace(value)) return list;
+                foreach (var part in value.Split(new[] { ';', '\n', '\r', '|' }, StringSplitOptions.RemoveEmptyEntries))
+                {
+                    string p = part.Trim().Trim('"').Trim();
+                    if (p.Length > 0 && !list.Contains(p, StringComparer.OrdinalIgnoreCase)) list.Add(p);
+                }
+                return list;
+            }
 
             /// <summary>
             /// Applies <paramref name="values"/> onto a copy of <paramref name="baseline"/>; values are normalized through the
@@ -444,6 +476,7 @@ namespace UEToVS.Host.Logic.Settings
                         case "indexing.includeEngine": s.IndexEngineSource = PB(v); break;
                         case "indexing.engineIndexPath": s.EngineIndexPath = v; break;
                         case "indexing.shareEngineIndex": s.ShareEngineIndex = PB(v); break;
+                        case "indexing.luaScriptPaths": s.LuaScriptPaths = v; break;
                         case "nav.ctrlClick": s.CtrlClickNavigation = PB(v); break;
                         case "nav.highlightReferences": s.ReferenceHighlighting = PB(v); break;
                         case "nav.highlightReadColor": s.ReferenceHighlightReadColor = v; break;

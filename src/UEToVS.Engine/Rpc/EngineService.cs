@@ -128,6 +128,7 @@ namespace UEToVS.Engine.Rpc
             InvokeAsync("rpc.notifyFilesChanged", _ =>
             {
                 _host.Changes.Enqueue(changes, "host");
+                _host.Lua.NotifyChanges(changes);
                 return Task.CompletedTask;
             }, ct, ("count", changes?.Count ?? 0));
 
@@ -216,7 +217,8 @@ namespace UEToVS.Engine.Rpc
                 _host.ApplyIndexingSettings(settings);
                 return Task.CompletedTask;
             }, ct, ("cppThreads", settings?.CppThreads), ("assetThreads", settings?.AssetThreads), ("duringBuild", settings?.DuringBuild),
-                ("includeEngine", settings?.IncludeEngine), ("sharedEngineCache", settings?.SharedEngineCache));
+                ("includeEngine", settings?.IncludeEngine), ("sharedEngineCache", settings?.SharedEngineCache),
+                ("luaPaths", settings?.LuaScriptPaths == null ? null : string.Join(";", settings.LuaScriptPaths)));
 
         public Task RebuildIndexAsync(RebuildScope scope, CancellationToken ct) =>
             InvokeAsync("rpc.rebuildIndex", _ =>

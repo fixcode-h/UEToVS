@@ -64,7 +64,7 @@ v0.3.0 起所有设置在独立的“UEToVS 设置”窗口（`Settings/Settings
 
 - **常规**：引擎路径 / UE 根目录 / 请求超时 / 重启引擎；C++ IntelliSense 接管、范围、数据库、后台代码分析、立即接管 / 恢复；工具栏及每个按钮的显隐；双击 Shift（开关、间隔、只认左 Shift）；MCP（启用、写入 .mcp.json）；Unreal（保存时检查 include 依赖、编辑器联动端口）。
 - **外观**：UI 组件库的 `AppearanceSettingsPanel`（实时预览，应用 / 确定提交，取消撤销；保存在 `UEToVS\Appearance`）。
-- **索引**：C++ / 蓝图线程数（0 = 逻辑核心数 / 4）、编译期间策略、索引引擎源码、共享引擎索引（`ShareEngineIndex` / `EngineIndexPath`）、重建项目 / 引擎 / 蓝图索引、实时状态。
+- **索引**：C++ / 蓝图线程数（0 = 逻辑核心数 / 4）、编译期间策略、索引引擎源码、共享引擎索引（`ShareEngineIndex` / `EngineIndexPath`）、重建项目 / 引擎 / 蓝图索引、实时状态；Lua 脚本路径（`LuaScriptPaths`，`;` 分隔）、Lua 索引状态、“索引 Lua 脚本”按钮（`RebuildScope.Lua`）。
 - **快捷键**：`Settings/KeymapPage.cs`（预设、录制、冲突、备份 / 还原）。
 - **导航**：Ctrl+点击、引用高亮及颜色、导航栏、鼠标侧键、历史阈值和容量、Search Everywhere 每类结果数。
 - **日志与诊断**：日志级别、保留天数、总大小、日志目录、打开日志、诊断包、组件画廊。

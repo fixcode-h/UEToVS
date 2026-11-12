@@ -283,6 +283,13 @@ namespace UEToVS.Contracts
         /// and dot-folders). Folder names, not paths; case-insensitive. Changing it takes effect on the next index run.
         /// </summary>
         public List<string> ExcludedFolders { get; set; }
+
+        /// <summary>
+        /// Folders with Lua scripts to index (UnLua / sluaunreal / plain Lua), absolute or relative to the project folder
+        /// (where the .uproject is), e.g. "Content/Script". Null or empty = no Lua index. Changing it re-scans at once
+        /// (incrementally: files already in the Lua index whose size and timestamp did not change are not re-read).
+        /// </summary>
+        public List<string> LuaScriptPaths { get; set; }
     }
 
     public enum RebuildScope : byte
@@ -297,5 +304,7 @@ namespace UEToVS.Contracts
         Project = 3,
         /// <summary>Engine C++ index only; project data is kept.</summary>
         Engine = 4,
+        /// <summary>Lua script index only: drop it and re-parse every file under the Lua script paths.</summary>
+        Lua = 5,
     }
 }
