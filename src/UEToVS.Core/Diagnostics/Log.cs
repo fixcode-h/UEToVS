@@ -48,6 +48,7 @@ namespace UEToVS.Core.Diagnostics
     {
         private static readonly object Gate = new object();
         private static ILogSink[] _sinks = Array.Empty<ILogSink>();
+        private static int _hooksInstalled;
 
         public static LogLevel MinLevel { get; set; } = LogLevel.Info;
 
@@ -107,6 +108,7 @@ namespace UEToVS.Core.Diagnostics
         /// <summary>Hooks AppDomain/TaskScheduler so nothing fails silently. Call once per process.</summary>
         public static void CaptureUnhandledExceptions()
         {
+            if (Interlocked.Exchange(ref _hooksInstalled, 1) == 1) return;
             var l = For("Process");
             AppDomain.CurrentDomain.UnhandledException += (s, a) =>
             {
