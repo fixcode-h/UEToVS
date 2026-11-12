@@ -11,6 +11,7 @@ using Microsoft.VisualStudio.Shell;
 using UEToVS.Core.Diagnostics;
 using UEToVS.Core.Localization;
 using UEToVS.Host.Diagnostics;
+using UEToVS.Host.Keymap;
 using UEToVS.Host.Logic.Commands;
 using UEToVS.Host.Logic.Localization;
 using UEToVS.UI.Atoms;
@@ -25,6 +26,8 @@ namespace UEToVS.Host.Settings
     /// all other VS commands, automatic backup before every change (%LocalAppData%\UEToVS\KeymapBackups) and restore.
     /// Changes are written to VS immediately (VS's keyboard settings are the store); Apply/Cancel don't affect them.
     /// All DTE calls run on the UI thread; reading all ~5000 commands for conflicts is chunked so the UI stays responsive.
+    /// UEToVS commands are found by guid + id and bindings are kept in canonical English scope form internally
+    /// (<see cref="DteKeymap"/>, <see cref="BindingScopes"/>): DTE names and scope names differ per VS version / language.
     /// </summary>
     internal sealed class KeymapPage : ISettingsCustomPage
     {
@@ -37,6 +40,7 @@ namespace UEToVS.Host.Settings
         private List<KeyValuePair<string, string[]>> _all;
         private List<KeyConflict> _found = new List<KeyConflict>();
         private DTE _dte;
+        private BindingScopes _scopes = BindingScopes.English;
 
         public KeymapPage(HostPackage package)
         {
@@ -83,56 +87,26 @@ namespace UEToVS.Host.Settings
         {
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
             _dte = await _package.GetServiceAsync(typeof(DTE)) as DTE;
-            if (_dte == null) { _status.Text = SettingsText.Failed; return; }
-            ReadOurs();
+            if (_dte == null) { _status.Text = SettingsText.Failed; L.Error("keymap.load.noDte", "DTE unavailable; keymap page cannot read bindings", null); return; }
+            _scopes = DteKeymap.DetectScopes(_dte);
+            ReadOurs("load");
             RenderRows();
-            using (L.Time("keymap.readAll", 2000))
-                _all = await ReadAllBindingsAsync();
+            _all = await DteKeymap.ReadAllAsync(_dte, _scopes);
             UpdateConflicts();
         }
 
-        private void ReadOurs()
+        private void ReadOurs(string reason)
         {
             ThreadHelper.ThrowIfNotOnUIThread();
-            _ours = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
-            foreach (var c in CommandCatalog.All) _ours[c.Name] = GetBindings(c.Name) ?? Array.Empty<string>();
+            _ours = DteKeymap.ReadOurs(_dte, _scopes, reason).Bindings;
         }
 
-        private string[] GetBindings(string name)
+        /// <summary>Raw (localized) bindings of a catalog command or any DTE command; null when the command does not exist.</summary>
+        private string[] RawBindings(string name)
         {
             ThreadHelper.ThrowIfNotOnUIThread();
-            try
-            {
-                var cmd = _dte.Commands.Item(name, -1);
-                return cmd?.Bindings is object[] arr ? arr.OfType<string>().ToArray() : Array.Empty<string>();
-            }
-            catch (ArgumentException)
-            {
-                return null; // command not registered (VSCT not loaded yet)
-            }
-        }
-
-        private async Task<List<KeyValuePair<string, string[]>>> ReadAllBindingsAsync()
-        {
-            await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-            var list = new List<KeyValuePair<string, string[]>>(6000);
-            int i = 0;
-            foreach (Command cmd in _dte.Commands)
-            {
-                try
-                {
-                    string name = cmd.Name;
-                    if (!string.IsNullOrEmpty(name) && cmd.Bindings is object[] arr && arr.Length > 0)
-                        list.Add(new KeyValuePair<string, string[]>(name, arr.OfType<string>().ToArray()));
-                }
-                catch (Exception)
-                {
-                    // some commands throw on Bindings; skip
-                }
-                if (++i % 300 == 0) await Task.Yield(); // keep VS responsive
-            }
-            L.Info("keymap.read", null, ("commands", i), ("bound", list.Count));
-            return list;
+            var cmd = DteKeymap.FindByName(_dte, name);
+            return cmd == null ? null : DteKeymap.Raw(cmd);
         }
 
         // ------------------------------------------------------------------ rows
@@ -269,87 +243,62 @@ namespace UEToVS.Host.Settings
         {
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
             if (_dte == null) return;
-            ReadOurs();
+            ReadOurs("preset");
             var plan = KeymapPlanner.Plan(_ours, KeymapPlanner.PresetBindings(preset));
-            L.Info("keymap.preset.plan", null, ("preset", preset.ToString()), ("changes", plan.Count));
+            L.Info("keymap.preset.plan", null, ("preset", preset.ToString()), ("changes", plan.Count),
+                   ("plan", plan.Select(p => p.Command + ": [" + string.Join(" | ", p.Old) + "] → [" + string.Join(" | ", p.New) + "]").ToList()));
             await SetBindingsAsync(plan.ToDictionary(p => p.Command, p => p.New, StringComparer.OrdinalIgnoreCase), "preset:" + preset);
         }
 
-        /// <summary>Backs up the current bindings of every command in <paramref name="target"/>, then writes the new ones.</summary>
+        /// <summary>
+        /// Backs up the current (raw) bindings of every command in <paramref name="target"/>, then writes the new ones
+        /// (canonical or raw; scopes are localized on write). Keys are catalog names or DTE command names.
+        /// </summary>
         private async Task SetBindingsAsync(Dictionary<string, string[]> target, string reason)
         {
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
             if (_dte == null || target.Count == 0) { RenderRows(); return; }
             var backup = new KeymapPlanner.Backup { CreatedUtc = DateTime.UtcNow, Reason = reason };
-            foreach (var name in target.Keys) backup.Bindings[name] = GetBindings(name) ?? Array.Empty<string>();
-            string file = WriteBackup(backup);
+            foreach (var name in target.Keys) backup.Bindings[name] = RawBindings(name) ?? Array.Empty<string>();
+            string file = KeymapBackups.Write(backup);
             if (file == null) { _status.Text = SettingsText.Failed; return; } // never change without a backup
             int changed = 0;
+            var failed = new List<string>();
+            var results = new List<string>();
             foreach (var kv in target)
             {
-                try
-                {
-                    var cmd = _dte.Commands.Item(kv.Key, -1);
-                    cmd.Bindings = kv.Value.Cast<object>().ToArray();
-                    changed++;
-                }
-                catch (Exception ex)
-                {
-                    L.Error("keymap.set.failed", "Setting a key binding failed", ex, ("command", kv.Key), ("bindings", kv.Value));
-                }
+                var cmd = DteKeymap.FindByName(_dte, kv.Key);
+                if (cmd == null) { failed.Add(kv.Key + " (not found)"); continue; }
+                var back = DteKeymap.Write(cmd, kv.Value, _scopes, kv.Key);
+                if (back == null) { failed.Add(kv.Key); continue; }
+                changed++;
+                results.Add(kv.Key + "=" + string.Join(" | ", back));
             }
-            L.Info("keymap.changed", null, ("reason", reason), ("commands", changed), ("backup", file));
-            ReadOurs();
+            L.Info("keymap.apply", null, ("reason", reason), ("commands", changed), ("failed", failed), ("result", results), ("backup", file),
+                   ("scopes", _scopes.ToString()));
+            ReadOurs("afterChange");
             RenderRows();
             if (_all != null)
             {
                 // refresh the cached bindings of the commands we touched
                 var touched = new HashSet<string>(target.Keys, StringComparer.OrdinalIgnoreCase);
                 _all.RemoveAll(kv => touched.Contains(kv.Key));
-                foreach (var name in touched) _all.Add(new KeyValuePair<string, string[]>(name, GetBindings(name) ?? Array.Empty<string>()));
+                foreach (var name in touched) _all.Add(new KeyValuePair<string, string[]>(name, _scopes.CanonicalAll(RawBindings(name))));
             }
             UpdateConflicts();
             _status.Text = SettingsText.KeymapApplied(changed, Path.GetFileName(file)) + "  " + _status.Text;
         }
 
-        private static string BackupDirectory =>
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "UEToVS", "KeymapBackups");
-
-        private static string WriteBackup(KeymapPlanner.Backup backup)
-        {
-            try
-            {
-                Directory.CreateDirectory(BackupDirectory);
-                string file = Path.Combine(BackupDirectory, "keymap-backup-" + DateTime.Now.ToString("yyyyMMdd-HHmmss-fff") + ".json");
-                File.WriteAllText(file, KeymapPlanner.SerializeBackup(backup));
-                return file;
-            }
-            catch (Exception ex)
-            {
-                L.Error("keymap.backup.failed", "Writing the keymap backup failed; nothing was changed", ex, ("dir", BackupDirectory));
-                return null;
-            }
-        }
-
         private async Task RestoreLastBackupAsync()
         {
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-            string latest = null;
-            try
-            {
-                if (Directory.Exists(BackupDirectory))
-                    latest = Directory.GetFiles(BackupDirectory, "keymap-backup-*.json").OrderByDescending(f => f, StringComparer.Ordinal).FirstOrDefault();
-            }
-            catch (Exception ex)
-            {
-                L.Warn("keymap.backup.list.failed", "Listing keymap backups failed", ex);
-            }
+            string latest = KeymapBackups.Latest();
             var backup = latest == null ? null : KeymapPlanner.ParseBackup(File.ReadAllText(latest));
             if (backup == null) { _status.Text = SettingsText.KeymapNoBackup; return; }
             L.Info("keymap.restore", null, ("file", latest), ("commands", backup.Bindings.Count));
             await SetBindingsAsync(backup.Bindings, "restore:" + Path.GetFileName(latest));
             // The restore itself made a new backup; drop the one we just restored so "restore" walks back in time.
-            try { File.Delete(latest); } catch (Exception) { }
+            try { File.Delete(latest); } catch (IOException) { } catch (UnauthorizedAccessException) { }
         }
 
         // ------------------------------------------------------------------ conflicts
@@ -385,9 +334,9 @@ namespace UEToVS.Host.Settings
             var target = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
             foreach (var group in _found.Where(c => CommandCatalog.ByName(c.OtherCommand) == null).GroupBy(c => c.OtherCommand, StringComparer.OrdinalIgnoreCase))
             {
-                var current = GetBindings(group.Key) ?? Array.Empty<string>();
+                var current = RawBindings(group.Key) ?? Array.Empty<string>();
                 var remove = new HashSet<string>(group.Select(c => c.OtherScope + "::" + c.OtherKeys), StringComparer.OrdinalIgnoreCase);
-                target[group.Key] = current.Where(b => !(Shortcut.TryParseBinding(b, out var s, out var k) && remove.Contains(s + "::" + k))).ToArray();
+                target[group.Key] = current.Where(b => !(_scopes.Canonical(b) is string canon && remove.Contains(canon))).ToArray();
             }
             await SetBindingsAsync(target, "resolveConflicts");
         }

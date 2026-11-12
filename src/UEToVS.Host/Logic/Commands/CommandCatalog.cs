@@ -29,7 +29,10 @@ namespace UEToVS.Host.Logic.Commands
     public sealed class CommandInfo
     {
         public int Id { get; set; }
-        /// <summary>Canonical name as DTE sees it, e.g. "UEToVS.GoToDefinition" (VSCT CanonicalName).</summary>
+        /// <summary>
+        /// VSCT CanonicalName, e.g. "UEToVS.GoToDefinition". Also the key of presets / backups / conflicts. NOT the DTE
+        /// command name: VS may prefix it with the parent menu path (e.g. "Extensions.UEToVS..."), so DTE lookups go by guid + <see cref="Id"/>.
+        /// </summary>
         public string Name { get; set; }
         public string ActionId { get; set; }
         public string TitleZh { get; set; }
