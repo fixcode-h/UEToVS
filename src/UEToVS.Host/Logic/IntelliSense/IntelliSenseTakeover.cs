@@ -299,8 +299,8 @@ namespace UEToVS.Host.Logic.IntelliSense
         {
             var result = new List<string>();
             if (names == null) return result;
-            var known = new HashSet<string>((table ?? CppIntelliSenseSettings.All).SelectMany(d => d.Candidates).Select(c => c.Name), StringComparer.OrdinalIgnoreCase);
-            string[] hints = { "Disable", "IntelliSense", "Squiggle", "Coloriz", "QuickInfo", "MemberList", "Database", "ExternalDependenc" };
+            var known = new HashSet<string>((table ?? CppIntelliSenseSettings.All.Concat(CppIntelliSenseSettings.BackgroundCodeAnalysis)).SelectMany(d => d.Candidates).Select(c => c.Name), StringComparer.OrdinalIgnoreCase);
+            string[] hints = { "Disable", "IntelliSense", "Squiggle", "Coloriz", "QuickInfo", "MemberList", "Database", "ExternalDependenc", "CodeAnalysis" };
             foreach (var n in names)
             {
                 if (known.Contains(n)) continue;

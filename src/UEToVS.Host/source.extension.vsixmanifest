@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PackageManifest Version="2.0.0" xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011" xmlns:d="http://schemas.microsoft.com/developer/vsx-schema-design/2011">
   <Metadata>
-    <Identity Id="UEToVS.fixcode.2429fbec-2964-4be5-9718-2b426f542e29" Version="0.2.1" Language="en-US" Publisher="fixcode" />
+    <Identity Id="UEToVS.fixcode.2429fbec-2964-4be5-9718-2b426f542e29" Version="0.2.2" Language="en-US" Publisher="fixcode" />
     <DisplayName>UEToVS</DisplayName>
     <Description xml:space="preserve">Unreal Engine aware C++ assistant for Visual Studio: UE-aware navigation, search and code insight provided by an out-of-process engine. Activates only for Unreal Engine solutions.</Description>
     <License>LICENSE.txt</License>

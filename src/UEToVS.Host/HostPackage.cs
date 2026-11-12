@@ -356,6 +356,8 @@ namespace UEToVS.Host
                     ["backupExists"] = _intelliSense.BackupExists,
                     ["lastState"] = _intelliSense.LastState.ToString(),
                     ["backupPath"] = _intelliSense.BackupPath,
+                    ["disableBackgroundCodeAnalysis"] = s.DisableBackgroundCodeAnalysis,
+                    ["codeAnalysisBackupExists"] = _intelliSense.CodeAnalysisBackupExists,
                 }),
                 ("devenvPrivateMBAtLoad", Math.Round(Performance.PrivateBytesAtLoad / 1048576.0, 1)),
                 ("logFile", HostLog.CurrentFile),

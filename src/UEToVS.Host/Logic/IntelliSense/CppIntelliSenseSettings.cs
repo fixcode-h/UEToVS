@@ -82,6 +82,7 @@ namespace UEToVS.Host.Logic.IntelliSense
         public const string KeyIncludeAutoComplete = "includeAutoComplete";
         public const string KeyExternalDependencies = "externalDependencies";
         public const string KeyDatabase = "database";
+        public const string KeyBackgroundCodeAnalysis = "backgroundCodeAnalysis";
 
         private static CppPropertyCandidate S(string name, bool value) => new CppPropertyCandidate(SpecificPage, name, value);
 
@@ -105,6 +106,18 @@ namespace UEToVS.Host.Logic.IntelliSense
                 S("DisableExternalDependenciesFolders", true), S("DisableExternalDependencies", true), S("DisableExternalDependencyFolders", true)),
             new CppSettingDefinition(KeyDatabase, "Disable Database (browsing database .vc.db)", CppSettingGate.DisableDatabaseOption,
                 S("DisableDatabase", true), S("DisableBrowsingDatabase", true)),
+        };
+
+        /// <summary>
+        /// VS's C++ background code analysis ("Disable Background Code Analysis" under Text Editor > C/C++ > Advanced >
+        /// Code Analysis). On every open/save it compiles the whole translation unit with /analyze, which on UE sources
+        /// takes tens of seconds per file. Separate from <see cref="All"/>: it has its own option (off by default),
+        /// independent of the IntelliSense takeover, and its own backup file.
+        /// </summary>
+        public static IReadOnlyList<CppSettingDefinition> BackgroundCodeAnalysis { get; } = new[]
+        {
+            new CppSettingDefinition(KeyBackgroundCodeAnalysis, "Disable Background Code Analysis", CppSettingGate.Always,
+                S("DisableBackgroundCodeAnalysis", true), S("DisableBackgroundAnalysis", true), S("EnableBackgroundCodeAnalysis", false)),
         };
 
         /// <summary>Pages that must be read to evaluate the table.</summary>

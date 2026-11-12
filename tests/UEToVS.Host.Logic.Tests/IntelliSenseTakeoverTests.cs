@@ -246,6 +246,48 @@ namespace UEToVS.Host.Logic.Tests
         }
 
         [Fact]
+        public void BackgroundCodeAnalysisIsDisabledWithBackupAndRestored()
+        {
+            var store = new FakeStore().With("DisableBackgroundCodeAnalysis", false).With("DisableIntelliSense", false);
+            var backup = new IntelliSenseBackup();
+            var persisted = new List<IntelliSenseBackup>();
+            var r = IntelliSenseTakeover.Apply(store, backup, null, b => persisted.Add(Clone(b)), CppIntelliSenseSettings.BackgroundCodeAnalysis);
+
+            Assert.Single(persisted);
+            Assert.Equal("DisableBackgroundCodeAnalysis", persisted[0].Entries.Single().Property);
+            Assert.False(persisted[0].Entries.Single().Original);
+            Assert.True((bool)store.Values["DisableBackgroundCodeAnalysis"]);
+            Assert.False((bool)store.Values["DisableIntelliSense"]); // IntelliSense takeover table not touched
+            Assert.Equal(1, r.Count(SettingOutcomeStatus.Changed));
+
+            var restored = IntelliSenseTakeover.Restore(store, backup);
+            Assert.Equal(1, restored.Count(SettingOutcomeStatus.Changed));
+            Assert.False((bool)store.Values["DisableBackgroundCodeAnalysis"]);
+            Assert.True(backup.IsEmpty);
+        }
+
+        [Fact]
+        public void BackgroundCodeAnalysisAlreadyOffIsNotBackedUp()
+        {
+            var store = new FakeStore().With("DisableBackgroundCodeAnalysis", true);
+            var backup = new IntelliSenseBackup();
+            var r = IntelliSenseTakeover.Apply(store, backup, null, b => throw new InvalidOperationException("must not persist"),
+                CppIntelliSenseSettings.BackgroundCodeAnalysis);
+            Assert.Equal(1, r.Count(SettingOutcomeStatus.AlreadyAtTarget));
+            Assert.True(backup.IsEmpty);
+            Assert.Empty(store.Writes);
+        }
+
+        [Fact]
+        public void BackgroundCodeAnalysisMissingOnOlderVs()
+        {
+            var store = FakeStore.Vs2022();
+            var r = IntelliSenseTakeover.Apply(store, new IntelliSenseBackup(), null, null, CppIntelliSenseSettings.BackgroundCodeAnalysis);
+            Assert.Equal(1, r.Count(SettingOutcomeStatus.Missing));
+            Assert.Empty(store.Writes);
+        }
+
+        [Fact]
         public void VisualAssistFoundInExtensionFolder()
         {
             using (var t = new TempDir())

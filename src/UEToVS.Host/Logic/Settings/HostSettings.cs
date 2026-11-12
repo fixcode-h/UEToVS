@@ -35,6 +35,9 @@ namespace UEToVS.Host.Logic.Settings
 
         public bool DisableDatabase { get; set; } = true;
 
+        /// <summary>Turn off VS's C++ background code analysis while a UE solution is open (off by default; independent of the takeover).</summary>
+        public bool DisableBackgroundCodeAnalysis { get; set; } = false;
+
         // ---- 日志 ----
         public int LogRetentionDays { get; set; } = 7;
 

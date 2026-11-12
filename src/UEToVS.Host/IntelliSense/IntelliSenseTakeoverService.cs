@@ -35,14 +35,16 @@ namespace UEToVS.Host.IntelliSense
         private readonly AsyncPackage _package;
         private readonly SettingsService _settings;
         private readonly string _backupPath;
+        private readonly string _codeAnalysisBackupPath;
         private bool _propertiesLogged;
         private bool _vaChecked;
 
-        public IntelliSenseTakeoverService(AsyncPackage package, SettingsService settings, string backupPath = null)
+        public IntelliSenseTakeoverService(AsyncPackage package, SettingsService settings, string backupPath = null, string codeAnalysisBackupPath = null)
         {
             _package = package;
             _settings = settings;
             _backupPath = backupPath ?? IntelliSenseBackupFile.DefaultPath;
+            _codeAnalysisBackupPath = codeAnalysisBackupPath ?? IntelliSenseBackupFile.DefaultCodeAnalysisPath;
         }
 
         /// <summary>Last known state, for the session header and the diagnostics package.</summary>
@@ -51,6 +53,8 @@ namespace UEToVS.Host.IntelliSense
         public bool BackupExists => File.Exists(_backupPath);
 
         public string BackupPath => _backupPath;
+
+        public bool CodeAnalysisBackupExists => File.Exists(_codeAnalysisBackupPath);
 
         /// <summary>Visual Assist found (null = not checked yet).</summary>
         public string VisualAssistEvidence { get; private set; }
@@ -63,9 +67,11 @@ namespace UEToVS.Host.IntelliSense
         {
             var s = _settings.Effective;
             L.Info("intellisense.solution.opened", null, ("takeover", s.IntelliSenseTakeover), ("mode", s.IntelliSenseTakeoverMode.ToString()),
-                   ("disableDatabase", s.DisableDatabase), ("backupExists", BackupExists));
+                   ("disableDatabase", s.DisableDatabase), ("backupExists", BackupExists),
+                   ("disableBackgroundCodeAnalysis", s.DisableBackgroundCodeAnalysis), ("codeAnalysisBackupExists", CodeAnalysisBackupExists));
             if (s.IntelliSenseTakeover) await TakeOverAsync("auto").ConfigureAwait(false);
             else await RefreshStateAsync().ConfigureAwait(false);
+            if (s.DisableBackgroundCodeAnalysis) await DisableBackgroundCodeAnalysisAsync("auto").ConfigureAwait(false);
             await CheckVisualAssistAsync().ConfigureAwait(false);
         }
 
@@ -81,6 +87,12 @@ namespace UEToVS.Host.IntelliSense
 
         public async Task OnSettingsChangedAsync(HostSettings old, HostSettings now, bool unrealSolutionOpen)
         {
+            if (old.DisableBackgroundCodeAnalysis != now.DisableBackgroundCodeAnalysis)
+            {
+                L.Info("codeAnalysis.settings.changed", null, ("disableBackgroundCodeAnalysis", now.DisableBackgroundCodeAnalysis), ("ueSolutionOpen", unrealSolutionOpen));
+                if (!now.DisableBackgroundCodeAnalysis) await RestoreBackgroundCodeAnalysisAsync("settingOff").ConfigureAwait(false);
+                else if (unrealSolutionOpen) await DisableBackgroundCodeAnalysisAsync("settingsChanged").ConfigureAwait(false);
+            }
             bool takeoverChanged = old.IntelliSenseTakeover != now.IntelliSenseTakeover;
             bool dbChanged = old.DisableDatabase != now.DisableDatabase;
             bool modeChanged = old.IntelliSenseTakeoverMode != now.IntelliSenseTakeoverMode;
@@ -221,6 +233,79 @@ namespace UEToVS.Host.IntelliSense
             return LastState;
         }
 
+        // ---------------------------------------------------------------- background code analysis
+
+        /// <summary>
+        /// Turns on VS's "Disable Background Code Analysis" (original value backed up to code-analysis-backup.json first).
+        /// Same backup-before-write algorithm as the takeover, with its own table and file. Logged as codeAnalysis.*.
+        /// </summary>
+        public async Task<TakeoverReport> DisableBackgroundCodeAnalysisAsync(string trigger)
+        {
+            IntelliSenseBackup backup;
+            try
+            {
+                backup = await Task.Run(() => IntelliSenseBackupFile.Load(_codeAnalysisBackupPath)).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is InvalidDataException || ex is IOException || ex is UnauthorizedAccessException)
+            {
+                L.Error("codeAnalysis.backup.corrupt", "Code analysis backup unreadable; setting left unchanged", ex, ("path", _codeAnalysisBackupPath));
+                return null;
+            }
+            await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+            TakeoverReport report;
+            using (UiThread.Measure(L, "codeAnalysis.apply", ("trigger", trigger)))
+            {
+                var store = await CreateStoreAsync();
+                if (store == null) return null;
+                LogPropertiesOnce(store);
+                if (backup == null) backup = new IntelliSenseBackup();
+                report = IntelliSenseTakeover.Apply(store, backup, null, b => IntelliSenseBackupFile.Save(_codeAnalysisBackupPath, b),
+                    CppIntelliSenseSettings.BackgroundCodeAnalysis);
+            }
+            LogReport("codeAnalysis.disable", trigger, report, _codeAnalysisBackupPath);
+            if (report.Count(SettingOutcomeStatus.Missing) > 0)
+                L.Warn("codeAnalysis.unknownVs", "\"Disable Background Code Analysis\" not found on this VS (see intellisense.properties)");
+            return report;
+        }
+
+        /// <summary>Writes back the backed-up value of the background code analysis option, then deletes the backup.</summary>
+        public async Task<TakeoverReport> RestoreBackgroundCodeAnalysisAsync(string trigger)
+        {
+            IntelliSenseBackup backup;
+            try
+            {
+                backup = await Task.Run(() => IntelliSenseBackupFile.Load(_codeAnalysisBackupPath)).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is InvalidDataException || ex is IOException || ex is UnauthorizedAccessException)
+            {
+                L.Error("codeAnalysis.backup.corrupt", "Code analysis backup unreadable; cannot restore", ex, ("path", _codeAnalysisBackupPath));
+                return null;
+            }
+            if (backup == null || backup.IsEmpty)
+            {
+                L.Info("codeAnalysis.restore.nothing", "Background code analysis was not changed by UEToVS", ("trigger", trigger));
+                return new TakeoverReport();
+            }
+            await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+            TakeoverReport report;
+            using (UiThread.Measure(L, "codeAnalysis.restore", ("trigger", trigger)))
+            {
+                var store = await CreateStoreAsync();
+                if (store == null) return null;
+                report = IntelliSenseTakeover.Restore(store, backup);
+            }
+            try
+            {
+                IntelliSenseBackupFile.SaveOrDelete(_codeAnalysisBackupPath, backup);
+            }
+            catch (Exception ex)
+            {
+                L.Error("codeAnalysis.backup.update.failed", "Could not update the code analysis backup after restore", ex, ("path", _codeAnalysisBackupPath));
+            }
+            LogReport("codeAnalysis.restore", trigger, report, _codeAnalysisBackupPath);
+            return report;
+        }
+
         // ---------------------------------------------------------------- Visual Assist
 
         /// <summary>Detects VA (package GUID + extension folders). Logs and shows a banner suggesting choosing one.</summary>
@@ -309,7 +394,7 @@ namespace UEToVS.Host.IntelliSense
             foreach (var kv in store.PageErrors) L.Warn("intellisense.page.error", "Cannot access options page", ("page", kv.Key), ("error", kv.Value));
         }
 
-        private void LogReport(string evt, string trigger, TakeoverReport report)
+        private void LogReport(string evt, string trigger, TakeoverReport report, string backupPath = null)
         {
             foreach (var o in report.Outcomes)
             {
@@ -336,7 +421,7 @@ namespace UEToVS.Host.IntelliSense
                    ("changed", report.Count(SettingOutcomeStatus.Changed)), ("alreadyAtTarget", report.Count(SettingOutcomeStatus.AlreadyAtTarget)),
                    ("missing", report.Count(SettingOutcomeStatus.Missing)), ("failed", report.Count(SettingOutcomeStatus.Failed)),
                    ("reverted", report.Count(SettingOutcomeStatus.Reverted)), ("skipped", report.Count(SettingOutcomeStatus.Skipped)),
-                   ("backupWritten", report.BackupWritten), ("backupPath", _backupPath));
+                   ("backupWritten", report.BackupWritten), ("backupPath", backupPath ?? _backupPath));
         }
 
         private async Task MarkNoticeShownAsync()

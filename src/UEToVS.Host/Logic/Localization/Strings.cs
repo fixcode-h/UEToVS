@@ -146,6 +146,9 @@ namespace UEToVS.Host.Logic.Localization
         public static string OptDisableDb => Loc.T("同时禁用浏览数据库（Disable Database）", "Also disable the browsing database (Disable Database)");
         public static string OptDisableDbDesc => Loc.T("UE 工程上 .vc.db 占用大量磁盘与内存，UEToVS 自有索引覆盖其功能。依赖 VS“类视图”的用户可关闭此项。",
                                                        "On UE projects the .vc.db uses a lot of disk and memory and UEToVS's index covers it. Turn this off if you rely on VS Class View.");
+        public static string OptDisableBgAnalysis => Loc.T("关闭 VS C++ 后台代码分析", "Turn off Visual Studio's C++ background code analysis");
+        public static string OptDisableBgAnalysisDesc => Loc.T("打开 UE 解决方案时开启 VS 的“禁用后台代码分析”。VS 每次打开或保存 .cpp 都会用编译器完整分析整个编译单元，UE 源文件往往要几十秒（任务中心里的“C++ 后台 Code Analysis”）。修改前会备份原值，关闭此项即恢复。不影响 IntelliSense 接管，也不影响手动“分析 > 运行代码分析”。",
+                                                             "When a UE solution opens, turn on Visual Studio's \"Disable Background Code Analysis\". On every open or save VS compiles the whole translation unit for analysis, which takes tens of seconds on UE sources (\"C++ Background Code Analysis\" in the task center). The original value is backed up and restored when you turn this off. Independent of the IntelliSense takeover; Analyze > Run Code Analysis still works.");
 
         public static string AppearancePlaceholder => Loc.T("外观设置（界面风格、字号、密度、圆角、强调色、徽章颜色等，见设计文档 §8.2.1）将由 UI 组件库提供。",
                                                             "Appearance settings (style, font scale, density, corner radius, accent and badge colors; design doc §8.2.1) are provided by the UI component library.");
