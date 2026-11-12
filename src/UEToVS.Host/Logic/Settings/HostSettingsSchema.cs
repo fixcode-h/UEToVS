@@ -26,7 +26,8 @@ namespace UEToVS.Host.Logic.Settings
         /// <summary>Action ids only the settings window resolves (not registered in the ActionRegistry).</summary>
         public static class WindowActions
         {
-            public const string RebuildCppIndex = "settings.indexing.rebuildCpp";
+            public const string RebuildProjectIndex = "settings.indexing.rebuildProject";
+            public const string RebuildEngineIndex = "settings.indexing.rebuildEngine";
             public const string RebuildBlueprintIndex = "settings.indexing.rebuildBlueprint";
             public const string ToggleIntelliSense = "settings.intelliSense.toggle";
             public const string IndexStatus = "settings.indexing.status";
@@ -147,9 +148,18 @@ namespace UEToVS.Host.Logic.Settings
             list.Add(during);
             list.Add(D(Indexing, "indexing.includeEngine", SettingKind.Bool, "索引引擎源码", "Index engine sources",
                 "同时索引 Unreal Engine 源码（先头文件后 .cpp）。关闭可大幅缩短首次索引。", "Also index the Unreal Engine sources (headers first). Off = much faster first index.", "true", gIdx, gIdxEn));
+            const string gEi = "引擎索引", gEiEn = "Engine index";
+            list.Add(D(Indexing, "indexing.shareEngineIndex", SettingKind.Bool, "在多个工程间共享引擎索引", "Share the engine index between projects",
+                "关闭（默认）：引擎索引放在本解决方案的 .vs\\UEToVS\\Index 下。打开：同一引擎版本的工程共用一份，放在下面的位置。",
+                "Off (default): the engine index lives in this solution's .vs\\UEToVS\\Index. On: projects on the same engine version share one copy at the location below.",
+                "false", gEi, gEiEn));
+            list.Add(D(Indexing, "indexing.engineIndexPath", SettingKind.Path, "共享引擎索引位置", "Shared engine index location",
+                "仅在共享时使用；留空 = %LocalAppData%\\UEToVS\\EngineIndex\\<引擎版本>。", "Used only when sharing; empty = %LocalAppData%\\UEToVS\\EngineIndex\\<engine version>.", "", gEi, gEiEn));
             const string gRb = "重建", gRbEn = "Rebuild";
-            list.Add(A(Indexing, "indexing.rebuildCpp", WindowActions.RebuildCppIndex, "重建 C++ 索引", "Rebuild C++ index",
-                "丢弃 C++ 索引并在后台重新解析。", "Drops the C++ index and re-parses in the background.", gRb, gRbEn));
+            list.Add(A(Indexing, "indexing.rebuildProject", WindowActions.RebuildProjectIndex, "重建项目索引", "Rebuild project index",
+                "丢弃项目（游戏/插件）C++ 索引并在后台重新解析。", "Drops the project (game / plugin) C++ index and re-parses it in the background.", gRb, gRbEn));
+            list.Add(A(Indexing, "indexing.rebuildEngine", WindowActions.RebuildEngineIndex, "重建引擎索引", "Rebuild engine index",
+                "丢弃 Unreal Engine 源码索引并重新解析（共享时会影响使用同一引擎的其他项目）。", "Drops the Unreal Engine source index and re-parses it (shared with other projects on the same engine when sharing is on).", gRb, gRbEn));
             list.Add(A(Indexing, "indexing.rebuildBlueprint", WindowActions.RebuildBlueprintIndex, "重建蓝图索引", "Rebuild Blueprint index",
                 "丢弃蓝图/资产索引并重新扫描。", "Drops the Blueprint / asset index and re-scans.", gRb, gRbEn));
 
@@ -228,6 +238,8 @@ namespace UEToVS.Host.Logic.Settings
                     ["indexing.blueprintThreads"] = I(s.BlueprintIndexThreads),
                     ["indexing.duringBuild"] = s.IndexDuringBuild.ToString(),
                     ["indexing.includeEngine"] = B(s.IndexEngineSource),
+                    ["indexing.engineIndexPath"] = s.EngineIndexPath ?? "",
+                    ["indexing.shareEngineIndex"] = B(s.ShareEngineIndex),
                     ["nav.highlightReferences"] = B(s.HighlightReferences),
                     ["nav.navigationBar"] = B(s.ShowNavigationBar),
                     ["nav.ctrlClick"] = B(s.CtrlClickGoToDefinition),
@@ -280,6 +292,8 @@ namespace UEToVS.Host.Logic.Settings
                         case "indexing.blueprintThreads": s.BlueprintIndexThreads = PI(v, 0); break;
                         case "indexing.duringBuild": s.IndexDuringBuild = PE(v, IndexDuringBuild.SingleThread); break;
                         case "indexing.includeEngine": s.IndexEngineSource = PB(v); break;
+                        case "indexing.engineIndexPath": s.EngineIndexPath = v; break;
+                        case "indexing.shareEngineIndex": s.ShareEngineIndex = PB(v); break;
                         case "nav.highlightReferences": s.HighlightReferences = PB(v); break;
                         case "nav.navigationBar": s.ShowNavigationBar = PB(v); break;
                         case "nav.ctrlClick": s.CtrlClickGoToDefinition = PB(v); break;

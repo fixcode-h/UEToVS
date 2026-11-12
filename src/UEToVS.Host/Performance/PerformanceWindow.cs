@@ -1,7 +1,6 @@
 using System;
 using System.Globalization;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
@@ -13,36 +12,35 @@ using UEToVS.Host.Integration;
 using UEToVS.Host.Logic.Localization;
 using UEToVS.Host.Logic.Performance;
 using UEToVS.Host.Shell;
+using UEToVS.UI.Shells;
 
 namespace UEToVS.Host.Performance
 {
     /// <summary>
-    /// Tool window "UEToVS 性能" (§9.8). Polls through <see cref="PerformanceMonitor"/> only while visible
-    /// (WPF IsVisibleChanged follows tab switches, auto-hide and close); logs perf.panel.open / perf.panel.close.
-    /// Content: <see cref="HostIntegration.PerformancePanel"/> (UEToVS.UI's PerformancePanel); if the slot is empty or
-    /// creating it fails, a plain-text placeholder that still shows the numbers.
+    /// Floating window "UEToVS 性能" (§9.8; v0.3.0: a <see cref="UtilityWindow"/> that remembers position and size instead
+    /// of a docked tool window). Polls through <see cref="PerformanceMonitor"/> only while open; logs perf.panel.open /
+    /// perf.panel.close. Content: <see cref="HostIntegration.PerformancePanel"/> (UEToVS.UI's PerformancePanel); if the
+    /// slot is empty or creating it fails, a plain-text placeholder that still shows the numbers.
     /// </summary>
-    [Guid(PackageGuids.PerformanceToolWindowString)]
-    public sealed class PerformanceToolWindow : ToolWindowPane
+    internal sealed class PerformanceWindow : UtilityWindow
     {
         private static readonly Logger L = Log.For("Performance");
-        private readonly Border _root;
+        private readonly PerformanceMonitor _monitor;
         private IPerformancePanelContent _content;
-        private PerformanceMonitor _monitor;
         private bool _open;
         private DateTime _openedUtc;
 
-        public PerformanceToolWindow() : base(null)
+        public PerformanceWindow(PerformanceMonitor monitor)
+            : base("performance", () => SettingsText.PerformanceWindowTitle, new Size(980, 680))
         {
-            Caption = Strings.PerformanceWindowCaption;
-            _root = new Border();
-            _root.IsVisibleChanged += (s, e) => Safe.Execute(L, "perf.panel.visibility", () => OnVisibilityChanged((bool)e.NewValue));
-            Content = _root;
+            _monitor = monitor;
+            EnsureContent();
+            Loaded += (s, e) => Safe.Execute(L, "perf.panel.open", Open);
+            Closed += (s, e) => Safe.Execute(L, "perf.panel.close", CloseMonitor);
         }
 
         private void EnsureContent()
         {
-            if (_content != null) return;
             var commands = new PerformancePanelCommands
             {
                 OpenLog = () => HostPackage.Instance?.ExecuteAction(ActionIds.OpenCurrentLog),
@@ -54,35 +52,31 @@ namespace UEToVS.Host.Performance
                 ? Safe.Execute(L, "perf.panel.create", () => provider.Create(commands), null)
                 : null;
             if (_content == null) _content = new PlaceholderContent();
-            _root.Child = _content.Element;
+            WindowContent = _content.Element;
         }
 
-        private void OnVisibilityChanged(bool visible)
+        private void Open()
         {
-            _monitor = _monitor ?? HostPackage.Instance?.Performance;
-            if (visible && !_open)
+            if (_open) return;
+            _open = true;
+            _openedUtc = DateTime.UtcNow;
+            L.Info("perf.panel.open", null, ("content", _content?.GetType().FullName), ("intervalMs", _monitor?.Interval.TotalMilliseconds));
+            if (_monitor == null) return;
+            _monitor.Updated += OnUpdated;
+            _monitor.Start();
+            if (_monitor.Last != null) _content.Update(_monitor.Last);
+        }
+
+        private void CloseMonitor()
+        {
+            if (!_open) return;
+            _open = false;
+            if (_monitor != null)
             {
-                EnsureContent();
-                _open = true;
-                _openedUtc = DateTime.UtcNow;
-                L.Info("perf.panel.open", null, ("content", _content?.GetType().FullName));
-                if (_monitor != null)
-                {
-                    _monitor.Updated += OnUpdated;
-                    _monitor.Start();
-                    if (_monitor.Last != null) _content.Update(_monitor.Last);
-                }
+                _monitor.Updated -= OnUpdated;
+                _monitor.Stop();
             }
-            else if (!visible && _open)
-            {
-                _open = false;
-                if (_monitor != null)
-                {
-                    _monitor.Updated -= OnUpdated;
-                    _monitor.Stop();
-                }
-                L.Info("perf.panel.close", null, ("visibleSec", Math.Round((DateTime.UtcNow - _openedUtc).TotalSeconds, 1)));
-            }
+            L.Info("perf.panel.close", null, ("visibleSec", Math.Round((DateTime.UtcNow - _openedUtc).TotalSeconds, 1)));
         }
 
         private void OnUpdated(object sender, PerformanceData data)
@@ -93,21 +87,6 @@ namespace UEToVS.Host.Performance
                 if (!_open || _content == null) return;
                 using (UiThread.Measure(L, "perf.panel.render")) _content.Update(data);
             });
-        }
-
-        protected override void Dispose(bool disposing)
-        {
-            if (disposing && _open)
-            {
-                _open = false;
-                if (_monitor != null)
-                {
-                    _monitor.Updated -= OnUpdated;
-                    _monitor.Stop();
-                }
-                L.Info("perf.panel.close", null, ("reason", "dispose"));
-            }
-            base.Dispose(disposing);
         }
 
         /// <summary>Text-only fallback when UEToVS.UI's PerformancePanel is unavailable.</summary>
@@ -122,7 +101,7 @@ namespace UEToVS.Host.Performance
 
             public PlaceholderContent()
             {
-                _text.SetResourceReference(TextBlock.ForegroundProperty, Microsoft.VisualStudio.PlatformUI.EnvironmentColors.ToolWindowTextBrushKey);
+                _text.SetResourceReference(TextBlock.ForegroundProperty, UEToVS.UI.Theming.Tokens.TextPrimary);
                 Element = new ScrollViewer { Content = _text, HorizontalScrollBarVisibility = ScrollBarVisibility.Auto };
                 _text.Text = Strings.PerfSampling;
             }

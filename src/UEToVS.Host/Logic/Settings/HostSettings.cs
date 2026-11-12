@@ -60,6 +60,15 @@ namespace UEToVS.Host.Logic.Settings
 
         public bool IndexEngineSource { get; set; } = true;
 
+        /// <summary>
+        /// Share the engine index between projects. Off (default): the engine index lives in the solution's
+        /// .vs\UEToVS\Index; on: in <see cref="EngineIndexPath"/> (empty = %LocalAppData%\UEToVS\EngineIndex\&lt;engine version&gt;).
+        /// </summary>
+        public bool ShareEngineIndex { get; set; } = false;
+
+        /// <summary>Shared engine index folder, used only when <see cref="ShareEngineIndex"/> is on. Empty = default location.</summary>
+        public string EngineIndexPath { get; set; } = string.Empty;
+
         // ---- 导航（M2 预留：高亮 / 导航栏 / Ctrl+点击）----
         public bool HighlightReferences { get; set; } = true;
 

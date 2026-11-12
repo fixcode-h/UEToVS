@@ -33,7 +33,24 @@ namespace UEToVS.Host.Performance
             PrivateBytesAtLoad = SafePrivateBytes();
         }
 
-        public TimeSpan Interval { get; set; } = TimeSpan.FromSeconds(1);
+        private TimeSpan _interval = TimeSpan.FromSeconds(1);
+
+        /// <summary>Sampling period (settings: 性能 > 采样间隔); a running timer switches to the new period at once.</summary>
+        public TimeSpan Interval
+        {
+            get { lock (_gate) return _interval; }
+            set
+            {
+                if (value < TimeSpan.FromMilliseconds(250)) value = TimeSpan.FromMilliseconds(250);
+                lock (_gate)
+                {
+                    if (_interval == value) return;
+                    _interval = value;
+                    _timer?.Change(value, value);
+                }
+                L.Info("perf.monitor.interval", null, ("intervalMs", value.TotalMilliseconds));
+            }
+        }
 
         /// <summary>devenv private bytes when the package loaded (baseline for the "since load" delta).</summary>
         public long PrivateBytesAtLoad { get; }

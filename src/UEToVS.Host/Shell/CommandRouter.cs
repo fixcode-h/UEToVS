@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using System.ComponentModel.Design;
 using Microsoft.VisualStudio.Shell;
 using UEToVS.Core.Diagnostics;
+using UEToVS.Core.Localization;
 using UEToVS.Host.Diagnostics;
 using UEToVS.Host.Logic.Actions;
+using UEToVS.Host.Logic.Commands;
 using UEToVS.Host.Logic.Localization;
 
 namespace UEToVS.Host.Shell
@@ -13,6 +15,9 @@ namespace UEToVS.Host.Shell
     /// Binds VSCT commands to actions. BeforeQueryStatus sets the localized text (VSCT holds the English default and the
     /// TextChanges flag) and enables the command from <see cref="IAction.IsAvailable"/>; Invoke dispatches to the action
     /// hub. Both are wrapped (exceptions logged; UI-thread time measured against 16 ms).
+    /// Every command of <see cref="CommandCatalog"/> is bound, including the reserved ones (M2 navigation, M1 search):
+    /// they stay hidden in the menu / disabled until the module that implements them registers its action, so their
+    /// key bindings start working without touching this file. Toolbar buttons take their visibility from the settings.
     /// </summary>
     internal sealed class CommandRouter
     {
@@ -26,36 +31,53 @@ namespace UEToVS.Host.Shell
             _registry = registry;
         }
 
-        /// <summary>command id → (action id, localized text).</summary>
-        public static IReadOnlyList<(int CommandId, string ActionId, Func<string> Text)> Map { get; } = new (int, string, Func<string>)[]
+        /// <summary>Localized text of the commands that already had one (others use the catalog titles).</summary>
+        private static readonly Dictionary<int, Func<string>> Texts = new Dictionary<int, Func<string>>
         {
-            (CommandIds.OpenLogFolder, ActionIds.OpenLogFolder, () => Strings.CmdOpenLogFolder),
-            (CommandIds.OpenCurrentLog, ActionIds.OpenCurrentLog, () => Strings.CmdOpenCurrentLog),
-            (CommandIds.CreateDiagnostics, ActionIds.CreateDiagnostics, () => Strings.CmdCreateDiagnostics),
-            (CommandIds.ShowPerformancePanel, ActionIds.ShowPerformancePanel, () => Strings.CmdPerformancePanel),
-            (CommandIds.RestartEngine, ActionIds.RestartEngine, () => Strings.CmdRestartEngine),
-            (CommandIds.ShowComponentGallery, ActionIds.ShowComponentGallery, () => Strings.CmdComponentGallery),
-            (CommandIds.Settings, ActionIds.Settings, () => Strings.CmdSettings),
-            (CommandIds.FindAction, ActionIds.FindAction, () => Strings.CmdFindAction),
+            [CommandIds.OpenLogFolder] = () => Strings.CmdOpenLogFolder,
+            [CommandIds.OpenCurrentLog] = () => Strings.CmdOpenCurrentLog,
+            [CommandIds.CreateDiagnostics] = () => Strings.CmdCreateDiagnostics,
+            [CommandIds.ShowPerformancePanel] = () => Strings.CmdPerformancePanel,
+            [CommandIds.RestartEngine] = () => Strings.CmdRestartEngine,
+            [CommandIds.ShowComponentGallery] = () => Strings.CmdComponentGallery,
+            [CommandIds.Settings] = () => Strings.CmdSettings,
+            [CommandIds.FindAction] = () => Strings.CmdFindAction,
         };
 
         public void Register(OleMenuCommandService mcs)
         {
-            foreach (var (cmdId, actionId, text) in Map)
-                Bind(mcs, cmdId, () => actionId, text);
+            int count = 0;
+            foreach (var c in CommandCatalog.All)
+            {
+                if (c.Id == CommandIds.ToggleIntelliSense) continue;
+                var info = c;
+                Texts.TryGetValue(c.Id, out var text);
+                Bind(mcs, c.Id, () => info.ActionId, text ?? (() => Loc.T(info.TitleZh, info.TitleEn)), hideWhenMissing: c.Reserved);
+                count++;
+            }
 
-            // One IntelliSense menu item that toggles: "接管" while VS's own IntelliSense is active, "恢复" once UEToVS has
+            // One IntelliSense command that toggles: "接管" while VS's own IntelliSense is active, "恢复" once UEToVS has
             // taken it over (a backup of the user's originals exists). Find Action still lists both actions.
             Bind(mcs, CommandIds.ToggleIntelliSense,
                 () => IsIntelliSenseTakenOver() ? ActionIds.RestoreIntelliSense : ActionIds.TakeOverIntelliSense,
-                () => IsIntelliSenseTakenOver() ? Strings.CmdRestoreIntelliSense : Strings.CmdTakeOverIntelliSense);
-            L.Info("commands.registered", null, ("count", Map.Count + 1));
+                () => IsIntelliSenseTakenOver() ? Strings.CmdRestoreIntelliSense : Strings.CmdTakeOverIntelliSense, false);
+            count++;
+
+            foreach (var b in ToolbarButtons.All)
+            {
+                var button = b;
+                Bind(mcs, b.CommandId, () => button.ActionId, () => Loc.T(button.TitleZh, button.TitleEn), false,
+                     () => ToolbarButtons.IsVisible(button.Key, _package.Settings?.Effective.ShowToolbar ?? true,
+                                                    ToolbarButtons.ParseHidden(_package.Settings?.Effective.HiddenToolbarButtons)));
+                count++;
+            }
+            L.Info("commands.registered", null, ("count", count));
         }
 
         /// <summary>Taken over = UEToVS holds a backup of VS's C++ IntelliSense settings, i.e. it changed them and can restore.</summary>
         private bool IsIntelliSenseTakenOver() => _package.IntelliSense?.BackupExists == true;
 
-        private void Bind(OleMenuCommandService mcs, int cmdId, Func<string> actionId, Func<string> text)
+        private void Bind(OleMenuCommandService mcs, int cmdId, Func<string> actionId, Func<string> text, bool hideWhenMissing, Func<bool> visible = null)
         {
             var cmd = new OleMenuCommand((s, e) => Invoke(actionId()), new CommandID(PackageGuids.CommandSet, cmdId));
             cmd.BeforeQueryStatus += (s, e) => Safe.Execute(L, "command.queryStatus", () =>
@@ -64,16 +86,23 @@ namespace UEToVS.Host.Shell
                 c.Text = text();
                 var action = _registry.Get(actionId());
                 c.Enabled = action != null && action.IsAvailable(_package.CreateActionContext(ActionSource.Menu));
-                c.Visible = true;
+                c.Visible = (visible?.Invoke() ?? true) && (!hideWhenMissing || action != null);
             }, ("command", cmdId));
             mcs.AddCommand(cmd);
         }
 
         private void Invoke(string actionId)
         {
-            Safe.Execute(L, "command.invoke", () =>
+            Safe.Execute(L, "command.invoked", () =>
             {
                 L.Info("command.invoked", null, ("action", actionId));
+                if (_registry.Get(actionId) == null)
+                {
+                    // Reserved command whose module is not there yet (key binding pressed).
+                    L.Info("command.unavailable", "Command has no registered action yet", ("action", actionId));
+                    VsStatusBar.SetText(SettingsText.ActionUnavailable);
+                    return;
+                }
                 _package.ExecuteAction(actionId, ActionSource.Menu);
             }, ("action", actionId));
         }
