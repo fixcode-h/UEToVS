@@ -69,6 +69,14 @@ namespace UEToVS.Host.Shell
             mcs.AddCommand(cmd);
         }
 
+        /// <summary>Binds additional command → action maps (feature modules keep their own id tables, e.g. M1Commands).</summary>
+        public void RegisterMap(OleMenuCommandService mcs, IReadOnlyList<(int CommandId, string ActionId, Func<string> Text)> map)
+        {
+            foreach (var (cmdId, actionId, text) in map)
+                Bind(mcs, cmdId, () => actionId, text);
+            L.Info("commands.registered", null, ("count", map.Count), ("first", map.Count > 0 ? map[0].CommandId : 0));
+        }
+
         private void Invoke(string actionId)
         {
             Safe.Execute(L, "command.invoke", () =>

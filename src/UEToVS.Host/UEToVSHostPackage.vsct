@@ -19,6 +19,13 @@
           <ButtonText>UEToVS</ButtonText>
         </Strings>
       </Menu>
+      <!-- M1: bookmarks submenu (toggle, list, set/go to 0-9) -->
+      <Menu guid="guidUEToVSHostCmdSet" id="menuM1Bookmarks" priority="0x0100" type="Menu">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpM1BookmarksMenu" />
+        <Strings>
+          <ButtonText>Bookmarks</ButtonText>
+        </Strings>
+      </Menu>
     </Menus>
 
     <Groups>
@@ -38,6 +45,25 @@
         <Parent guid="guidUEToVSHostCmdSet" id="menuUEToVS" />
       </Group>
       <Group guid="guidUEToVSHostCmdSet" id="grpSettings" priority="0x0400">
+        <Parent guid="guidUEToVSHostCmdSet" id="menuUEToVS" />
+      </Group>
+      <!-- M1 groups: navigation, related/Build.cs, bookmarks submenu, Unreal editor tools -->
+      <Group guid="guidUEToVSHostCmdSet" id="grpM1Navigation" priority="0x0060">
+        <Parent guid="guidUEToVSHostCmdSet" id="menuUEToVS" />
+      </Group>
+      <Group guid="guidUEToVSHostCmdSet" id="grpM1Related" priority="0x0070">
+        <Parent guid="guidUEToVSHostCmdSet" id="menuUEToVS" />
+      </Group>
+      <Group guid="guidUEToVSHostCmdSet" id="grpM1BookmarksMenu" priority="0x0080">
+        <Parent guid="guidUEToVSHostCmdSet" id="menuUEToVS" />
+      </Group>
+      <Group guid="guidUEToVSHostCmdSet" id="grpM1Bookmarks" priority="0x0100">
+        <Parent guid="guidUEToVSHostCmdSet" id="menuM1Bookmarks" />
+      </Group>
+      <Group guid="guidUEToVSHostCmdSet" id="grpM1BookmarkDigits" priority="0x0200">
+        <Parent guid="guidUEToVSHostCmdSet" id="menuM1Bookmarks" />
+      </Group>
+      <Group guid="guidUEToVSHostCmdSet" id="grpM1Unreal" priority="0x0090">
         <Parent guid="guidUEToVSHostCmdSet" id="menuUEToVS" />
       </Group>
     </Groups>
@@ -130,8 +156,399 @@
           <LocCanonicalName>UEToVS.Settings</LocCanonicalName>
         </Strings>
       </Button>
+      <!-- ===== M1 prototype parity (Features/M1Feature.cs, ids 0x0300-0x03FF) ===== -->
+      <Button guid="guidUEToVSHostCmdSet" id="cmdSearchEverywhere" priority="0x0010" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpSearch" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Search Everywhere</ButtonText>
+          <CanonicalName>UEToVS.SearchEverywhere</CanonicalName>
+          <LocCanonicalName>UEToVS.SearchEverywhere</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdGoToType" priority="0x0011" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpSearch" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Go to Type...</ButtonText>
+          <CanonicalName>UEToVS.GoToType</CanonicalName>
+          <LocCanonicalName>UEToVS.GoToType</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdGoToSymbol" priority="0x0012" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpSearch" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Go to Symbol...</ButtonText>
+          <CanonicalName>UEToVS.GoToSymbol</CanonicalName>
+          <LocCanonicalName>UEToVS.GoToSymbol</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdGoToFile" priority="0x0013" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpSearch" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Go to File...</ButtonText>
+          <CanonicalName>UEToVS.GoToFile</CanonicalName>
+          <LocCanonicalName>UEToVS.GoToFile</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdGoToAsset" priority="0x0014" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpSearch" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Go to Asset (Blueprint)...</ButtonText>
+          <CanonicalName>UEToVS.GoToAsset</CanonicalName>
+          <LocCanonicalName>UEToVS.GoToAsset</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdNavigateBack" priority="0x0100" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpM1Navigation" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Navigate Back</ButtonText>
+          <CanonicalName>UEToVS.NavigateBack</CanonicalName>
+          <LocCanonicalName>UEToVS.NavigateBack</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdNavigateForward" priority="0x0101" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpM1Navigation" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Navigate Forward</ButtonText>
+          <CanonicalName>UEToVS.NavigateForward</CanonicalName>
+          <LocCanonicalName>UEToVS.NavigateForward</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdRecentFiles" priority="0x0102" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpM1Navigation" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Recent Files...</ButtonText>
+          <CanonicalName>UEToVS.RecentFiles</CanonicalName>
+          <LocCanonicalName>UEToVS.RecentFiles</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdRecentLocations" priority="0x0103" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpM1Navigation" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Recent Locations...</ButtonText>
+          <CanonicalName>UEToVS.RecentLocations</CanonicalName>
+          <LocCanonicalName>UEToVS.RecentLocations</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdLastEditLocation" priority="0x0104" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpM1Navigation" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Last Edit Location</ButtonText>
+          <CanonicalName>UEToVS.LastEditLocation</CanonicalName>
+          <LocCanonicalName>UEToVS.LastEditLocation</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdNextEditLocation" priority="0x0105" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpM1Navigation" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Next Edit Location</ButtonText>
+          <CanonicalName>UEToVS.NextEditLocation</CanonicalName>
+          <LocCanonicalName>UEToVS.NextEditLocation</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdFileStructure" priority="0x0106" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpM1Navigation" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>File Structure...</ButtonText>
+          <CanonicalName>UEToVS.FileStructure</CanonicalName>
+          <LocCanonicalName>UEToVS.FileStructure</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdNavigateTo" priority="0x0107" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpM1Navigation" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Navigate To...</ButtonText>
+          <CanonicalName>UEToVS.NavigateTo</CanonicalName>
+          <LocCanonicalName>UEToVS.NavigateTo</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdToggleHeaderSource" priority="0x0100" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpM1Related" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Toggle Header/Source</ButtonText>
+          <CanonicalName>UEToVS.ToggleHeaderSource</CanonicalName>
+          <LocCanonicalName>UEToVS.ToggleHeaderSource</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdGoToRelated" priority="0x0101" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpM1Related" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Go to Related...</ButtonText>
+          <CanonicalName>UEToVS.GoToRelated</CanonicalName>
+          <LocCanonicalName>UEToVS.GoToRelated</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdOpenBuildCs" priority="0x0102" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpM1Related" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Open Module Build.cs</ButtonText>
+          <CanonicalName>UEToVS.OpenBuildCs</CanonicalName>
+          <LocCanonicalName>UEToVS.OpenBuildCs</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdAddModuleDependency" priority="0x0103" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpM1Related" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Add Module Dependency for Include</ButtonText>
+          <CanonicalName>UEToVS.AddModuleDependency</CanonicalName>
+          <LocCanonicalName>UEToVS.AddModuleDependency</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdToggleBookmark" priority="0x0100" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpM1Bookmarks" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Toggle Bookmark</ButtonText>
+          <CanonicalName>UEToVS.ToggleBookmark</CanonicalName>
+          <LocCanonicalName>UEToVS.ToggleBookmark</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdShowBookmarks" priority="0x0101" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpM1Bookmarks" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Show Bookmarks...</ButtonText>
+          <CanonicalName>UEToVS.ShowBookmarks</CanonicalName>
+          <LocCanonicalName>UEToVS.ShowBookmarks</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdSetBookmark0" priority="0x0100" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpM1BookmarkDigits" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Set Bookmark 0</ButtonText>
+          <CanonicalName>UEToVS.SetBookmark0</CanonicalName>
+          <LocCanonicalName>UEToVS.SetBookmark0</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdSetBookmark1" priority="0x0101" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpM1BookmarkDigits" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Set Bookmark 1</ButtonText>
+          <CanonicalName>UEToVS.SetBookmark1</CanonicalName>
+          <LocCanonicalName>UEToVS.SetBookmark1</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdSetBookmark2" priority="0x0102" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpM1BookmarkDigits" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Set Bookmark 2</ButtonText>
+          <CanonicalName>UEToVS.SetBookmark2</CanonicalName>
+          <LocCanonicalName>UEToVS.SetBookmark2</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdSetBookmark3" priority="0x0103" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpM1BookmarkDigits" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Set Bookmark 3</ButtonText>
+          <CanonicalName>UEToVS.SetBookmark3</CanonicalName>
+          <LocCanonicalName>UEToVS.SetBookmark3</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdSetBookmark4" priority="0x0104" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpM1BookmarkDigits" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Set Bookmark 4</ButtonText>
+          <CanonicalName>UEToVS.SetBookmark4</CanonicalName>
+          <LocCanonicalName>UEToVS.SetBookmark4</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdSetBookmark5" priority="0x0105" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpM1BookmarkDigits" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Set Bookmark 5</ButtonText>
+          <CanonicalName>UEToVS.SetBookmark5</CanonicalName>
+          <LocCanonicalName>UEToVS.SetBookmark5</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdSetBookmark6" priority="0x0106" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpM1BookmarkDigits" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Set Bookmark 6</ButtonText>
+          <CanonicalName>UEToVS.SetBookmark6</CanonicalName>
+          <LocCanonicalName>UEToVS.SetBookmark6</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdSetBookmark7" priority="0x0107" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpM1BookmarkDigits" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Set Bookmark 7</ButtonText>
+          <CanonicalName>UEToVS.SetBookmark7</CanonicalName>
+          <LocCanonicalName>UEToVS.SetBookmark7</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdSetBookmark8" priority="0x0108" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpM1BookmarkDigits" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Set Bookmark 8</ButtonText>
+          <CanonicalName>UEToVS.SetBookmark8</CanonicalName>
+          <LocCanonicalName>UEToVS.SetBookmark8</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdSetBookmark9" priority="0x0109" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpM1BookmarkDigits" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Set Bookmark 9</ButtonText>
+          <CanonicalName>UEToVS.SetBookmark9</CanonicalName>
+          <LocCanonicalName>UEToVS.SetBookmark9</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdGoToBookmark0" priority="0x0200" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpM1BookmarkDigits" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Go to Bookmark 0</ButtonText>
+          <CanonicalName>UEToVS.GoToBookmark0</CanonicalName>
+          <LocCanonicalName>UEToVS.GoToBookmark0</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdGoToBookmark1" priority="0x0201" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpM1BookmarkDigits" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Go to Bookmark 1</ButtonText>
+          <CanonicalName>UEToVS.GoToBookmark1</CanonicalName>
+          <LocCanonicalName>UEToVS.GoToBookmark1</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdGoToBookmark2" priority="0x0202" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpM1BookmarkDigits" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Go to Bookmark 2</ButtonText>
+          <CanonicalName>UEToVS.GoToBookmark2</CanonicalName>
+          <LocCanonicalName>UEToVS.GoToBookmark2</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdGoToBookmark3" priority="0x0203" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpM1BookmarkDigits" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Go to Bookmark 3</ButtonText>
+          <CanonicalName>UEToVS.GoToBookmark3</CanonicalName>
+          <LocCanonicalName>UEToVS.GoToBookmark3</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdGoToBookmark4" priority="0x0204" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpM1BookmarkDigits" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Go to Bookmark 4</ButtonText>
+          <CanonicalName>UEToVS.GoToBookmark4</CanonicalName>
+          <LocCanonicalName>UEToVS.GoToBookmark4</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdGoToBookmark5" priority="0x0205" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpM1BookmarkDigits" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Go to Bookmark 5</ButtonText>
+          <CanonicalName>UEToVS.GoToBookmark5</CanonicalName>
+          <LocCanonicalName>UEToVS.GoToBookmark5</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdGoToBookmark6" priority="0x0206" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpM1BookmarkDigits" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Go to Bookmark 6</ButtonText>
+          <CanonicalName>UEToVS.GoToBookmark6</CanonicalName>
+          <LocCanonicalName>UEToVS.GoToBookmark6</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdGoToBookmark7" priority="0x0207" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpM1BookmarkDigits" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Go to Bookmark 7</ButtonText>
+          <CanonicalName>UEToVS.GoToBookmark7</CanonicalName>
+          <LocCanonicalName>UEToVS.GoToBookmark7</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdGoToBookmark8" priority="0x0208" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpM1BookmarkDigits" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Go to Bookmark 8</ButtonText>
+          <CanonicalName>UEToVS.GoToBookmark8</CanonicalName>
+          <LocCanonicalName>UEToVS.GoToBookmark8</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdGoToBookmark9" priority="0x0209" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpM1BookmarkDigits" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Go to Bookmark 9</ButtonText>
+          <CanonicalName>UEToVS.GoToBookmark9</CanonicalName>
+          <LocCanonicalName>UEToVS.GoToBookmark9</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdLiveCoding" priority="0x0100" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpM1Unreal" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Live Coding (Unreal Editor)</ButtonText>
+          <CanonicalName>UEToVS.LiveCoding</CanonicalName>
+          <LocCanonicalName>UEToVS.LiveCoding</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdGenerateProjectFiles" priority="0x0101" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpM1Unreal" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Generate Project Files</ButtonText>
+          <CanonicalName>UEToVS.GenerateProjectFiles</CanonicalName>
+          <LocCanonicalName>UEToVS.GenerateProjectFiles</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdInstallEditorPlugin" priority="0x0102" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpM1Unreal" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Install UEToVSLink Editor Plugin</ButtonText>
+          <CanonicalName>UEToVS.InstallEditorPlugin</CanonicalName>
+          <LocCanonicalName>UEToVS.InstallEditorPlugin</LocCanonicalName>
+        </Strings>
+      </Button>
     </Buttons>
   </Commands>
+
+  <!--
+    M1 default shortcuts (proposal; the shortcut owner consolidates all bindings here). Only keys VS leaves free by
+    default are taken: Alt+Left/Right (back/forward), Alt+O (header/source), Ctrl+Alt+F11 (Live Coding, as in UE).
+    Double Shift (Search Everywhere) is not a VS key binding: it is detected by Input/InputMonitor.cs.
+  -->
+  <KeyBindings>
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdNavigateBack" editor="guidVSStd97" key1="VK_LEFT" mod1="Alt" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdNavigateForward" editor="guidVSStd97" key1="VK_RIGHT" mod1="Alt" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdToggleHeaderSource" editor="guidVSStd97" key1="O" mod1="Alt" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdLiveCoding" editor="guidVSStd97" key1="VK_F11" mod1="Control Alt" />
+  </KeyBindings>
 
   <Symbols>
     <!-- Extensions menu, declared locally (not every VSSDK version exposes it in vsshlids.h). -->
@@ -156,6 +573,56 @@
       <IDSymbol name="cmdShowComponentGallery" value="0x0130" />
       <IDSymbol name="cmdSettings" value="0x0140" />
       <IDSymbol name="cmdFindAction" value="0x0150" />
+      <!-- M1 (Features/M1Feature.cs) -->
+      <IDSymbol name="menuM1Bookmarks" value="0x1100" />
+      <IDSymbol name="grpM1Navigation" value="0x1101" />
+      <IDSymbol name="grpM1Related" value="0x1102" />
+      <IDSymbol name="grpM1BookmarksMenu" value="0x1103" />
+      <IDSymbol name="grpM1Bookmarks" value="0x1104" />
+      <IDSymbol name="grpM1BookmarkDigits" value="0x1105" />
+      <IDSymbol name="grpM1Unreal" value="0x1106" />
+      <IDSymbol name="cmdSearchEverywhere" value="0x0300" />
+      <IDSymbol name="cmdGoToType" value="0x0301" />
+      <IDSymbol name="cmdGoToSymbol" value="0x0302" />
+      <IDSymbol name="cmdGoToFile" value="0x0303" />
+      <IDSymbol name="cmdGoToAsset" value="0x0304" />
+      <IDSymbol name="cmdNavigateBack" value="0x0310" />
+      <IDSymbol name="cmdNavigateForward" value="0x0311" />
+      <IDSymbol name="cmdRecentFiles" value="0x0312" />
+      <IDSymbol name="cmdRecentLocations" value="0x0313" />
+      <IDSymbol name="cmdLastEditLocation" value="0x0314" />
+      <IDSymbol name="cmdNextEditLocation" value="0x0315" />
+      <IDSymbol name="cmdFileStructure" value="0x0316" />
+      <IDSymbol name="cmdNavigateTo" value="0x0317" />
+      <IDSymbol name="cmdToggleHeaderSource" value="0x0320" />
+      <IDSymbol name="cmdGoToRelated" value="0x0321" />
+      <IDSymbol name="cmdOpenBuildCs" value="0x0322" />
+      <IDSymbol name="cmdAddModuleDependency" value="0x0323" />
+      <IDSymbol name="cmdToggleBookmark" value="0x0330" />
+      <IDSymbol name="cmdShowBookmarks" value="0x0331" />
+      <IDSymbol name="cmdSetBookmark0" value="0x0340" />
+      <IDSymbol name="cmdSetBookmark1" value="0x0341" />
+      <IDSymbol name="cmdSetBookmark2" value="0x0342" />
+      <IDSymbol name="cmdSetBookmark3" value="0x0343" />
+      <IDSymbol name="cmdSetBookmark4" value="0x0344" />
+      <IDSymbol name="cmdSetBookmark5" value="0x0345" />
+      <IDSymbol name="cmdSetBookmark6" value="0x0346" />
+      <IDSymbol name="cmdSetBookmark7" value="0x0347" />
+      <IDSymbol name="cmdSetBookmark8" value="0x0348" />
+      <IDSymbol name="cmdSetBookmark9" value="0x0349" />
+      <IDSymbol name="cmdGoToBookmark0" value="0x0350" />
+      <IDSymbol name="cmdGoToBookmark1" value="0x0351" />
+      <IDSymbol name="cmdGoToBookmark2" value="0x0352" />
+      <IDSymbol name="cmdGoToBookmark3" value="0x0353" />
+      <IDSymbol name="cmdGoToBookmark4" value="0x0354" />
+      <IDSymbol name="cmdGoToBookmark5" value="0x0355" />
+      <IDSymbol name="cmdGoToBookmark6" value="0x0356" />
+      <IDSymbol name="cmdGoToBookmark7" value="0x0357" />
+      <IDSymbol name="cmdGoToBookmark8" value="0x0358" />
+      <IDSymbol name="cmdGoToBookmark9" value="0x0359" />
+      <IDSymbol name="cmdLiveCoding" value="0x0360" />
+      <IDSymbol name="cmdGenerateProjectFiles" value="0x0361" />
+      <IDSymbol name="cmdInstallEditorPlugin" value="0x0362" />
     </GuidSymbol>
   </Symbols>
 </CommandTable>
