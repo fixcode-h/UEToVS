@@ -23,6 +23,7 @@ namespace UEToVS.Host.Engine
         private static readonly TimeSpan QuickInfoTimeout = TimeSpan.FromSeconds(3);
         private static readonly TimeSpan SignatureHelpTimeout = TimeSpan.FromSeconds(3);
         private static readonly TimeSpan ClassifyTimeout = TimeSpan.FromSeconds(5);
+        private static readonly TimeSpan DiagnosticsTimeout = TimeSpan.FromSeconds(5);
 
         public async Task<EngineCallResult<CompletionResponse>> GetCompletionsAsync(CompletionRequest request, CancellationToken ct)
         {
@@ -71,6 +72,19 @@ namespace UEToVS.Host.Engine
                         ("lines", request == null ? null : request.StartLine + ".." + request.EndLine), ("dirty", request?.Document?.Text != null),
                         ("status", r.Status.ToString()), ("answerVersion", v?.TextVersion), ("spans", v?.Spans?.Count ?? 0),
                         ("engineMs", v?.ElapsedMs), ("roundTripMs", r.ElapsedMs));
+            return r;
+        }
+
+        public async Task<EngineCallResult<CodeDiagnosticsResponse>> GetDiagnosticsAsync(CodeDiagnosticsRequest request, CancellationToken ct)
+        {
+            var r = await CallAsync("diagnostics", (s, c) => s.GetDiagnosticsAsync(request, c), ct, DiagnosticsTimeout, 150).ConfigureAwait(false);
+            if (r.Status == EngineCallStatus.Canceled) return r;
+            var v = r.Value;
+            // Debug: runs after every edit pause; the squiggle tagger logs intellisense.diagnostics with the merged result.
+            IsLog.Debug("is.diagnostics", null, ("file", request?.Document?.FilePath), ("version", request?.Document?.TextVersion),
+                        ("lines", request == null ? null : request.StartLine + ".." + request.EndLine), ("dirty", request?.Document?.Text != null),
+                        ("unsaved", request?.UnsavedFiles?.Count ?? 0), ("status", r.Status.ToString()), ("answerVersion", v?.TextVersion),
+                        ("items", v?.Items?.Count ?? 0), ("checked", v?.Checked), ("uncertain", v?.Uncertain), ("engineMs", v?.ElapsedMs), ("roundTripMs", r.ElapsedMs));
             return r;
         }
     }

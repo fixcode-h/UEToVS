@@ -19,6 +19,14 @@ namespace UEToVS.Contracts
         Include = 4,
         /// <summary>After 'override' position / 'virtual': overridable base methods.</summary>
         Override = 5,
+        /// <summary>In a GameplayTag string (RequestGameplayTag("…"), UE_DEFINE_GAMEPLAY_TAG, meta=(Categories="…")): next tag segment.</summary>
+        GameplayTag = 6,
+        /// <summary>In an asset path string (FObjectFinder, FSoftObjectPath, LoadObject, "/Game/…"): folders and assets of the path.</summary>
+        AssetPath = 7,
+        /// <summary>In the function name string of BindUFunction / AddUFunction / FindFunction: UFUNCTIONs of the target class.</summary>
+        UFunctionName = 8,
+        /// <summary>In the section / key string of a GConfig-&gt;Get…/Set… call: sections and keys of the project's Config/*.ini.</summary>
+        IniKey = 9,
     }
 
     public sealed class CompletionRequest

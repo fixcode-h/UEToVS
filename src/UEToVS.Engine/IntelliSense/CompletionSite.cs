@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using UEToVS.Contracts;
+using UEToVS.Core.Unreal;
 using UEToVS.Engine.Navigation;
 using UEToVS.Engine.Syntax;
 
@@ -53,6 +54,15 @@ namespace UEToVS.Engine.IntelliSense
         /// <summary>General: the identifier is in a position where only types make sense (after 'new', '&lt;', base clause...).</summary>
         public bool TypeExpected { get; set; }
 
+        /// <summary>GameplayTag / AssetPath / UFunctionName / IniKey: the string literal analysis (columns on the caret line).</summary>
+        public StringLiteralSite StringSite { get; set; }
+
+        /// <summary>String contexts: line of the caret (columns of <see cref="StringSite"/> refer to it).</summary>
+        public int Line { get; set; }
+
+        /// <summary>String contexts: catalog entries considered (tags, folders + assets, UFUNCTIONs, sections / keys), for logs.</summary>
+        public int Candidates { get; set; }
+
         public override string ToString() => $"{Kind} prefix='{Prefix}'" + (Suppressed ? " suppressed:" + SuppressReason : string.Empty);
     }
 
@@ -96,6 +106,8 @@ namespace UEToVS.Engine.IntelliSense
                 var t = doc.Tokens[k];
                 if (t.Kind == TokenKind.Directive && caret <= t.End + 0 && LineOf(doc, t.Start) == LineOf(doc, caret))
                     return Directive(doc, k, caret, site);
+                if (t.Kind == TokenKind.String && caret > t.Start && caret <= t.End && TryString(doc, caret, site))
+                    return site;
                 if ((t.Kind == TokenKind.String || t.Kind == TokenKind.Char || t.Kind == TokenKind.DocComment) && caret < t.End)
                 {
                     site.Suppressed = true;
@@ -140,6 +152,38 @@ namespace UEToVS.Engine.IntelliSense
                                     (bt.Is(Keyword.Public) || bt.Is(Keyword.Protected) || bt.Is(Keyword.Private)) && !doc.Is(b + 1, Punct.Colon);
             }
             return site;
+        }
+
+        /// <summary>
+        /// Caret in a string literal: a GameplayTag / asset path / UFUNCTION name / ini section or key context (line-local
+        /// <see cref="StringLiteralContext"/>, shared with the host so both use the same replace span), or a plain string
+        /// (suppressed). False when the caret is not inside the literal after all (right after a closing quote).
+        /// </summary>
+        private static bool TryString(DocumentModel doc, int caret, CompletionSite site)
+        {
+            var (line, col) = doc.PositionOf(caret);
+            var ss = StringLiteralContext.Analyze(doc.LineText(line), col);
+            if (!ss.InString) return false;
+            CompletionContextKind kind;
+            switch (ss.Kind)
+            {
+                case StringLiteralKind.GameplayTag: kind = CompletionContextKind.GameplayTag; break;
+                case StringLiteralKind.AssetPath: kind = CompletionContextKind.AssetPath; break;
+                case StringLiteralKind.UFunctionName: kind = CompletionContextKind.UFunctionName; break;
+                case StringLiteralKind.IniSection:
+                case StringLiteralKind.IniKey: kind = CompletionContextKind.IniKey; break;
+                default:
+                    site.Suppressed = true;
+                    site.SuppressReason = "string";
+                    return true;
+            }
+            site.Kind = kind;
+            site.StringSite = ss;
+            site.Line = line;
+            site.ReplaceStart = doc.OffsetOf(line, ss.FragmentStart);
+            site.ReplaceEnd = doc.OffsetOf(line, ss.FragmentStart + ss.FragmentLength);
+            site.Prefix = Encoding.UTF8.GetString(doc.Text, site.ReplaceStart, Math.Max(0, caret - site.ReplaceStart));
+            return true;
         }
 
         private static int LineOf(DocumentModel doc, int offset) => doc.Lines.GetLine(offset);

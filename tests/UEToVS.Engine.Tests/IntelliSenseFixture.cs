@@ -59,8 +59,38 @@ namespace UEToVS.Engine.Tests
                 Backend.UpdateParsed(path, parser.Parse(ctx, File.ReadAllBytes(path), CancellationToken.None));
                 if (path.StartsWith(Path.Combine(Root, "IS"), StringComparison.Ordinal)) ParseMarkers(path, File.ReadAllText(path));
             }
-            Service = new IntelliSenseService(Backend, Files);
+            // project config (gameplay tags, ini sections / keys) and a few assets for string context completion
+            foreach (var path in Directory.GetFiles(Root, "*.ini", SearchOption.AllDirectories).OrderBy(p => p))
+                Files.Upsert(new ListedFile { Path = path, Name = Path.GetFileName(path), Origin = ItemOrigin.Project, Kind = SourceFileKind.Config });
+            foreach (var (objectPath, cls) in TestAssets)
+            {
+                string name = objectPath.Substring(objectPath.LastIndexOf('.') + 1);
+                Assets.Upsert(new AssetItem
+                {
+                    Name = name,
+                    ObjectPath = objectPath,
+                    ClassName = cls,
+                    FilePath = Path.Combine(Root, "Content", objectPath.Substring(1, objectPath.LastIndexOf('.') - 1).Replace('/', Path.DirectorySeparatorChar) + (cls == "World" ? ".umap" : ".uasset")),
+                    Origin = objectPath.StartsWith("/Game/", StringComparison.Ordinal) ? ItemOrigin.Project : ItemOrigin.ProjectPlugin,
+                });
+            }
+            Service = new IntelliSenseService(Backend, Files, assets: Assets);
         }
+
+        public static readonly (string ObjectPath, string Class)[] TestAssets =
+        {
+            ("/Game/Props/SM_Rock.SM_Rock", null),
+            ("/Game/Props/SM_Crate.SM_Crate", null),
+            ("/Game/Props/BP_Door.BP_Door", null),
+            ("/Game/Props/T_Rock.T_Rock", null),
+            ("/Game/Props/Decals/T_Dirt.T_Dirt", null),
+            ("/Game/Maps/L_Arena.L_Arena", "World"),
+            ("/Game/Maps/BP_MapHelper.BP_MapHelper", null),
+            ("/Game/Characters/Hero/BP_Hero.BP_Hero", null),
+            ("/MyPlugin/Icons/T_Icon.T_Icon", null),
+        };
+
+        public AssetTable Assets { get; } = new AssetTable();
 
         public string Root { get; }
         public SegmentedIndexBackend Backend { get; }

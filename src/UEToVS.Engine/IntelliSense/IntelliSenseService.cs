@@ -24,15 +24,21 @@ namespace UEToVS.Engine.IntelliSense
         private readonly MemberTableCache _members = new MemberTableCache();
         private readonly CompletionEngine _completion = new CompletionEngine();
         private readonly SemanticClassifier _classifier = new SemanticClassifier();
+        private readonly DiagnosticsProvider _diagnostics = new DiagnosticsProvider();
 
-        public IntelliSenseService(ISymbolIndexBackend backend, FileTable files, Func<bool> indexReady = null, DocumentCache documents = null, UeMacroKnowledge knowledge = null)
+        public IntelliSenseService(ISymbolIndexBackend backend, FileTable files, Func<bool> indexReady = null, DocumentCache documents = null, UeMacroKnowledge knowledge = null,
+                                   AssetTable assets = null)
         {
             _backend = backend ?? throw new ArgumentNullException(nameof(backend));
             _files = files;
             _indexReady = indexReady ?? (() => true);
             Documents = documents ?? new DocumentCache();
             Knowledge = knowledge ?? UeMacroKnowledge.Default;
+            _completion.Strings = new StringCompletionSources(backend, files, assets);
         }
+
+        /// <summary>Gameplay tags, ini files and assets behind string context completion.</summary>
+        public StringCompletionSources StringSources => _completion.Strings;
 
         public DocumentCache Documents { get; }
         public UeMacroKnowledge Knowledge { get; }
@@ -79,7 +85,8 @@ namespace UEToVS.Engine.IntelliSense
             resp.ElapsedMs = Ms(sw);
             var data = new (string, object)[]
             {
-                ("context", site.Kind.ToString()), ("prefix", site.Prefix), ("resolvedType", resolvedType), ("items", resp.Items.Count),
+                ("context", CompletionEngine.StringContextName(site.Kind) ?? site.Kind.ToString()), ("prefix", site.Prefix),
+                ("candidates", site.StringSite != null ? site.Candidates : (int?)null), ("resolvedType", resolvedType), ("items", resp.Items.Count),
                 ("incomplete", resp.IsIncomplete), ("fix", resp.AccessorFix?.Replacement), ("suppressed", site.Suppressed ? site.SuppressReason : null),
                 ("trigger", request.TriggerChar == '\0' ? null : request.TriggerChar.ToString()), ("explicit", request.Explicit),
                 ("top", resp.Items.Count > 0 ? resp.Items[0].Label : null), ("ms", resp.ElapsedMs), ("analyzeMs", analyzeMs),
@@ -149,6 +156,45 @@ namespace UEToVS.Engine.IntelliSense
             double budget = ClassifyBudgetMs * Math.Max(1.0, (request.EndLine - request.StartLine + 1) / 100.0);
             if (resp.ElapsedMs > budget) L.Warn("is.classify", "Classification over budget", data);
             else L.Debug("is.classify", null, data);
+            return resp;
+        }
+
+        // ================================================================== diagnostics (squiggles)
+
+        /// <summary>Diagnostics budget for a viewport ± 50 lines (runs after an edit pause, not per keystroke).</summary>
+        public double DiagnosticsBudgetMs { get; set; } = 50;
+
+        public CodeDiagnosticsResponse GetDiagnostics(CodeDiagnosticsRequest request, CancellationToken ct)
+        {
+            var sw = Stopwatch.StartNew();
+            var s = Session(request?.Document, ct, out var doc);
+            if (s == null) return new CodeDiagnosticsResponse { TextVersion = request?.Document?.TextVersion ?? 0, ElapsedMs = Ms(sw) };
+            int lineCount = doc.Lines.LineCount;
+            int from = Math.Max(0, request.StartLine);
+            int to = Math.Min(lineCount - 1, Math.Max(from, request.EndLine));
+            int caret = request.Document.Line > 0 || request.Document.Column > 0 ? Offset(doc, request.Document) : -1;
+            var stats = new DiagnosticsStats();
+            var items = _diagnostics.Run(s, from, to, caret, stats, request.UnsavedFiles);
+            var resp = new CodeDiagnosticsResponse
+            {
+                TextVersion = request.Document.TextVersion != 0 ? request.Document.TextVersion : doc.Version,
+                StartLine = from,
+                EndLine = to,
+                Items = items,
+                Checked = stats.Checked,
+                Uncertain = stats.Uncertain,
+                ElapsedMs = Ms(sw),
+            };
+            var data = new (string, object)[]
+            {
+                ("file", FileName(doc.Path)), ("lines", from + ".." + to), ("version", request.Document.TextVersion), ("items", items.Count),
+                ("UE0001", stats.UnknownMember), ("UE0003", stats.MissingGeneratedBody), ("checked", stats.Checked), ("uncertain", stats.Uncertain),
+                ("uncertainReasons", stats.TopReasons()), ("indexQueries", s.Ctx.IndexQueries), ("ms", resp.ElapsedMs),
+            };
+            double budget = DiagnosticsBudgetMs * Math.Max(1.0, (to - from + 1) / 200.0);
+            if (resp.ElapsedMs > budget) L.Warn("intellisense.diagnostics", "Diagnostics over budget", data);
+            else if (items.Count > 0) L.Info("intellisense.diagnostics", null, data);
+            else L.Debug("intellisense.diagnostics", null, data);
             return resp;
         }
 

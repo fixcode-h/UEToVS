@@ -188,6 +188,9 @@ namespace UEToVS.Host.IntelliSense
         public bool ShouldCommitCompletion(IAsyncCompletionSession session, SnapshotPoint location, char typedChar, CancellationToken token)
         {
             if (!session.Properties.TryGetProperty(CompletionNames.SessionKey, out CompletionSessionState state)) return false;
+            // String contexts (tags, asset paths, UFUNCTION names, ini): the closing quote and the kind's separator.
+            var inString = CompletionPolicy.CommitsInString(state.Context, typedChar);
+            if (inString.HasValue) return inString.Value;
             // Include paths: '/' continues the path, '.' is part of "Foo.h".
             if (state.Context == UEToVS.Contracts.CompletionContextKind.Include) return typedChar == '"' || typedChar == '>';
             // Specifier lists: '=' starts a value (Category=…), ',' / ')' end the specifier.
@@ -227,10 +230,25 @@ namespace UEToVS.Host.IntelliSense
                 if (edit.HasEffectiveChanges) edit.Apply();
             }
             IntelliSenseContext.Recent.Record(item.FilterText);
+            if (state?.Context == UEToVS.Contracts.CompletionContextKind.Include) CheckIncludeDependency(buffer, span.Start.Position);
             L.Info("is.completion.commit", null, ("label", contract.Label), ("kind", contract.Kind.ToString()), ("context", state?.Context.ToString()),
                    ("typedChar", typedChar == '\0' ? null : typedChar.ToString()), ("accessorFix", fixApplied ? state.AccessorFixReplacement : null),
                    ("inherited", contract.IsInherited), ("ue", contract.Ue.ToString()));
             return new CommitResult(true, CommitBehavior.None);
+        }
+
+        /// <summary>
+        /// §7.6: a header committed into an #include whose module the current module does not depend on → the Build.cs
+        /// banner (add to Public/PrivateDependencyModuleNames) right away instead of on the next save.
+        /// </summary>
+        private static void CheckIncludeDependency(ITextBuffer buffer, int position)
+        {
+            var snapshot = buffer.CurrentSnapshot;
+            if (position > snapshot.Length) return;
+            string include = UEToVS.Core.Unreal.IncludeDirective.Parse(snapshot.GetLineFromPosition(position).GetText());
+            if (string.IsNullOrEmpty(include) || !UEToVS.Host.Logic.Unreal.IncludeDependencyChecker.IsCppFile(include)) return;
+            string path = UEToVS.Host.Navigation.VsEditor.FilePathOf(buffer);
+            UEToVS.Host.Unreal.ModuleDependencyFixer.OnIncludeCommitted(HostPackage.Instance, path, include, snapshot.GetLineNumberFromPosition(position));
         }
     }
 }

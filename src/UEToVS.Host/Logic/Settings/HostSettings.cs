@@ -172,6 +172,9 @@ namespace UEToVS.Host.Logic.Settings
         /// <summary>Lines above / below the viewport classified ahead of scrolling.</summary>
         public int SemanticColoringMarginLines { get; set; } = 50;
 
+        /// <summary>High-confidence squiggles (unknown members, UHT rules, missing Build.cs dependencies) once VS IntelliSense is taken over.</summary>
+        public bool DiagnosticsEnabled { get; set; } = true;
+
         public HostSettings Clone() => (HostSettings)MemberwiseClone();
     }
 }

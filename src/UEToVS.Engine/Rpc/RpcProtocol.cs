@@ -74,6 +74,7 @@ namespace UEToVS.Engine.Rpc
             ["rpc.getQuickInfo"] = 100,
             ["rpc.getSignatureHelp"] = 50,
             ["rpc.classify"] = 30,         // viewport (~100 lines) p95 < 15 ms
+            ["rpc.getDiagnostics"] = 100,  // viewport ± 50 lines, after an edit pause (squiggles)
         };
 
         public static double For(string evt) => ByEvent.TryGetValue(evt, out var b) ? b : double.MaxValue;

@@ -23,6 +23,7 @@ public:
 	virtual void /*@def:UObject.PostInitProperties*/PostInitProperties();
 	class UWorld* GetWorld() const;
 	FString GetName() const;
+	class UFunction* FindFunction(FName InName) const;
 };
 
 class /*@def:UClass*/UClass : public UObject

@@ -282,6 +282,29 @@ namespace UEToVS.Engine.Tests
         }
 
         [Fact]
+        public void Diagnostics_SyntheticLargeProject_P95()
+        {
+            var times = new List<double>();
+            int caretLine = _big.CppText.Take(_big.CppText.IndexOf(SyntheticProjectFixture.CaretToken, StringComparison.Ordinal)).Count(ch => ch == '\n');
+            int from = Math.Max(0, caretLine - 80);
+            int falsePositives = 0, uncertain = 0, checkedSites = 0;
+            // after each edit pause: a new version, the viewport (~60 lines) ± 50 lines
+            for (int i = 0; i < Samples + 5; i++)
+            {
+                var doc = new CaretRequest { FilePath = _big.CppPath, Text = _big.CppText.Replace(SyntheticProjectFixture.CaretToken, "int32 Typed" + i + " = 0;"), TextVersion = Interlocked.Increment(ref _version) };
+                var sw = Stopwatch.StartNew();
+                var resp = _big.Service.GetDiagnostics(new CodeDiagnosticsRequest { Document = doc, StartLine = from, EndLine = from + 160 }, CancellationToken.None);
+                if (i >= 5) times.Add(sw.Elapsed.TotalMilliseconds);
+                falsePositives = resp.Items.Count;
+                uncertain = resp.Uncertain;
+                checkedSites = resp.Checked;
+            }
+            Report($"diagnostics 160 lines after an edit [checked {checkedSites}, uncertain {uncertain}]", times);
+            Assert.Equal(0, falsePositives); // generated code is valid
+            Assert.True(Stats(times).P95 < 60, "diagnostics p95 " + Stats(times).P95);
+        }
+
+        [Fact]
         public void QuickInfoAndSignature_SyntheticLargeProject_P95()
         {
             var quick = new List<double>();

@@ -70,7 +70,7 @@ namespace UEToVS.Host.Unreal
             public bool FileExists(string path) => File.Exists(path);
         }
 
-        private static IncludeEnv CreateEnvironment(HostPackage package)
+        internal static IIncludeEnvironment CreateEnvironment(HostPackage package)
         {
             ThreadHelper.ThrowIfNotOnUIThread();
             // Open (possibly unsaved) Build.cs buffers win over disk.
@@ -122,6 +122,29 @@ namespace UEToVS.Host.Unreal
                     Interlocked.Exchange(ref _onSaveRunning, 0);
                 }
             }, ("file", path));
+        }
+
+        /// <summary>
+        /// An #include path committed from completion (§7.6 "#include 补全"): checks that one header's module against the
+        /// including module's Build.cs at once and offers the fix in the same banner as the on-save check.
+        /// </summary>
+        public static void OnIncludeCommitted(HostPackage package, string path, string include, int line)
+        {
+            if (package?.Engine?.IsConnected != true || package.Unreal?.IsUnreal != true || string.IsNullOrEmpty(path) || string.IsNullOrEmpty(include)) return;
+            if (!IncludeDependencyChecker.IsCppFile(path)) return;
+            Safe.RunAsync(L, "buildcs.includeCommitted", async () =>
+            {
+                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                var env = CreateEnvironment(package);
+                List<MissingDependency> missing;
+                using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10)))
+                    missing = await Task.Run(() => IncludeDependencyChecker.CheckAsync(path, new List<IncludeRef> { new IncludeRef(include, line) }, env, cts.Token)).ConfigureAwait(true);
+                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                missing = missing.Where(m => !Dismissed.Contains(m.Key)).ToList();
+                L.Info("buildcs.includeCommitted", null, ("file", Path.GetFileName(path)), ("include", include), ("missing", missing.Count),
+                    ("modules", string.Join(", ", missing.Select(m => m.Module).Distinct(StringComparer.OrdinalIgnoreCase))));
+                if (missing.Count > 0) ShowBanner(path, missing);
+            }, ("file", path), ("include", include));
         }
 
         private static void ShowBanner(string path, List<MissingDependency> missing)

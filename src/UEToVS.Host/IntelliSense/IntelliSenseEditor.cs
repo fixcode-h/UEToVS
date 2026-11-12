@@ -69,6 +69,9 @@ namespace UEToVS.Host.IntelliSense
                 return t.EndsWith("/", StringComparison.Ordinal) || t.EndsWith("\\", StringComparison.Ordinal) ? KnownMonikers.FolderClosed : KnownMonikers.CPPHeaderFile;
             }
             if (context == CompletionContextKind.Specifier && item.Kind == SymbolKind.Unknown) return KnownMonikers.Attribute;
+            // string contexts: folders / sections as folders, assets as documents, ini keys as properties
+            if (context == CompletionContextKind.AssetPath) return item.Kind == SymbolKind.Namespace ? KnownMonikers.FolderClosed : KnownMonikers.Document;
+            if (context == CompletionContextKind.IniKey) return item.Kind == SymbolKind.Namespace ? KnownMonikers.FolderClosed : KnownMonikers.Property;
             if (item.IsKeyword && item.Kind == SymbolKind.Unknown) return KnownMonikers.IntellisenseKeyword;
             return MonikerFor(item.Kind, item.Ue);
         }

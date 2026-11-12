@@ -255,6 +255,12 @@ namespace UEToVS.Engine.Rpc
                     : _host.Scheduler.RunAsync(WorkPriority.Visible, "rpc.classify", t => _host.IntelliSense.Classify(request, t), c),
                 ct, ("file", request?.Document?.FilePath), ("from", request?.StartLine), ("to", request?.EndLine), ("version", request?.Document?.TextVersion));
 
+        public Task<CodeDiagnosticsResponse> GetDiagnosticsAsync(CodeDiagnosticsRequest request, CancellationToken ct) =>
+            InvokeAsync("rpc.getDiagnostics", c => request?.Document == null
+                    ? Task.FromResult(new CodeDiagnosticsResponse { TextVersion = request?.Document?.TextVersion ?? 0 })
+                    : _host.Scheduler.RunAsync(WorkPriority.Visible, "rpc.getDiagnostics", t => _host.IntelliSense.GetDiagnostics(request, t), c),
+                ct, ("file", request?.Document?.FilePath), ("from", request?.StartLine), ("to", request?.EndLine), ("version", request?.Document?.TextVersion));
+
         public Task ShutdownAsync(CancellationToken ct) =>
             InvokeAsync("rpc.shutdown", _ =>
             {
