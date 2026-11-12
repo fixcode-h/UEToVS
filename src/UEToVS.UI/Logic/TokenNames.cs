@@ -37,6 +37,8 @@ namespace UEToVS.UI.Logic
         public const string AccentHover = "Accent.Hover";
         public const string AccentPressed = "Accent.Pressed";
         public const string AccentSubtle = "Accent.Subtle";
+        /// <summary>Border of an accent-tinted element (checked chip): between the surface and the accent.</summary>
+        public const string AccentBorder = "Accent.Border";
         public const string SelectionBackground = "Selection.Background";
         public const string SelectionForeground = "Selection.Foreground";
         public const string SelectionSecondary = "Selection.Secondary";

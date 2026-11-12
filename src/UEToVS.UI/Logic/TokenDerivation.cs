@@ -134,6 +134,7 @@ namespace UEToVS.UI.Logic
             C[TokenNames.AccentHover] = hc ? accent : AccentHoverOf(accent, popup);
             C[TokenNames.AccentPressed] = hc ? accent : AccentPressedOf(accent, popup);
             C[TokenNames.AccentSubtle] = hc ? popup : Rgba.Mix(popup, accent, dark ? 0.22 : 0.12);
+            C[TokenNames.AccentBorder] = hc ? accent : Rgba.Mix(popup, accent, dark ? 0.42 : 0.40);
             C[TokenNames.TextOnAccent] = Rgba.Contrast(Rgba.White, accent) >= 3.0 ? Rgba.White : Rgba.FromHex(0x111111);
 
             // ---- selection (VS 2026 / Fluent: soft accent-tinted row + accent indicator pill, text keeps its color)
@@ -261,6 +262,8 @@ namespace UEToVS.UI.Logic
             C[TokenNames.TextLinkHover] = C[TokenNames.TextLink];
             C[TokenNames.TextOnAccent] = Rgba.Contrast(Rgba.White, accent) >= 3.0 ? Rgba.White : Rgba.FromHex(0x1F1E1C);
             C[TokenNames.ToggleThumb] = C[TokenNames.TextOnAccent];
+            C[TokenNames.AccentSubtle] = Rgba.Mix(popup, accent, dark ? 0.15 : 0.12);
+            C[TokenNames.AccentBorder] = Rgba.Mix(popup, accent, dark ? 0.42 : 0.40);
         }
 
         /// <summary>Foreground tone for a hue: lighter + softer on dark themes, darker on light themes.</summary>

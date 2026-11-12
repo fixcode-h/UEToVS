@@ -291,8 +291,8 @@ namespace UEToVS.UI.Controls
             s.Setters.Add(new Setter(Control.VerticalContentAlignmentProperty, VerticalAlignment.Center));
             s.Setters.Add(new Setter(Control.HorizontalContentAlignmentProperty, HorizontalAlignment.Center));
             s.Setters.Add(new Setter(FrameworkElement.FocusVisualStyleProperty, null));
-            s.Setters.Add(Ui.Dyn(Control.BackgroundProperty, Tokens.ButtonSecondaryBackground));
-            s.Setters.Add(Ui.Dyn(Control.BorderBrushProperty, Tokens.BorderSubtle));
+            s.Setters.Add(new Setter(Control.BackgroundProperty, Brushes.Transparent));
+            s.Setters.Add(Ui.Dyn(Control.BorderBrushProperty, Tokens.InputBorder));
             s.Setters.Add(Ui.Dyn(Control.ForegroundProperty, Tokens.TextSecondary));
             s.Setters.Add(Ui.Dyn(Control.FontSizeProperty, Tokens.FontSizeSmall));
             var over = new Trigger { Property = UIElement.IsMouseOverProperty, Value = true };
@@ -300,8 +300,8 @@ namespace UEToVS.UI.Controls
             s.Triggers.Add(over);
             var on = new Trigger { Property = ToggleButton.IsCheckedProperty, Value = true };
             on.Setters.Add(Ui.Dyn(Control.BackgroundProperty, Tokens.AccentSubtle));
-            on.Setters.Add(Ui.Dyn(Control.BorderBrushProperty, Tokens.Accent));
-            on.Setters.Add(Ui.Dyn(Control.ForegroundProperty, Tokens.TextPrimary));
+            on.Setters.Add(Ui.Dyn(Control.BorderBrushProperty, Tokens.AccentBorder));
+            on.Setters.Add(Ui.Dyn(Control.ForegroundProperty, Tokens.TextLink));
             s.Triggers.Add(on);
             var dis = new Trigger { Property = UIElement.IsEnabledProperty, Value = false };
             dis.Setters.Add(new Setter(UIElement.OpacityProperty, 0.45));

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 using UEToVS.UI.Atoms;
 using UEToVS.UI.Controls;
@@ -34,10 +35,10 @@ namespace UEToVS.UI.Settings
         private readonly NumberStepper _spacing = new NumberStepper(AppearanceSettings.MinSpacingScale * 100, AppearanceSettings.MaxSpacingScale * 100, 5, 100);
         private readonly SegmentedControl _accentMode = new SegmentedControl();
         private readonly ColorField _accent;
-        private readonly UiCheckBox _mBold = new UiCheckBox(() => Strings.SettingsMatchBold) { Margin = new Thickness(0, 0, 14, 0) };
-        private readonly UiCheckBox _mBack = new UiCheckBox(() => Strings.SettingsMatchBackground) { Margin = new Thickness(0, 0, 14, 0) };
-        private readonly UiCheckBox _mUnder = new UiCheckBox(() => Strings.SettingsMatchUnderline) { Margin = new Thickness(0, 0, 14, 0) };
-        private readonly UiCheckBox _mAccent = new UiCheckBox(() => Strings.SettingsMatchAccent);
+        private readonly Chip _mBold = new Chip(() => Strings.SettingsMatchBold);
+        private readonly Chip _mBack = new Chip(() => Strings.SettingsMatchBackground);
+        private readonly Chip _mUnder = new Chip(() => Strings.SettingsMatchUnderline);
+        private readonly Chip _mAccent = new Chip(() => Strings.SettingsMatchAccent);
         private readonly Dictionary<BadgeKind, ColorField> _badgeFields = new Dictionary<BadgeKind, ColorField>();
         private readonly UiToggle _shadow = new UiToggle((string)null);
         private readonly SegmentedControl _chrome = new SegmentedControl();
@@ -51,7 +52,6 @@ namespace UEToVS.UI.Settings
         private readonly FrameworkElement _sample;
         private UiButton _resetButton;
         private bool _embedded;
-        private int _sections;
 
         public AppearanceSettingsPanel()
         {
@@ -62,7 +62,7 @@ namespace UEToVS.UI.Settings
             _sample = BuildSample();
             Child = _layout;
             Relayout(true);
-            SizeChanged += (s, e) => Ui.Safe("ui.settings.size", () => Relayout(e.NewSize.Width >= 760));
+            SizeChanged += (s, e) => Ui.Safe("ui.settings.size", () => Relayout(e.NewSize.Width >= 780));
             Strings.Track(this, Relabel);
             Ui.TrackTheme(this, UpdateAutoColors);
             Wire();
@@ -248,6 +248,7 @@ namespace UEToVS.UI.Settings
         private void Relabel()
         {
             foreach (var (l, f) in _labels) l.Text = f();
+            foreach (var (g, f) in _groups) g.Label = f();
             RelabelSegments();
         }
 
@@ -283,83 +284,123 @@ namespace UEToVS.UI.Settings
             return t;
         }
 
-        /// <summary>One setting as a VS 2026 settings card (label left, editor right), like every other settings page.</summary>
-        private SettingsCard FieldRow(Func<string> label, UIElement control)
+        /// <summary>One setting row (title + description left, editor right) inside a <see cref="SettingsGroup"/>.</summary>
+        private SettingsRow FieldRow(Func<string> title, Func<string> description, UIElement editor)
         {
-            var l = Label(label);
-            if (control is FrameworkElement fe) AutomationProperties.SetLabeledBy(fe, l);
-            return new SettingsCard(l, control);
+            var row = new SettingsRow(title(), description?.Invoke(), editor);
+            var titleText = (UiText)row.Labels.Children[0];
+            _labels.Add((titleText, title));
+            if (description != null && row.Labels.Children.Count > 1) _labels.Add(((UiText)row.Labels.Children[1], description));
+            if (editor is FrameworkElement fe) AutomationProperties.SetLabeledBy(fe, titleText);
+            return row;
         }
 
-        /// <summary>Group header: semibold subtitle, more space above than below (<see cref="SettingsPageLayout"/>).</summary>
-        private StackPanel Section(Func<string> title, StackPanel into)
+        private SettingsGroup Group(Func<string> label, Panel into)
         {
-            var t = Label(title, TextVariant.Subtitle);
-            t.Margin = new Thickness(0, SettingsPageLayout.GroupHeaderTop(_sections == 0), 0, SettingsPageLayout.GroupHeaderGapBelow);
-            _sections++;
-            into.Children.Add(t);
-            return into;
+            var g = new SettingsGroup(label()) { Margin = new Thickness(0, 0, 0, SettingsPageLayout.GroupGap) };
+            _groups.Add((g, label));
+            into.Children.Add(g);
+            return g;
+        }
+
+        private readonly List<(SettingsGroup Group, Func<string> Text)> _groups = new List<(SettingsGroup, Func<string>)>();
+
+        /// <summary>"弹窗 [12]" — a caption and a narrow number box (combined radius row).</summary>
+        private UIElement Labelled(Func<string> caption, NumberStepper box, double leftGap)
+        {
+            var p = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(leftGap, 0, 0, 0) };
+            var t = Label(caption, TextVariant.Description);
+            t.VerticalAlignment = VerticalAlignment.Center;
+            t.Margin = new Thickness(0, 0, 6, 0);
+            p.Children.Add(t);
+            box.MinWidth = 64;
+            box.Width = 64;
+            AutomationProperties.SetLabeledBy(box, t);
+            p.Children.Add(box);
+            return p;
         }
 
         private FrameworkElement BuildForm()
         {
             RelabelSegments();
             // Right margin keeps the cards clear of the overlay scroll bar.
-            var sp = new StackPanel { Margin = new Thickness(0, 0, 12, 16), MaxWidth = 720 };
+            var sp = new StackPanel { Margin = new Thickness(0, 0, 12, 0), MaxWidth = 760 };
+            _fontScale.Unit = "%";
+            _spacing.Unit = "%";
+            _rowHeight.Unit = "px";
+            _animMs.Unit = "ms";
+            foreach (var n in new[] { _fontScale, _spacing, _rowHeight, _animMs }) n.Width = 116;
 
-            Section(() => Strings.SettingsSectionStyle, sp);
-            sp.Children.Add(FieldRow(() => Strings.SettingsPreset, _preset));
-            sp.Children.Add(FieldRow(() => Strings.SettingsFontScale, _fontScale));
-            sp.Children.Add(FieldRow(() => Strings.SettingsRowHeight, _rowHeight));
-            sp.Children.Add(FieldRow(() => Strings.SettingsRadiusPopup, _rPopup));
-            sp.Children.Add(FieldRow(() => Strings.SettingsRadiusControl, _rControl));
-            sp.Children.Add(FieldRow(() => Strings.SettingsRadiusBadge, _rBadge));
-            sp.Children.Add(FieldRow(() => Strings.SettingsSpacing, _spacing));
+            var style = Group(() => Strings.SettingsSectionStyle, sp);
+            style.Add(FieldRow(() => Strings.SettingsPreset, () => Strings.SettingsPresetDesc, _preset));
+            style.Add(FieldRow(() => Strings.SettingsFontScale, () => Strings.SettingsFontScaleDesc, _fontScale));
+            style.Add(FieldRow(() => Strings.SettingsRowHeight, () => Strings.SettingsRowHeightDesc, _rowHeight));
+            style.Add(FieldRow(() => Strings.SettingsSpacing, () => Strings.SettingsSpacingDesc, _spacing));
+            var radii = new StackPanel { Orientation = Orientation.Horizontal };
+            radii.Children.Add(Labelled(() => Strings.SettingsRadiusPopupShort, _rPopup, 0));
+            radii.Children.Add(Labelled(() => Strings.SettingsRadiusControlShort, _rControl, 14));
+            radii.Children.Add(Labelled(() => Strings.SettingsRadiusBadgeShort, _rBadge, 14));
+            style.Add(FieldRow(() => Strings.SettingsRadius, () => Strings.SettingsRadiusDesc, radii));
 
-            Section(() => Strings.SettingsSectionColor, sp);
+            var color = Group(() => Strings.SettingsSectionColor, sp);
             var accentRow = new StackPanel { Orientation = Orientation.Horizontal };
             accentRow.Children.Add(_accentMode);
             _accent.Margin = new Thickness(10, 0, 0, 0);
             accentRow.Children.Add(_accent);
-            sp.Children.Add(FieldRow(() => Strings.SettingsAccent, accentRow));
-            var match = new WrapPanel();
-            match.Children.Add(_mBold);
-            match.Children.Add(_mBack);
-            match.Children.Add(_mUnder);
-            match.Children.Add(_mAccent);
-            sp.Children.Add(FieldRow(() => Strings.SettingsMatch, match));
-            var badgeTitle = Label(() => Strings.SettingsBadges);
-            badgeTitle.Margin = new Thickness(0, 0, 0, 6);
-            var badgeCard = new StackPanel();
-            badgeCard.Children.Add(badgeTitle);
-            var badges = new WrapPanel();
-            badgeCard.Children.Add(badges);
+            color.Add(FieldRow(() => Strings.SettingsAccent, () => Strings.SettingsAccentDesc, accentRow));
+            var match = new WrapPanel { HorizontalAlignment = HorizontalAlignment.Right };
+            _mBold.FontWeight = FontWeights.SemiBold;
+            foreach (var chip in new[] { _mBold, _mBack, _mUnder, _mAccent })
+            {
+                chip.Height = 28;
+                chip.Padding = new Thickness(10, 0, 10, 0);
+                chip.Margin = new Thickness(6, 0, 0, 0);
+                match.Children.Add(chip);
+            }
+            color.Add(FieldRow(() => Strings.SettingsMatch, () => Strings.SettingsMatchDesc, match));
+
+            // Badge colors: title + description on one line, then a 3-column grid of compact cells.
+            var badgeRow = new SettingsRow(Strings.SettingsBadges, null);
+            _labels.Add(((UiText)badgeRow.Labels.Children[0], () => Strings.SettingsBadges));
+            var desc = Label(() => Strings.SettingsBadgesDesc, TextVariant.Description);
+            desc.Margin = new Thickness(0, 2, 0, 0);
+            badgeRow.Labels.Children.Add(desc);
+            var grid = new UniformGrid { Columns = 3 };
             foreach (BadgeKind k in TokenNames.AllBadgeKinds)
             {
                 if (k == BadgeKind.Neutral) continue;
-                var field = new ColorField(Strings.Badge(k));
+                var field = new ColorField(Strings.Badge(k), compact: true) { HorizontalAlignment = HorizontalAlignment.Right };
                 _badgeFields[k] = field;
-                var cell = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 3, 18, 3), Width = 290 };
                 var kind = k;
-                var badge = new Badge(Strings.Badge(k), k) { Width = 92, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 0, 8, 0) };
+                var badge = new Badge(Strings.Badge(k), k) { VerticalAlignment = VerticalAlignment.Center };
                 Strings.Track(badge, () => badge.Text = Strings.Badge(kind));
-                cell.Children.Add(badge);
-                cell.Children.Add(field);
-                badges.Children.Add(cell);
+                var cellGrid = new DockPanel { LastChildFill = false };
+                DockPanel.SetDock(badge, Dock.Left);
+                DockPanel.SetDock(field, Dock.Right);
+                cellGrid.Children.Add(badge);
+                cellGrid.Children.Add(field);
+                var cell = new Border { Child = cellGrid, Height = 34, Padding = new Thickness(8, 0, 6, 0), Margin = new Thickness(0, 0, 8, 8), BorderThickness = new Thickness(1) };
+                cell.Bind(Border.BackgroundProperty, Tokens.SurfacePopup);
+                cell.Bind(Border.BorderBrushProperty, Tokens.Divider);
+                cell.Bind(Border.CornerRadiusProperty, Tokens.CornerRadiusControl);
+                grid.Children.Add(cell);
             }
-            sp.Children.Add(new SettingsCard(badgeCard));
+            grid.Margin = new Thickness(0, 10, -8, -8);
+            badgeRow.Below = grid;
+            badgeRow.Padding = new Thickness(16, 12, 16, 14);
+            color.Add(badgeRow);
 
-            Section(() => Strings.SettingsSectionMotion, sp);
-            sp.Children.Add(FieldRow(() => Strings.SettingsShadow, _shadow));
-            sp.Children.Add(FieldRow(() => Strings.SettingsChrome, _chrome));
-            sp.Children.Add(FieldRow(() => Strings.SettingsAnimations, _anim));
-            sp.Children.Add(FieldRow(() => Strings.SettingsAnimationMs, _animMs));
+            var motion = Group(() => Strings.SettingsSectionMotion, sp);
+            motion.Add(FieldRow(() => Strings.SettingsShadow, () => Strings.SettingsShadowDesc, _shadow));
+            motion.Add(FieldRow(() => Strings.SettingsChrome, () => Strings.SettingsChromeDesc, _chrome));
+            motion.Add(FieldRow(() => Strings.SettingsAnimations, null, _anim));
+            motion.Add(FieldRow(() => Strings.SettingsAnimationMs, null, _animMs));
 
-            Section(() => Strings.SettingsSectionPreview, sp);
-            sp.Children.Add(FieldRow(() => Strings.SettingsPreviewVisible, _previewVisible));
-            sp.Children.Add(FieldRow(() => Strings.SettingsPreviewPosition, _previewPos));
+            var preview = Group(() => Strings.SettingsSectionPreview, sp);
+            preview.Add(FieldRow(() => Strings.SettingsPreviewVisible, () => Strings.SettingsPreviewVisibleDesc, _previewVisible));
+            preview.Add(FieldRow(() => Strings.SettingsPreviewPosition, null, _previewPos));
 
-            var bottom = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, SettingsPageLayout.GroupGap - SettingsPageLayout.CardGap, 0, 0) };
+            var bottom = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 16) };
             var reset = new UiButton(() => Strings.CommonReset, ButtonKind.Secondary);
             reset.Click += (s, e) => Ui.Safe("ui.settings.reset", ResetToDefaults);
             _resetButton = reset;
@@ -369,21 +410,21 @@ namespace UEToVS.UI.Settings
             bottom.Children.Add(_live);
             sp.Children.Add(bottom);
 
-            return new UiScrollViewer { Content = sp };
+            return new UiScrollViewer { Content = sp, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
         }
 
         private FrameworkElement BuildSample()
         {
-            var sp = new StackPanel { Margin = new Thickness(0, 0, 0, 12) };
-            var title = Label(() => Strings.SettingsSampleTitle, TextVariant.Subtitle);
-            title.Margin = new Thickness(0, 0, 0, SettingsPageLayout.GroupHeaderGapBelow);
+            var sp = new StackPanel { Width = 332 };
+            var title = Label(() => Strings.SettingsSampleTitle, TextVariant.GroupLabel);
+            title.Margin = new Thickness(2, 0, 0, 8);
             sp.Children.Add(title);
 
-            var card = new Border { BorderThickness = new Thickness(1), Width = 320, HorizontalAlignment = HorizontalAlignment.Left };
-            card.Bind(Border.BackgroundProperty, Tokens.SurfacePopup);
-            card.Bind(Border.BorderBrushProperty, Tokens.BorderStrong);
+            var card = new Border { BorderThickness = new Thickness(1), ClipToBounds = true };
+            card.Bind(Border.BackgroundProperty, Tokens.SurfaceRaised);
+            card.Bind(Border.BorderBrushProperty, Tokens.BorderSubtle);
             card.Bind(Border.CornerRadiusProperty, Tokens.CornerRadiusPopup);
-            var inner = new StackPanel { Margin = new Thickness(0, 4, 0, 4) };
+            var inner = new StackPanel { Margin = new Thickness(0, 4, 0, 0) };
             var tabs = new TabStrip();
             tabs.SetTabs(new[] { new TabDefinition("all", () => Loc2("全部", "All")), new TabDefinition("types", () => Loc2("类型", "Types")), new TabDefinition("files", () => Loc2("文件", "Files")) });
             tabs.SetCount("types", 12);
@@ -410,7 +451,8 @@ namespace UEToVS.UI.Settings
                 row.SetState(r.Sel, false, true);
                 inner.Children.Add(row);
             }
-            var footer = new StatusFooter();
+            // The status footer draws its own top divider; no extra line here (one hairline, not two).
+            var footer = new StatusFooter { Margin = new Thickness(0, 4, 0, 0) };
             footer.SetHints(new KeyHint("Enter", () => Strings.PaletteHintOpen));
             footer.AutoHideHints = false;
             footer.Count = "1 / 4";
@@ -419,15 +461,11 @@ namespace UEToVS.UI.Settings
             sp.Children.Add(card);
 
             var buttons = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 12, 0, 0) };
-            buttons.Children.Add(new UiButton(() => Strings.CommonOk, ButtonKind.Primary));
-            buttons.Children.Add(new UiButton(() => Strings.CommonCancel, ButtonKind.Secondary) { Margin = new Thickness(8, 0, 0, 0) });
-            buttons.Children.Add(new Kbd("Ctrl+Shift+T") { Margin = new Thickness(12, 0, 0, 0) });
+            buttons.Children.Add(new UiButton(() => Strings.SampleButtonPrimary, ButtonKind.Primary));
+            buttons.Children.Add(new UiButton(() => Strings.SampleButtonSecondary, ButtonKind.Secondary) { Margin = new Thickness(8, 0, 0, 0) });
+            buttons.Children.Add(new UiButton(() => Strings.SampleButtonText, ButtonKind.Ghost) { Margin = new Thickness(8, 0, 0, 0) });
             sp.Children.Add(buttons);
-            var badges = new WrapPanel { Margin = new Thickness(0, 10, 0, 0), Width = 320, HorizontalAlignment = HorizontalAlignment.Left };
-            foreach (BadgeKind k in TokenNames.AllBadgeKinds)
-                badges.Children.Add(new Badge(Strings.Badge(k), k) { Margin = new Thickness(0, 0, 4, 4) });
-            sp.Children.Add(badges);
-            return new UiScrollViewer { Content = sp };
+            return new UiScrollViewer { Content = sp, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, VerticalAlignment = VerticalAlignment.Top };
         }
 
         private static string Loc2(string zh, string en) => Core.Localization.Loc.T(zh, en);
@@ -449,7 +487,7 @@ namespace UEToVS.UI.Settings
                 Grid.SetRow(_form, 0);
                 Grid.SetColumn(_sample, 1);
                 Grid.SetRow(_sample, 0);
-                _sample.Margin = new Thickness(16, 0, 0, 0);
+                _sample.Margin = new Thickness(28, 0, 0, 0);
             }
             else
             {

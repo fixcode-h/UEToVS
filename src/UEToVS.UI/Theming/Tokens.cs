@@ -65,6 +65,7 @@ namespace UEToVS.UI.Theming
         public static readonly ComponentResourceKey AccentHover = Key(TokenNames.AccentHover);
         public static readonly ComponentResourceKey AccentPressed = Key(TokenNames.AccentPressed);
         public static readonly ComponentResourceKey AccentSubtle = Key(TokenNames.AccentSubtle);
+        public static readonly ComponentResourceKey AccentBorder = Key(TokenNames.AccentBorder);
         public static readonly ComponentResourceKey SelectionBackground = Key(TokenNames.SelectionBackground);
         public static readonly ComponentResourceKey SelectionForeground = Key(TokenNames.SelectionForeground);
         public static readonly ComponentResourceKey SelectionSecondary = Key(TokenNames.SelectionSecondary);

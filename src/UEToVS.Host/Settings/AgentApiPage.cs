@@ -32,9 +32,9 @@ namespace UEToVS.Host.Settings
         private static readonly Logger L = Log.For("AgentApiPage");
         private readonly AgentService _service;
         private readonly StackPanel _apis = new StackPanel();
-        private readonly UiText _gatewayStatus = new UiText((string)null, TextVariant.Secondary) { TextWrapping = TextWrapping.Wrap, TextTrimming = TextTrimming.None, Margin = new Thickness(0, 2, 0, 0) };
+        private readonly UiText _gatewayStatus = new UiText((string)null, TextVariant.Description) { TextWrapping = TextWrapping.Wrap, TextTrimming = TextTrimming.None, Margin = new Thickness(0, 2, 0, 0) };
         private readonly NumberStepper _port;
-        private readonly Banner _howTo = new Banner(Severity.Info) { CanClose = false, Margin = new Thickness(0, 0, 0, 12) };
+        private readonly Banner _howTo = new Banner(Severity.Info) { CanClose = false, Margin = new Thickness(0, 0, 0, SettingsPageLayout.GroupGap) };
         private readonly Dictionary<string, string> _typedKeys = new Dictionary<string, string>(StringComparer.Ordinal);
         /// <summary>Fetched model ids per API (not saved; shown as chips to add).</summary>
         private readonly Dictionary<string, IReadOnlyList<string>> _fetched = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
@@ -47,35 +47,25 @@ namespace UEToVS.Host.Settings
             _service = service;
             _working = service.Snapshot();
 
-            var root = new DockPanel { LastChildFill = true };
-            var top = new StackPanel { Margin = new Thickness(0, 0, 12, 12) };
-            top.Children.Add(new UiText(T("配置 OpenAI 兼容（Chat Completions）的 API 和密钥，从接口获取模型，勾选的模型会自动出现在 VS 自带的 Copilot 聊天里。",
-                                          "Configure OpenAI-compatible (Chat Completions) APIs and keys, fetch their models; enabled models show up in Visual Studio's Copilot Chat."), TextVariant.Secondary)
-            { TextWrapping = TextWrapping.Wrap, TextTrimming = TextTrimming.None, Margin = new Thickness(0, 0, 0, 12) });
-
-            var gatewayLabels = new StackPanel();
-            gatewayLabels.Children.Add(new UiText(T("本地转发服务", "Local gateway"), TextVariant.Body));
-            gatewayLabels.Children.Add(_gatewayStatus);
+            var content = new StackPanel { Margin = new Thickness(0, 0, 12, 16) };
+            var gateway = new SettingsGroup(T("本地转发服务", "Local gateway")) { Margin = new Thickness(0, 0, 0, SettingsPageLayout.GroupGap) };
             _port = new NumberStepper(1024, 65535, 1, _working.GatewayPort) { Width = 120, AccessibleName = T("端口", "Port") };
             _port.ValueChanged += (s, e) => Safe.Execute(L, "agent.port", () => { _working.GatewayPort = (int)_port.Value; UpdateHowTo(); });
-            var portRow = new StackPanel { Orientation = Orientation.Horizontal };
-            portRow.Children.Add(new UiText(T("端口", "Port"), TextVariant.Secondary) { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) });
-            portRow.Children.Add(_port);
-            top.Children.Add(new SettingsCard(gatewayLabels, portRow) { Margin = new Thickness(0, 0, 0, 8) });
-            top.Children.Add(_howTo);
-            DockPanel.SetDock(top, Dock.Top);
-            root.Children.Add(top);
-
-            var content = new StackPanel { Margin = new Thickness(0, 0, 12, 16) };
+            var portRow = new SettingsRow(T("端口", "Port"), null, _port);
+            portRow.Labels.Children.Add(_gatewayStatus);
+            gateway.Add(portRow);
+            content.Children.Add(gateway);
+            content.Children.Add(_howTo);
             content.Children.Add(_apis);
-            var add = new UiButton(T("添加 API", "Add API"), ButtonKind.Primary) { HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 4, 0, 0) };
+            var add = new UiButton(T("添加 API", "Add API"), ButtonKind.Primary) { HorizontalAlignment = HorizontalAlignment.Left };
+            add.Content = IconLabel(SettingsIcons.Plus, T("添加 API", "Add API"));
             add.Click += (s, e) => Safe.Execute(L, "agent.api.add", () =>
             {
                 _working.Apis.Add(new AgentApi { Name = string.Empty, BaseUrl = string.Empty });
                 Render();
             });
             content.Children.Add(add);
-            root.Children.Add(new UiScrollViewer { Content = content, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled });
+            var root = new UiScrollViewer { Content = content, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
             Element = root;
 
             root.Unloaded += (s, e) => _service.StateChanged -= OnServiceStateChanged;
@@ -169,55 +159,81 @@ namespace UEToVS.Host.Settings
 
         private UIElement BuildCard(AgentApi api)
         {
-            var body = new StackPanel();
+            var block = new StackPanel { Margin = new Thickness(0, 0, 0, SettingsPageLayout.GroupGap) };
+            string title = string.IsNullOrWhiteSpace(api.Name) ? T("新 API", "New API") : api.Name;
+            var group = new SettingsGroup(title);
+            block.Children.Add(group);
 
-            var name = new TextInput { Text = api.Name ?? string.Empty, Placeholder = T("名称，例如 DeepSeek、公司中转", "Name, e.g. DeepSeek, company relay") };
-            name.TextChanged += (s, e) => api.Name = name.Text;
-            body.Children.Add(Field(T("名称", "Name"), name, T("显示在 VS 模型名后面；两个 API 有同名模型时用它区分。", "Shown after the model name in VS; tells apart same-named models of two APIs.")));
+            var name = new TextInput { Text = api.Name ?? string.Empty, Width = 320, Placeholder = T("例如 DeepSeek、公司中转", "e.g. DeepSeek, company relay") };
+            name.TextChanged += (s, e) => { api.Name = name.Text; group.Label = string.IsNullOrWhiteSpace(api.Name) ? T("新 API", "New API") : api.Name; };
+            group.Add(new SettingsRow(T("名称", "Name"), T("显示在 VS 模型名后面；两个 API 有同名模型时用它区分", "Shown after the model name in VS; tells apart same-named models"), name));
 
-            var url = new TextInput { Text = api.BaseUrl ?? string.Empty, Placeholder = "https://api.example.com/v1" };
-            var urlHint = new UiText(UrlHint(api.BaseUrl), TextVariant.Caption) { TextWrapping = TextWrapping.Wrap, TextTrimming = TextTrimming.None };
+            var url = new TextInput { Text = api.BaseUrl ?? string.Empty, Width = 320, Placeholder = "https://api.example.com/v1" };
+            url.SetResourceReference(Control.FontFamilyProperty, Tokens.FontFamilyCode);
+            var urlRow = new SettingsRow(T("地址", "Base URL"), null, url);
+            var urlHint = Hint(UrlHint(api.BaseUrl));
+            urlRow.Labels.Children.Add(urlHint);
             url.TextChanged += (s, e) => { api.BaseUrl = url.Text.Trim(); urlHint.Text = UrlHint(api.BaseUrl); };
-            body.Children.Add(Field(T("地址", "Base URL"), url, null, urlHint));
+            group.Add(urlRow);
 
-            var key = new PasswordBox { Style = Styles.PasswordInput };
+            var key = new PasswordBox { Style = Styles.PasswordInput, Width = 320 };
             if (_typedKeys.TryGetValue(api.Id, out var typed)) key.Password = typed;
             bool stored = _service.HasKey(api.Id);
-            var keyHint = new UiText(KeyHint(stored, typed), TextVariant.Caption);
+            var keyRow = new SettingsRow(T("密钥", "API key"), null, key);
+            var keyHint = Hint(KeyHint(stored, typed));
+            keyRow.Labels.Children.Add(keyHint);
             key.PasswordChanged += (s, e) => { _typedKeys[api.Id] = key.Password; keyHint.Text = KeyHint(stored, key.Password); };
-            body.Children.Add(Field(T("密钥", "API key"), key, null, keyHint));
+            group.Add(keyRow);
 
-            var mode = new Dropdown { Items = new[] { "Authorization: Bearer", "x-api-key" }, Width = 260, HorizontalAlignment = HorizontalAlignment.Left };
+            var mode = new SegmentedControl(new[] { "Bearer", "x-api-key" });
             mode.SelectedIndex = api.KeyMode == AgentKeyMode.XApiKey ? 1 : 0;
             mode.SelectionChanged += (s, e) => api.KeyMode = mode.SelectedIndex == 1 ? AgentKeyMode.XApiKey : AgentKeyMode.Bearer;
-            body.Children.Add(Field(T("密钥的发送方式", "Send key as"), mode, null));
+            group.Add(new SettingsRow(T("密钥的发送方式", "Send key as"), T("Authorization: Bearer 或 x-api-key 请求头", "Authorization: Bearer or the x-api-key header"), mode));
 
-            var conc = new NumberStepper(0, 256, 1, api.MaxConcurrency) { Width = 120, HorizontalAlignment = HorizontalAlignment.Left, AccessibleName = T("并发上限", "Concurrency limit") };
+            var conc = new NumberStepper(0, 256, 1, api.MaxConcurrency) { Width = 116, AccessibleName = T("并发上限", "Concurrency limit") };
             conc.ValueChanged += (s, e) => api.MaxConcurrency = (int)conc.Value;
-            body.Children.Add(Field(T("并发上限", "Concurrency limit"), conc,
-                T("VS 同时向这个 API 发的请求最多几个，超过的排队；0 表示不限制。", "Requests VS may have in flight to this API at once; more wait their turn. 0 = unlimited.")));
+            group.Add(new SettingsRow(T("并发上限", "Concurrency limit"), T("同时发给这个 API 的请求数，超过的排队；0 = 不限制", "Requests in flight to this API at once; more wait. 0 = unlimited"), conc));
 
-            // test / fetch
-            var actions = new WrapPanel { Margin = new Thickness(0, 8, 0, 0) };
+            // test / fetch / delete
             var test = new UiButton(T("测试连接", "Test connection"));
-            var fetch = new UiButton(T("从接口获取", "Fetch models")) { Margin = new Thickness(8, 0, 0, 0) };
-            actions.Children.Add(new UiText(Loc.F("可用的模型（已启用 {0} 个）", "Models ({0} enabled)", api.Models.Count(m => m.Enabled)), TextVariant.Subtitle)
-            { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 16, 0) });
+            var fetch = new UiButton(T("从接口获取模型", "Fetch models")) { Margin = new Thickness(8, 0, 0, 0) };
+            var delete = new UiButton(T("删除这个 API", "Delete this API"), ButtonKind.Ghost) { Margin = new Thickness(8, 0, 0, 0) };
+            var actions = new StackPanel { Orientation = Orientation.Horizontal };
             actions.Children.Add(test);
             actions.Children.Add(fetch);
-            body.Children.Add(actions);
+            actions.Children.Add(delete);
+            var actionRow = new SettingsRow(T("连接", "Connection"), null, actions);
             if (_results.TryGetValue(api.Id, out var res))
-                body.Children.Add(new Banner(res.Severity, res.Text) { CanClose = false, Margin = new Thickness(0, 8, 0, 0) });
+            {
+                var result = Hint(res.Text);
+                result.SetResourceReference(TextBlock.ForegroundProperty, Tokens.Severity(res.Severity));
+                actionRow.Labels.Children.Add(result);
+            }
+            group.Add(actionRow);
             test.Click += (s, e) => Safe.RunAsync(L, "agent.test", () => ProbeAsync(api, false, test));
             fetch.Click += (s, e) => Safe.RunAsync(L, "agent.fetch", () => ProbeAsync(api, true, fetch));
+            delete.Click += (s, e) => Safe.Execute(L, "agent.api.delete", () =>
+            {
+                _working.Apis.Remove(api);
+                _typedKeys.Remove(api.Id);
+                Render();
+            });
 
             // models
-            var models = new StackPanel { Margin = new Thickness(0, 8, 0, 0) };
-            foreach (var m in api.Models) models.Children.Add(ModelRow(api, m));
-            body.Children.Add(models);
+            int enabledCount = api.Models.Count(m => m.Enabled);
+            var models = new SettingsGroup(Loc.F("模型 · 已启用 {0} / {1}", "Models · {0} of {1} enabled", enabledCount, api.Models.Count)) { Margin = new Thickness(0, 14, 0, 0) };
+            if (api.Models.Count == 0)
+                models.Add(new UiText(T("还没有模型：点“从接口获取模型”，或在下面输入模型名后回车。", "No models yet: fetch them from the API, or type a model name below and press Enter."), TextVariant.Description)
+                { Margin = new Thickness(14, 14, 14, 14), TextWrapping = TextWrapping.Wrap, TextTrimming = TextTrimming.None });
+            foreach (var m in api.Models) models.Add(ModelRow(api, m));
+            block.Children.Add(models);
 
-            var manual = new TextInput { Placeholder = T("输入模型名筛选，回车添加", "Type to filter, Enter to add"), Width = 320, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 8, 0, 0) };
-            body.Children.Add(manual);
+            // add box: filters the returned models live; Enter adds the only match, or the text as typed.
+            var manual = new SearchInput(false) { Margin = new Thickness(0, 10, 0, 0) };
+            manual.InputBox.Placeholder = T("输入模型名筛选，回车添加", "Type to filter, Enter to add");
+            manual.InputBox.SetResourceReference(Control.FontFamilyProperty, Tokens.FontFamilyCode);
+            manual.RightContent = new UiText(T("↵ 添加", "↵ Add"), TextVariant.Description) { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) };
+            block.Children.Add(manual);
 
             IReadOnlyList<string> remaining = Array.Empty<string>();
             PoolView poolView = null;
@@ -227,52 +243,24 @@ namespace UEToVS.Host.Settings
                 if (remaining.Count > 0)
                 {
                     poolView = new PoolView(this, api, remaining);
-                    body.Children.Add(poolView.Root);
+                    block.Children.Add(poolView.Root);
                 }
             }
-            // Typing filters the returned models live; Enter adds the only match, or the text as typed.
-            manual.TextChanged += (s, e) => Safe.Execute(L, "agent.model.filter", () => poolView?.Filter(manual.Text));
-            manual.KeyDown += (s, e) => Safe.Execute(L, "agent.model.manual", () =>
+            manual.TextChanged += (s, q) => Safe.Execute(L, "agent.model.filter", () => poolView?.Filter(manual.Text));
+            manual.InputBox.KeyDown += (s, e) => Safe.Execute(L, "agent.model.manual", () =>
             {
                 if (e.Key != Key.Enter) return;
                 e.Handled = true;
                 string id = ModelFilter.ResolveEnter(remaining, manual.Text);
                 if (id != null) AddModels(api, new[] { id });
             });
-
-            var footer = new DockPanel { Margin = new Thickness(0, 12, 0, 0), LastChildFill = false };
-            var delete = new UiButton(T("删除这个 API", "Delete this API"), ButtonKind.Ghost);
-            delete.Click += (s, e) => Safe.Execute(L, "agent.api.delete", () =>
-            {
-                _working.Apis.Remove(api);
-                _typedKeys.Remove(api.Id);
-                Render();
-            });
-            DockPanel.SetDock(delete, Dock.Right);
-            footer.Children.Add(delete);
-            body.Children.Add(footer);
-
-            var card = new Border { Child = body, Padding = new Thickness(16, 12, 16, 12), Margin = new Thickness(0, 0, 0, 12), BorderThickness = new Thickness(1) };
-            card.Bind(Border.BackgroundProperty, Tokens.SurfaceRaised);
-            card.Bind(Border.BorderBrushProperty, Tokens.BorderSubtle);
-            card.Bind(Border.CornerRadiusProperty, Tokens.CornerRadiusPopup);
-            return card;
+            return block;
         }
 
-        private static UIElement Field(string label, FrameworkElement editor, string caption, UIElement extra = null)
-        {
-            var panel = new StackPanel { Margin = new Thickness(0, 0, 0, 10) };
-            panel.Children.Add(new UiText(label, TextVariant.Body) { Margin = new Thickness(0, 0, 0, 4) });
-            panel.Children.Add(editor);
-            if (extra != null)
-            {
-                if (extra is FrameworkElement fe) fe.Margin = new Thickness(0, 3, 0, 0);
-                panel.Children.Add(extra);
-            }
-            if (!string.IsNullOrEmpty(caption))
-                panel.Children.Add(new UiText(caption, TextVariant.Caption) { TextWrapping = TextWrapping.Wrap, TextTrimming = TextTrimming.None, Margin = new Thickness(0, 3, 0, 0) });
-            return panel;
-        }
+        private static UiText Hint(string text) =>
+            new UiText(text, TextVariant.Description) { TextWrapping = TextWrapping.Wrap, TextTrimming = TextTrimming.None, Margin = new Thickness(0, 2, 0, 0) };
+
+        private static UIElement IconLabel(System.Windows.Media.Geometry icon, string text) => PathListEditor.IconText(icon, text);
 
         private static string UrlHint(string baseUrl)
         {
@@ -287,21 +275,27 @@ namespace UEToVS.Host.Settings
             return stored ? T("已保存；留空表示不修改。", "Saved; leave empty to keep it.") : T("还没有密钥。", "No key yet.");
         }
 
+        /// <summary>
+        /// One model (warm-scheme mockup): enable box, id in the code font, "工具" / "图片" toggle tags, a framed
+        /// "上下文 [1M]" field and ✕ to remove; 48px tall.
+        /// </summary>
         private UIElement ModelRow(AgentApi api, AgentModel m)
         {
-            var row = new DockPanel { Margin = new Thickness(0, 2, 0, 2), LastChildFill = true };
-            var remove = new UiButton(T("移除", "Remove"), ButtonKind.Ghost) { Margin = new Thickness(8, 0, 0, 0) };
+            var row = new DockPanel { LastChildFill = true, Height = 48, Margin = new Thickness(14, 0, 10, 0) };
+            var remove = new IconButton(UEToVS.UI.Theming.Ui.CrossMark, () => T("移除", "Remove"), null, 9) { Width = 28, Height = 28, Margin = new Thickness(6, 0, 0, 0) };
             remove.Click += (s, e) => Safe.Execute(L, "agent.model.remove", () => { api.Models.Remove(m); Render(); });
             DockPanel.SetDock(remove, Dock.Right);
             row.Children.Add(remove);
 
             var right = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-            var tools = new UiCheckBox(T("工具调用", "Tools"), m.ToolCalling) { Margin = new Thickness(12, 0, 0, 0) };
+            var tools = TagToggle(T("工具", "Tools"), m.ToolCalling, T("支持工具调用（函数调用）", "Supports tool (function) calling"));
             tools.Click += (s, e) => m.ToolCalling = tools.IsChecked == true;
-            var vision = new UiCheckBox(T("图片", "Vision"), m.Vision) { Margin = new Thickness(12, 0, 0, 0) };
+            var vision = TagToggle(T("图片", "Vision"), m.Vision, T("可以读取图片", "Accepts images"));
             vision.Click += (s, e) => m.Vision = vision.IsChecked == true;
+
             // Context length: "128K" below 1M tokens, "1M" / "1.5M" from there; accepts 1M, 1000K, 128 (= K).
-            var ctx = new TextInput { Width = 72, Text = ContextSize.Format(m.ContextTokens) };
+            var ctx = new TextInput { Style = Styles.BareTextInput, Width = 46, Text = ContextSize.Format(m.ContextTokens), VerticalAlignment = VerticalAlignment.Center };
+            ctx.SetResourceReference(Control.FontFamilyProperty, Tokens.FontFamilyCode);
             System.Windows.Automation.AutomationProperties.SetName(ctx, T("上下文长度", "Context length"));
             Tip.Set(ctx, T("上下文长度：可写 128K、1000K、1M、1.5M；只写数字按 K 算", "Context length: 128K, 1000K, 1M, 1.5M; a bare number means K"));
             void CommitCtx()
@@ -311,18 +305,38 @@ namespace UEToVS.Host.Settings
             }
             ctx.LostKeyboardFocus += (s, e) => Safe.Execute(L, "agent.model.context", CommitCtx);
             ctx.KeyDown += (s, e) => Safe.Execute(L, "agent.model.context", () => { if (e.Key == Key.Enter) { e.Handled = true; CommitCtx(); } });
+            var ctxLine = new StackPanel { Orientation = Orientation.Horizontal };
+            ctxLine.Children.Add(new UiText(T("上下文", "Context"), TextVariant.Description) { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 4, 0) });
+            ctxLine.Children.Add(ctx);
+            var ctxBox = new Border { Child = ctxLine, Height = 28, Padding = new Thickness(8, 0, 4, 0), BorderThickness = new Thickness(1), Margin = new Thickness(10, 0, 0, 0) };
+            ctxBox.SetResourceReference(Border.BackgroundProperty, Tokens.InputBackground);
+            ctxBox.SetResourceReference(Border.BorderBrushProperty, Tokens.InputBorder);
+            ctxBox.SetResourceReference(Border.CornerRadiusProperty, Tokens.CornerRadiusControl);
+            ctxBox.MouseLeftButtonDown += (s, e) => { ctx.Focus(); };
+            ctxBox.IsKeyboardFocusWithinChanged += (s, e) => ctxBox.SetResourceReference(Border.BorderBrushProperty, ctxBox.IsKeyboardFocusWithin ? Tokens.BorderFocus : Tokens.InputBorder);
             right.Children.Add(tools);
             right.Children.Add(vision);
-            right.Children.Add(new UiText(T("上下文", "Context"), TextVariant.Secondary) { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 6, 0) });
-            right.Children.Add(ctx);
+            right.Children.Add(ctxBox);
             DockPanel.SetDock(right, Dock.Right);
             row.Children.Add(right);
 
-            var enabled = new UiCheckBox(m.Id, m.Enabled) { VerticalAlignment = VerticalAlignment.Center };
+            var enabled = new UiCheckBox((string)null, m.Enabled) { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 10, 0) };
+            System.Windows.Automation.AutomationProperties.SetName(enabled, m.Id);
             Tip.Set(enabled, T("勾选后出现在 VS 聊天的模型列表里", "Show this model in VS chat"));
             enabled.Click += (s, e) => m.Enabled = enabled.IsChecked == true;
+            DockPanel.SetDock(enabled, Dock.Left);
             row.Children.Add(enabled);
+            var id = new UiText(m.Id, TextVariant.Body) { VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, ToolTip = m.Id };
+            id.SetResourceReference(TextBlock.FontFamilyProperty, Tokens.FontFamilyCode);
+            row.Children.Add(id);
             return row;
+        }
+
+        private static Chip TagToggle(string text, bool on, string tip)
+        {
+            var chip = new Chip(text, on) { Height = 22, MinHeight = 0, Padding = new Thickness(7, 0, 7, 0), Margin = new Thickness(6, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
+            Tip.Set(chip, tip);
+            return chip;
         }
 
         /// <summary>Models the API returned that are not added yet: click a chip to add it; filtered by the add box.</summary>
@@ -331,7 +345,7 @@ namespace UEToVS.Host.Settings
             private readonly AgentApiPage _page;
             private readonly AgentApi _api;
             private readonly List<(string Id, Chip Chip)> _chips = new List<(string, Chip)>();
-            private readonly UiText _head = new UiText((string)null, TextVariant.Secondary) { VerticalAlignment = VerticalAlignment.Center };
+            private readonly UiText _head = new UiText((string)null, TextVariant.Description) { VerticalAlignment = VerticalAlignment.Center };
             private readonly UiText _none = new UiText((string)null, TextVariant.Secondary) { Visibility = Visibility.Collapsed };
             private readonly UiButton _addAll;
             private IReadOnlyList<string> _visible;
@@ -341,13 +355,14 @@ namespace UEToVS.Host.Settings
                 _page = page;
                 _api = api;
                 _visible = remaining;
-                var box = new Border { Padding = new Thickness(10), Margin = new Thickness(0, 8, 0, 0), BorderThickness = new Thickness(1) };
-                box.Bind(Border.BackgroundProperty, Tokens.SurfaceSunken);
+                var box = new Border { Padding = new Thickness(14, 12, 14, 12), Margin = new Thickness(0, 8, 0, 0), BorderThickness = new Thickness(1) };
+                box.Bind(Border.BackgroundProperty, Tokens.SurfaceRaised);
                 box.Bind(Border.BorderBrushProperty, Tokens.BorderSubtle);
-                box.Bind(Border.CornerRadiusProperty, Tokens.CornerRadiusControl);
+                box.Bind(Border.CornerRadiusProperty, Tokens.CornerRadiusPopup);
                 var panel = new StackPanel();
                 var head = new DockPanel { LastChildFill = true, Margin = new Thickness(0, 0, 0, 6) };
                 _addAll = new UiButton(T("添加全部", "Add all"), ButtonKind.Ghost);
+                _addAll.SetResourceReference(Control.ForegroundProperty, Tokens.TextLink);
                 _addAll.Click += (s, e) => Safe.Execute(L, "agent.model.addAll", () => _page.AddModels(_api, _visible));
                 DockPanel.SetDock(_addAll, Dock.Right);
                 head.Children.Add(_addAll);
@@ -357,7 +372,8 @@ namespace UEToVS.Host.Settings
                 foreach (var id in remaining)
                 {
                     var modelId = id;
-                    var chip = new Chip(modelId) { Margin = new Thickness(0, 0, 6, 6) };
+                    var chip = new Chip(modelId) { Margin = new Thickness(0, 0, 6, 6), Height = 28, Padding = new Thickness(10, 0, 10, 0) };
+                    chip.SetResourceReference(Control.FontFamilyProperty, Tokens.FontFamilyCode);
                     chip.Click += (s, e) => Safe.Execute(L, "agent.model.add", () => _page.AddModels(_api, new[] { modelId }));
                     wrap.Children.Add(chip);
                     _chips.Add((modelId, chip));
@@ -383,8 +399,8 @@ namespace UEToVS.Host.Settings
                 _visible = visible;
                 bool filtered = !string.IsNullOrWhiteSpace(query);
                 _head.Text = filtered
-                    ? Loc.F("接口返回的模型（匹配 {0} / {1} 个），点一下添加", "Models from the API ({0} of {1} match): click to add", visible.Count, _chips.Count)
-                    : Loc.F("接口返回的模型（{0} 个未添加），点一下添加", "Models from the API ({0} not added): click to add", _chips.Count);
+                    ? Loc.F("接口返回的模型 · 匹配 {0} / {1}，点一下添加", "Models from the API · {0} of {1} match; click to add", visible.Count, _chips.Count)
+                    : Loc.F("接口返回的模型 · {0} 个未添加，点一下添加", "Models from the API · {0} not added; click to add", _chips.Count);
                 _addAll.Content = filtered ? Loc.F("添加匹配的 {0} 个", "Add {0} matching", visible.Count) : T("添加全部", "Add all");
                 _addAll.IsEnabled = visible.Count > 0;
                 _none.Text = T("没有匹配的模型；回车会按输入的名字添加。", "No match; Enter adds the name as typed.");

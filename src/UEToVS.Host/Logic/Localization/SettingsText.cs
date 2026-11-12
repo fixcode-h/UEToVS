@@ -24,7 +24,7 @@ namespace UEToVS.Host.Logic.Localization
             "keymap" => Loc.T("UEToVS 命令的快捷键；和 VS 冲突时 UEToVS 优先（原绑定已备份）。", "Shortcuts of UEToVS commands; UEToVS wins conflicts with VS (originals backed up)."),
             "navigation" => Loc.T("跳转、搜索和引用高亮。", "Go to, search and reference highlighting."),
             "intellisense" => Loc.T("补全、悬停信息和语义着色。", "Completion, Quick Info and semantic coloring."),
-            "agent" => Loc.T("本地 API 网关、模型和 MCP 服务。", "Local API gateway, models and the MCP server."),
+            "agent" => Loc.T("配置 OpenAI 兼容（Chat Completions）的 API 和密钥，从接口获取模型；勾选的模型会出现在 VS 自带的 Copilot 聊天里。另有给 AI Agent 用的 MCP 服务。", "OpenAI-compatible (Chat Completions) APIs and keys; enabled models show up in Visual Studio's Copilot Chat. Also the MCP server for AI agents."),
             "logging" => Loc.T("日志级别、保留时间和位置（JSON 行格式，方便分析问题）。", "Log level, retention and location (JSON lines, easy to analyse)."),
             "performance" => Loc.T("性能面板和采样。", "Performance panel and sampling."),
             _ => null,
