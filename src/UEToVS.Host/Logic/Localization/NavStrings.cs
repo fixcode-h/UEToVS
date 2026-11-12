@@ -16,16 +16,12 @@ namespace UEToVS.Host.Logic.Localization
         public static string CmdTypeHierarchy => Loc.T("类型层次", "Type Hierarchy");
         public static string CmdListMembersInFile => Loc.T("文件成员列表", "List Members in File");
         public static string CmdListTypeMembers => Loc.T("类型成员（含继承）", "Type Members (with Inherited)");
-        public static string CmdToggleReferenceHighlight => Loc.T("开关引用高亮", "Toggle Reference Highlighting");
-        public static string CmdToggleNavigationBar => Loc.T("开关导航栏", "Toggle Navigation Bar");
 
         public static readonly string[] KwGoToDefinition = { "go to definition", "declaration", "goto", "jump", "alt+g", "f12", "转到", "定义", "声明", "跳转" };
         public static readonly string[] KwGoToImplementation = { "implementation", "override", "derived", "_implementation", "实现", "重写", "派生" };
         public static readonly string[] KwFindReferences = { "find references", "usages", "find usages", "引用", "查找引用", "使用" };
         public static readonly string[] KwTypeHierarchy = { "hierarchy", "base", "derived", "inheritance", "层次", "基类", "派生", "继承" };
         public static readonly string[] KwMembers = { "members", "methods", "file structure", "alt+m", "成员", "方法", "文件结构", "列表" };
-        public static readonly string[] KwHighlight = { "highlight", "references", "高亮", "引用高亮" };
-        public static readonly string[] KwNavigationBar = { "navigation bar", "breadcrumb", "导航栏", "作用域" };
 
         // ---- status bar: why nothing happened ----
         public static string NotOnIdentifier => Loc.T("UEToVS：光标不在标识符上", "UEToVS: the caret is not on an identifier");

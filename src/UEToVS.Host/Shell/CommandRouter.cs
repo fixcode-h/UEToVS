@@ -49,7 +49,10 @@ namespace UEToVS.Host.Shell
             Bind(mcs, CommandIds.ToggleIntelliSense,
                 () => IsIntelliSenseTakenOver() ? ActionIds.RestoreIntelliSense : ActionIds.TakeOverIntelliSense,
                 () => IsIntelliSenseTakenOver() ? Strings.CmdRestoreIntelliSense : Strings.CmdTakeOverIntelliSense);
-            L.Info("commands.registered", null, ("count", Map.Count + 1));
+            // M2 navigation commands (0x0200–0x02FF).
+            foreach (var (cmdId, actionId, text) in Navigation.NavigationActions.Map)
+                Bind(mcs, cmdId, () => actionId, text);
+            L.Info("commands.registered", null, ("count", Map.Count + 1 + Navigation.NavigationActions.Map.Count));
         }
 
         /// <summary>Taken over = UEToVS holds a backup of VS's C++ IntelliSense settings, i.e. it changed them and can restore.</summary>

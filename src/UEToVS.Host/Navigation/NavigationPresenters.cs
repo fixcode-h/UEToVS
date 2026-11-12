@@ -64,13 +64,15 @@ namespace UEToVS.Host.Navigation
         }, t => true);
 
         /// <summary>Member lists (Alt+M): glyph by kind, UE badge, signature or "from Base", line.</summary>
-        public static IItemPresenter<SymbolInfo> Member(SymbolInfo ownerType) => new DelegatePresenter<SymbolInfo>((s, row) =>
+        /// <param name="ownerType">Type whose members are listed (null = file list); read per row so one popup serves every type.</param>
+        public static IItemPresenter<SymbolInfo> Member(System.Func<SymbolInfo> ownerType) => new DelegatePresenter<SymbolInfo>((s, row) =>
         {
+            var owner = ownerType?.Invoke();
             row.Glyph = SymbolPresentation.GlyphFor(s);
             row.Primary = s.Name;
-            bool inherited = ownerType != null && ScopeModel.IsInherited(s, ownerType);
+            bool inherited = owner != null && ScopeModel.IsInherited(s, owner);
             row.Secondary = inherited ? NavStrings.InheritedFrom(s.Container) : !string.IsNullOrEmpty(s.Signature) ? s.Signature : s.Container;
-            row.Right = ownerType == null ? (s.Location == null ? null : (s.Location.Line + 1).ToString()) : SymbolPresentation.ShortLocation(s.Location);
+            row.Right = owner == null ? (s.Location == null ? null : (s.Location.Line + 1).ToString()) : SymbolPresentation.ShortLocation(s.Location);
             AddUeBadge(row, s.Ue);
             row.IsDimmed = inherited;
             row.ToolTip = Tooltip(s);
