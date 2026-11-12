@@ -150,6 +150,17 @@ namespace UEToVS.Host.Logic.Localization
         public static string NoUProject => Loc.T("当前解决方案没有 .uproject", "The solution has no .uproject");
         public static string PluginSourceMissing(string path) => Loc.T("扩展里没有找到插件源码 " + path, "Plugin source not found in the extension: " + path);
         public static string PluginInstalled => Loc.T("插件已复制到 Plugins/UEToVSLink，重新生成工程文件并编译编辑器后生效", "Plugin copied to Plugins/UEToVSLink; regenerate project files and build the editor");
-        public static string PluginInstallFailed => Loc.T("复制插件失败，详见日志", "Copying the plugin failed; see the log");
+        // ---- keymap presets ----
+        public static string PresetName(string presetId) =>
+            presetId == Core.Keymap.KeymapPresets.RiderVisualStudioId ? Loc.T("Rider（Visual Studio 键位）", "Rider (Visual Studio keys)") : Loc.T("Rider 默认键位", "Rider default keys");
+        public static string CmdApplyKeymap(string presetName) => Loc.T("应用键位方案 — " + presetName, "Apply Keymap — " + presetName);
+        public static string CmdRestoreKeymap => Loc.T("恢复 Visual Studio 原来的键位", "Restore the Original Visual Studio Keymap");
+        public static string KeymapApplied(string presetName, int n) => Loc.T($"已应用“{presetName}”（{n} 个快捷键），可用“恢复 Visual Studio 原来的键位”撤销",
+                                                                              $"Applied \"{presetName}\" ({n} shortcuts); \"Restore the Original Visual Studio Keymap\" undoes it");
+        public static string KeymapRestored(int n) => Loc.T($"已恢复 {n} 个命令的原始快捷键", $"Restored the original shortcuts of {n} commands");
+        public static string NoKeymapBackup => Loc.T("没有可恢复的键位备份", "No keymap backup to restore");
+        public static readonly string[] KwKeymap = { "keymap", "键位", "快捷键", "shortcut", "rider", "keyboard", "键盘" };
+
+        public static string PluginInstallFailed =>Loc.T("复制插件失败，详见日志", "Copying the plugin failed; see the log");
     }
 }

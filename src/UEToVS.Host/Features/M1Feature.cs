@@ -86,6 +86,9 @@ namespace UEToVS.Host
         public const string LiveCoding = "uetovs.unreal.liveCoding";
         public const string GenerateProjectFiles = "uetovs.unreal.generateProjectFiles";
         public const string InstallEditorPlugin = "uetovs.unreal.installEditorPlugin";
+
+        public static string ApplyKeymap(string presetId) => "uetovs.keymap.apply." + presetId;
+        public const string RestoreKeymap = "uetovs.keymap.restore";
     }
 
     /// <summary>
@@ -272,6 +275,22 @@ namespace UEToVS.Host
             Add(M1ActionIds.LiveCoding, FeatureStrings.CmdLiveCoding, ActionCategory.Unreal, ctx => EditorLinkService.Instance.LiveCodingAsync(), Unreal, FeatureStrings.KwUnreal);
             Add(M1ActionIds.GenerateProjectFiles, FeatureStrings.CmdGenerateProjectFiles, ActionCategory.Unreal, ctx => UnrealTools.GenerateProjectFilesAsync(p), Unreal, FeatureStrings.KwUnreal);
             Add(M1ActionIds.InstallEditorPlugin, FeatureStrings.CmdInstallEditorPlugin, ActionCategory.Unreal, ctx => UnrealTools.InstallEditorPluginAsync(p), Unreal, FeatureStrings.KwUnreal);
+
+            // Optional full Rider layouts through DTE bindings (backed up; restorable).
+            foreach (var preset in Core.Keymap.KeymapPresets.All)
+            {
+                var pr = preset;
+                Add(M1ActionIds.ApplyKeymap(pr.Id), FeatureStrings.CmdApplyKeymap(FeatureStrings.PresetName(pr.Id)), ActionCategory.Settings, Ui(() =>
+                {
+                    int n = Keymap.KeymapService.Apply(pr);
+                    VsStatusBar.SetText(FeatureStrings.KeymapApplied(FeatureStrings.PresetName(pr.Id), n));
+                }), null, FeatureStrings.KwKeymap);
+            }
+            Add(M1ActionIds.RestoreKeymap, FeatureStrings.CmdRestoreKeymap, ActionCategory.Settings, Ui(() =>
+            {
+                int n = Keymap.KeymapService.Restore();
+                VsStatusBar.SetText(n > 0 ? FeatureStrings.KeymapRestored(n) : FeatureStrings.NoKeymapBackup);
+            }), c => Keymap.KeymapService.HasBackup, FeatureStrings.KwKeymap);
         }
     }
 }
