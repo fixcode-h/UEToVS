@@ -615,6 +615,36 @@
           <LocCanonicalName>UEToVS.ListTypeMembers</LocCanonicalName>
         </Strings>
       </Button>
+
+      <!-- M3 IntelliSense (ids 0x0600-0x06FF; IntelliSense/IntelliSenseFeature.cs). No menu placement (top-level menu stays lean):
+           reachable through Find Action and bindable in Tools > Options > Keyboard. -->
+      <Button guid="guidUEToVSHostCmdSet" id="cmdImportVaColors" priority="0x0100" type="Button">
+        <CommandFlag>CommandWellOnly</CommandFlag>
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Import Visual Assist Colors...</ButtonText>
+          <CanonicalName>UEToVS.ImportVaColors</CanonicalName>
+          <LocCanonicalName>UEToVS.ImportVaColors</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdToggleSemanticColoring" priority="0x0100" type="Button">
+        <CommandFlag>CommandWellOnly</CommandFlag>
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Toggle Semantic Coloring</ButtonText>
+          <CanonicalName>UEToVS.ToggleSemanticColoring</CanonicalName>
+          <LocCanonicalName>UEToVS.ToggleSemanticColoring</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdResetSemanticColors" priority="0x0100" type="Button">
+        <CommandFlag>CommandWellOnly</CommandFlag>
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Reset Semantic Colors to Defaults</ButtonText>
+          <CanonicalName>UEToVS.ResetSemanticColors</CanonicalName>
+          <LocCanonicalName>UEToVS.ResetSemanticColors</LocCanonicalName>
+        </Strings>
+      </Button>
     </Buttons>
   </Commands>
 
@@ -744,6 +774,10 @@
       <IDSymbol name="cmdTypeHierarchy" value="0x0203" />
       <IDSymbol name="cmdListMembersInFile" value="0x0204" />
       <IDSymbol name="cmdListTypeMembers" value="0x0205" />
+      <!-- M3 IntelliSense (IntelliSense/IntelliSenseFeature.cs) -->
+      <IDSymbol name="cmdImportVaColors" value="0x0600" />
+      <IDSymbol name="cmdToggleSemanticColoring" value="0x0601" />
+      <IDSymbol name="cmdResetSemanticColors" value="0x0602" />
     </GuidSymbol>
   </Symbols>
 </CommandTable>

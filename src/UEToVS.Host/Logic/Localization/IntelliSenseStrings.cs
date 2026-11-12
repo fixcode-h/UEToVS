@@ -14,15 +14,9 @@ namespace UEToVS.Host.Logic.Localization
         public static string CmdImportVaColors => Loc.T("导入 Visual Assist 配色…", "Import Visual Assist Colors...");
         public static string CmdToggleSemanticColoring => Loc.T("切换语义着色", "Toggle Semantic Coloring");
         public static string CmdResetSemanticColors => Loc.T("恢复默认语义配色", "Reset Semantic Colors to Defaults");
-        public static string CmdTriggerCompletion => Loc.T("UEToVS 补全", "UEToVS Completion");
-        public static string CmdParameterInfo => Loc.T("UEToVS 参数信息", "UEToVS Parameter Info");
-        public static string CmdQuickInfo => Loc.T("UEToVS 快速信息", "UEToVS Quick Info");
 
         public static readonly string[] KwColors = { "color", "colour", "visual assist", "va", "vssettings", "theme", "fonts and colors", "配色", "颜色", "着色", "主题", "导入" };
         public static readonly string[] KwSemanticColoring = { "semantic", "coloring", "highlighting", "syntax", "语义", "着色", "高亮" };
-        public static readonly string[] KwCompletion = { "completion", "intellisense", "ctrl+space", "member list", "补全", "成员列表" };
-        public static readonly string[] KwParameterInfo = { "parameter info", "signature", "ctrl+shift+space", "参数", "签名" };
-        public static readonly string[] KwQuickInfo = { "quick info", "hover", "tooltip", "快速信息", "悬停", "提示" };
 
         // ---- status bar / banners ----
         public static string SemanticColoringOn => Loc.T("UEToVS：语义着色已开启", "UEToVS: semantic coloring is on");
