@@ -18,16 +18,7 @@
     <InstallationTarget Id="Microsoft.VisualStudio.Enterprise" Version="[17.0,19.0)">
       <ProductArchitecture>amd64</ProductArchitecture>
     </InstallationTarget>
-    <!-- VS on Arm64 (17.4+): the host is AnyCPU; the bundled win-x64 engine runs under x64 emulation. -->
-    <InstallationTarget Id="Microsoft.VisualStudio.Community" Version="[17.4,19.0)">
-      <ProductArchitecture>arm64</ProductArchitecture>
-    </InstallationTarget>
-    <InstallationTarget Id="Microsoft.VisualStudio.Pro" Version="[17.4,19.0)">
-      <ProductArchitecture>arm64</ProductArchitecture>
-    </InstallationTarget>
-    <InstallationTarget Id="Microsoft.VisualStudio.Enterprise" Version="[17.4,19.0)">
-      <ProductArchitecture>arm64</ProductArchitecture>
-    </InstallationTarget>
+    <!-- arm64 targets omitted: the VSSDK 17.0 build tools' manifest schema rejects ProductArchitecture=arm64. -->
   </Installation>
   <Dependencies>
     <Dependency Id="Microsoft.Framework.NDP" DisplayName="Microsoft .NET Framework" d:Source="Manual" Version="[4.8,)" />
