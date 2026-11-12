@@ -800,6 +800,9 @@ namespace UEToVS.Engine.IntelliSense
                 c.Add(FromDecl(doc, i, d.Container, 0, rank * RankUnit + Proximity(PNamespace, d.Name, ItemOrigin.Project, d.Ue, exact, false), s.Ctx), Family(d.Kind));
             }
 
+            // 3b. namespaces this buffer qualifies with (the index's prefix search does not list namespaces)
+            if (c.HasPrefix) QualifierNamespaces(s, site, c);
+
             // 4. index: types / functions / macros / variables at namespace scope
             if (c.HasPrefix) Globals(s, site, c, ref incomplete, null);
             else incomplete = true; // nothing typed: globals are only listed once there is a prefix
@@ -837,6 +840,32 @@ namespace UEToVS.Engine.IntelliSense
                         Score = Math.Max(0, rank) * RankUnit + Proximity(PSnippet, label, ItemOrigin.Project, UeFlags.None, exact, false),
                     }, "m");
                 }
+            }
+        }
+
+        /// <summary>Outermost <c>X::</c> qualifiers of the buffer that the index knows as namespaces and that match the prefix.</summary>
+        private static void QualifierNamespaces(IsSession s, CompletionSite site, Collector c)
+        {
+            var doc = s.Doc;
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            for (int k = 0; k + 1 < doc.Tokens.Length; k++)
+            {
+                if (!doc.Is(k + 1, Punct.ColonColon) || !doc.IsIdentifier(k) || doc.Is(k - 1, Punct.ColonColon)) continue;
+                if (doc.Tokens[k].Start >= site.ReplaceStart && doc.Tokens[k].Start < site.ReplaceEnd) continue;
+                string name = doc.TokenText(k);
+                if (!seen.Add(name)) continue;
+                int rank = c.Rank(name, false, out bool exact);
+                if (rank < 0 || doc.IsKnownNamespace(name) && doc.Decls.Any(d => d.Kind == SymbolKind.Namespace && d.Name == name)) continue;
+                var ns = s.Ctx.ByName(name).FirstOrDefault(x => x.Kind == SymbolKind.Namespace && string.IsNullOrEmpty(x.Container));
+                if (ns == null) continue;
+                c.Add(new CompletionItem
+                {
+                    Label = name,
+                    InsertText = name,
+                    Kind = SymbolKind.Namespace,
+                    Detail = "namespace " + name,
+                    Score = rank * RankUnit + Proximity(PGlobal, name, ns.Origin, UeFlags.None, exact, true),
+                }, Family(SymbolKind.Namespace));
             }
         }
 
@@ -927,8 +956,7 @@ namespace UEToVS.Engine.IntelliSense
                             !e.Truncated && prefix.StartsWith(e.Prefix, StringComparison.OrdinalIgnoreCase))
                         {
                             Interlocked.Increment(ref _hits);
-                            truncated = e.Truncated && !string.Equals(e.Prefix, prefix, StringComparison.OrdinalIgnoreCase);
-                            if (string.Equals(e.Prefix, prefix, StringComparison.OrdinalIgnoreCase)) truncated = e.Truncated;
+                            truncated = e.Truncated; // a longer prefix is only answered from an untruncated entry
                             return e.Hits;
                         }
                     }

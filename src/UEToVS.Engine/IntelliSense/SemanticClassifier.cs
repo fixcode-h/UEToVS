@@ -198,6 +198,12 @@ namespace UEToVS.Engine.IntelliSense
             return upper;
         }
 
+        private static readonly HashSet<string> PrimitiveTypedefs = new HashSet<string>(StringComparer.Ordinal)
+        {
+            "int8", "int16", "int32", "int64", "uint8", "uint16", "uint32", "uint64", "TCHAR", "ANSICHAR", "WIDECHAR", "UTF8CHAR", "UTF16CHAR",
+            "UTF32CHAR", "UCS2CHAR", "SIZE_T", "SSIZE_T", "PTRINT", "UPTRINT", "TYPE_OF_NULL", "TYPE_OF_NULLPTR",
+        };
+
         private static readonly HashSet<string> UeBoilerplate = new HashSet<string>(StringComparer.Ordinal)
         {
             "check", "checkf", "checkSlow", "checkfSlow", "checkNoEntry", "checkNoReentry", "checkNoRecursion", "checkCode", "verify", "verifyf",
@@ -287,6 +293,8 @@ namespace UEToVS.Engine.IntelliSense
                         return (l.IsParameter ? SemanticKind.Parameter : SemanticKind.LocalVariable, l.Offset == offset ? SemanticModifiers.Declaration : SemanticModifiers.None);
                 }
                 if (facts.IsTemplateParameter(word, offset)) return (SemanticKind.TemplateParameter, SemanticModifiers.None);
+                // UE's primitive typedefs (Platform.h): the same answer the engine index gives, without a lookup per class
+                if (PrimitiveTypedefs.Contains(word)) return (SemanticKind.Typedef, SemanticModifiers.External);
             }
 
             // 5. everything else: resolved through the index, memoised by name and syntactic situation
@@ -294,22 +302,47 @@ namespace UEToVS.Engine.IntelliSense
             bool call = doc.Is(k + 1, Punct.LParen) || doc.Is(k + 1, Punct.Lt) && TypeText.TypedFactories.Contains(word);
             bool typeUse = doc.Is(k + 1, Punct.ColonColon) || (doc.OccurrenceRoleAt(offset) & OccurrenceRole.TypeUse) != 0;
             string flavor = doc.Is(k - 1, Punct.Dot) || doc.Is(k - 1, Punct.Arrow) ? "m" : doc.Is(k - 1, Punct.ColonColon) ? "q" + (doc.IsIdentifier(k - 2) ? doc.TokenText(k - 2) : string.Empty) : "u";
-            string key = word + "|" + flavor + "|" + (call ? "c" : typeUse ? "t" : "v") + "|" + cls;
+            // '.' / '->' members are decided by name alone, so they share one memo entry across classes
+            string key = word + "|" + flavor + "|" + (call ? "c" : typeUse ? "t" : "v") + "|" + (flavor == "m" ? string.Empty : cls);
             if (st.Memo.TryGetValue(key, out var hit))
             {
                 _memoHits++;
                 return hit;
             }
             _memoMisses++;
-            var result = Resolve(s, k, word, flavor, call, typeUse);
+            var result = Resolve(s, k, word, flavor, call, typeUse, cls, offset);
             st.Memo[key] = result;
             return result;
         }
 
-        private (SemanticKind, SemanticModifiers) Resolve(IsSession s, int k, string word, string flavor, bool call, bool typeUse)
+        private (SemanticKind, SemanticModifiers) Resolve(IsSession s, int k, string word, string flavor, bool call, bool typeUse, string cls, int offset)
         {
             var doc = s.Doc;
             List<SymbolInfo> cands;
+            if (flavor == "u")
+            {
+                // fast paths (the full resolver costs ~1 ms per name on a deep hierarchy):
+                // a member of the enclosing class from the cached member table, then a record type straight from the index
+                if (cls != null && !typeUse)
+                {
+                    var rec = s.FindRecord(cls, offset);
+                    if (rec != null)
+                    {
+                        foreach (var e in s.MembersOf(rec).Members)
+                        {
+                            var d = e.Decl;
+                            if (d.Name != word || d.Kind == SymbolKind.Constructor || d.Kind == SymbolKind.Destructor) continue;
+                            if (call != TypeText.IsCallableKind(d.Kind) && d.Kind != SymbolKind.Field) continue;
+                            return (d.Kind == SymbolKind.Variable ? SemanticKind.StaticField : KindOf(s, d), ModsOf(d));
+                        }
+                    }
+                }
+                if (typeUse || call || word.Length > 1 && char.IsUpper(word[0]))
+                {
+                    var t = s.Ctx.FindType(word);
+                    if (t?.Symbol != null && TypeText.IsRecordKind(t.Symbol.Kind)) return (KindOf(t.Symbol), ModsOf(t.Symbol) & ~SemanticModifiers.Declaration);
+                }
+            }
             if (flavor == "m")
             {
                 // member access: the kind is all we need; any member with this name decides
