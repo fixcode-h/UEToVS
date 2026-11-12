@@ -78,6 +78,24 @@ namespace UEToVS.Host.Refactoring
             }
             long searchMs = sw.ElapsedMilliseconds;
 
+            // ---- v0.4.5 编辑体验: preset name (Alt+Enter naming fix) or inline rename first (editor.renameMode = Inline)
+            string preset = ctx?.Get<string>(Logic.Editing.EditorFeatureKeys.PresetName);
+            if (string.IsNullOrEmpty(preset) && UEToVS.Host.IntelliSense.IntelliSenseContext.Settings?.RenameMode == Logic.Settings.RenameMode.Inline && view != null && !view.IsClosed)
+            {
+                var occurrences = Logic.Editing.InlineRenamePlan.Occurrences(locations, rc.FilePath, oldName);
+                if (occurrences.Count == 0) VsStatusBar.SetText(EditorFeatureStrings.InlineRenameNoOccurrences);
+                else
+                {
+                    preset = await Editing.InlineRenameSession.RunAsync(view, occurrences, oldName);
+                    await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                    if (preset == null)
+                    {
+                        L.Info("refactor.rename", null, ("name", oldName), ("canceled", true), ("inline", true), ("ms", sw.ElapsedMilliseconds));
+                        return;
+                    }
+                }
+            }
+
             // ---- dialog
             var redirectKind = RenamePlanner.RedirectFor(symbol);
             string header = symbol.Location?.FilePath;
@@ -89,7 +107,6 @@ namespace UEToVS.Host.Refactoring
             {
                 Description = RefactorStrings.RenameDialogDescription(projectCount, engineCount) + (r.Value.Truncated ? " " + RefactorStrings.ReferencesTruncated : string.Empty),
             };
-            string preset = ctx?.Get<string>(Logic.Editing.EditorFeatureKeys.PresetName); // v0.4.5: Alt+Enter naming fix / inline rename
             var nameBox = new TextInput { Text = string.IsNullOrEmpty(preset) ? oldName : preset, Margin = new Thickness(0, 4, 0, 0) };
             var nameError = new UiText((string)null, TextVariant.Secondary) { Margin = new Thickness(0, 2, 0, 0) };
             var redirects = new UiCheckBox(RefactorStrings.WriteCoreRedirects, true) { Margin = new Thickness(0, 8, 0, 0), Visibility = redirectKind == RedirectKind.None ? Visibility.Collapsed : Visibility.Visible };
