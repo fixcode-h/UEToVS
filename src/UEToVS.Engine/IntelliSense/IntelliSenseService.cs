@@ -168,7 +168,7 @@ namespace UEToVS.Engine.IntelliSense
             int to = Math.Min(lineCount - 1, Math.Max(from, request.EndLine));
             int caret = request.Document.Line > 0 || request.Document.Column > 0 ? Offset(doc, request.Document) : -1;
             var stats = new DiagnosticsStats();
-            var items = _diagnostics.Run(s, from, to, caret, stats);
+            var items = _diagnostics.Run(s, from, to, caret, stats, request.UnsavedFiles);
             var resp = new CodeDiagnosticsResponse
             {
                 TextVersion = request.Document.TextVersion != 0 ? request.Document.TextVersion : doc.Version,

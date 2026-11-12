@@ -34,6 +34,12 @@ namespace UEToVS.Contracts
         /// <summary>Line range to check (inclusive). The host asks for the viewport ± 50 lines.</summary>
         public int StartLine { get; set; }
         public int EndLine { get; set; }
+
+        /// <summary>
+        /// Other files open with unsaved changes. The engine sees their saved text only, so types declared there are treated as
+        /// uncertain (a member just added to an unsaved header must not be reported as unknown in the .cpp).
+        /// </summary>
+        public List<string> UnsavedFiles { get; set; } = new List<string>();
     }
 
     public sealed class CodeDiagnostic

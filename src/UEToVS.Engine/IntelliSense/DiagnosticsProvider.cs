@@ -28,7 +28,7 @@ namespace UEToVS.Engine.IntelliSense
         }
 
         /// <summary>The most frequent skip reasons, "reason=count", for the log.</summary>
-        public string TopReasons(int max = 6) =>
+        public string TopReasons(int max = 16) =>
             string.Join(",", UncertainReasons.OrderByDescending(p => p.Value).Take(max).Select(p => p.Key + "=" + p.Value));
     }
 
@@ -80,7 +80,7 @@ namespace UEToVS.Engine.IntelliSense
         private readonly ConditionalWeakTable<DocumentModel, Dictionary<int, string>> _bodyScans = new ConditionalWeakTable<DocumentModel, Dictionary<int, string>>();
 
         /// <summary>Diagnostics for lines [<paramref name="startLine"/>, <paramref name="endLine"/>]; <paramref name="caretOffset"/> (or -1) is the word being typed.</summary>
-        public List<CodeDiagnostic> Run(IsSession s, int startLine, int endLine, int caretOffset, DiagnosticsStats stats)
+        public List<CodeDiagnostic> Run(IsSession s, int startLine, int endLine, int caretOffset, DiagnosticsStats stats, IEnumerable<string> unsavedFiles = null)
         {
             var result = new List<CodeDiagnostic>();
             var doc = s.Doc;
@@ -90,7 +90,7 @@ namespace UEToVS.Engine.IntelliSense
             if (!TypeText.IsProject(origin)) return result;
             int start = doc.Lines.GetLineStart(startLine);
             int end = endLine + 1 < lineCount ? doc.Lines.GetLineStart(endLine + 1) : doc.Text.Length;
-            var run = new Pass(this, s, stats, caretOffset);
+            var run = new Pass(this, s, stats, caretOffset, unsavedFiles);
             run.Members(start, end, result);
             run.GeneratedBody(start, end, result);
             result.Sort((a, b) => a.Line != b.Line ? a.Line.CompareTo(b.Line) : a.Column.CompareTo(b.Column));
@@ -108,8 +108,13 @@ namespace UEToVS.Engine.IntelliSense
             private readonly Dictionary<string, string> _typeCertainty = new Dictionary<string, string>(StringComparer.Ordinal);
             private readonly Dictionary<string, (TypeEntry Type, string Reason)> _records = new Dictionary<string, (TypeEntry, string)>(StringComparer.Ordinal);
 
-            public Pass(DiagnosticsProvider p, IsSession s, DiagnosticsStats stats, int caret)
+            private readonly HashSet<string> _unsaved = new HashSet<string>(StringComparer.Ordinal);
+
+            public Pass(DiagnosticsProvider p, IsSession s, DiagnosticsStats stats, int caret, IEnumerable<string> unsaved)
             {
+                if (unsaved != null)
+                    foreach (var u in unsaved)
+                        if (!string.IsNullOrEmpty(u)) _unsaved.Add(NavContext.NormalizePath(u));
                 _p = p;
                 _s = s;
                 _doc = s.Doc;
@@ -221,9 +226,11 @@ namespace UEToVS.Engine.IntelliSense
                 return null;
             }
 
+            private bool IsDefinedMacro(string name) => _s.Knowledge.Lookup(name) != null || _s.Ctx.ByName(name).Any(x => x.Kind == SymbolKind.Macro);
+
             private bool IsMacro(int token, string name)
             {
-                if ((_doc.Tokens[token].Flags & TokenFlags.MacroLike) != 0) return true;
+                if ((_doc.Tokens[token].Flags & TokenFlags.MacroLike) != 0 || IsMacroSpelling(name)) return true;
                 if (_s.Knowledge.Lookup(name) != null) return true;
                 return _s.Ctx.ByName(name).Any(x => x.Kind == SymbolKind.Macro);
             }
@@ -271,10 +278,11 @@ namespace UEToVS.Engine.IntelliSense
                     return FieldType(rec, name, out type);
                 }
                 if (doc.Is(before, Punct.ColonColon)) return "qualified-name";
-                if (IsMacro(ti, name)) return "macro";
+                if (IsDefinedMacro(name)) return "macro";
                 int offset = doc.Tokens[ti].Start;
                 int declLike = DeclarationLikeCount(fn, name, ti);
                 var local = doc.FindLocal(fn, name, offset);
+                if (local == null && IsMacroSpelling(name)) return "macro";
                 if (local != null)
                 {
                     if (declLike != 1) return "shadowed-local";
@@ -521,6 +529,7 @@ namespace UEToVS.Engine.IntelliSense
                     if (seen.Count > MaxLineage) return "deep-lineage";
                     var (doc, ci) = _s.ClassDecl(t);
                     if (doc == null) return "class-body-unavailable";
+                    if (_unsaved.Count > 0 && !ReferenceEquals(doc, _doc) && _unsaved.Contains(NavContext.NormalizePath(doc.Path))) return "unsaved-declaration";
                     var d = doc.Decls[ci];
                     if ((d.Modifiers & DeclModifiers.Template) != 0 || !string.IsNullOrEmpty(d.TemplateParameters)) return "template-type";
                     if (d.IsConditional) return "conditional-type";
@@ -600,6 +609,19 @@ namespace UEToVS.Engine.IntelliSense
             }
         }
 
+        /// <summary>No lower-case letters, at least one upper-case letter, two characters or more (UCLASS, MY_MACRO).</summary>
+        internal static bool IsMacroSpelling(string name)
+        {
+            if (string.IsNullOrEmpty(name) || name.Length < 2) return false;
+            bool upper = false;
+            foreach (char c in name)
+            {
+                if (char.IsLower(c)) return false;
+                if (char.IsUpper(c)) upper = true;
+            }
+            return upper;
+        }
+
         internal static bool InInactive(DocumentModel doc, int offset)
         {
             foreach (var r in doc.Summary.InactiveRanges)
@@ -651,8 +673,9 @@ namespace UEToVS.Engine.IntelliSense
                 if (t.Is(Punct.RBrace)) { depth--; continue; }
                 if (t.Is(Punct.LParen)) { paren++; continue; }
                 if (t.Is(Punct.RParen)) { paren--; continue; }
-                if (depth != 1 || paren != 0 || t.Kind != TokenKind.Identifier || (t.Flags & TokenFlags.MacroLike) == 0) continue;
+                if (depth != 1 || paren != 0 || t.Kind != TokenKind.Identifier) continue;
                 string name = doc.TokenText(k);
+                if ((t.Flags & TokenFlags.MacroLike) == 0 && !IsMacroSpelling(name)) continue;
                 if (s.Knowledge.Lookup(name) != null || s.Knowledge.IsExportMacro(name)) continue;
                 // an all-caps type (TCHAR, FVector-like typedefs) is fine; anything else may be a member-declaring macro
                 if (TypeText.IsBuiltin(name)) continue;
