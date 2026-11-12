@@ -94,6 +94,10 @@ namespace UEToVS.Host.Logic.Commands
         public const int FindAction = 0x0150;
         /// <summary>MCP (0x0500–0x05FF).</summary>
         public const int WriteMcpConfig = 0x0500;
+        /// <summary>v0.4.2 Generate (Generate/GenerateActions.cs).</summary>
+        public const int GenerateConstructor = 0x0160;
+        public const int GenerateReplication = 0x0161;
+        public const int GenerateRpc = 0x0162;
 
         // ---- M2 navigation (0x0200–0x02FF): Navigation/NavigationActions.cs
         public const int GoToDefinition = 0x0200;
@@ -239,6 +243,11 @@ namespace UEToVS.Host.Logic.Commands
             C(H, CreateDiagnostics, "CreateDiagnosticsPackage", "uetovs.diagnostics.createPackage", "生成诊断包", "Create Diagnostics Package", "diagnostics", Gl, "Ctrl+Shift+Alt+U, D", null, null),
             C(H, ShowComponentGallery, "ShowComponentGallery", "uetovs.ui.componentGallery", "组件画廊", "Component Gallery", "diagnostics", Gl, "Ctrl+Shift+Alt+U, C", null, null),
             C(H, WriteMcpConfig, "WriteMcpConfig", "uetovs.mcp.writeConfig", "写入 .mcp.json 到项目根目录", "Write .mcp.json to Project Root", "tools", Gl, "Ctrl+Shift+Alt+U, M", null, null),
+
+            // generate (v0.4.2, host; later also offered by the Alt+Enter hub through the same action ids)
+            C(H, GenerateConstructor, "GenerateConstructor", "uetovs.generate.constructor", "生成构造函数", "Generate Constructor", "unreal", Gl, "Ctrl+Shift+Alt+U, K", null, null),
+            C(H, GenerateReplication, "GenerateReplication", "uetovs.generate.replication", "生成 GetLifetimeReplicatedProps", "Generate GetLifetimeReplicatedProps", "unreal", Gl, "Ctrl+Shift+Alt+U, Y", null, null),
+            C(H, GenerateRpc, "GenerateRpc", "uetovs.generate.rpc", "生成 RPC（_Implementation / _Validate）", "Generate RPC (Implementation / Validate)", "unreal", Gl, "Ctrl+Shift+Alt+U, W", null, null),
         };
 
         public static CommandInfo ById(int id)

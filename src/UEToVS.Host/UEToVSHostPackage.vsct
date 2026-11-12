@@ -100,6 +100,10 @@
       <Group guid="guidUEToVSHostCmdSet" id="grpToolbarTools" priority="0x0300">
         <Parent guid="guidUEToVSHostCmdSet" id="tbUEToVS" />
       </Group>
+      <!-- v0.4.2 Generate (Generate/GenerateActions.cs): editor context menu > UEToVS -->
+      <Group guid="guidUEToVSHostCmdSet" id="grpContextGenerate" priority="0x0200">
+        <Parent guid="guidUEToVSHostCmdSet" id="menuUEToVSContext" />
+      </Group>
     </Groups>
 
     <Buttons>
@@ -769,6 +773,37 @@
           <LocCanonicalName>UEToVS.ResetSemanticColors</LocCanonicalName>
         </Strings>
       </Button>
+      <!-- ===== v0.4.2 Generate (0x0160-0x016F) ===== -->
+      <Button guid="guidUEToVSHostCmdSet" id="cmdGenerateConstructor" priority="0x0100" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpContextGenerate" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <CommandFlag>DefaultDisabled</CommandFlag>
+        <Strings>
+          <ButtonText>Generate Constructor</ButtonText>
+          <CanonicalName>UEToVS.GenerateConstructor</CanonicalName>
+          <LocCanonicalName>UEToVS.GenerateConstructor</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdGenerateReplication" priority="0x0101" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpContextGenerate" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <CommandFlag>DefaultDisabled</CommandFlag>
+        <Strings>
+          <ButtonText>Generate GetLifetimeReplicatedProps</ButtonText>
+          <CanonicalName>UEToVS.GenerateReplication</CanonicalName>
+          <LocCanonicalName>UEToVS.GenerateReplication</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdGenerateRpc" priority="0x0102" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpContextGenerate" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <CommandFlag>DefaultDisabled</CommandFlag>
+        <Strings>
+          <ButtonText>Generate RPC (Implementation / Validate)</ButtonText>
+          <CanonicalName>UEToVS.GenerateRpc</CanonicalName>
+          <LocCanonicalName>UEToVS.GenerateRpc</LocCanonicalName>
+        </Strings>
+      </Button>
     </Buttons>
 
     <Bitmaps>
@@ -844,6 +879,9 @@
     <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdCreateDiagnostics" editor="guidVSStd97" key1="U" mod1="Control Shift Alt" key2="D" />
     <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdShowComponentGallery" editor="guidVSStd97" key1="U" mod1="Control Shift Alt" key2="C" />
     <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdWriteMcpConfig" editor="guidVSStd97" key1="U" mod1="Control Shift Alt" key2="M" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdGenerateConstructor" editor="guidVSStd97" key1="U" mod1="Control Shift Alt" key2="K" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdGenerateReplication" editor="guidVSStd97" key1="U" mod1="Control Shift Alt" key2="Y" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdGenerateRpc" editor="guidVSStd97" key1="U" mod1="Control Shift Alt" key2="W" />
   </KeyBindings>
 
   <Symbols>
@@ -952,6 +990,11 @@
       <IDSymbol name="cmdImportVaColors" value="0x0600" />
       <IDSymbol name="cmdToggleSemanticColoring" value="0x0601" />
       <IDSymbol name="cmdResetSemanticColors" value="0x0602" />
+      <!-- v0.4.2 Generate (Generate/GenerateActions.cs) -->
+      <IDSymbol name="grpContextGenerate" value="0x1060" />
+      <IDSymbol name="cmdGenerateConstructor" value="0x0160" />
+      <IDSymbol name="cmdGenerateReplication" value="0x0161" />
+      <IDSymbol name="cmdGenerateRpc" value="0x0162" />
     </GuidSymbol>
   </Symbols>
 </CommandTable>

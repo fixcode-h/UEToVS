@@ -56,6 +56,11 @@ namespace UEToVS.Host.Shell
 
         // ---- MCP (0x0500–0x05FF) ----
         public const int WriteMcpConfig = 0x0500;
+
+        // ---- v0.4.2 Generate (0x0160–0x016F) ----
+        public const int GenerateConstructor = 0x0160;
+        public const int GenerateReplication = 0x0161;
+        public const int GenerateRpc = 0x0162;
     }
 
     /// <summary>Stable action ids (§7.4). Commands dispatch to these.</summary>
@@ -74,5 +79,10 @@ namespace UEToVS.Host.Shell
 
         // ---- MCP ----
         public const string WriteMcpConfig = "uetovs.mcp.writeConfig";
+
+        // ---- v0.4.2 Generate ----
+        public const string GenerateConstructor = "uetovs.generate.constructor";
+        public const string GenerateReplication = "uetovs.generate.replication";
+        public const string GenerateRpc = "uetovs.generate.rpc";
     }
 }

@@ -55,6 +55,7 @@ namespace UEToVS.Host.Actions
             Navigation.NavigationActions.Register(registry);
             registry.Register(new DelegateAction(ActionIds.WriteMcpConfig, McpStrings.CmdWriteMcpConfig, ActionCategory.Settings,
                 ctx => Mcp.McpRegistration.WriteSolutionConfigAsync(ctx.SolutionDirectory), ctx => ctx.IsUnrealSolution, null, McpStrings.KwMcp));
+            Generate.GenerateActions.Register(registry, package);
             L.Info("actions.registered", null, ("count", registry.Count));
         }
 
