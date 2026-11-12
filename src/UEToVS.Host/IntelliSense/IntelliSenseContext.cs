@@ -65,6 +65,11 @@ namespace UEToVS.Host.IntelliSense
         public static bool ColoringActive => IsUnrealSolution && Settings.SemanticColoring && !ColoringSuspended;
 
         /// <summary>
+        /// High-confidence squiggles: only after the takeover (VS's own squiggles are off then; before it they would double up).
+        /// </summary>
+        public static bool DiagnosticsActive => IsUnrealSolution && Settings.DiagnosticsEnabled && TakenOver;
+
+        /// <summary>
         /// Session toggle of the "toggle semantic coloring" command (the persistent switch is HostSettings.SemanticColoring,
         /// edited in the settings dialog). Raises <see cref="ColoringToggled"/> so open editors repaint.
         /// </summary>

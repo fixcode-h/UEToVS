@@ -70,7 +70,7 @@ namespace UEToVS.Host.Unreal
             public bool FileExists(string path) => File.Exists(path);
         }
 
-        private static IncludeEnv CreateEnvironment(HostPackage package)
+        internal static IIncludeEnvironment CreateEnvironment(HostPackage package)
         {
             ThreadHelper.ThrowIfNotOnUIThread();
             // Open (possibly unsaved) Build.cs buffers win over disk.
