@@ -39,6 +39,21 @@
 - **导航栏**：C++ 编辑器顶部，左边当前类型、右边当前函数，点击弹出可模糊过滤的列表。设置 `NavigationBar`。
 - 所有跳转都经过 `Navigation/NavigationService.JumpToAsync(location, reason)`，统一写入导航历史（Alt+← / Alt+→）并记录日志 `nav.jump`。
 
+## IntelliSense（M3，§7.5–§7.7）
+
+都是 `IntelliSense/` 下的 MEF 组件，只对 `C/C++` 内容类型、UE 解决方案生效；状态与开关集中在 `IntelliSenseContext`（是否已接管、补全范围、会话级“最近使用”）。RPC 封装在 `Engine/EngineClient.IntelliSense.cs`（超时、取消、状态，日志 `is.*` + `rpc.*`）。
+
+| 功能 | 实现 | 说明 |
+| --- | --- | --- |
+| 补全 | `CompletionSource.cs`（`IAsyncCompletionSource`）、`CompletionManagers.cs`（条目管理器 + 提交管理器） | 触发判定 `Logic/IntelliSense/CompletionTriggers.cs`；本地重排 `CompletionRanking.cs`；提交时 `.`↔`->`（`AccessorFixes`）；`IsIncomplete` 时 VS 随输入重查。未接管时 `CompletionScope=Auto` 只提供 UE 增强项 |
+| Quick Info | `QuickInfoSource.cs`（`IAsyncQuickInfoSource`） | VS 原生 `ContainerElement` / `ClassifiedTextElement`，声明着色用语义分类（`DeclarationTokenizer`），宏展开可折叠；未接管时只追加 UE 部分 |
+| 参数信息 | `SignatureHelp.cs`（`ISignatureHelpSource` + 每视图控制器） | `(` `,` 触发，Ctrl+Shift+Space 手动；异步取数后再打开会话，当前参数随光标本地计算 |
+| 语义着色 | `SemanticClassifier.cs`、`SemanticClassificationFormats.cs`、`SemanticColors.cs` | 21 个 “UEToVS …” 分类；可见区 ± `SemanticColoringMarginLines` 行，`VisibleRangePlanner` / `SemanticLineStore`；主题切换只改仍是默认值的颜色 |
+| 键位接管 | `IntelliSenseCommandFilter.cs` | 已接管时 Ctrl+Space / Ctrl+J / Ctrl+Shift+Space / Ctrl+K,I 与悬停直接由 UEToVS 处理（F12 见 `Editor/GoToDefinitionCommandFilter.cs`） |
+| 命令 | `IntelliSenseFeature.cs`（0x0600–0x06FF，不进菜单） | 导入 VA 配色（`.vssettings` → 字体和颜色存储）、切换语义着色（会话级）、恢复默认语义配色 |
+
+新增设置（`HostSettings` 末尾）：`CompletionEnabled`、`CompletionScope`（Auto / UeOnly / All）、`CompletionOnIdentifier`、`CompletionAccessorFix`、`CompletionMaxResults`、`QuickInfoEnabled`、`SignatureHelpEnabled`、`SemanticColoring`、`SemanticColorOverrides`（如 `Field=#DAD085; Functions=#DCDCAA`）、`SemanticColoringMarginLines`。
+
 所有命令都注册为 `IAction`（`Logic/Actions`），菜单只是转发；Find Action / Alt+Enter 将列出同一批动作。菜单文字在 VSCT 中是英文默认值，运行时按语言替换（`TextChanges`）。
 
 ## 设置（工具 > 选项 > UEToVS）
@@ -108,7 +123,7 @@ VS 每次打开或保存 .cpp 都会在后台用编译器（/analyze）完整分
 | `Engine/` | 引擎客户端（`EngineClient.Navigation.cs`：导航 RPC 的超时、取消、降级与日志） |
 | `Editor/` | MEF 编辑器适配器：Ctrl+点击、引用高亮标签器、导航栏 margin、F12 拦截、活动视图 / CaretRequest / 弹窗锚点 |
 | `Navigation/` | 导航功能：转到定义、查找引用、类型层次、成员列表、`NavigationService`（统一跳转 + 历史）、动作与命令注册 |
-| `IntelliSense/` | DTE 设置读写、接管服务、VA 检测 |
+| `IntelliSense/` | DTE 设置读写、接管服务、VA 检测；M3 补全 / Quick Info / 参数信息 / 语义着色 / VA 配色导入 |
 | `Options/` | 选项页与设置合并 |
 | `Performance/` | 性能采样与工具窗口 |
 | `Shell/` | GUID/命令 ID、命令路由、InfoBar、状态栏、构建监视 |
