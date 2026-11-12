@@ -60,6 +60,8 @@ namespace UEToVS.UI.Logic
         /// <summary>Label shown next to an Int value of 0 (e.g. "自动（4）").</summary>
         public string AutoLabelZh { get; set; }
         public string AutoLabelEn { get; set; }
+        /// <summary>What "auto" (stored 0) resolves to on this machine, shown greyed in the disabled number box; null = unknown.</summary>
+        public int? AutoValue { get; set; }
         public IReadOnlyList<SettingOption> Options { get; set; } = Array.Empty<SettingOption>();
         /// <summary>Action/Info: id the host resolves (action id, or info provider id).</summary>
         public string ActionId { get; set; }

@@ -30,6 +30,8 @@ namespace UEToVS.Host.Logic.Settings
             public const string RebuildProjectIndex = "settings.indexing.rebuildProject";
             public const string RebuildEngineIndex = "settings.indexing.rebuildEngine";
             public const string RebuildBlueprintIndex = "settings.indexing.rebuildBlueprint";
+            /// <summary>Index status card "重建" after a failure: C++ (project + engine) and Blueprint indexes.</summary>
+            public const string RebuildAllIndexes = "settings.indexing.rebuildAll";
             public const string ToggleIntelliSense = "settings.intelliSense.toggle";
             public const string IndexStatus = "settings.indexing.status";
             public const string IntelliSenseStatus = "settings.intelliSense.status";
@@ -147,7 +149,7 @@ namespace UEToVS.Host.Logic.Settings
                 "保存 .h/.cpp 时对照 Build.cs 检查 #include 所属模块，缺失时提示添加依赖。", "On saving a .h/.cpp, checks the #include modules against Build.cs and offers to add missing dependencies.",
                 "true", gUe, gUeEn));
             var port = D(General, "unreal.editorLinkPort", SettingKind.Int, "UEToVSLink 编辑器插件端口", "UEToVSLink editor plugin port",
-                "0 = 自动（读取 <项目>/Saved/UEToVSLink/port.txt）。", "0 = auto (reads <Project>/Saved/UEToVSLink/port.txt).", "0", gUe, gUeEn);
+                "勾选“自动”时读取 <项目>/Saved/UEToVSLink/port.txt。", "“Auto” reads <Project>/Saved/UEToVSLink/port.txt.", "0", gUe, gUeEn);
             port.Min = 0; port.Max = 65535; port.AutoLabelZh = "自动"; port.AutoLabelEn = "Auto";
             list.Add(port);
 
@@ -155,12 +157,12 @@ namespace UEToVS.Host.Logic.Settings
             const string gIdx = "索引", gIdxEn = "Indexing";
             list.Add(A(Indexing, "indexing.status", WindowActions.IndexStatus, "当前索引状态", "Index status", null, null, gIdx, gIdxEn, SettingKind.Info));
             var cpp = D(Indexing, "indexing.cppThreads", SettingKind.Int, "C++ 索引线程数", "C++ indexing threads",
-                $"并发解析 C++ 的线程数。0 = 自动（逻辑核心数的 1/4，本机 {auto}）。", $"Threads parsing C++ concurrently. 0 = auto (a quarter of the logical cores, {auto} here).", "0", gIdx, gIdxEn);
-            cpp.Min = 0; cpp.Max = cores; cpp.AutoLabelZh = $"自动（{auto}）"; cpp.AutoLabelEn = $"Auto ({auto})"; cpp.Keywords = "cores 核心 并发 concurrency";
+                $"并发解析 C++ 的线程数。勾选“自动”时使用逻辑核心数的 1/4（本机 {auto} 个）。", $"Threads parsing C++ concurrently. “Auto” uses a quarter of the logical cores ({auto} here).", "0", gIdx, gIdxEn);
+            cpp.Min = 0; cpp.Max = cores; cpp.AutoLabelZh = $"自动（{auto}）"; cpp.AutoLabelEn = $"Auto ({auto})"; cpp.AutoValue = auto; cpp.Keywords = "cores 核心 并发 concurrency 自动 auto";
             list.Add(cpp);
             var bp = D(Indexing, "indexing.blueprintThreads", SettingKind.Int, "蓝图/资产索引线程数", "Blueprint / asset indexing threads",
-                $"并发扫描 .uasset/.umap 的线程数。0 = 自动（本机 {auto}）。", $"Threads scanning .uasset/.umap concurrently. 0 = auto ({auto} here).", "0", gIdx, gIdxEn);
-            bp.Min = 0; bp.Max = cores; bp.AutoLabelZh = cpp.AutoLabelZh; bp.AutoLabelEn = cpp.AutoLabelEn; bp.Keywords = "cores 核心 blueprint 蓝图 asset 资产";
+                $"并发扫描 .uasset/.umap 的线程数。勾选“自动”时本机使用 {auto} 个。", $"Threads scanning .uasset/.umap concurrently. “Auto” uses {auto} here.", "0", gIdx, gIdxEn);
+            bp.Min = 0; bp.Max = cores; bp.AutoLabelZh = cpp.AutoLabelZh; bp.AutoLabelEn = cpp.AutoLabelEn; bp.AutoValue = auto; bp.Keywords = "cores 核心 blueprint 蓝图 asset 资产 自动 auto";
             list.Add(bp);
             var during = D(Indexing, "indexing.duringBuild", SettingKind.Choice, "编译期间", "While building",
                 "VS/UBT 编译时后台索引的行为。", "What background indexing does while VS/UBT builds.", nameof(IndexDuringBuild.SingleThread), gIdx, gIdxEn);

@@ -282,6 +282,9 @@ namespace UEToVS.UI.Logic
             N[TokenNames.FontSizeSmall] = Math.Max(8, body - 1);
             N[TokenNames.FontSizeCaption] = Math.Max(8, body - 2);
             N[TokenNames.FontSizeTitle] = body + 3;
+            // Fluent type ramp for settings pages: group headers ("Body Strong" + 2) and page titles ("Subtitle").
+            N[TokenNames.FontSizeSubtitle] = body + 2;
+            N[TokenNames.FontSizeDisplay] = body + 8;
             // VS 2026 search boxes use the body size (Rider used a much larger input font).
             N[TokenNames.FontSizeInput] = body + (s.Preset == StylePreset.Compact ? 0 : 1);
             N[TokenNames.FontSizeCode] = body;
