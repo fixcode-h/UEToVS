@@ -18,7 +18,7 @@ namespace UEToVS.Engine.IntelliSense
     /// match, then scope proximity (locals &gt; own members &gt; base members &gt; namespace &gt; global &gt; keywords), project over
     /// engine, UE-reflected symbols slightly boosted, shorter names first. Thread-safe; shared caches are bounded.
     /// </summary>
-    public sealed class CompletionEngine
+    public sealed partial class CompletionEngine
     {
         // proximity bands (added to MatchRank * RankUnit)
         private const int RankUnit = 10000;
@@ -123,6 +123,12 @@ namespace UEToVS.Engine.IntelliSense
                     break;
                 case CompletionContextKind.Override:
                     resolvedType = Override(s, site, c);
+                    break;
+                case CompletionContextKind.GameplayTag:
+                case CompletionContextKind.AssetPath:
+                case CompletionContextKind.UFunctionName:
+                case CompletionContextKind.IniKey:
+                    resolvedType = StringContext(s, site, c, ref incomplete);
                     break;
                 default:
                     General(s, site, c, request?.Explicit == true, ref incomplete);

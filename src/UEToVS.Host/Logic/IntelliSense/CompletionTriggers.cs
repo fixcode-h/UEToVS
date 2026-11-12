@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UEToVS.Contracts;
+using UEToVS.Core.Unreal;
 using UEToVS.Host.Logic.Settings;
 
 namespace UEToVS.Host.Logic.IntelliSense
@@ -83,6 +84,7 @@ namespace UEToVS.Host.Logic.IntelliSense
                                     (typed != '\0' && onIdentifier && IsIdentifierChar(typed) && pl == 1);
                 return includeStart ? new TriggerResult(true, CompletionContextKind.Include, typed == '\0' ? '\0' : typed, ps, pl) : TriggerResult.None;
             }
+            if (ctx == LineContext.String) return InString(line, caret, typed, explicitInvoke, onIdentifier);
             if (ctx != LineContext.Code) return TriggerResult.None;
 
             var (ws, wl) = WordAt(line, caret);
@@ -132,6 +134,58 @@ namespace UEToVS.Host.Logic.IntelliSense
                 return new TriggerResult(true, hint, '\0', ws, wl);
             }
             return TriggerResult.None;
+        }
+
+        /// <summary>Completion context for a string literal kind (General for a plain string).</summary>
+        public static CompletionContextKind StringKind(StringLiteralKind kind)
+        {
+            switch (kind)
+            {
+                case StringLiteralKind.GameplayTag: return CompletionContextKind.GameplayTag;
+                case StringLiteralKind.AssetPath: return CompletionContextKind.AssetPath;
+                case StringLiteralKind.UFunctionName: return CompletionContextKind.UFunctionName;
+                case StringLiteralKind.IniSection:
+                case StringLiteralKind.IniKey: return CompletionContextKind.IniKey;
+                default: return CompletionContextKind.General;
+            }
+        }
+
+        /// <summary>
+        /// Inside a string literal: only GameplayTag / asset path / UFUNCTION name / ini strings (<see cref="StringLiteralContext"/>,
+        /// the same analysis the engine uses, so the applicable span matches its replace range). Opens on the opening quote,
+        /// the separator of the kind ('.' for tags, '/' for paths, ',' in Categories lists), the first character of a segment,
+        /// or Ctrl+Space; ordinary strings never open a list.
+        /// </summary>
+        private static TriggerResult InString(string line, int caret, char typed, bool explicitInvoke, bool onIdentifier)
+        {
+            var ss = StringLiteralContext.Analyze(line, caret);
+            if (!ss.InString || ss.Kind == StringLiteralKind.None) return TriggerResult.None;
+            var hint = StringKind(ss.Kind);
+            bool start = explicitInvoke || typed == '"';
+            if (!start)
+            {
+                switch (ss.Kind)
+                {
+                    case StringLiteralKind.GameplayTag:
+                        start = typed == '.' || typed == ',';
+                        break;
+                    case StringLiteralKind.AssetPath:
+                        start = typed == '/';
+                        break;
+                    case StringLiteralKind.IniSection:
+                    case StringLiteralKind.IniKey:
+                        // sections often start with '/' ("/Script/Engine.Engine")
+                        start = typed == '/' && ss.Typed.Length == 1;
+                        break;
+                }
+            }
+            if (!start && typed != '\0' && onIdentifier && IsIdentifierChar(typed))
+            {
+                // first character of the segment (ini: of the whole literal)
+                int typedInFragment = ss.Kind == StringLiteralKind.IniSection || ss.Kind == StringLiteralKind.IniKey ? ss.Typed.Length : caret - ss.FragmentStart;
+                start = typedInFragment == 1;
+            }
+            return start ? new TriggerResult(true, hint, typed, ss.FragmentStart, ss.FragmentLength) : TriggerResult.None;
         }
 
         /// <summary>Context implied by what precedes the word (".", "->", "::", "override").</summary>
@@ -299,6 +353,23 @@ namespace UEToVS.Host.Logic.IntelliSense
     /// </summary>
     public static class CompletionPolicy
     {
+        /// <summary>
+        /// Whether <paramref name="typed"/> commits the selected item in a string context (and is then typed): the closing
+        /// quote always; '.' / ',' after a tag segment, '/' after a path folder (the next level then opens). Null for code
+        /// contexts (the commit manager's own character list applies).
+        /// </summary>
+        public static bool? CommitsInString(CompletionContextKind context, char typed)
+        {
+            switch (context)
+            {
+                case CompletionContextKind.GameplayTag: return typed == '"' || typed == '.' || typed == ',';
+                case CompletionContextKind.AssetPath: return typed == '"' || typed == '/';
+                case CompletionContextKind.UFunctionName:
+                case CompletionContextKind.IniKey: return typed == '"';
+                default: return null;
+            }
+        }
+
         public static bool ProvidesAll(CompletionScope scope, bool takenOver) =>
             scope == CompletionScope.All || (scope == CompletionScope.Auto && takenOver);
 
@@ -313,6 +384,10 @@ namespace UEToVS.Host.Logic.IntelliSense
                 case CompletionContextKind.Override:
                 case CompletionContextKind.Member:
                 case CompletionContextKind.Scope:
+                case CompletionContextKind.GameplayTag:
+                case CompletionContextKind.AssetPath:
+                case CompletionContextKind.UFunctionName:
+                case CompletionContextKind.IniKey:
                     return true;
                 default:
                     return false;
@@ -329,6 +404,10 @@ namespace UEToVS.Host.Logic.IntelliSense
                 case CompletionContextKind.Specifier:
                 case CompletionContextKind.Include:
                 case CompletionContextKind.Override:
+                case CompletionContextKind.GameplayTag:
+                case CompletionContextKind.AssetPath:
+                case CompletionContextKind.UFunctionName:
+                case CompletionContextKind.IniKey:
                     return true;
                 case CompletionContextKind.Member:
                 case CompletionContextKind.Scope:

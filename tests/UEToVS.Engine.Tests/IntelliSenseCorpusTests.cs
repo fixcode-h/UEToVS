@@ -211,6 +211,9 @@ namespace UEToVS.Engine.Tests
         [InlineData("use.first", 0, 2, null)]
         [InlineData("member", 0, 1, "void ApplyDamage(float Amount)")]
         [InlineData("delegate", 1, 2, "void Broadcast(float NewHealth, float Delta) const")]
+        [InlineData("delegate.execute", 1, 2, "void Execute(int32, bool) const")]
+        [InlineData("delegate.dynexecute", 0, 1, "bool ExecuteIfBound(float Strength) const")]
+        [InlineData("delegate.native", 0, 1, "void Broadcast(int32) const")]
         [InlineData("ctor", 1, 3, "FVector(float InX, float InY, float InZ)")]
         [InlineData("defaults", 1, 2, "void Recharge(int32 Amount, bool bFull = false) const")]
         public void SignatureHelp_Corpus(string id, int activeParameter, int paramCount, string label)
