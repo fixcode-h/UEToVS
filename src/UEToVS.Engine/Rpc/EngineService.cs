@@ -163,6 +163,26 @@ namespace UEToVS.Engine.Rpc
                 return Task.CompletedTask;
             }, ct, ("paused", paused));
 
+        // ---- M2 navigation: stubs, implemented by the navigation service ----
+
+        public Task<NavigationResponse> NavigateAsync(NavigationRequest request, CancellationToken ct) =>
+            InvokeAsync("rpc.navigate", _ => Task.FromResult(new NavigationResponse { Word = string.Empty }), ct);
+
+        public Task<ReferencesResponse> FindReferencesAsync(ReferencesRequest request, CancellationToken ct) =>
+            InvokeAsync("rpc.findReferences", _ => Task.FromResult(new ReferencesResponse()), ct);
+
+        public Task<TypeHierarchyResponse> GetTypeHierarchyAsync(TypeHierarchyRequest request, CancellationToken ct) =>
+            InvokeAsync("rpc.getTypeHierarchy", _ => Task.FromResult(new TypeHierarchyResponse()), ct);
+
+        public Task<HighlightResponse> GetHighlightsAsync(CaretRequest caret, CancellationToken ct) =>
+            InvokeAsync("rpc.getHighlights", _ => Task.FromResult(new HighlightResponse { Word = string.Empty }), ct);
+
+        public Task<CaretContextResponse> GetCaretContextAsync(CaretRequest caret, CancellationToken ct) =>
+            InvokeAsync("rpc.getCaretContext", _ => Task.FromResult(new CaretContextResponse()), ct);
+
+        public Task<MembersResponse> GetMembersAsync(MembersRequest request, CancellationToken ct) =>
+            InvokeAsync("rpc.getMembers", _ => Task.FromResult(new MembersResponse()), ct);
+
         public Task ShutdownAsync(CancellationToken ct) =>
             InvokeAsync("rpc.shutdown", _ =>
             {

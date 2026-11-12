@@ -39,6 +39,25 @@ namespace UEToVS.Contracts
         /// <summary>User pause/resume of background indexing (performance panel button).</summary>
         Task SetBackgroundPausedAsync(bool paused, CancellationToken ct);
 
+        // ---- M2 core navigation (see Navigation.cs) ----
+
+        /// <summary>Go to definition / declaration / implementation for the identifier at the caret.</summary>
+        Task<NavigationResponse> NavigateAsync(NavigationRequest request, CancellationToken ct);
+
+        /// <summary>Find references of the caret's symbol (or of request.Symbol) across the index.</summary>
+        Task<ReferencesResponse> FindReferencesAsync(ReferencesRequest request, CancellationToken ct);
+
+        Task<TypeHierarchyResponse> GetTypeHierarchyAsync(TypeHierarchyRequest request, CancellationToken ct);
+
+        /// <summary>Occurrences of the caret's symbol in the same document (reference highlighting). Budget: p95 &lt; 20 ms.</summary>
+        Task<HighlightResponse> GetHighlightsAsync(CaretRequest caret, CancellationToken ct);
+
+        /// <summary>Enclosing scopes at the caret plus the document's declarations (navigation bar, Alt+M).</summary>
+        Task<CaretContextResponse> GetCaretContextAsync(CaretRequest caret, CancellationToken ct);
+
+        /// <summary>Members of a type, optionally including inherited ones (member list).</summary>
+        Task<MembersResponse> GetMembersAsync(MembersRequest request, CancellationToken ct);
+
         Task ShutdownAsync(CancellationToken ct);
     }
 
