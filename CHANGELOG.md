@@ -16,8 +16,6 @@
 - **UFUNCTION 名补全** — `BindUFunction` / `AddUFunction` / `CreateUFunction` 的函数名字符串补全目标对象类型（`this` 时为所在类）的 UFUNCTION，`Obj->FindFunction(TEXT("…"))` 补全 `Obj` 类型的 UFUNCTION；非 UFUNCTION 的成员不列出
 - **ini 键补全** — `GConfig->GetString/GetBool/GetInt…(TEXT("Section"), TEXT("Key"), …, GGameIni)` 的 section 和 key 补全，来源为项目 Config/*.ini，按 `GGameIni` / `GEngineIni` 等过滤对应文件；普通字符串（日志文本等）不会弹出列表
 - **#include 补全后立即检查模块依赖** — 选中的头文件属于当前模块 Build.cs 未依赖的模块时，提交后马上弹出“添加到 Public/PrivateDependencyModuleNames”横幅，不必等保存
-
-### 新功能
 - **高置信度错误波浪线** — 接管 VS C++ IntelliSense 后，UEToVS 提供唯一的错误提示，只报确定的问题（宁可漏报，不误报）：UE0001 未知成员（`expr.Name` / `expr->Name`，且类型和所有基类都已完整解析；模板、宏、auto、未索引或模板基类、重载返回类型不一致等一律不报）、UE0002 `#include` 的头文件所在模块不在 Build.cs 依赖中（警告，消息里给出模块名）、UE0003 UCLASS / USTRUCT / UINTERFACE 缺少 GENERATED_BODY()。不因 `.generated.h` 缺失报错，引擎代码不检查，正在输入的单词和未保存头文件里声明的类型不报。只检查可见区域 ±50 行，编辑后约 500 ms 刷新；设置“代码感知 > 波浪线”可关闭。日志 `intellisense.diagnostics` 记录各规则命中数和“不确定而跳过”的数量及原因
 
 ### 改进
