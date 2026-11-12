@@ -769,6 +769,35 @@
           <LocCanonicalName>UEToVS.ResetSemanticColors</LocCanonicalName>
         </Strings>
       </Button>
+      <!-- M4 refactoring (ids 0x0700-0x07FF; Refactoring/RefactoringFeature.cs). Alt+Enter context actions and Rename are also
+           in the editor right-click > UEToVS menu (CommandPlacements); Implement Virtual is reachable from Alt+Enter / Find Action. -->
+      <Button guid="guidUEToVSHostCmdSet" id="cmdQuickActions" priority="0x0110" type="Button">
+        <CommandFlag>DefaultDisabled</CommandFlag>
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Context Actions (Alt+Enter)</ButtonText>
+          <CanonicalName>UEToVS.QuickActions</CanonicalName>
+          <LocCanonicalName>UEToVS.QuickActions</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdRename" priority="0x0111" type="Button">
+        <CommandFlag>DefaultDisabled</CommandFlag>
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Rename...</ButtonText>
+          <CanonicalName>UEToVS.Rename</CanonicalName>
+          <LocCanonicalName>UEToVS.Rename</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdImplementVirtual" priority="0x0112" type="Button">
+        <CommandFlag>CommandWellOnly</CommandFlag>
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Implement Virtual Methods / Override...</ButtonText>
+          <CanonicalName>UEToVS.ImplementVirtual</CanonicalName>
+          <LocCanonicalName>UEToVS.ImplementVirtual</LocCanonicalName>
+        </Strings>
+      </Button>
     </Buttons>
 
     <Bitmaps>
@@ -794,6 +823,12 @@
       <Parent guid="guidUEToVSHostCmdSet" id="grpContextNavigation" />
     </CommandPlacement>
     <CommandPlacement guid="guidUEToVSHostCmdSet" id="cmdListTypeMembers" priority="0x0105">
+      <Parent guid="guidUEToVSHostCmdSet" id="grpContextNavigation" />
+    </CommandPlacement>
+    <CommandPlacement guid="guidUEToVSHostCmdSet" id="cmdQuickActions" priority="0x0110">
+      <Parent guid="guidUEToVSHostCmdSet" id="grpContextNavigation" />
+    </CommandPlacement>
+    <CommandPlacement guid="guidUEToVSHostCmdSet" id="cmdRename" priority="0x0111">
       <Parent guid="guidUEToVSHostCmdSet" id="grpContextNavigation" />
     </CommandPlacement>
   </CommandPlacements>
@@ -844,6 +879,10 @@
     <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdCreateDiagnostics" editor="guidVSStd97" key1="U" mod1="Control Shift Alt" key2="D" />
     <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdShowComponentGallery" editor="guidVSStd97" key1="U" mod1="Control Shift Alt" key2="C" />
     <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdWriteMcpConfig" editor="guidVSStd97" key1="U" mod1="Control Shift Alt" key2="M" />
+    <!-- M4 refactoring: Alt+Enter = UEToVS context actions (UEToVS wins over VS's own Alt+Enter, see Keymap/DefaultKeyBindings.cs). -->
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdQuickActions" editor="guidTextEditorFactory" key1="VK_RETURN" mod1="Alt" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdRename" editor="guidTextEditorFactory" key1="R" mod1="Control" key2="R" mod2="Control" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdImplementVirtual" editor="guidTextEditorFactory" key1="U" mod1="Control Shift Alt" key2="V" />
   </KeyBindings>
 
   <Symbols>
@@ -952,6 +991,10 @@
       <IDSymbol name="cmdImportVaColors" value="0x0600" />
       <IDSymbol name="cmdToggleSemanticColoring" value="0x0601" />
       <IDSymbol name="cmdResetSemanticColors" value="0x0602" />
+      <!-- M4 refactoring (Refactoring/RefactoringFeature.cs) -->
+      <IDSymbol name="cmdQuickActions" value="0x0700" />
+      <IDSymbol name="cmdRename" value="0x0701" />
+      <IDSymbol name="cmdImplementVirtual" value="0x0702" />
     </GuidSymbol>
   </Symbols>
 </CommandTable>

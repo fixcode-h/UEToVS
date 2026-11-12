@@ -158,6 +158,9 @@ namespace UEToVS.Host
                 // M3 IntelliSense commands (import VA colours, toggle / reset semantic colouring; 0x0600–0x06FF).
                 Safe.Execute(L, "is.initialize", () => UEToVS.Host.IntelliSense.IntelliSenseFeature.Initialize(this, Actions, _commands,
                     GetService(typeof(System.ComponentModel.Design.IMenuCommandService)) as OleMenuCommandService));
+                // M4 refactoring (Alt+Enter context actions, light bulb, code generation, Add Include, Rename; 0x0700–0x07FF).
+                Safe.Execute(L, "refactor.initialize", () => UEToVS.Host.Refactoring.RefactoringFeature.Initialize(this, Actions, _commands,
+                    GetService(typeof(System.ComponentModel.Design.IMenuCommandService)) as OleMenuCommandService));
 
                 // 4b. Toolbar: shown on the first run (double Shift → Search Everywhere is M1's InputMonitor).
                 var dte = await GetServiceAsync(typeof(DTE)) as DTE;
