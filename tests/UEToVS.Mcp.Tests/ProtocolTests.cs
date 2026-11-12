@@ -21,7 +21,7 @@ namespace UEToVS.Mcp.Tests
         private static readonly string[] ExpectedTools =
         {
             "find_delegate_bindings", "find_references", "get_file_outline", "get_lua_outline", "get_members", "get_module_info", "get_reflection_info",
-            "get_type_hierarchy", "go_to_definition", "index_status", "search_assets", "search_config", "search_files", "search_lua", "search_lua_files",
+            "get_type_hierarchy", "go_to_definition", "index_status", "run_project_inspection", "search_assets", "search_config", "search_files", "search_lua", "search_lua_files",
             "search_symbols", "suggest_include",
         };
 

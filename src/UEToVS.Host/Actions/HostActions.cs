@@ -57,6 +57,8 @@ namespace UEToVS.Host.Actions
                 ctx => Mcp.McpRegistration.WriteSolutionConfigAsync(ctx.SolutionDirectory), ctx => ctx.IsUnrealSolution, null, McpStrings.KwMcp));
             Generate.GenerateActions.Register(registry, package);
             Editing.SmartSelectActions.Register(registry);
+            // ---- v0.4.5 heavy features (whole-project inspection / upgrade assistant)
+            Inspection.HeavyFeatureActions.Register(registry, package);
             L.Info("actions.registered", null, ("count", registry.Count));
         }
 

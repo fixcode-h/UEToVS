@@ -63,6 +63,13 @@ namespace UEToVS.Host.Shell
         public const int GenerateRpc = 0x0162;
         public const int ExpandSelection = 0x0163;
         public const int ShrinkSelection = 0x0164;
+
+        // ---- v0.4.5 heavy features (0x01A0–0x01AF) ----
+        public const int RunProjectInspection = 0x01A0;
+        public const int ShowInspectionResults = 0x01A1;
+        public const int RunUpgradeAssistant = 0x01A2;
+        public const int ShowUpgradeResults = 0x01A3;
+        public const int CancelHeavyJob = 0x01A4;
     }
 
     /// <summary>Stable action ids (§7.4). Commands dispatch to these.</summary>
@@ -88,5 +95,12 @@ namespace UEToVS.Host.Shell
         public const string GenerateRpc = "uetovs.generate.rpc";
         public const string ExpandSelection = "uetovs.edit.expandSelection";
         public const string ShrinkSelection = "uetovs.edit.shrinkSelection";
+
+        // ---- v0.4.5 heavy features ----
+        public const string RunProjectInspection = "uetovs.inspection.run";
+        public const string ShowInspectionResults = "uetovs.inspection.show";
+        public const string RunUpgradeAssistant = "uetovs.upgrade.run";
+        public const string ShowUpgradeResults = "uetovs.upgrade.show";
+        public const string CancelHeavyJob = "uetovs.heavy.cancel";
     }
 }
