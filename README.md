@@ -68,6 +68,10 @@ msbuild src\UEToVS.Host\UEToVS.Host.csproj /restore /p:Configuration=Release
 - 接管 VS 自带 C++ IntelliSense（UEToVS 设置 > 常规 > C++ IntelliSense）开启后，打开 UE 解决方案时自动关闭 VS 自带的 C++ IntelliSense（修改前备份到 `%LocalAppData%\UEToVS\intellisense-backup.json`），可在 UEToVS 设置 > 常规 > “立即接管 / 恢复” 一键还原（Find Action 中也有）；卸载扩展前请先执行恢复。自 M3 起该选项**默认开启**（UEToVS 已提供补全、Quick Info、参数信息、语义着色与跳转），首次接管时信息栏会说明并提供“恢复”。
 - 界面语言跟随 VS：英文 VS 显示英文，其他语言显示中文。
 
+## 在 VS 自带聊天里用自定义 API 的模型（Agent / API）
+
+UEToVS 设置 > Agent / API：添加 API（名称、地址、密钥、密钥的发送方式、并发上限），“测试连接”或“从接口获取”模型，勾选要用的模型后应用。勾选的模型会自动写入 VS Copilot 聊天的自定义模型（Ollama 类型，地址是 UEToVS 的本地转发服务 `http://127.0.0.1:47811`），重新打开聊天窗口即可在模型选择器里选择。密钥用 Windows DPAPI 加密保存在本机，不会交给 VS。目前支持 OpenAI Chat Completions 兼容的 API。原理和限制见 [docs/design/Agent-API.md](docs/design/Agent-API.md)。
+
 ## 给 AI Agent 用（MCP）
 
 UEToVS 自带一个 MCP 服务（`Engine\Mcp\UEToVS.Mcp.exe`），让 AI Agent 直接查 UEToVS 的符号索引和蓝图资产，不用 grep 全工程。

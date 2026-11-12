@@ -22,6 +22,8 @@ namespace UEToVS.Host.Logic.Settings
         public const string Keymap = "keymap";
         public const string Navigation = "navigation";
         public const string IntelliSense = "intellisense";
+        /// <summary>Custom page: APIs + models for VS chat (Settings/AgentApiPage).</summary>
+        public const string Agent = "agent";
         public const string Logging = "logging";
         public const string Performance = "performance";
 
@@ -51,6 +53,7 @@ namespace UEToVS.Host.Logic.Settings
             new SettingCategory(Keymap, "快捷键", "Keyboard"),
             new SettingCategory(Navigation, "导航", "Navigation"),
             new SettingCategory(IntelliSense, "代码感知", "IntelliSense"),
+            new SettingCategory(Agent, "Agent / API", "Agent / API"),
             new SettingCategory(Logging, "日志与诊断", "Logs & Diagnostics"),
             new SettingCategory(Performance, "性能", "Performance"),
         };

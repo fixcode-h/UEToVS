@@ -168,6 +168,8 @@ namespace UEToVS.Host.Settings
                     return provider == null ? null : new AppearancePage(provider);
                 case HostSettingsSchema.Keymap:
                     return new KeymapPage(_package);
+                case HostSettingsSchema.Agent:
+                    return _package.Agent == null ? null : new AgentApiPage(_package.Agent);
                 default:
                     return null;
             }
