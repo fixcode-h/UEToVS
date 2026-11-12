@@ -80,6 +80,9 @@ namespace UEToVS.Contracts
         /// <summary>Semantic colouring for a line range of a document (VA-style colours).</summary>
         Task<ClassifyResponse> ClassifyAsync(ClassifyRequest request, CancellationToken ct);
 
+        /// <summary>High-confidence diagnostics (squiggles) for a line range of a document (see CodeDiagnostics.cs).</summary>
+        Task<CodeDiagnosticsResponse> GetDiagnosticsAsync(CodeDiagnosticsRequest request, CancellationToken ct);
+
         Task ShutdownAsync(CancellationToken ct);
     }
 
