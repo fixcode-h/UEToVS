@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
-using System.Text.RegularExpressions;
 
 namespace UEToVS.Mcp.Data
 {
@@ -113,24 +112,5 @@ namespace UEToVS.Mcp.Data
             if (q >= 0) s = s.Substring(q + 2);
             return s.Trim();
         }
-
-        /// <summary>
-        /// When <paramref name="line"/> declares a class/struct deriving from <paramref name="baseName"/>, returns the
-        /// derived type's name ("class MYGAME_API AHero : public ACharacter" with ACharacter → AHero).
-        /// </summary>
-        public static string DerivedNameOnLine(string line, string baseName)
-        {
-            if (string.IsNullOrEmpty(line) || string.IsNullOrEmpty(baseName)) return null;
-            var m = DeclHead.Match(line);
-            if (!m.Success) return null;
-            var bases = ParseBases(line.Substring(m.Index));
-            foreach (var b in bases)
-                if (string.Equals(BaseTypeName(b), baseName, StringComparison.Ordinal)) return m.Groups["name"].Value;
-            return null;
-        }
-
-        private static readonly Regex DeclHead = new Regex(
-            @"\b(?:class|struct)\s+(?:alignas\s*\([^)]*\)\s*)?(?:[A-Z0-9_]+_API\s+)?(?<name>[A-Za-z_]\w*)\s*(?:final\s*)?:(?!:)",
-            RegexOptions.CultureInvariant);
     }
 }

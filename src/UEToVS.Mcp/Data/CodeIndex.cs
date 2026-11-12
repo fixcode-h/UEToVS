@@ -302,7 +302,7 @@ namespace UEToVS.Mcp.Data
             return line.Length > 200 ? line.Substring(0, 199) + "…" : line;
         }
 
-        public async Task<Answer<TypeHierarchyResponse>> GetTypeHierarchyAsync(TypeHierarchyRequest req, CancellationToken ct)
+        public async Task<Answer<TypeHierarchyResponse>> GetTypeHierarchyAsync(TypeHierarchyRequest req, CancellationToken ct, bool includeNonProject = false)
         {
             var (ok, th) = await TryEngineAsync("getTypeHierarchy", (e, c) => e.GetTypeHierarchyAsync(req, c), ct).ConfigureAwait(false);
             if (ok && th != null && th.Root != null)
@@ -310,14 +310,14 @@ namespace UEToVS.Mcp.Data
             if (string.IsNullOrEmpty(req.TypeName))
                 return new Answer<TypeHierarchyResponse> { Value = th ?? new TypeHierarchyResponse(), Source = Sources.Engine, Note = "Type not resolved at that position; pass type_name." };
 
-            var hierarchy = new HierarchyFallback(this, req, ct);
+            var hierarchy = new HierarchyFallback(this, req, ct) { IncludeNonProject = includeNonProject };
             var resp = await hierarchy.BuildAsync().ConfigureAwait(false);
             return new Answer<TypeHierarchyResponse>
             {
                 Value = resp,
                 Source = Sources.IndexHeuristic,
                 IndexReady = true,
-                Note = "Built from class signatures (bases) and base-clause occurrences (derived types) in the index.",
+                Note = "Built from class signatures in the index" + (includeNonProject ? "." : "; derived types from project code only (scope='all' adds engine code)."),
             };
         }
 
@@ -335,29 +335,66 @@ namespace UEToVS.Mcp.Data
             k == SymbolKind.Class || k == SymbolKind.Struct || k == SymbolKind.Union || k == SymbolKind.Enum || k == SymbolKind.Typedef ||
             k == SymbolKind.Delegate || k == SymbolKind.Concept;
 
-        /// <summary>Derived types found from base-clause occurrences of <paramref name="baseName"/>.</summary>
-        public List<SymbolInfo> DerivedFromOccurrences(string baseName, int max, CancellationToken ct)
+        private readonly object _derivedGate = new object();
+        private (DateTime Manifest, bool All, Dictionary<string, List<SymbolInfo>> Map) _derived;
+
+        /// <summary>
+        /// Types whose class signature names <paramref name="baseName"/> as a base. Built from the index once per
+        /// on-disk index version: every class/struct declaration of every indexed header (project headers only unless
+        /// <paramref name="includeNonProject"/>), keyed by base type name. Occurrences cannot be used: the parser records
+        /// identifier uses in function bodies only, not in base clauses.
+        /// </summary>
+        public List<SymbolInfo> DerivedTypes(string baseName, bool includeNonProject, int max, CancellationToken ct)
         {
-            var result = new List<SymbolInfo>();
-            if (!_offline.IsAvailable) return result;
-            var occ = _offline.Use(s => s.FindOccurrences(baseName, ct).Where(o => (o.Role & 16) != 0 || o.Role == 0).Take(20000).ToList(),
-                new List<Engine.Index.OccurrenceHit>());
-            var seen = new HashSet<string>(StringComparer.Ordinal);
-            foreach (var o in occ)
-            {
-                ct.ThrowIfCancellationRequested();
-                var text = Texts.Get(o.Path);
-                if (text == null) continue;
-                var (line, _) = text.Position(o.Offset);
-                string derived = CppText.DerivedNameOnLine(text.Line(line), baseName)
-                                 ?? (line > 0 ? CppText.DerivedNameOnLine(text.Line(line - 1) + " " + text.Line(line), baseName) : null);
-                if (derived == null || !seen.Add(derived)) continue;
-                var decl = _offline.Use(s => s.FindByName(derived, null, ct).FirstOrDefault(d => IsType(d.Kind) && SamePath(d.Location?.FilePath, o.Path)));
-                result.Add(decl ?? new SymbolInfo { Name = derived, Kind = SymbolKind.Class, Location = new SourceLocation { FilePath = o.Path, Line = line } });
-                if (result.Count >= max) break;
-            }
-            return result;
+            var map = DerivedMap(includeNonProject, ct);
+            if (map == null || !map.TryGetValue(baseName, out var list)) return new List<SymbolInfo>();
+            return list.Where(s => includeNonProject || s.Origin == ItemOrigin.Project || s.Origin == ItemOrigin.ProjectPlugin).Take(max).ToList();
         }
+
+        private Dictionary<string, List<SymbolInfo>> DerivedMap(bool includeNonProject, CancellationToken ct)
+        {
+            if (!_offline.IsAvailable) return null;
+            var manifest = _offline.ManifestTimeUtc;
+            lock (_derivedGate)
+            {
+                var d = _derived;
+                if (d.Map != null && d.Manifest == manifest && (d.All || !includeNonProject)) return d.Map;
+            }
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            int files = 0, edges = 0;
+            var built = _offline.Use(snap =>
+            {
+                var m = new Dictionary<string, List<SymbolInfo>>(StringComparer.Ordinal);
+                foreach (var f in snap.ListFiles(ct))
+                {
+                    if (!includeNonProject && f.Origin != ItemOrigin.Project && f.Origin != ItemOrigin.ProjectPlugin) continue;
+                    if (!IsHeader(f.Path)) continue;
+                    files++;
+                    foreach (var s in snap.GetFileSymbols(f.Path))
+                    {
+                        if (s.Kind != SymbolKind.Class && s.Kind != SymbolKind.Struct) continue;
+                        if (string.IsNullOrEmpty(s.Signature) || s.Signature.IndexOf(':') < 0) continue;
+                        foreach (var b in CppText.ParseBases(s.Signature))
+                        {
+                            string key = CppText.BaseTypeName(b);
+                            if (string.IsNullOrEmpty(key)) continue;
+                            if (!m.TryGetValue(key, out var l)) m[key] = l = new List<SymbolInfo>();
+                            l.Add(s);
+                            edges++;
+                        }
+                    }
+                }
+                return m;
+            });
+            L.Info("mcp.derived.built", null, ("files", files), ("edges", edges), ("includeNonProject", includeNonProject), ("ms", Math.Round(sw.Elapsed.TotalMilliseconds, 1)));
+            lock (_derivedGate) _derived = (manifest, includeNonProject, built);
+            return built;
+        }
+
+        private static bool IsHeader(string path) =>
+            path != null && (path.EndsWith(".h", StringComparison.OrdinalIgnoreCase) || path.EndsWith(".hpp", StringComparison.OrdinalIgnoreCase) ||
+                             path.EndsWith(".hh", StringComparison.OrdinalIgnoreCase) || path.EndsWith(".hxx", StringComparison.OrdinalIgnoreCase) ||
+                             path.EndsWith(".inl", StringComparison.OrdinalIgnoreCase));
 
         public async Task<Answer<MembersResponse>> GetMembersAsync(MembersRequest req, CancellationToken ct)
         {
@@ -447,6 +484,9 @@ namespace UEToVS.Mcp.Data
             _ct = ct;
         }
 
+        /// <summary>Derived types outside the project (engine classes deriving from the root) too.</summary>
+        public bool IncludeNonProject { get; set; }
+
         private int MaxNodes => _req.MaxNodes > 0 ? Math.Min(_req.MaxNodes, 5000) : 500;
         private int MaxDepth => _req.MaxDepth > 0 ? Math.Min(_req.MaxDepth, 32) : 8;
 
@@ -487,7 +527,7 @@ namespace UEToVS.Mcp.Data
         private List<TypeHierarchyNode> Derived(string name, int depth, HashSet<string> seen)
         {
             var list = new List<TypeHierarchyNode>();
-            foreach (var d in _index.DerivedFromOccurrences(name, Math.Max(1, MaxNodes - _nodes), _ct))
+            foreach (var d in _index.DerivedTypes(name, IncludeNonProject, Math.Max(1, MaxNodes - _nodes), _ct))
             {
                 if (_nodes >= MaxNodes) break;
                 _nodes++;

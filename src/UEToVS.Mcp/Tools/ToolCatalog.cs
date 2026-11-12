@@ -596,7 +596,8 @@ namespace UEToVS.Mcp.Tools
                 "\"type_name\":{\"type\":\"string\",\"description\":\"Type name, optionally qualified.\"}," + CaretProps + "," +
                 "\"direction\":{\"type\":\"string\",\"enum\":[\"bases\",\"derived\",\"both\"],\"description\":\"Default both.\"}," +
                 "\"max_depth\":{\"type\":\"integer\",\"minimum\":1,\"maximum\":16,\"description\":\"Tree depth (default 4).\"}," +
-                "\"max_nodes\":{\"type\":\"integer\",\"minimum\":1,\"maximum\":2000,\"description\":\"Total nodes (default 200).\"}"),
+                "\"max_nodes\":{\"type\":\"integer\",\"minimum\":1,\"maximum\":2000,\"description\":\"Total nodes (default 200).\"}," +
+                "\"scope\":{\"type\":\"string\",\"enum\":[\"project\",\"all\"],\"description\":\"Where to look for derived types. " + ScopeDesc + "\"}"),
             TypeHierarchyAsync);
 
         private async Task<ToolOutput> TypeHierarchyAsync(ToolArgs a, CancellationToken ct)
@@ -624,7 +625,8 @@ namespace UEToVS.Mcp.Tools
                 req.Container = ident?.Qualifier;
                 if (req.TypeName == null) throw ToolArgs.Invalid("no identifier at that position");
             }
-            var th = await _index.GetTypeHierarchyAsync(req, ct).ConfigureAwait(false);
+            bool allScope = a.Choice("scope", "project", "project", "all") == "all";
+            var th = await _index.GetTypeHierarchyAsync(req, ct, allScope).ConfigureAwait(false);
             int nodes = 0;
             JsonArray Tree(List<TypeHierarchyNode> list)
             {
