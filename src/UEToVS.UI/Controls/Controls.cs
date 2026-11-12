@@ -20,7 +20,13 @@ namespace UEToVS.UI.Controls
     {
         private ButtonKind _kind;
 
-        public UiButton() : this(null, ButtonKind.Secondary) { }
+        public UiButton() : this((string)null, ButtonKind.Secondary) { }
+
+        /// <summary>Localized label (re-read on language change).</summary>
+        public UiButton(Func<string> text, ButtonKind kind = ButtonKind.Secondary) : this(text?.Invoke(), kind)
+        {
+            if (text != null) Strings.Track(this, () => { var t = text(); Content = t; AutomationProperties.SetName(this, t ?? string.Empty); });
+        }
 
         public UiButton(string text, ButtonKind kind = ButtonKind.Secondary)
         {
@@ -71,16 +77,24 @@ namespace UEToVS.UI.Controls
     /// <summary>Square ghost button with an icon (moniker or vector glyph) and a tooltip.</summary>
     public class IconButton : UiButton
     {
-        public IconButton(ImageMoniker moniker, string tooltip, string shortcut = null) : base(null, ButtonKind.Ghost)
+        public IconButton(ImageMoniker moniker, string tooltip, string shortcut = null) : base((string)null, ButtonKind.Ghost)
         {
             Init(tooltip, shortcut);
             Content = new UiIcon(moniker);
         }
 
-        public IconButton(Geometry glyph, string tooltip, string shortcut = null, double glyphSize = 10) : base(null, ButtonKind.Ghost)
+        public IconButton(Geometry glyph, string tooltip, string shortcut = null, double glyphSize = 10) : base((string)null, ButtonKind.Ghost)
         {
             Init(tooltip, shortcut);
             Content = IconContent.Glyph(glyph, glyphSize);
+        }
+
+        /// <summary>Localized tooltip variant.</summary>
+        public IconButton(Geometry glyph, Func<string> tooltip, string shortcut = null, double glyphSize = 10) : base((string)null, ButtonKind.Ghost)
+        {
+            Init(null, null);
+            Content = IconContent.Glyph(glyph, glyphSize);
+            Tip.Set(this, tooltip, shortcut);
         }
 
         private void Init(string tooltip, string shortcut)
@@ -102,6 +116,12 @@ namespace UEToVS.UI.Controls
     /// <summary>Icon toggle (e.g. preview on/off) — ghost look, accent tint when checked.</summary>
     public class IconToggle : ToggleButton
     {
+        /// <summary>Localized tooltip variant.</summary>
+        public IconToggle(Geometry glyph, Func<string> tooltip, string shortcut = null, double glyphSize = 11) : this(glyph, (string)null, null, glyphSize)
+        {
+            Tip.Set(this, tooltip, shortcut);
+        }
+
         public IconToggle(Geometry glyph, string tooltip, string shortcut = null, double glyphSize = 11)
         {
             Style = Styles.ToggleButtonStyle(ButtonKind.Ghost);
@@ -130,7 +150,12 @@ namespace UEToVS.UI.Controls
     /// <summary>On/off switch with a label.</summary>
     public class UiToggle : ToggleButton
     {
-        public UiToggle() : this(null) { }
+        public UiToggle() : this((string)null) { }
+
+        public UiToggle(Func<string> label, bool isOn = false) : this(label?.Invoke(), isOn)
+        {
+            if (label != null) Strings.Track(this, () => { Content = label(); AutomationProperties.SetName(this, label() ?? string.Empty); });
+        }
 
         public UiToggle(string label, bool isOn = false)
         {
@@ -150,7 +175,12 @@ namespace UEToVS.UI.Controls
     /// <summary>Themed check box.</summary>
     public class UiCheckBox : CheckBox
     {
-        public UiCheckBox() : this(null) { }
+        public UiCheckBox() : this((string)null) { }
+
+        public UiCheckBox(Func<string> label, bool isChecked = false) : this(label?.Invoke(), isChecked)
+        {
+            if (label != null) Strings.Track(this, () => { Content = label(); AutomationProperties.SetName(this, label() ?? string.Empty); });
+        }
 
         public UiCheckBox(string label, bool isChecked = false)
         {
@@ -167,7 +197,12 @@ namespace UEToVS.UI.Controls
         private readonly TextBlock _label = new TextBlock { VerticalAlignment = VerticalAlignment.Center };
         private readonly TextBlock _count = new TextBlock { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(5, 0, 0, 0), Visibility = Visibility.Collapsed };
 
-        public Chip() : this(null) { }
+        public Chip() : this((string)null) { }
+
+        public Chip(Func<string> text, bool isChecked = false) : this(text?.Invoke(), isChecked)
+        {
+            if (text != null) Strings.Track(this, () => Text = text());
+        }
 
         public Chip(string text, bool isChecked = false)
         {
@@ -289,6 +324,17 @@ namespace UEToVS.UI.Controls
     /// <summary>Tooltip helper: themed ToolTip with optional keycap shortcut.</summary>
     public static class Tip
     {
+        /// <summary>Localized tooltip: re-created when the UI language changes.</summary>
+        public static void Set(FrameworkElement element, Func<string> text, string shortcut = null)
+        {
+            if (element == null || text == null) return;
+            Strings.Track(element, () =>
+            {
+                Set(element, text(), shortcut);
+                AutomationProperties.SetName(element, text() ?? string.Empty);
+            });
+        }
+
         public static void Set(FrameworkElement element, string text, string shortcut = null)
         {
             if (element == null) return;
@@ -308,6 +354,11 @@ namespace UEToVS.UI.Controls
     /// <summary>Clickable link text (Enter/Space when focused).</summary>
     public class LinkText : TextBlock
     {
+        public LinkText(Func<string> text) : this(text?.Invoke())
+        {
+            if (text != null) Strings.Track(this, () => { Text = text() ?? string.Empty; AutomationProperties.SetName(this, Text); });
+        }
+
         public LinkText(string text)
         {
             Text = text ?? string.Empty;

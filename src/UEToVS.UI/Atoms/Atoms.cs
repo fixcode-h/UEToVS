@@ -33,7 +33,13 @@ namespace UEToVS.UI.Atoms
     {
         private TextVariant _variant;
 
-        public UiText() : this(null, TextVariant.Body) { }
+        public UiText() : this((string)null, TextVariant.Body) { }
+
+        /// <summary>Localized text: re-evaluated when the UI language changes.</summary>
+        public UiText(Func<string> text, TextVariant variant = TextVariant.Body) : this(text?.Invoke(), variant)
+        {
+            if (text != null) Strings.Track(this, () => Text = text() ?? string.Empty);
+        }
 
         public UiText(string text, TextVariant variant = TextVariant.Body)
         {
@@ -257,7 +263,7 @@ namespace UEToVS.UI.Atoms
         private BadgeKind _kind = (BadgeKind)(-1);
         private bool _solid;
 
-        public Badge() : this(null, BadgeKind.Neutral) { }
+        public Badge() : this((string)null, BadgeKind.Neutral) { }
 
         public Badge(string text, BadgeKind kind, bool solid = false)
         {
@@ -325,7 +331,7 @@ namespace UEToVS.UI.Atoms
     {
         private string _shortcut;
 
-        public Kbd() : this(null) { }
+        public Kbd() : this((string)null) { }
 
         public Kbd(string shortcut)
         {
@@ -427,7 +433,7 @@ namespace UEToVS.UI.Atoms
             arc.RenderTransform = _rotate;
             Children.Add(track);
             Children.Add(arc);
-            AutomationProperties.SetName(this, Loc.T("common.loading"));
+            Strings.Track(this, () => AutomationProperties.SetName(this, Strings.CommonLoading));
             IsVisibleChanged += (s, e) => Ui.Safe("ui.spinner.visible", Update);
             Focusable = false;
         }

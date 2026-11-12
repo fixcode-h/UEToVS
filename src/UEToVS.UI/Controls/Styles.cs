@@ -282,9 +282,9 @@ namespace UEToVS.UI.Controls
             ph.SetValue(UIElement.VisibilityProperty, Visibility.Collapsed);
             ph.SetValue(TextBlock.TextTrimmingProperty, TextTrimming.CharacterEllipsis);
             ph.SetResourceReference(TextBlock.ForegroundProperty, Tokens.InputPlaceholder);
-            var host = new FrameworkElementFactory(typeof(ScrollViewer), "PART_ContentHost");
-            host.SetValue(ScrollViewer.HorizontalScrollBarVisibilityProperty, ScrollBarVisibility.Hidden);
-            host.SetValue(ScrollViewer.VerticalScrollBarVisibilityProperty, ScrollBarVisibility.Hidden);
+            var host = new FrameworkElementFactory(typeof(System.Windows.Controls.ScrollViewer), "PART_ContentHost");
+            host.SetValue(System.Windows.Controls.ScrollViewer.HorizontalScrollBarVisibilityProperty, ScrollBarVisibility.Hidden);
+            host.SetValue(System.Windows.Controls.ScrollViewer.VerticalScrollBarVisibilityProperty, ScrollBarVisibility.Hidden);
             host.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
             host.SetValue(Control.FocusVisualStyleProperty, null);
             grid.AppendChild(ph);
