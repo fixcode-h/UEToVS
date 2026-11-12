@@ -219,6 +219,15 @@ namespace UEToVS.Host.Logic.Settings
 
         /// <summary>Per VS category family/size, only the ones that differ from the defaults (Logic/Fonts/VsFontSettingsText).</summary>
         public string VsFonts { get; set; } = string.Empty;
+        // ---- v0.4.5 构建结果 / 错误列表
+        /// <summary>Squiggles for the last build's compiler errors / warnings (independent of the IntelliSense takeover).</summary>
+        public bool BuildErrorSquiggles { get; set; } = true;
+
+        /// <summary>UEToVS diagnostics (UE rule squiggles of open files) in the VS Error List, source "UEToVS".</summary>
+        public bool ErrorListEnabled { get; set; } = true;
+
+        /// <summary>Also list the parsed build errors under "UEToVS" (VS already lists most of them under "Build").</summary>
+        public bool ErrorListIncludeBuild { get; set; }
 
         public HostSettings Clone() => (HostSettings)MemberwiseClone();
     }

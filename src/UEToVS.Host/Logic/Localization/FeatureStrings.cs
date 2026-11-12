@@ -32,7 +32,7 @@ namespace UEToVS.Host.Logic.Localization
         public static string CmdSetBookmark(int d) => Loc.T($"设置书签 {d}", $"Set Bookmark {d}");
         public static string CmdGoToBookmark(int d) => Loc.T($"转到书签 {d}", $"Go to Bookmark {d}");
         public static string CmdLiveCoding => Loc.T("Live Coding 编译（UE 编辑器）", "Live Coding (Unreal Editor)");
-        public static string CmdGenerateProjectFiles => Loc.T("生成工程文件", "Generate Project Files");
+        public static string CmdGenerateProjectFiles => Loc.T("生成 Visual Studio 项目文件", "Generate Visual Studio Project Files");
         public static string CmdInstallEditorPlugin => Loc.T("安装 UE 编辑器插件 UEToVSLink 到当前项目", "Install the UEToVSLink Editor Plugin into the Project");
         public static string CmdOpenAssetInEditor => Loc.T("在 UE 编辑器中打开资产", "Open Asset in Unreal Editor");
 

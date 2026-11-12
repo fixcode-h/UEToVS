@@ -38,7 +38,9 @@ namespace UEToVS.Mcp.Server
             "search_lua_files, get_lua_outline.\n" +
             "Read only the lines you need around the returned line. Lines/columns are 1-based; lists are paged (limit/offset); scope='all' adds engine code.\n" +
             "Grep only what is not indexed: string literals, comments, log text, .uplugin contents, Lua call sites. If results look empty or stale, " +
-            "call index_status (indexing may still run) and fall back to grep.";
+            "call index_status (indexing may still run) and fall back to grep.\n" +
+            "Self-check: after editing C++ call get_diagnostics on the changed files (UE/UHT/replication rules); after a build call get_build_errors " +
+            "instead of reading the build log. Rename symbols with rename_symbol (preview first, apply=true writes; adds Core Redirects).";
 
         public static McpServerOptions CreateOptions(ToolInvoker invoker)
         {
@@ -116,7 +118,7 @@ namespace UEToVS.Mcp.Server
             Title = t.Title,
             Description = t.Description,
             InputSchema = t.InputSchema,
-            Annotations = new ToolAnnotations { Title = t.Title, ReadOnlyHint = true, IdempotentHint = true, DestructiveHint = false, OpenWorldHint = false },
+            Annotations = new ToolAnnotations { Title = t.Title, ReadOnlyHint = t.ReadOnly, IdempotentHint = t.ReadOnly, DestructiveHint = false, OpenWorldHint = false },
         };
 
         public const string Guide =
@@ -145,6 +147,9 @@ Lua scripts are indexed separately when Lua script folders are set (UEToVS setti
 | ini keys, UPROPERTY(config) ↔ ini, console variables, gameplay tags | `search_config` (`kinds`) |
 | Who binds a function to a delegate / input / timer | `find_delegate_bindings` |
 | Is the index complete? | `index_status` |
+| Did my edit break a UE / UHT / replication rule? | `get_diagnostics` (`path` / `paths`) |
+| Errors / warnings of the last VS build | `get_build_errors` (`file`, `severity`) |
+| Rename a symbol everywhere (preview, then `apply=true`) | `rename_symbol` |
 
 Use these before Grep/Glob or reading whole files. Grep is still the tool for what is not indexed: string literals, comments,
 log text, `.uplugin` contents, and call sites of Lua functions (Lua references are not indexed; `find_references` and

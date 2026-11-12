@@ -36,6 +36,12 @@
     <ProjectReference Include="..\UEToVS.Engine\UEToVS.Engine.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <!-- v0.4.5 rename_symbol: the host's rename planning (pure logic, no VS types) compiled in as linked sources. -->
+    <Compile Include="..\UEToVS.Host\Logic\Refactoring\RenamePlanner.cs" Link="Shared\RenamePlanner.cs" />
+    <Compile Include="..\UEToVS.Host\Logic\Refactoring\TextEdits.cs" Link="Shared\TextEdits.cs" />
+    <Compile Include="..\UEToVS.Host\Logic\Refactoring\CppTextScan.cs" Link="Shared\CppTextScan.cs" />
+  </ItemGroup>
+  <ItemGroup>
     <InternalsVisibleTo Include="UEToVS.Mcp.Tests" />
   </ItemGroup>
 </Project>

@@ -93,7 +93,7 @@ namespace UEToVS.Host.IntelliSense
     /// then these are the user's only error marks. Requests the viewport ± 50 lines after an edit pause (500 ms) or a scroll out
     /// of the checked lines (200 ms); a newer request cancels the older one (<see cref="LatestRequestGate"/>); answers for another
     /// text version are dropped; until the new answer arrives the old squiggles are translated through the edits (no flicker).
-    /// The include check runs again only when the file's #include lines change. Error List integration is out of scope.
+    /// The include check runs again only when the file's #include lines change. v0.4.5: the items also go to the Error List (Build/ErrorListService.cs).
     /// </summary>
     internal sealed class CodeDiagnosticsTagger : ITagger<IErrorTag>
     {
@@ -297,6 +297,8 @@ namespace UEToVS.Host.IntelliSense
                                                                   CodeDiagnosticText.ToolTip(d)))).ToList();
             var current = _view.TextSnapshot;
             TagsChanged?.Invoke(this, new SnapshotSpanEventArgs(new SnapshotSpan(current, 0, current.Length)));
+            // ---- v0.4.5 错误列表: the same items under source "UEToVS" (errorList.enabled)
+            UEToVS.Host.Build.ErrorListService.Instance?.SetRules(_document?.FilePath, items);
         }
 
         private void Report(string path, long version, LineRange range, EngineCallResult<CodeDiagnosticsResponse> r, List<CodeDiagnostic> items, bool includeRan, double totalMs, bool first)
@@ -325,6 +327,7 @@ namespace UEToVS.Host.IntelliSense
             _snapshot = null;
             _covered = new LineRange(0, -1);
             _coveredVersion = -1;
+            UEToVS.Host.Build.ErrorListService.Instance?.SetRules(_document?.FilePath, null); // ---- v0.4.5 错误列表
             if (had)
             {
                 var s = _view.TextSnapshot;
@@ -345,6 +348,7 @@ namespace UEToVS.Host.IntelliSense
             _gate.Dispose();
             _items = new List<(CodeDiagnostic, IErrorTag)>();
             _snapshot = null;
+            Safe.Execute(L, "errorList.closed", () => UEToVS.Host.Build.ErrorListService.Instance?.SetRules(_document?.FilePath, null)); // ---- v0.4.5 错误列表
             _view.LayoutChanged -= OnLayoutChanged;
             _view.TextBuffer.Changed -= OnBufferChanged;
             _view.Closed -= OnClosed;

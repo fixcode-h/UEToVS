@@ -105,6 +105,10 @@ namespace UEToVS.Host.Logic.Commands
         public const int ShrinkSelection = 0x0164;
         /// <summary>注释翻译 (Translation/TranslationActions.cs): editor context menu.</summary>
         public const int TranslateSelection = 0x0165;
+        // ---- v0.4.5 构建结果 / 错误列表 / 新建 UE 类 (0x0170–0x017F)
+        public const int NewUeClass = 0x0170;
+        public const int NextBuildError = 0x0171;
+        public const int ClearBuildErrors = 0x0172;
 
         // ---- M2 navigation (0x0200–0x02FF): Navigation/NavigationActions.cs
         public const int GoToDefinition = 0x0200;
@@ -149,6 +153,8 @@ namespace UEToVS.Host.Logic.Commands
         public const int TbGoToDefinition = 0x0484;
         public const int TbFindReferences = 0x0485;
         public const int TbPerformance = 0x0486;
+        // ---- v0.4.5 构建结果 / 新建 UE 类
+        public const int TbGenerateProjectFiles = 0x0487;
 
         // ---- M4 refactoring (0x0700–0x07FF): Refactoring/RefactoringFeature.cs
         public const int QuickActions = 0x0700;
@@ -199,6 +205,11 @@ namespace UEToVS.Host.Logic.Commands
             public const string QuickActions = "uetovs.refactor.quickActions";
             public const string Rename = "uetovs.refactor.rename";
             public const string ImplementVirtual = "uetovs.refactor.implementVirtual";
+
+            // ---- v0.4.5 构建结果 / 错误列表 / 新建 UE 类 (Build/BuildFeature.cs)
+            public const string NewUeClass = "uetovs.unreal.newClass";
+            public const string NextBuildError = "uetovs.build.nextError";
+            public const string ClearBuildErrors = "uetovs.build.clearErrors";
         }
 
         private static CommandInfo C(CommandOwner owner, int id, string name, string action, string zh, string en, string group, CommandScope scope,
@@ -254,7 +265,7 @@ namespace UEToVS.Host.Logic.Commands
 
             // Unreal (M1)
             C(M1, LiveCoding, "LiveCoding", ActionIds.LiveCoding, "Live Coding（UE 编辑器）", "Live Coding (Unreal Editor)", "unreal", Gl, "Ctrl+Alt+F11", "Ctrl+Alt+F11", "Ctrl+Alt+F11"),
-            C(M1, GenerateProjectFiles, "GenerateProjectFiles", ActionIds.GenerateProjectFiles, "生成项目文件", "Generate Project Files", "unreal", Gl, "Ctrl+Shift+Alt+U, G", null, null),
+            C(M1, GenerateProjectFiles, "GenerateProjectFiles", ActionIds.GenerateProjectFiles, "生成 Visual Studio 项目文件", "Generate Visual Studio Project Files", "unreal", Gl, "Ctrl+Shift+Alt+U, G", null, null),
             C(M1, InstallEditorPlugin, "InstallEditorPlugin", ActionIds.InstallEditorPlugin, "安装 UEToVSLink 编辑器插件", "Install UEToVSLink Editor Plugin", "unreal", Gl, "Ctrl+Shift+Alt+U, E", null, null),
 
             // tools / settings / diagnostics (host)
@@ -279,6 +290,10 @@ namespace UEToVS.Host.Logic.Commands
             C(H, ExpandSelection, "ExpandSelection", "uetovs.edit.expandSelection", "扩大选区", "Extend Selection", "navigation", Ed, "Shift+Alt+W", null, null),
             C(H, ShrinkSelection, "ShrinkSelection", "uetovs.edit.shrinkSelection", "缩小选区", "Shrink Selection", "navigation", Ed, "Ctrl+Shift+Alt+W", null, null),
             C(H, TranslateSelection, "TranslateSelection", "uetovs.translate.selection", "翻译选中内容", "Translate Selection", "tools", Gl, "Ctrl+Shift+Alt+U, T", null, null),
+            // ---- v0.4.5 构建结果 / 错误列表 / 新建 UE 类 (host; Build/BuildFeature.cs)
+            C(H, NewUeClass, "NewUeClass", ActionIds.NewUeClass, "新建 UE 类…", "New Unreal Class...", "unreal", Gl, "Ctrl+Shift+Alt+U, N", null, null),
+            C(H, NextBuildError, "NextBuildError", ActionIds.NextBuildError, "下一个编译错误", "Next Build Error", "tools", Gl, "Ctrl+Shift+Alt+U, Q", null, null),
+            C(H, ClearBuildErrors, "ClearBuildErrors", ActionIds.ClearBuildErrors, "清除编译错误标记", "Clear Build Error Marks", "tools", Gl, "Ctrl+Shift+Alt+U, X", null, null),
         };
 
         public static CommandInfo ById(int id)
@@ -322,6 +337,8 @@ namespace UEToVS.Host.Logic.Commands
             new ToolbarButtonInfo("searchEverywhere", CommandCatalog.TbSearchEverywhere, CommandCatalog.ActionIds.SearchEverywhere, "Search Everywhere", "Search Everywhere"),
             new ToolbarButtonInfo("goToDefinition", CommandCatalog.TbGoToDefinition, CommandCatalog.ActionIds.GoToDefinition, "转到定义", "Go to Definition"),
             new ToolbarButtonInfo("findReferences", CommandCatalog.TbFindReferences, CommandCatalog.ActionIds.FindReferences, "查找引用", "Find References"),
+            // ---- v0.4.5 构建结果 / 新建 UE 类
+            new ToolbarButtonInfo("generateProjectFiles", CommandCatalog.TbGenerateProjectFiles, CommandCatalog.ActionIds.GenerateProjectFiles, "生成 Visual Studio 项目文件", "Generate Visual Studio Project Files"),
             new ToolbarButtonInfo("performance", CommandCatalog.TbPerformance, CommandCatalog.ActionIds.ShowPerformancePanel, "性能面板", "Performance Panel"),
         };
 
