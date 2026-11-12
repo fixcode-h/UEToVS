@@ -63,7 +63,8 @@ namespace UEToVS.Engine.Syntax
         private readonly List<TextRange> _docs;
         private readonly List<Declaration> _macros;
         private readonly StringBuilder _sb;
-        private readonly StringBuilder _sb2 = new StringBuilder(128);
+        private readonly int _bufLen;
+        private int _markA, _markB;
         private readonly HashSet<string> _namespaces = new HashSet<string>(StringComparer.Ordinal);
         private readonly int _maxSig;
         private int _p;
@@ -89,7 +90,8 @@ namespace UEToVS.Engine.Syntax
             _docs = docs;
             _macros = macros;
             _sb = scratch;
-            _maxSig = Math.Max(16, options.MaxSignatureLength);
+            _maxSig = Math.Clamp(options.MaxSignatureLength, 16, 8192);
+            _bufLen = _maxSig + 64;
             Diagnostics = diagnostics;
         }
 
@@ -208,7 +210,7 @@ namespace UEToVS.Engine.Syntax
         private int SkipAngles(int lt)
         {
             int depth = 0, parens = 0;
-            int limit = lt + 2000;
+            int limit = lt + 1024; // bounds the cost on pathological "a<b<c<..." input
             for (int i = lt; i < limit; i++)
             {
                 ref var t = ref T(i);
@@ -1405,14 +1407,14 @@ namespace UEToVS.Engine.Syntax
                 if (K(i, Keyword.Operator))
                 {
                     nm.NameTok = i;
-                    _sb2.Clear();
-                    _sb2.Append("operator");
+                    var w = new CharWriter(stackalloc char[_bufLen]);
+                    w.Append("operator");
                     ref var first = ref T(i + 1);
                     bool word = first.Kind == TokenKind.Identifier || first.Kind == TokenKind.Keyword;
                     nm.IsConversion = word && !first.Is(Keyword.New) && !first.Is(Keyword.Delete);
-                    if (word) _sb2.Append(' ');
-                    AppendRange(_sb2, i + 1, end, false, false);
-                    nm.Simple = _sb2.ToString();
+                    if (word) w.Append(' ');
+                    AppendRange(ref w, i + 1, end, false, false);
+                    nm.Simple = w.ToString(_maxSig);
                     return nm;
                 }
                 if (P(i, Punct.Tilde))
@@ -1627,17 +1629,22 @@ namespace UEToVS.Engine.Syntax
             d.NameLength = Math.Max(1, T(nm.NameEnd - 1).End - T(nm.NameTok).Start);
             d.Modifiers |= mods;
             d.IsDefinition = isDefinition;
-            d.Parameters = Render(open + 1, closeParen, true);
             if (!isCtor && !nm.IsDtor)
             {
                 d.Type = Render(start, NameQualStart(nm, start), true, -1, true);
                 if (trailingType != null && (d.Type == "auto" || d.Type.Length == 0)) d.Type = trailingType;
             }
-            _sb.Clear();
-            AppendRange(_sb, start, sigEnd, true, false);
-            if ((mods & DeclModifiers.Pure) != 0 && !macroBody) _sb.Append(" = 0");
-            TextUtil.Truncate(_sb, _maxSig);
-            d.Signature = _sb.ToString();
+            {
+                var w = new CharWriter(stackalloc char[_bufLen]);
+                _markA = _markB = -1;
+                AppendRange(ref w, start, sigEnd, true, false, open, closeParen);
+                // the parameter text is the part of the signature between the parentheses
+                if (_markA >= 0 && closeParen == open + 1) d.Parameters = string.Empty;
+                else if (_markA >= 0 && _markB >= _markA && _markB < _maxSig) d.Parameters = w.Slice(_markA, _markB - _markA);
+                else d.Parameters = Render(open + 1, closeParen, true);
+                if ((mods & DeclModifiers.Pure) != 0 && !macroBody) w.Append(" = 0");
+                d.Signature = w.ToString(_maxSig);
+            }
             int index = Add(d);
 
             if (bodyOpen == -2) bodyOpen = ScanInitList(j + 1, index);
@@ -1694,6 +1701,8 @@ namespace UEToVS.Engine.Syntax
 
         private void ParseVariables(Scope scope, ref Prefix pre, int start, DeclModifiers mods, int nameStart, int nameEnd, int stop, DeclMode mode)
         {
+            Span<char> sigBuf = stackalloc char[_bufLen];
+            Span<char> typeBuf = stackalloc char[_bufLen];
             var nm = AnalyzeName(nameStart, nameEnd, false);
             int typeEnd = NameQualStart(nm, start);
             bool fnPtr = nameEnd < stop && P(nameEnd, Punct.RParen);
@@ -1717,25 +1726,24 @@ namespace UEToVS.Engine.Syntax
                 d.Modifiers |= mods;
                 d.IsDefinition = (mods & DeclModifiers.Extern) == 0;
                 d.Type = type;
-                _sb.Clear();
-                if (mode == DeclMode.Typedef) _sb.Append("typedef ");
+                var w = new CharWriter(sigBuf);
+                if (mode == DeclMode.Typedef) w.Append("typedef ");
                 if (declStart == start)
                 {
-                    AppendRange(_sb, start, nm.NameEnd, true, false);
+                    AppendRange(ref w, start, nm.NameEnd, true, false);
                 }
                 else
                 {
-                    _sb.Append(baseType);
-                    _sb.Append(' ');
-                    AppendRange(_sb, declStart, nm.NameEnd, true, false);
+                    w.Append(baseType);
+                    w.Append(' ');
+                    AppendRange(ref w, declStart, nm.NameEnd, true, false);
                 }
                 // function pointer declarators keep their parameter list
                 if (nm.NameEnd < stop && P(nm.NameEnd, Punct.RParen))
                 {
-                    AppendRange(_sb, nm.NameEnd, stop, true, false);
+                    AppendRange(ref w, nm.NameEnd, stop, true, false);
                 }
-                TextUtil.Truncate(_sb, _maxSig);
-                d.Signature = _sb.ToString();
+                d.Signature = w.ToString(_maxSig);
                 Add(d);
 
                 // rest of this declarator
@@ -1789,13 +1797,13 @@ namespace UEToVS.Engine.Syntax
                     break;
                 }
                 // type text for this declarator: base type plus its own pointer/ref tokens
-                _sb2.Clear();
-                _sb2.Append(baseType);
+                var tw = new CharWriter(typeBuf);
+                tw.Append(baseType);
                 for (int k = declStart; k < nm.NameTok; k++)
                 {
-                    if (P(k, Punct.Star) || P(k, Punct.Amp) || P(k, Punct.AmpAmp)) AppendTokenText(_sb2, k);
+                    if (P(k, Punct.Star) || P(k, Punct.Amp) || P(k, Punct.AmpAmp)) AppendTokenText(ref tw, k);
                 }
-                type = _sb2.ToString();
+                type = tw.ToString(_maxSig);
             }
             _p = j;
         }
@@ -1870,7 +1878,7 @@ namespace UEToVS.Engine.Syntax
             int s = T(open).End;
             int e = close > open ? T(close).Start : s;
             if (e <= s) return string.Empty;
-            return TextUtil.Collapse(new ReadOnlySpan<byte>(_src, s, e - s), _sb2, 1000);
+            return TextUtil.Collapse(new ReadOnlySpan<byte>(_src, s, e - s), _sb, 1000);
         }
 
         private TextRange FindDoc(int firstTok)
@@ -1927,15 +1935,16 @@ namespace UEToVS.Engine.Syntax
         /// </summary>
         private string Render(int from, int to, bool skipNoise, int cut = -1, bool skipModifiers = false)
         {
-            _sb2.Clear();
-            AppendRange(_sb2, from, cut >= 0 ? cut : to, skipNoise, skipModifiers);
-            TextUtil.Truncate(_sb2, _maxSig);
-            return _sb2.ToString();
+            var w = new CharWriter(stackalloc char[_bufLen]);
+            AppendRange(ref w, from, cut >= 0 ? cut : to, skipNoise, skipModifiers);
+            return w.ToString(_maxSig);
         }
 
-        private void AppendRange(StringBuilder sb, int from, int to, bool skipNoise, bool skipModifiers)
+        // markOpen: token index after which _markA records the writer position (or -1).
+        // markClose: token index before which _markB records the writer position (or -1).
+        private void AppendRange(ref CharWriter w, int from, int to, bool skipNoise, bool skipModifiers, int markOpen = -1, int markClose = -1)
         {
-            int startLen = sb.Length;
+            int startLen = w.Length;
             bool prevOpen = true; // suppress a space after '(' / '[' / '::' / '~' and at the start
             for (int k = from; k < to && k < _n; k++)
             {
@@ -1953,7 +1962,7 @@ namespace UEToVS.Engine.Syntax
                             continue;
                         }
                     }
-                    else if (t.Is(Punct.LBracket) && P(k + 1, Punct.LBracket))
+                    else if (t.Kind == TokenKind.Punctuator && t.Sub == (byte)Punct.LBracket && P(k + 1, Punct.LBracket))
                     {
                         k = SkipAttribute(k) - 1;
                         continue;
@@ -1969,30 +1978,37 @@ namespace UEToVS.Engine.Syntax
                             continue;
                     }
                 }
-                bool closeLike = t.Kind == TokenKind.Punctuator &&
-                                 (t.Is(Punct.RParen) || t.Is(Punct.RBracket) || t.Is(Punct.Comma) || t.Is(Punct.Semicolon) || t.Is(Punct.ColonColon));
-                if (sb.Length > startLen && !prevOpen && !closeLike &&
+                bool punct = t.Kind == TokenKind.Punctuator;
+                var p = punct ? (Punct)t.Sub : Punct.None;
+                bool closeLike = punct && (p == Punct.RParen || p == Punct.RBracket || p == Punct.Comma || p == Punct.Semicolon || p == Punct.ColonColon);
+                if (k == markClose) _markB = w.Length;
+                if (w.Length > startLen && !prevOpen && !closeLike &&
                     ((t.Flags & TokenFlags.PrecededBySpace) != 0 || (k > from && _t[k - 1].End < t.Start)))
-                    sb.Append(' ');
-                AppendTokenText(sb, k);
-                prevOpen = t.Kind == TokenKind.Punctuator &&
-                           (t.Is(Punct.LParen) || t.Is(Punct.LBracket) || t.Is(Punct.ColonColon) || t.Is(Punct.Tilde));
-                if (sb.Length - startLen > _maxSig) break;
+                    w.Append(' ');
+                AppendTokenText(ref w, k);
+                if (k == markOpen) _markA = w.Length;
+                prevOpen = punct && (p == Punct.LParen || p == Punct.LBracket || p == Punct.ColonColon || p == Punct.Tilde);
+                if (w.Length - startLen > _maxSig) break;
             }
         }
 
-        private void AppendTokenText(StringBuilder sb, int k)
+        private void AppendTokenText(ref CharWriter w, int k)
         {
             ref var t = ref _t[k];
             var span = new ReadOnlySpan<byte>(_src, t.Start, t.Length);
-            if (t.Kind == TokenKind.String && span.Length > 80)
+            if (t.Kind == TokenKind.Punctuator || t.Kind == TokenKind.Identifier || t.Kind == TokenKind.Keyword || t.Kind == TokenKind.Number)
             {
-                TextUtil.AppendUtf8(sb, span.Slice(0, 76));
-                sb.Append("…\"");
+                w.AppendUtf8(span);
                 return;
             }
-            if (span.IndexOf((byte)'\n') >= 0) TextUtil.AppendCollapsed(sb, span);
-            else TextUtil.AppendUtf8(sb, span);
+            if (t.Kind == TokenKind.String && span.Length > 80)
+            {
+                w.AppendUtf8(span.Slice(0, 76));
+                w.Append("…\"");
+                return;
+            }
+            if (span.IndexOf((byte)'\n') >= 0) w.AppendCollapsed(span);
+            else w.AppendUtf8(span);
         }
     }
 }

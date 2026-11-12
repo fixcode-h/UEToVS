@@ -1,32 +1,23 @@
 using System;
 using System.Text;
 
+[module: System.Runtime.CompilerServices.SkipLocalsInit]
+
 namespace UEToVS.Engine.Syntax
 {
     internal static class TextUtil
     {
-        /// <summary>Appends UTF-8 bytes to a builder without allocating for ASCII.</summary>
+        /// <summary>Appends UTF-8 bytes to a builder; no allocation for short runs.</summary>
         public static void AppendUtf8(StringBuilder sb, ReadOnlySpan<byte> utf8)
         {
-            Span<char> stack = stackalloc char[128];
-            int i = 0;
-            while (i < utf8.Length)
+            if (utf8.Length == 1 && utf8[0] < 0x80)
             {
-                byte b = utf8[i];
-                if (b < 0x80)
-                {
-                    sb.Append((char)b);
-                    i++;
-                    continue;
-                }
-                int j = i + 1;
-                while (j < utf8.Length && utf8[j] >= 0x80) j++;
-                var chunk = utf8.Slice(i, j - i);
-                Span<char> buf = chunk.Length <= stack.Length ? stack : new char[chunk.Length];
-                int n = Encoding.UTF8.GetChars(chunk, buf);
-                sb.Append(buf.Slice(0, n));
-                i = j;
+                sb.Append((char)utf8[0]);
+                return;
             }
+            Span<char> buf = utf8.Length <= 256 ? stackalloc char[256] : new char[utf8.Length];
+            int n = Encoding.UTF8.GetChars(utf8, buf);
+            sb.Append(buf.Slice(0, n));
         }
 
         /// <summary>Appends text with every whitespace run (including newlines and line continuations) collapsed to one space.</summary>

@@ -4,6 +4,7 @@
     <RootNamespace>UEToVS.Engine.Syntax</RootNamespace>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
     <EmbeddedResource Include="Knowledge\UeMacros.json" LogicalName="UEToVS.Engine.Syntax.UeMacros.json" />
