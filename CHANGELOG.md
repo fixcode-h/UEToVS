@@ -8,6 +8,13 @@
 
 ## v0.3.3
 
+### 新功能
+- **GameplayTag 补全** — 在 `RequestGameplayTag(FName("…"))` / `TEXT("…")`、`UE_DEFINE_GAMEPLAY_TAG(…, "…")`、`meta=(Categories="…")` 的字符串里按 `.` 分层补全（输入 `Ability.` 列出下一层），右侧显示 DevComment；标签来自项目和项目插件的 Config/DefaultGameplayTags.ini、Config/Tags/*.ini 以及代码里的 `UE_DEFINE_GAMEPLAY_TAG*`（含当前未保存的文件）
+- **资产路径补全** — `ConstructorHelpers::FObjectFinder<T>` / `FClassFinder<T>`、`FSoftObjectPath`、`LoadObject<T>(nullptr, …)` 等的字符串以及任何以 `/Game/` 等挂载点开头的字符串里，按 `/` 逐级补全文件夹和资产，插入 `Name.Name`（类查找插入 `Name.Name_C`）；`UWorld` 只列地图，其它类型按 UE 命名约定（SM_、T_、M_、BP_ …）把更可能的资产排在前面
+- **UFUNCTION 名补全** — `BindUFunction` / `AddUFunction` / `CreateUFunction` 的函数名字符串补全目标对象类型（`this` 时为所在类）的 UFUNCTION，`Obj->FindFunction(TEXT("…"))` 补全 `Obj` 类型的 UFUNCTION；非 UFUNCTION 的成员不列出
+- **ini 键补全** — `GConfig->GetString/GetBool/GetInt…(TEXT("Section"), TEXT("Key"), …, GGameIni)` 的 section 和 key 补全，来源为项目 Config/*.ini，按 `GGameIni` / `GEngineIni` 等过滤对应文件；普通字符串（日志文本等）不会弹出列表
+- **#include 补全后立即检查模块依赖** — 选中的头文件属于当前模块 Build.cs 未依赖的模块时，提交后马上弹出“添加到 Public/PrivateDependencyModuleNames”横幅，不必等保存
+
 ### 改进
 - **每个命令都有默认快捷键** — 之前很多命令（最近位置、上/下一个编辑位置、文件结构、Search Everywhere、转到类型/文件等）没有默认键。现在全部补齐：Search Everywhere Ctrl+T，转到类型 Shift+Alt+T，最近文件/位置 Shift+Alt+E / Shift+Alt+L，上/下一个编辑位置 Ctrl+Shift+Backspace / Ctrl+Shift+Alt+Backspace，文件结构 Ctrl+Shift+Alt+M，导航到 Shift+Alt+N，转到资产 Shift+Alt+B，相关项 Shift+Alt+R，书签 Ctrl+F2 / Ctrl+Shift+F2；设置、日志、诊断、生成工程文件等工具命令统一为 Ctrl+Shift+Alt+U 再按一个字母（如 U, S 打开设置）。Rider / VS 预设里没有对应键的命令沿用这套默认
 - **快捷键冲突时 UEToVS 优先** — 默认键、套用预设和在快捷键页修改时，如果 VS 自带命令占用了同一按键（含和弦前缀、编辑器范围遮挡全局范围的情况），会把该按键从 VS 命令上移除，让 UEToVS 生效；改动前自动备份，“还原上次备份”可一键恢复。用户自己给 UEToVS 命令设置的键不会被覆盖
