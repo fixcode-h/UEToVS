@@ -148,6 +148,9 @@ namespace UEToVS.Engine.IntelliSense
             public AssetEntry[] Source;
             public Dictionary<string, List<string>> Children = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
             public HashSet<string> Mounts = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            /// <summary>Package folder (any case) → the interned instance the asset entries share (scan by reference).</summary>
+            public Dictionary<string, string> Leaf = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         }
 
         private AssetFolders Folders(AssetEntry[] snap)
@@ -163,6 +166,7 @@ namespace UEToVS.Engine.IntelliSense
                     string dir = a.PackageDir;
                     if (dir == null || ReferenceEquals(dir, last)) continue;
                     last = dir;
+                    f.Leaf[dir] = dir;
                     // add the folder and its ancestors: "/Game/A/B" → "/Game" ⊃ "A" ⊃ "B"
                     while (dir.Length > 1 && seen.Add(dir))
                     {
@@ -184,15 +188,18 @@ namespace UEToVS.Engine.IntelliSense
         }
 
         /// <summary>Assets directly in <paramref name="dir"/> (one-entry cache: typing stays in the same folder).</summary>
-        private List<AssetEntry> AssetsIn(AssetEntry[] snap, string dir)
+        private List<AssetEntry> AssetsIn(AssetEntry[] snap, AssetFolders folders, string dir)
         {
+            if (!folders.Leaf.TryGetValue(dir, out var leaf)) return new List<AssetEntry>();
+            dir = leaf;
             lock (_assetGate)
             {
                 if (ReferenceEquals(_dirAssets.Source, snap) && string.Equals(_dirAssets.Dir, dir, StringComparison.OrdinalIgnoreCase)) return _dirAssets.Assets;
             }
             var list = new List<AssetEntry>();
+            // package folders are interned by the asset table: a reference compare per entry
             foreach (var a in snap)
-                if (a.PackageDir != null && a.PackageDir.Length == dir.Length && string.Equals(a.PackageDir, dir, StringComparison.OrdinalIgnoreCase)) list.Add(a);
+                if (ReferenceEquals(a.PackageDir, dir)) list.Add(a);
             lock (_assetGate) _dirAssets = (snap, dir, list);
             return list;
         }
@@ -295,7 +302,7 @@ namespace UEToVS.Engine.IntelliSense
             int pkgDot = segment.IndexOf('.');
             string package = pkgDot >= 0 ? segment.Substring(0, pkgDot) : null;
             int added = 0;
-            foreach (var a in AssetsIn(snap, dir))
+            foreach (var a in AssetsIn(snap, folders, dir))
             {
                 candidates++;
                 if (worldOnly != a.IsMap && (worldOnly || cls != null || ss.WantsClass)) continue;

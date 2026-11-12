@@ -309,6 +309,40 @@ namespace UEToVS.Engine.Tests
         }
 
         [Fact]
+        public void AssetPath_LargeTableStaysWithinBudget()
+        {
+            // 300 000 assets in 3 000 folders: folder tree built once, each request scans the compact snapshot once
+            var assets = new UEToVS.Engine.Indexing.AssetTable();
+            for (int d = 0; d < 3000; d++)
+                for (int a = 0; a < 100; a++)
+                {
+                    string dir = "/Game/Area" + (d / 100) + "/Set" + d;
+                    string name = (a % 3 == 0 ? "SM_" : "T_") + "Item" + a;
+                    assets.Upsert(new AssetItem { Name = name, ObjectPath = dir + "/" + name + "." + name, FilePath = "/p/Content" + dir + "/" + name + ".uasset", Origin = ItemOrigin.Project });
+                }
+            var service = new IntelliSenseService(_f.Backend, _f.Files, assets: assets);
+            string path = _f.PathOf("IS/Game/Private/TagUser.cpp");
+            string baseText = System.IO.File.ReadAllText(path);
+            var times = new List<double>();
+            for (int i = 0; i < 40; i++)
+            {
+                string line = "\tUStaticMesh* M = LoadObject<UStaticMesh>(nullptr, TEXT(\"/Game/Area" + (i * 37 % 3000 / 100) + "/Set" + (i * 37 % 3000) + "/SM_";
+                string text = baseText.Replace("\tFString S;", line + "\n\tFString S;");
+                int lineNo = text.Substring(0, text.IndexOf(line, StringComparison.Ordinal)).Count(ch => ch == '\n');
+                var r = service.GetCompletions(new CompletionRequest
+                {
+                    Caret = new CaretRequest { FilePath = path, Text = text, TextVersion = 70000 + i, Line = lineNo, Column = line.Length },
+                }, CancellationToken.None);
+                if (i > 0) times.Add(r.ElapsedMs);
+                Assert.Equal(34, r.Items.Count); // SM_Item0, 3, 6 … 99
+            }
+            times.Sort();
+            double p95 = times[(int)(times.Count * 0.95) - 1];
+            _out.WriteLine($"asset completion p95 {p95} ms (max {times[^1]})");
+            Assert.True(p95 < 50, "p95 " + p95);
+        }
+
+        [Fact]
         public void Logging_CarriesStringContextAndCandidates()
         {
             using var sink = new CapturingLogSink();
