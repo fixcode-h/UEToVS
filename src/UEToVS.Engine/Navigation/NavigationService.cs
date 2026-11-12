@@ -688,7 +688,10 @@ namespace UEToVS.Engine.Navigation
             }
             _highlights.Add(cacheKey, resp);
             resp.ElapsedMs = Math.Round(sw.Elapsed.TotalMilliseconds, 2);
-            if (resp.ElapsedMs > 20 || Log.IsEnabled(LogLevel.Debug))
+            if (resp.ElapsedMs > 20)
+                L.Warn("nav.highlights.slow", "Reference highlighting over its 20 ms budget", ("word", word), ("spans", resp.Spans.Count),
+                    ("tokens", doc.Tokens.Length), ("bytes", doc.Text.Length), ("ms", resp.ElapsedMs));
+            else
                 L.Debug("nav.highlights", null, ("word", word), ("spans", resp.Spans.Count), ("tokens", doc.Tokens.Length), ("ms", resp.ElapsedMs));
             return resp;
         }

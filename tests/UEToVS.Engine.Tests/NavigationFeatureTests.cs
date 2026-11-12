@@ -382,6 +382,31 @@ namespace UEToVS.Engine.Tests
         }
 
         [Fact]
+        public void SyntaxFileParser_IndexesBasesAndDeclarationContextUses_ForProjectFilesOnly()
+        {
+            const string text = "UCLASS()\nclass MYGAME_API AFoo : public AActor, public TSharedFromThis<AFoo>\n{\n\tGENERATED_BODY()\n" +
+                                "\tUPROPERTY(EditAnywhere)\n\tTObjectPtr<UBar> Bar;\n\tvoid Use(const FVector& V);\n\tvoid Inline() { Bar->Go(); }\n};\n";
+            var parser = new SyntaxFileParser();
+            Index.FileSymbols Parse(ItemOrigin origin) => (Index.FileSymbols)parser.Parse(new FileContext { Path = "/p/Foo.h", Origin = origin, Kind = Unreal.SourceFileKind.Header },
+                Encoding.UTF8.GetBytes(text), CancellationToken.None).Payload;
+
+            var project = Parse(ItemOrigin.Project);
+            Assert.Equal(new[] { "AActor", "TSharedFromThis<AFoo>" }, project.Decls.Single(d => d.Name == "AFoo").Bases);
+            var names = project.Occurrences.Select(o => o.Name).ToList();
+            Assert.Contains("UBar", names);
+            Assert.Contains("FVector", names);
+            Assert.Contains("AActor", names);
+            Assert.Single(project.Occurrences, o => o.Name == "Go"); // body occurrences are not duplicated
+            Assert.DoesNotContain("EditAnywhere", names);             // reflection macro arguments are skipped
+            Assert.DoesNotContain("MYGAME_API", names);
+            Assert.DoesNotContain(project.Occurrences, o => o.Name == "AFoo" && o.Offset == text.IndexOf("AFoo :", StringComparison.Ordinal)); // the declared name
+
+            var engine = Parse(ItemOrigin.Engine);
+            Assert.DoesNotContain("UBar", engine.Occurrences.Select(o => o.Name));
+            Assert.Equal(project.Decls.Single(d => d.Name == "AFoo").Bases, engine.Decls.Single(d => d.Name == "AFoo").Bases);
+        }
+
+        [Fact]
         public void DocumentCache_IsBounded()
         {
             var cache = new DocumentCache(maxEntries: 4);
