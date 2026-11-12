@@ -39,7 +39,7 @@ namespace UEToVS.Host.Logic.Settings
 
         public bool IntelliSenseTakeover { get; set; } = true; // ADR-08: on by default since M3 (UEToVS provides completion, Quick Info, parameter info, colouring)
 
-        public IntelliSenseTakeoverMode IntelliSenseTakeoverMode { get; set; } = IntelliSenseTakeoverMode.Global;
+        public IntelliSenseTakeoverMode IntelliSenseTakeoverMode { get; set; } = IntelliSenseTakeoverMode.UnrealSolutionOnly;
 
         public bool DisableDatabase { get; set; } = true;
 

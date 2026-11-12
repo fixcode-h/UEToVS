@@ -75,6 +75,20 @@ namespace UEToVS.Host.Integration
             }
         }
 
+        public static bool Delete(string collection, string property)
+        {
+            try
+            {
+                var s = Store;
+                return s.CollectionExists(collection) && s.PropertyExists(collection, property) && s.DeleteProperty(collection, property);
+            }
+            catch (Exception ex)
+            {
+                L.Error("integration.settings.delete.failed", "Deleting from the VS settings store failed", ex, ("collection", collection), ("property", property));
+                return false;
+            }
+        }
+
         public static bool Set(string collection, string property, string value)
         {
             try
