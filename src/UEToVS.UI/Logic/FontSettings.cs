@@ -160,7 +160,7 @@ namespace UEToVS.UI.Logic
             "NotoSansSC-Regular.ttf", "NotoSansSC-Medium.ttf");
 
         public static readonly BundledFont MapleMonoNl = new BundledFont("Maple Mono NL", "MapleMonoNL", "Maple Mono NL", "Maple Mono NL", true,
-            "MapleMonoNL-Regular.ttf", "MapleMonoNL-Bold.ttf");
+            "MapleMonoNL-Regular.ttf"); // regular only (user 2026-11-12): bold is synthesized; saves ~5 MB
 
         public static IReadOnlyList<BundledFont> All { get; } = new[] { IbmPlexSans, NotoSansSc, MapleMonoNl };
 

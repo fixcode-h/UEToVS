@@ -174,7 +174,7 @@ def build_maple_cn(pkg_license_dir, cn_zip):
     reset_dir(out)
     unicodes = sorted(set(cjk_unicodes()) | set(range(0x100, 0x180)) | set(range(0x2200, 0x22FF)) | set(range(0x2300, 0x23FF)))
     with zipfile.ZipFile(cn_zip) as z:
-        for style in ("Regular", "Bold"):
+        for style in ("Regular",):  # regular only: WPF / VS synthesize bold; the CJK build is ~5 MB per weight
             member = next(n for n in z.namelist() if n.endswith(f"-CN-{style}.ttf"))
             font = TTFont(io.BytesIO(z.read(member)))
             features = sorted({r.FeatureTag for r in font["GSUB"].table.FeatureList.FeatureRecord} - NO_LIGATURES)
