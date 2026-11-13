@@ -107,6 +107,14 @@ namespace UEToVS.Host.Refactoring
             return context;
         }
 
+        /// <summary>Squiggles that have an Alt+Enter / light bulb fix (v0.4.5 UE0011 / UE0012, v0.5.12 UE0002–UE0006).</summary>
+        private static readonly string[] FixableCodes =
+        {
+            CodeDiagnosticCodes.DeprecatedApi, CodeDiagnosticCodes.NamingConvention,
+            CodeDiagnosticCodes.MissingModuleDependency, CodeDiagnosticCodes.MissingGeneratedBody, CodeDiagnosticCodes.GeneratedFunctionBody,
+            CodeDiagnosticCodes.MissingRepNotify, CodeDiagnosticCodes.UnregisteredReplicatedProperty,
+        };
+
         /// <summary>v0.4.5: the squiggles under the caret (current snapshot coordinates) for the Alt+Enter fixes.</summary>
         private static List<CodeDiagnostic> CaretDiagnostics(IWpfTextView view, int line, int column)
         {
@@ -116,7 +124,7 @@ namespace UEToVS.Host.Refactoring
                 if (tagger == null) return new List<CodeDiagnostic>();
                 var snapshot = view.TextBuffer.CurrentSnapshot;
                 var moved = new List<CodeDiagnostic>();
-                foreach (var (item, span) in tagger.Spans(snapshot, CodeDiagnosticCodes.DeprecatedApi, CodeDiagnosticCodes.NamingConvention))
+                foreach (var (item, span) in tagger.Spans(snapshot, FixableCodes))
                 {
                     var l = span.Start.GetContainingLine();
                     moved.Add(new CodeDiagnostic
@@ -237,7 +245,7 @@ namespace UEToVS.Host.Refactoring
             if (chosen?.Tag is ContextActionItem item) Execute(item, view, context, ActionSource.AltEnter);
         }
 
-        private static string ShortcutOf(string actionId)
+        internal static string ShortcutOf(string actionId)
         {
             var c = CommandCatalog.All.FirstOrDefault(x => x.ActionId == actionId);
             return c == null ? null : Shortcut.Display(c.VaKeys);

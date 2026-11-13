@@ -243,6 +243,11 @@ namespace UEToVS.Host.Logic.Commands
             public const string ExtractMethod = "uetovs.refactor.extractMethod";
             public const string EncapsulateField = "uetovs.refactor.encapsulateField";
             public const string GenerateGetterSetter = "uetovs.generate.getterSetter";
+            // ---- v0.5.12 灯泡菜单（mirror of Shell/ActionIds）
+            public const string GenerateConstructor = "uetovs.generate.constructor";
+            public const string GenerateReplication = "uetovs.generate.replication";
+            public const string GenerateRpc = "uetovs.generate.rpc";
+            public const string TranslateSelection = "uetovs.translate.selection";
         }
 
         private static CommandInfo C(CommandOwner owner, int id, string name, string action, string zh, string en, string group, CommandScope scope,

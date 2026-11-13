@@ -38,6 +38,7 @@ namespace UEToVS.Host.Editing
             registry.Register(new DelegateAction(EditorFeatureIds.FixNaming, EditorFeatureStrings.GroupFix, ActionCategory.Fix,
                 FixNamingAsync, ctx => ctx.Get<DiagnosticFix>(RefactorKeys.Argument) != null, null));
             RefactoringFeature.Hub.Register(new EditorFixProvider());
+            LightBulbActions.Register(registry); // v0.5.12 灯泡菜单：UE 规则修复、生成、导航、翻译、包围
             L.Debug("editor.actions.registered", null, ("count", 6));
         }
 
