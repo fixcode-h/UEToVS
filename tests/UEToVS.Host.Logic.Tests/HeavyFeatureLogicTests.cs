@@ -31,7 +31,7 @@ namespace UEToVS.Host.Logic.Tests
             Assert.True(s.ProjectInspectionEnabled);
             Assert.True(s.UpgradeAssistantEnabled);
             Assert.True(s.TemplateInstantiationEnabled);
-            Assert.True(s.InspectionIncludePlugins); // v0.5.3: on by default
+            Assert.False(s.InspectionIncludePlugins);
             Assert.Equal(2048, s.TemplateCacheCapacity);
 
             var schema = HostSettingsSchema.Build(8);
@@ -53,7 +53,7 @@ namespace UEToVS.Host.Logic.Tests
             s.UpgradeAssistantEnabled = false;
             s.TemplateInstantiationEnabled = false;
             s.TemplateCacheCapacity = 4096;
-            s.InspectionIncludePlugins = false;
+            s.InspectionIncludePlugins = true;
             var values = HostSettingsSchema.Codec.ToValues(s);
             Assert.Equal("false", values["inspection.enabled"]);
             Assert.Equal("4096", values["templates.cacheCapacity"]);
@@ -61,7 +61,7 @@ namespace UEToVS.Host.Logic.Tests
             Assert.False(back.ProjectInspectionEnabled);
             Assert.False(back.UpgradeAssistantEnabled);
             Assert.False(back.TemplateInstantiationEnabled);
-            Assert.False(back.InspectionIncludePlugins);
+            Assert.True(back.InspectionIncludePlugins);
             Assert.Equal(4096, back.TemplateCacheCapacity);
             var idx = HostSettingsSchema.Codec.ToIndexing(back);
             Assert.False(idx.ProjectInspectionEnabled);

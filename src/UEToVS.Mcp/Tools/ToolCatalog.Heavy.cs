@@ -24,7 +24,7 @@ namespace UEToVS.Mcp.Tools
             "Heavy on large projects (CPU/memory): it refuses to run when switched off in the UEToVS settings.",
             Schema(
                 "\"action\":{\"type\":\"string\",\"enum\":[\"start\",\"status\",\"results\",\"cancel\"],\"description\":\"start | status (default) | results | cancel.\"}," +
-                "\"include_plugins\":{\"type\":\"boolean\",\"description\":\"start: also inspect project plugins (default true).\"}," +
+                "\"include_plugins\":{\"type\":\"boolean\",\"description\":\"start: also inspect project plugins (default false).\"}," +
                 "\"rule\":{\"type\":\"string\",\"description\":\"results: only this rule id, e.g. UE0004.\"}," +
                 "\"file\":{\"type\":\"string\",\"description\":\"results: only files whose path contains this text.\"}," +
                 "\"fixable_only\":{\"type\":\"boolean\",\"description\":\"results: only findings with a mechanical fix.\"}," +
@@ -38,7 +38,7 @@ namespace UEToVS.Mcp.Tools
             var req = new ProjectInspectionRequest
             {
                 Action = action switch { "start" => HeavyJobAction.Start, "results" => HeavyJobAction.Results, "cancel" => HeavyJobAction.Cancel, _ => HeavyJobAction.Status },
-                IncludePlugins = a.Bool("include_plugins", true),
+                IncludePlugins = a.Bool("include_plugins", false),
                 Rule = a.String("rule", maxLength: 16),
                 File = a.String("file", maxLength: 512),
                 FixableOnly = a.Bool("fixable_only", false),

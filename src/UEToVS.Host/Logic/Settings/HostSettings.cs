@@ -307,7 +307,7 @@ namespace UEToVS.Host.Logic.Settings
         public bool ProjectInspectionEnabled { get; set; } = true;
 
         /// <summary>Whole-project inspection also covers project plugins.</summary>
-        public bool InspectionIncludePlugins { get; set; } = true; // v0.5.3: on by default
+        public bool InspectionIncludePlugins { get; set; } = false;
 
         /// <summary>Engine upgrade assistant (deprecated API references, batch replacement).</summary>
         public bool UpgradeAssistantEnabled { get; set; } = true;
