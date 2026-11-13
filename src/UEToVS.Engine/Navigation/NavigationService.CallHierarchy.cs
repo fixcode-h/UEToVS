@@ -7,6 +7,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using UEToVS.Contracts;
+using UEToVS.Core.Unreal;
 using UEToVS.Engine.Syntax;
 
 namespace UEToVS.Engine.Navigation
@@ -76,7 +77,7 @@ namespace UEToVS.Engine.Navigation
                 {
                     var pool = r.CallArguments != null ? SymbolResolver.FilterByCall(callables, r.CallArguments) : callables;
                     if (pool.Count == 0) pool = callables;
-                    return pool.OrderBy(c => TypeText.IsProject(c.Origin) ? 0 : 1).ThenBy(c => c.IsDefinition ? 1 : 0).First();
+                    return pool.OrderBy(c => GeneratedFiles.Rank(c.Location?.FilePath)).ThenBy(c => TypeText.IsProject(c.Origin) ? 0 : 1).ThenBy(c => c.IsDefinition ? 1 : 0).First();
                 }
             }
             int fi = doc.EnclosingFunction(offset);
@@ -105,7 +106,7 @@ namespace UEToVS.Engine.Navigation
                     if (baseDecls.Any(s => (s.Ue & UeFlags.UFunction) != 0) || baseDecls.Count > 0 && !string.IsNullOrEmpty(fn.Container))
                     {
                         baseName = b;
-                        f.Root = baseDecls.OrderBy(s => s.IsDefinition ? 1 : 0).ThenBy(s => TypeText.IsProject(s.Origin) ? 0 : 1).First();
+                        f.Root = baseDecls.OrderBy(s => GeneratedFiles.Rank(s.Location?.FilePath)).ThenBy(s => s.IsDefinition ? 1 : 0).ThenBy(s => TypeText.IsProject(s.Origin) ? 0 : 1).First();
                     }
                 }
                 var decls = Members(ctx, baseName, f.Container);
@@ -376,7 +377,7 @@ namespace UEToVS.Engine.Navigation
                     {
                         var pool = r.CallArguments != null ? SymbolResolver.FilterByCall(callables, r.CallArguments) : callables;
                         if (pool.Count == 0) pool = callables;
-                        target = pool.OrderBy(c => c.IsDefinition ? 1 : 0).ThenBy(c => TypeText.IsProject(c.Origin) ? 0 : 1).First();
+                        target = pool.OrderBy(c => GeneratedFiles.Rank(c.Location?.FilePath)).ThenBy(c => c.IsDefinition ? 1 : 0).ThenBy(c => TypeText.IsProject(c.Origin) ? 0 : 1).First();
                         key = SymbolResolver.EntityKey(target) + "(" + TypeText.ParameterKey(target.Signature) + ")";
                     }
                     else key = "?" + CalleeText(doc, i);

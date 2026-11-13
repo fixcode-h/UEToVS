@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using UEToVS.Contracts;
+using UEToVS.Core.Unreal;
 using UEToVS.Host.Logic.Localization;
 
 namespace UEToVS.Host.Logic.Navigation
@@ -93,7 +94,8 @@ namespace UEToVS.Host.Logic.Navigation
             foreach (var g in byFile.Values)
                 g.Hits.Sort((a, b) => a.Location.Line != b.Location.Line ? a.Location.Line.CompareTo(b.Location.Line) : a.Location.Column.CompareTo(b.Location.Column));
             view.Groups.AddRange(byFile.Values
-                .OrderBy(g => SymbolPresentation.IsNonProject(g.Origin) ? 1 : 0)
+                .OrderBy(g => GeneratedFiles.Rank(g.FilePath))
+                .ThenBy(g => SymbolPresentation.IsNonProject(g.Origin) ? 1 : 0)
                 .ThenBy(g => g.FilePath, StringComparer.OrdinalIgnoreCase));
             return view;
         }

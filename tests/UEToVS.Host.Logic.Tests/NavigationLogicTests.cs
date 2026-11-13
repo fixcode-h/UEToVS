@@ -263,6 +263,29 @@ namespace UEToVS.Host.Logic.Tests
         }
 
         [Fact]
+        public void HandwrittenFilesBeatUeGeneratedOnes()
+        {
+            // GENERATED_BODY：项目 Intermediate 下的 X.generated.h 和引擎 ObjectMacros.h 同时命中 → 直接跳 ObjectMacros.h
+            var gen = T(@"C:\P\Intermediate\Build\Win64\UnrealEditor\Inc\P\UHT\Actor.generated.h", 106);
+            var macro = T(@"E:\UE\Engine\Source\Runtime\CoreUObject\Public\UObject\ObjectMacros.h", 734, ItemOrigin.Engine);
+            var o = NavigationOutcome.Decide(EngineCallStatus.Ok, new NavigationResponse { Word = "GENERATED_BODY", IndexReady = true, Targets = { gen, macro } }, NavigationKind.Definition);
+            Assert.Equal(NavigationDecision.Jump, o.Decision);
+            Assert.Same(macro, o.Targets[0]);
+            Assert.Same(gen, o.Targets[1]);
+
+            // 手写文件命中多处时照常弹列表，生成文件排最后
+            var two = NavigationOutcome.Decide(EngineCallStatus.Ok, new NavigationResponse { Word = "Foo", IndexReady = true,
+                Targets = { T(@"C:\P\Foo.gen.cpp", 3), T(@"C:\P\A.cpp", 1), T(@"E:\UE\B.h", 2, ItemOrigin.Engine) } }, NavigationKind.Definition);
+            Assert.Equal(NavigationDecision.Choose, two.Decision);
+            Assert.Equal(@"C:\P\Foo.gen.cpp", two.Targets[2].Symbol.Location.FilePath);
+
+            // 只有生成文件命中：一处直接跳，多处弹列表
+            Assert.Equal(NavigationDecision.Jump, NavigationOutcome.Decide(EngineCallStatus.Ok, new NavigationResponse { Word = "Foo", IndexReady = true, Targets = { gen } }, NavigationKind.Definition).Decision);
+            Assert.Equal(NavigationDecision.Choose, NavigationOutcome.Decide(EngineCallStatus.Ok, new NavigationResponse { Word = "Foo", IndexReady = true,
+                Targets = { gen, T(@"C:\P\Foo.gen.cpp", 3) } }, NavigationKind.Definition).Decision);
+        }
+
+        [Fact]
         public void MessagesExplainWhy()
         {
             Loc.Language = UiLanguage.English;

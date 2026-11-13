@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using UEToVS.Contracts;
+using UEToVS.Core.Unreal;
 using UEToVS.Core.Diagnostics;
 using UEToVS.Engine.Index;
 using UEToVS.Engine.Indexing;
@@ -96,7 +97,8 @@ namespace UEToVS.Engine.Navigation
         {
             if (r.OnDeclaration != null) return r.OnDeclaration;
             // declarations (headers) describe an entity best; project items first
-            return r.Candidates.OrderBy(c => TypeText.IsProject(c.Origin) ? 0 : 1)
+            return r.Candidates.OrderBy(c => GeneratedFiles.Rank(c.Location?.FilePath))
+                .ThenBy(c => TypeText.IsProject(c.Origin) ? 0 : 1)
                 .ThenBy(c => TypeText.IsCallableKind(c.Kind) && c.IsDefinition ? 1 : 0).First();
         }
 
@@ -220,8 +222,10 @@ namespace UEToVS.Engine.Navigation
                 if (!targets.Any(t => SymbolResolver.SameLocation(t.Symbol, s))) targets.Add(new NavigationTarget { Symbol = s, Role = role });
         }
 
+        /// <summary>手写文件优先于 UE 生成的文件（X.generated.h 等），然后项目优先于引擎。</summary>
         private static List<NavigationTarget> Rank(List<NavigationTarget> targets) =>
-            targets.OrderBy(t => TypeText.IsProject(t.Symbol.Origin) ? 0 : 1)
+            targets.OrderBy(t => GeneratedFiles.Rank(t.Symbol.Location?.FilePath))
+                .ThenBy(t => TypeText.IsProject(t.Symbol.Origin) ? 0 : 1)
                 .ThenBy(t => t.Role == NavigationTargetRole.Definition || t.Role == NavigationTargetRole.Declaration ? 0 : 1)
                 .ThenBy(t => t.Symbol.Location?.FilePath, StringComparer.OrdinalIgnoreCase)
                 .ThenBy(t => t.Symbol.Location?.Line ?? 0).ToList();
@@ -359,7 +363,8 @@ namespace UEToVS.Engine.Navigation
                 resp.FilesScanned = scanned;
             }
 
-            resp.Hits = hits.OrderBy(h => TypeText.IsProject(h.Origin) ? 0 : 1)
+            resp.Hits = hits.OrderBy(h => GeneratedFiles.Rank(h.Location.FilePath))
+                .ThenBy(h => TypeText.IsProject(h.Origin) ? 0 : 1)
                 .ThenBy(h => h.Location.FilePath, StringComparer.OrdinalIgnoreCase)
                 .ThenBy(h => h.Location.Line).ThenBy(h => h.Location.Column).Take(max).ToList();
             resp.Truncated = truncated;
