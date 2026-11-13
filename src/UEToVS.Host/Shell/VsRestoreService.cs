@@ -35,9 +35,9 @@ namespace UEToVS.Host.Shell
             var svc = package.IntelliSense;
             if (svc != null)
             {
-                await Step("intellisense", failed, () => svc.RestoreAsync("restoreAll"));
-                await Step("codeAnalysis", failed, () => svc.RestoreBackgroundCodeAnalysisAsync("restoreAll"));
-                await Step("vsBlueprint", failed, () => svc.RestoreVsBlueprintSupportAsync("restoreAll"));
+                await StepAsync("intellisense", failed, () => svc.RestoreAsync("restoreAll"));
+                await StepAsync("codeAnalysis", failed, () => svc.RestoreBackgroundCodeAnalysisAsync("restoreAll"));
+                await StepAsync("vsBlueprint", failed, () => svc.RestoreVsBlueprintSupportAsync("restoreAll"));
             }
 
             var fonts = package.Fonts;
@@ -45,7 +45,7 @@ namespace UEToVS.Host.Shell
             {
                 var s = package.Settings.Effective.Clone();
                 s.ManageVsFonts = false; // the planner then restores every backed-up category
-                await Step("fonts", failed, () => fonts.ApplyVsFontsAsync(s, "restoreAll"));
+                await StepAsync("fonts", failed, () => fonts.ApplyVsFontsAsync(s, "restoreAll"));
             }
 
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
@@ -73,7 +73,7 @@ namespace UEToVS.Host.Shell
             return failed.Count == 0 ? SettingsText.RestoreVsDone(keymap) : SettingsText.RestoreVsPartly(string.Join(", ", failed));
         }
 
-        private static async Task Step(string name, List<string> failed, Func<Task> run)
+        private static async Task StepAsync(string name, List<string> failed, Func<Task> run)
         {
             try { await run(); }
             catch (Exception ex)
