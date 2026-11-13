@@ -1,23 +1,28 @@
 #!/usr/bin/env python3
 """Builds the fonts bundled with UEToVS into src/UEToVS.Host/Resources/Fonts/<Family>/ (TTF + the family's OFL text).
 
-Sources (npm registry tarballs, pinned by version and verified against the registry's sha512 integrity):
-  IBM Plex Sans   @ibm/plex-sans 1.1.0                     fonts/complete/woff2/IBMPlexSans-{Regular,Medium,SemiBold}
-                  (font version 3.005). Only decompressed WOFF2 -> TTF (lossless, no glyph or name change): the
-                  license reserves the name "Plex", so the files are not subset or renamed.
-  Noto Sans SC    @expo-google-fonts/noto-sans-sc 0.4.4    NotoSansSC_{400Regular,500Medium,600SemiBold}.ttf (Google Fonts static
-                  instances, font version 2.004). Subset to GB2312 + ASCII/Latin-1 + common CJK/fullwidth punctuation
-                  (reserved name is "Source", so subsetting under the original name is allowed).
-  Maple Mono NL   @fontsource/maple-mono 5.3.0             maple-mono-latin-{400,700}-normal.woff2 (Maple Mono v7.8).
-                  "NL" = no ligatures: the GSUB features calt/liga/dlig (where Maple's ligatures live) are removed and
-                  the family is renamed "Maple Mono NL", like upstream's own NL build.
-                  NOTE: "Maple Mono" is a Reserved Font Name of the OFL. Prefer the official, unmodified NL build:
-                  download MapleMonoNL-TTF.zip from https://github.com/subframe7536/maple-font/releases and pass
-                  --maple-nl-zip <path>; its MapleMonoNL-Regular.ttf / MapleMonoNL-Bold.ttf are then copied untouched.
+The set and the weights mirror Agent Panel's font settings (fixcode-h/agent-panel web/src/fonts*.css, v0.5.17):
+  英文字体  IBM Plex Sans / Inter / Maple Mono NL / 系统字体     400 500 600
+  中文字体  思源黑体 Noto Sans SC / Maple Mono CN / 系统字体     Noto 400 500 600, Maple CN 400 500 (like Agent Panel)
+  代码字体  Maple Mono NL / JetBrains Mono                       400 500 600 700
+WPF cannot pick weights out of a variable font, so variable sources are instanced to static TTFs.
+
+Sources (npm tarballs pinned by version + the registry's sha512; files pinned by sha256):
+  IBM Plex Sans   @ibm/plex-sans 1.1.0                     IBMPlexSans-{Regular,Medium,SemiBold}.woff2 (font 3.005), WOFF2 -> TTF
+                  only (lossless): the license reserves the name "Plex", so the files are not subset or renamed.
+  Noto Sans SC    @expo-google-fonts/noto-sans-sc 0.4.4    Google Fonts static 400/500/600 (font 2.004), subset to GB2312 +
+                  ASCII/Latin-1 + common CJK/fullwidth punctuation (reserved name is "Source", subsetting is allowed).
+  Inter           @expo-google-fonts/inter 0.4.2           Google Fonts static 400/500/600 (Inter 4), subset to Latin + Latin
+                  Extended + general punctuation (Agent Panel ships the same alphabets; other scripts fall to the CJK font).
+  JetBrains Mono  @expo-google-fonts/jetbrains-mono 0.4.1  Google Fonts static 400/500/600/700, untouched.
+  Maple Mono NL   MapleMonoNL-wght.woff2 from Agent Panel  the official variable "NL" build (no ligatures, v7.900) Agent Panel
+                  ships, instanced at 400/500/600/700. Latin only: CJK in code comes from the 中文字体, as in Agent Panel.
+  Maple Mono CN   MapleMono-NF-CN-unhinted.zip (official)  Regular + Medium, subset to Latin + GB2312 + CJK punctuation (Nerd
+                  Font icons and rare CJK dropped), ligature features removed, family renamed "Maple Mono CN" (the
+                  official non-NF CN name; Maple Mono's OFL declares no Reserved Font Name).
 
 Needs: pip install fonttools brotli.
-Usage: python3 scripts/build_fonts.py --maple-cn-zip MapleMono-NF-CN-unhinted.zip   (what v0.4.5 ships)
-       python3 scripts/build_fonts.py [--maple-nl-zip MapleMonoNL-TTF.zip]          (Latin-only Maple Mono NL)
+Usage: python3 scripts/build_fonts.py --maple-cn-zip MapleMono-NF-CN-unhinted.zip
 """
 import argparse
 import base64
@@ -41,7 +46,16 @@ REGISTRY = "https://registry.npmjs.org"
 
 PLEX = ("@ibm/plex-sans", "1.1.0")
 NOTO = ("@expo-google-fonts/noto-sans-sc", "0.4.4")
-MAPLE = ("@fontsource/maple-mono", "5.3.0")
+INTER = ("@expo-google-fonts/inter", "0.4.2")
+JETBRAINS = ("@expo-google-fonts/jetbrains-mono", "0.4.1")
+# Agent Panel's copy of the official MapleMonoNL-Variable (converted to WOFF2), pinned by commit and hash.
+MAPLE_NL_URL = ("https://raw.githubusercontent.com/fixcode-h/agent-panel/2e9ca0a6d7fc2fc9a8e1397d020902c90b5496ef/"
+                "web/src/assets/fonts/maple-mono-nl/")
+MAPLE_NL_FILES = {
+    "MapleMonoNL-wght.woff2": "4032e43f5856ea2c490329c98e293a8daf0702271111faca54c3a6c4197bd8d1",
+    "OFL.txt": None,
+}
+STATIC_WEIGHTS = {400: "Regular", 500: "Medium", 600: "SemiBold", 700: "Bold"}
 
 
 def fetch_package(name, version, work):
@@ -122,93 +136,120 @@ def build_noto(pkg):
 NO_LIGATURES = {"calt", "liga", "dlig", "rlig"}
 
 
-def rename_family(font, family, style):
+def fetch_file(url, sha256, path):
+    with urllib.request.urlopen(url) as r:
+        data = r.read()
+    if sha256 and hashlib.sha256(data).hexdigest() != sha256:
+        raise SystemExit(f"sha256 mismatch for {url}")
+    with open(path, "wb") as f:
+        f.write(data)
+    return path
+
+
+def set_names(font, family, style):
+    """Static-instance naming: RIBBI styles keep the family in nameID 1; Medium / SemiBold get their own legacy family
+    ("Maple Mono NL Medium") plus the typographic family (16/17) WPF groups them by, like official static builds."""
     name = font["name"]
-    ps = (family + "-" + style).replace(" ", "")
     for rec in list(name.names):
-        if rec.nameID in (16, 17, 21, 22):
+        if rec.nameID in (1, 2, 3, 4, 6, 16, 17, 21, 22, 25):
             name.removeNames(nameID=rec.nameID)
-    for nid, value in ((1, family), (2, style), (3, f"{ps};UEToVS"), (4, f"{family} {style}"), (6, ps)):
+    ribbi = style in ("Regular", "Bold")
+    ps = (family + "-" + style).replace(" ", "")
+    values = {1: family if ribbi else f"{family} {style}", 2: style if ribbi else "Regular", 3: f"{ps};UEToVS",
+              4: family if style == "Regular" else f"{family} {style}", 6: ps}
+    if not ribbi:
+        values.update({16: family, 17: style})
+    for nid, value in values.items():
         name.setName(value, nid, 3, 1, 0x409)
         name.setName(value, nid, 1, 0, 0)
+    bold = style == "Bold"
+    font["OS/2"].fsSelection = (font["OS/2"].fsSelection & ~0b1100001) | (0b100000 if bold else 0b1000000 if style == "Regular" else 0)
+    font["head"].macStyle = 1 if bold else 0
 
 
-def build_maple(pkg, official_zip):
+def subset_font(font, unicodes, drop_features=(), hinting=True):
+    features = sorted({r.FeatureTag for r in font["GSUB"].table.FeatureList.FeatureRecord} - set(drop_features)) if "GSUB" in font else []
+    opts = subset.Options()
+    opts.layout_features = features + ["kern", "mark", "mkmk"]
+    opts.name_IDs = ["*"]
+    opts.name_languages = ["*"]
+    opts.notdef_outline = True
+    opts.glyph_names = True
+    opts.hinting = hinting
+    s = subset.Subsetter(opts)
+    s.populate(unicodes=unicodes)
+    s.subset(font)
+
+
+def latin_unicodes():
+    # Basic Latin, Latin-1, Latin Extended-A/B, IPA/spacing modifiers, combining marks, general punctuation, currency,
+    # letterlike symbols, arrows, math operators: what Agent Panel's latin + latin-ext slices cover.
+    ranges = [(0x20, 0x7E), (0xA0, 0x24F), (0x250, 0x2FF), (0x300, 0x36F), (0x1E00, 0x1EFF), (0x2000, 0x206F),
+              (0x20A0, 0x20CF), (0x2100, 0x214F), (0x2190, 0x21FF), (0x2200, 0x22FF), (0xFB00, 0xFB06), (0xFEFF, 0xFEFF), (0xFFFD, 0xFFFD)]
+    return sorted({cp for a, b in ranges for cp in range(a, b + 1)})
+
+
+def build_inter(pkg):
+    out = os.path.join(OUT, "Inter")
+    reset_dir(out)
+    for weight in (400, 500, 600):
+        style = STATIC_WEIGHTS[weight]
+        font = TTFont(os.path.join(pkg, f"{weight}{style}", f"Inter_{weight}{style}.ttf"))
+        subset_font(font, latin_unicodes())
+        save_ttf(font, os.path.join(out, f"Inter-{style}.ttf"))
+    lic = next(f for f in ("LICENSE_FONT", "OFL.txt", "LICENSE") if os.path.exists(os.path.join(pkg, f)))
+    shutil.copyfile(os.path.join(pkg, lic), os.path.join(out, "OFL.txt"))
+
+
+def build_jetbrains(pkg):
+    out = os.path.join(OUT, "JetBrainsMono")
+    reset_dir(out)
+    for weight, style in STATIC_WEIGHTS.items():
+        font = TTFont(os.path.join(pkg, f"{weight}{style}", f"JetBrainsMono_{weight}{style}.ttf"))
+        save_ttf(font, os.path.join(out, f"JetBrainsMono-{style}.ttf"))
+    lic = next(f for f in ("LICENSE_FONT", "OFL.txt", "LICENSE") if os.path.exists(os.path.join(pkg, f)))
+    shutil.copyfile(os.path.join(pkg, lic), os.path.join(out, "OFL.txt"))
+
+
+def build_maple_nl(work):
+    from fontTools.varLib import instancer
     out = os.path.join(OUT, "MapleMonoNL")
     reset_dir(out)
-    if official_zip:
-        with zipfile.ZipFile(official_zip) as z:
-            for style in ("Regular", "Bold"):
-                member = next(n for n in z.namelist() if n.endswith(f"MapleMono-NL-{style}.ttf") or n.endswith(f"MapleMonoNL-{style}.ttf"))
-                with open(os.path.join(out, f"MapleMonoNL-{style}.ttf"), "wb") as f:
-                    f.write(z.read(member))
-                print(f"  official {member}")
-    else:
-        for weight, style in (("400", "Regular"), ("700", "Bold")):
-            font = TTFont(os.path.join(pkg, "files", f"maple-mono-latin-{weight}-normal.woff2"))
-            features = sorted({r.FeatureTag for r in font["GSUB"].table.FeatureList.FeatureRecord} - NO_LIGATURES)
-            opts = subset.Options()
-            opts.layout_features = features
-            opts.name_IDs = ["*"]
-            opts.name_languages = ["*"]
-            opts.notdef_outline = True
-            opts.glyph_names = True
-            s = subset.Subsetter(opts)
-            s.populate(unicodes=font.getBestCmap().keys())
-            s.subset(font)
-            rename_family(font, "Maple Mono NL", style)
-            font["OS/2"].fsSelection = (font["OS/2"].fsSelection & ~0b1100001) | (0b100000 if style == "Bold" else 0b1000000)
-            font["head"].macStyle = 1 if style == "Bold" else 0
-            save_ttf(font, os.path.join(out, f"MapleMonoNL-{style}.ttf"))
-    shutil.copyfile(os.path.join(pkg, "LICENSE"), os.path.join(out, "OFL.txt"))
+    files = {n: fetch_file(MAPLE_NL_URL + n, h, os.path.join(work, n)) for n, h in MAPLE_NL_FILES.items()}
+    for weight, style in STATIC_WEIGHTS.items():
+        font = instancer.instantiateVariableFont(TTFont(files["MapleMonoNL-wght.woff2"]), {"wght": weight})
+        font["OS/2"].usWeightClass = weight
+        set_names(font, "Maple Mono NL", style)
+        save_ttf(font, os.path.join(out, f"MapleMonoNL-{style}.ttf"))
+    shutil.copyfile(files["OFL.txt"], os.path.join(out, "OFL.txt"))
 
 
-def build_maple_cn(pkg_license_dir, cn_zip):
-    """Maple Mono NL from the official "Maple Mono NF CN" release (code font with matching 2:1 CJK glyphs).
-
-    Regular + Bold, subset to ASCII / Latin / punctuation / box drawing + GB2312 + CJK and full-width punctuation
-    (the Nerd Font icons and rare CJK are dropped), ligature features removed, family named "Maple Mono NL".
-    Maple Mono's OFL declares no Reserved Font Name, so a modified build may keep the name.
-    """
-    out = os.path.join(OUT, "MapleMonoNL")
+def build_maple_cn(cn_zip):
+    out = os.path.join(OUT, "MapleMonoCN")
     reset_dir(out)
-    unicodes = sorted(set(cjk_unicodes()) | set(range(0x100, 0x180)) | set(range(0x2200, 0x22FF)) | set(range(0x2300, 0x23FF)))
+    unicodes = sorted(set(cjk_unicodes()) | set(latin_unicodes()) | set(range(0x2300, 0x23FF)))
     with zipfile.ZipFile(cn_zip) as z:
-        for style in ("Regular",):  # regular only: WPF / VS synthesize bold; the CJK build is ~5 MB per weight
+        for style in ("Regular", "Medium"):  # Agent Panel ships 400 + 500 only; heavier text uses 500 made bold
             member = next(n for n in z.namelist() if n.endswith(f"-CN-{style}.ttf"))
             font = TTFont(io.BytesIO(z.read(member)))
-            features = sorted({r.FeatureTag for r in font["GSUB"].table.FeatureList.FeatureRecord} - NO_LIGATURES)
-            opts = subset.Options()
-            opts.layout_features = features
-            opts.name_IDs = ["*"]
-            opts.name_languages = ["*"]
-            opts.notdef_outline = True
-            opts.hinting = False
-            s = subset.Subsetter(opts)
-            s.populate(unicodes=unicodes)
-            s.subset(font)
-            rename_family(font, "Maple Mono NL", style)
-            font["OS/2"].fsSelection = (font["OS/2"].fsSelection & ~0b1100001) | (0b100000 if style == "Bold" else 0b1000000)
-            font["head"].macStyle = 1 if style == "Bold" else 0
-            save_ttf(font, os.path.join(out, f"MapleMonoNL-{style}.ttf"))
+            subset_font(font, unicodes, NO_LIGATURES, hinting=False)
+            set_names(font, "Maple Mono CN", style)
+            save_ttf(font, os.path.join(out, f"MapleMonoCN-{style}.ttf"))
             print(f"  from {member}")
-        lic = next((n for n in z.namelist() if n.lower().endswith("license.txt")), None)
-        if lic:
-            with open(os.path.join(out, "OFL.txt"), "wb") as f:
-                f.write(z.read(lic))
-        else:
-            shutil.copyfile(os.path.join(pkg_license_dir, "LICENSE"), os.path.join(out, "OFL.txt"))
+        lic = next(n for n in z.namelist() if n.lower().endswith("license.txt"))
+        with open(os.path.join(out, "OFL.txt"), "wb") as f:
+            f.write(z.read(lic))
 
 
 def verify():
-    for family, files in (("IBMPlexSans", None), ("NotoSansSC", None), ("MapleMonoNL", None)):
+    for family in ("IBMPlexSans", "Inter", "NotoSansSC", "MapleMonoNL", "MapleMonoCN", "JetBrainsMono"):
         folder = os.path.join(OUT, family)
         for f in sorted(os.listdir(folder)):
             if not f.endswith(".ttf"):
                 continue
             font = TTFont(os.path.join(folder, f))
             gsub = {r.FeatureTag for r in font["GSUB"].table.FeatureList.FeatureRecord} if "GSUB" in font else set()
-            if family == "MapleMonoNL" and gsub & NO_LIGATURES:
+            if family == "MapleMonoCN" and gsub & NO_LIGATURES:
                 raise SystemExit(f"{f} still has ligature features {gsub & NO_LIGATURES}")
             fam = font["name"].getDebugName(16) or font["name"].getDebugName(1)
             print(f"  ok {family}/{f}: family '{fam}', weight {font['OS/2'].usWeightClass}, {len(font.getBestCmap())} chars")
@@ -218,17 +259,16 @@ def verify():
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--maple-nl-zip", help="official MapleMonoNL-TTF.zip (used untouched instead of deriving NL)")
-    ap.add_argument("--maple-cn-zip", help="official MapleMono-NF-CN-unhinted.zip: code font with CJK (preferred; used for v0.4.5)")
+    ap.add_argument("--maple-cn-zip", required=True, help="official MapleMono-NF-CN-unhinted.zip (Maple Mono CN source)")
     args = ap.parse_args()
     work = tempfile.mkdtemp(prefix="uetovs-fonts-")
     try:
         build_plex(fetch_package(*PLEX, work))
+        build_inter(fetch_package(*INTER, work))
         build_noto(fetch_package(*NOTO, work))
-        if args.maple_cn_zip:
-            build_maple_cn(fetch_package(*MAPLE, work), args.maple_cn_zip)
-        else:
-            build_maple(fetch_package(*MAPLE, work), args.maple_nl_zip)
+        build_jetbrains(fetch_package(*JETBRAINS, work))
+        build_maple_nl(work)
+        build_maple_cn(args.maple_cn_zip)
         verify()
     finally:
         shutil.rmtree(work, ignore_errors=True)

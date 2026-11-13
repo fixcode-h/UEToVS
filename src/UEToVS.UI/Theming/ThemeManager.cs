@@ -139,6 +139,8 @@ namespace UEToVS.UI.Theming
             root.SetResourceReference(System.Windows.Documents.TextElement.FontFamilyProperty, Tokens.FontFamilyUi);
             root.SetResourceReference(System.Windows.Documents.TextElement.FontSizeProperty, Tokens.FontSizeBody);
             root.SetResourceReference(System.Windows.Documents.TextElement.ForegroundProperty, Tokens.TextPrimary);
+            // 正文字重 500，照 Agent 面板（TextWeights）；控件、TextBlock 没单独设字重的都继承这个
+            root.SetValue(System.Windows.Documents.TextElement.FontWeightProperty, TextWeights.Body);
             // 和 VS 自己的界面一样按像素网格排字：UEToVS 的窗口和弹窗是独立的顶层窗口，继承不到 VS 主窗口的 Display 模式；
             // 默认的 Ideal 模式在 12–13px 的中文（尤其是加粗按钮文字、透明圆角窗口里只能灰度抗锯齿时）会发虚。
             TextOptions.SetTextFormattingMode(root, TextFormattingMode.Display);
@@ -298,7 +300,7 @@ namespace UEToVS.UI.Theming
             v[Tokens.FontFamilyCode] = CodeFontFor(_codeFont);
             v[Tokens.FontFamilyDisplay] = DisplayFont;
             if (_codeFontSize.HasValue && _codeFontSize.Value > 6) v[Tokens.FontSizeCode] = _codeFontSize.Value;
-            v[Tokens.MatchFontWeight] = t.Number(TokenNames.MatchBold) > 0 ? FontWeights.Bold : FontWeights.Normal;
+            v[Tokens.MatchFontWeight] = t.Number(TokenNames.MatchBold) > 0 ? FontWeights.Bold : TextWeights.Body;
             if (t.Number(TokenNames.MatchUnderline) > 0)
             {
                 var deco = new System.Windows.TextDecorationCollection(TextDecorations.Underline);

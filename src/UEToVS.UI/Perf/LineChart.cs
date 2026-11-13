@@ -97,7 +97,7 @@ namespace UEToVS.UI.Perf
         {
             var family = TryFindResource(Tokens.FontFamilyUi) as FontFamily ?? SystemFonts.MessageFontFamily;
             return new FormattedText(s ?? string.Empty, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight,
-                new Typeface(family, FontStyles.Normal, FontWeights.Normal, FontStretches.Normal), size, brush,
+                new Typeface(family, FontStyles.Normal, TextWeights.Body, FontStretches.Normal), size, brush,
                 VisualTreeHelper.GetDpi(this).PixelsPerDip);
         }
 

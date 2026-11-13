@@ -43,12 +43,18 @@ namespace UEToVS.Host.Logic.Fonts
 
         public static void AddDescriptors(List<SettingDescriptor> list, string category)
         {
-            list.Add(FontRow(category, UiLatinKey, "英文字体", "Latin font", "字母、数字和符号用的字体", "Font for letters, digits and symbols",
-                FontSettings.DefaultUiLatin, UiKeywords, false, Group, GroupEn));
-            list.Add(FontRow(category, UiCjkKey, "中文字体", "Chinese font", "汉字用的字体", "Font for Chinese characters",
-                FontSettings.DefaultUiCjk, UiKeywords, false, Group, GroupEn));
-            list.Add(FontRow(category, CodeKey, "代码字体", "Code font", "代码、命令和路径用的等宽字体", "Monospace font for code, commands and paths",
-                FontSettings.DefaultCode, UiKeywords, true, Group, GroupEn));
+            // 三行的可选字体、文案和说明照 Agent 面板的设置 → 外观 → 字体（web/src/components/settings/FontSection.tsx）。
+            // 下拉框仍可以直接输入本机装了的字体名，代替面板单独的「自定义字体」一行。
+            list.Add(UiRow(category, UiLatinKey, "英文字体", "Latin font", "字母、数字和符号用的字体", "Font for letters, digits and symbols",
+                "默认是内置的 IBM Plex Sans；也可以换内置的等宽 Maple Mono NL（不带符号连字）、Inter，或系统界面字体 Segoe UI。也可以直接输入本机装了的字体名。",
+                "IBM Plex Sans (bundled) by default; the bundled monospace Maple Mono NL (no symbol ligatures), Inter, or the system UI font Segoe UI are the alternatives. You can also type the name of an installed font.",
+                FontSettings.DefaultUiLatin, LatinOptions));
+            list.Add(UiRow(category, UiCjkKey, "中文字体", "Chinese font", "汉字用的字体", "Font for Chinese characters",
+                "英文字体里没有汉字，汉字用这里选的字体。Maple Mono CN 是 Maple Mono 的中文版：一个汉字正好占两个英文字母宽，和 Maple Mono 英文上下对齐，但汉字之间比思源黑体疏；它只有常规和中粗两档，标题由系统加粗。小字号觉得发虚可以换系统字体（微软雅黑）。",
+                "The Latin font has no Chinese characters; they use the font chosen here. Maple Mono CN is Maple Mono's Chinese build: one character is exactly two Latin letters wide and lines up with Maple Mono, but is looser than Noto Sans SC; it has regular and medium only, titles are emboldened. If small text looks blurry, pick the system font (Microsoft YaHei UI).",
+                FontSettings.DefaultUiCjk, CjkOptions));
+            list.Add(UiRow(category, CodeKey, "代码字体", "Code font", "代码、命令和路径用的等宽字体", "Monospace font for code, commands and paths",
+                null, null, FontSettings.DefaultCode, CodeOptions));
 
             list.Add(new SettingDescriptor
             {
@@ -92,6 +98,42 @@ namespace UEToVS.Host.Logic.Fonts
                 Options = ToOptions(FontSettings.Options(keywords, null, null, monospaceFirst)),
             };
 
+        private static SettingDescriptor UiRow(string category, string key, string zh, string en, string descZh, string descEn, string hintZh, string hintEn,
+                                               FontChoice def, IReadOnlyList<SettingOption> options) =>
+            new SettingDescriptor
+            {
+                Category = category, Key = key, Kind = SettingKind.Choice, TitleZh = zh, TitleEn = en, DescriptionZh = descZh, DescriptionEn = descEn,
+                HintZh = hintZh, HintEn = hintEn, GroupZh = Group, GroupEn = GroupEn, Default = def.ToString(), AllowCustomValue = true, Keywords = Keywords,
+                Options = options,
+            };
+
+        private static SettingOption Bundled(BundledFont f) => Option(FontChoice.OfBundled(f));
+        private static SettingOption Option(FontChoice c) => new SettingOption(c.ToString(), c.Display(false), c.Display(true));
+
+        /// <summary>英文字体: Agent Panel's list and order (Maple Mono NL, 系统字体, Inter, IBM Plex Sans).</summary>
+        public static IReadOnlyList<SettingOption> LatinOptions { get; } = new[]
+        {
+            Bundled(BundledFontCatalog.MapleMonoNl),
+            new SettingOption(FontSettings.SystemLatin.ToString(), "系统字体", "System font"),
+            Bundled(BundledFontCatalog.Inter),
+            Bundled(BundledFontCatalog.IbmPlexSans),
+        };
+
+        /// <summary>中文字体: 思源黑体, Maple Mono CN, 系统字体（微软雅黑）.</summary>
+        public static IReadOnlyList<SettingOption> CjkOptions { get; } = new[]
+        {
+            Bundled(BundledFontCatalog.NotoSansSc),
+            Bundled(BundledFontCatalog.MapleMonoCn),
+            new SettingOption(FontSettings.SystemCjk.ToString(), "系统字体（微软雅黑）", "System font (Microsoft YaHei UI)"),
+        };
+
+        /// <summary>代码字体: Maple Mono NL, JetBrains Mono.</summary>
+        public static IReadOnlyList<SettingOption> CodeOptions { get; } = new[]
+        {
+            Bundled(BundledFontCatalog.MapleMonoNl),
+            Bundled(BundledFontCatalog.JetBrainsMono),
+        };
+
         public static IReadOnlyList<SettingOption> ToOptions(IEnumerable<FontChoice> choices) =>
             choices.Select(c => new SettingOption(c.ToString(), c.Display(false), c.Display(true))).ToList();
 
@@ -103,12 +145,11 @@ namespace UEToVS.Host.Logic.Fonts
         {
             foreach (var d in schema)
             {
-                if (d.Kind != SettingKind.Choice || !IsFontKey(d.Key)) continue;
-                bool vs = d.Key.StartsWith(VsPrefix, StringComparison.Ordinal);
-                var cat = vs ? VsFontCategories.Find(d.Key.Substring(VsPrefix.Length, d.Key.Length - VsPrefix.Length - FamilySuffix.Length)) : null;
-                bool mono = d.Key == CodeKey || cat?.Role == VsFontRole.Code;
-                var keywords = vs ? VsKeywords : UiKeywords;
-                d.OptionsSource = () => ToOptions(FontSettings.Options(keywords, installed?.Invoke(), null, mono));
+                // 英文 / 中文 / 代码三行是照 Agent 面板挑好的固定列表（可以手输字体名），只有 VS 类别列出本机所有字体
+                if (d.Kind != SettingKind.Choice || !d.Key.StartsWith(VsPrefix, StringComparison.Ordinal) || !d.Key.EndsWith(FamilySuffix, StringComparison.Ordinal)) continue;
+                var cat = VsFontCategories.Find(d.Key.Substring(VsPrefix.Length, d.Key.Length - VsPrefix.Length - FamilySuffix.Length));
+                bool mono = cat?.Role == VsFontRole.Code;
+                d.OptionsSource = () => ToOptions(FontSettings.Options(VsKeywords, installed?.Invoke(), null, mono));
             }
         }
 
