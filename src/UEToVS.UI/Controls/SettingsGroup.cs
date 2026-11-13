@@ -77,14 +77,25 @@ namespace UEToVS.UI.Controls
         private readonly StackPanel _labels = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 16, 0) };
         private UIElement _editor, _below;
 
-        public SettingsRow(string title, string description = null, UIElement editor = null)
+        public SettingsRow(string title, string description = null, UIElement editor = null) : this(title, description, null, editor) { }
+
+        /// <param name="hint">Longer explanation shown as the tooltip of a small "?" after the title (Agent Panel style); null = none.</param>
+        public SettingsRow(string title, string description, string hint, UIElement editor = null)
         {
             _grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             _grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             _grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             _grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             _grid.MinHeight = MinRowHeight - 16;
-            _labels.Children.Add(new UiText(title, TextVariant.Body) { TextWrapping = TextWrapping.Wrap, TextTrimming = TextTrimming.None });
+            var titleText = new UiText(title, TextVariant.Body) { TextWrapping = TextWrapping.Wrap, TextTrimming = TextTrimming.None };
+            if (string.IsNullOrEmpty(hint)) _labels.Children.Add(titleText);
+            else
+            {
+                var line = new StackPanel { Orientation = Orientation.Horizontal };
+                line.Children.Add(titleText);
+                line.Children.Add(HintMark(hint));
+                _labels.Children.Add(line);
+            }
             if (!string.IsNullOrEmpty(description))
                 _labels.Children.Add(new UiText(description, TextVariant.Description) { TextWrapping = TextWrapping.Wrap, TextTrimming = TextTrimming.None, Margin = new Thickness(0, 2, 0, 0) });
             _grid.Children.Add(_labels);
@@ -96,6 +107,24 @@ namespace UEToVS.UI.Controls
 
         /// <summary>The text column (extra notes such as "restart needed" or a live info line go here).</summary>
         public StackPanel Labels => _labels;
+
+        /// <summary>14px ring with a "?" whose tooltip holds the hint; stays open long enough to read a paragraph.</summary>
+        private static FrameworkElement HintMark(string hint)
+        {
+            var q = new TextBlock { Text = "?", FontSize = 10, FontWeight = FontWeights.SemiBold, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+            q.SetResourceReference(TextBlock.ForegroundProperty, Tokens.TextSecondary);
+            var ring = new Border
+            {
+                Width = 14, Height = 14, CornerRadius = new CornerRadius(7), BorderThickness = new Thickness(1), Margin = new Thickness(6, 0, 0, 0),
+                VerticalAlignment = VerticalAlignment.Center, Background = Brushes.Transparent, Child = q, Cursor = Cursors.Help,
+                ToolTip = new TextBlock { Text = hint, TextWrapping = TextWrapping.Wrap, MaxWidth = 360 },
+            };
+            ring.SetResourceReference(Border.BorderBrushProperty, Tokens.TextSecondary);
+            ToolTipService.SetShowDuration(ring, 60000);
+            ToolTipService.SetInitialShowDelay(ring, 200);
+            AutomationProperties.SetHelpText(ring, hint);
+            return ring;
+        }
 
         public UIElement Editor
         {
@@ -222,7 +251,7 @@ namespace UEToVS.UI.Controls
         private void Paint()
         {
             _bar.Visibility = _selected ? Visibility.Visible : Visibility.Hidden;
-            _text.FontWeight = _selected ? FontWeights.Medium : FontWeights.Normal;
+            _text.FontWeight = _selected ? FontWeights.SemiBold : TextWeights.Body;
             _text.Bind(TextBlock.ForegroundProperty, _selected ? Tokens.TextPrimary : Tokens.TextSecondary);
             _icon.Bind(Shape.StrokeProperty, _selected ? Tokens.TextLink : Tokens.TextSecondary);
             if (_selected) this.Bind(BackgroundProperty, Tokens.NavSelected);

@@ -307,7 +307,7 @@ namespace UEToVS.UI.Perf
                     if (tb.Text != text) tb.Text = text ?? string.Empty;
                     tb.TextAlignment = c.Numeric ? TextAlignment.Right : TextAlignment.Left;
                     tb.Bind(TextBlock.ForegroundProperty, cs.HasValue && cs.Value >= Severity.Warning ? Tokens.Severity(cs.Value) : i == 0 ? Tokens.TextPrimary : Tokens.TextSecondary);
-                    tb.FontWeight = cs.HasValue && cs.Value >= Severity.Warning ? FontWeights.SemiBold : FontWeights.Normal;
+                    tb.FontWeight = cs.HasValue && cs.Value >= Severity.Warning ? FontWeights.SemiBold : TextWeights.Body;
                     names.Add(c.Header() + " " + text);
                 }
                 try { _state = _t.RowState?.Invoke(item); }

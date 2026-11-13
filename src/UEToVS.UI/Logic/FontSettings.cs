@@ -147,7 +147,10 @@ namespace UEToVS.UI.Logic
         public override string ToString() => Family;
     }
 
-    /// <summary>The three fonts UEToVS ships (scripts/build_fonts.py builds them; OFL text next to each family).</summary>
+    /// <summary>
+    /// The fonts UEToVS ships, the same set and weights as Agent Panel's 字体 settings (scripts/build_fonts.py builds
+    /// them; OFL text next to each family). The UI text is 500 (ThemeManager.BodyFontWeight), so every UI family has 500.
+    /// </summary>
     public static class BundledFontCatalog
     {
         /// <summary>Folder (under the extension directory) that holds one sub folder per family.</summary>
@@ -156,13 +159,27 @@ namespace UEToVS.UI.Logic
         public static readonly BundledFont IbmPlexSans = new BundledFont("IBM Plex Sans", "IBMPlexSans", "IBM Plex Sans", "IBM Plex Sans", false,
             "IBMPlexSans-Regular.ttf", "IBMPlexSans-Medium.ttf", "IBMPlexSans-SemiBold.ttf");
 
+        public static readonly BundledFont Inter = new BundledFont("Inter", "Inter", "Inter", "Inter", false,
+            "Inter-Regular.ttf", "Inter-Medium.ttf", "Inter-SemiBold.ttf");
+
         public static readonly BundledFont NotoSansSc = new BundledFont("Noto Sans SC", "NotoSansSC", "思源黑体 Noto Sans SC", "Noto Sans SC", false,
             "NotoSansSC-Regular.ttf", "NotoSansSC-Medium.ttf", "NotoSansSC-SemiBold.ttf"); // SemiBold: titles / primary buttons ask for 600; without it Chinese gets a smeared synthetic bold
 
-        public static readonly BundledFont MapleMonoNl = new BundledFont("Maple Mono NL", "MapleMonoNL", "Maple Mono NL", "Maple Mono NL", true,
-            "MapleMonoNL-Regular.ttf"); // regular only (user 2026-11-12): bold is synthesized; saves ~5 MB
+        /// <summary>
+        /// Maple Mono's Chinese build: one Hanzi is exactly two Latin cells wide, so it lines up under Maple Mono NL.
+        /// 400 + 500 only (like Agent Panel); 600 text uses 500 made bold.
+        /// </summary>
+        public static readonly BundledFont MapleMonoCn = new BundledFont("Maple Mono CN", "MapleMonoCN", "Maple Mono CN", "Maple Mono CN", false,
+            "MapleMonoCN-Regular.ttf", "MapleMonoCN-Medium.ttf");
 
-        public static IReadOnlyList<BundledFont> All { get; } = new[] { IbmPlexSans, NotoSansSc, MapleMonoNl };
+        /// <summary>Official "NL" build (no symbol ligatures: => and != stay two glyphs). Latin only; CJK comes from the 中文字体.</summary>
+        public static readonly BundledFont MapleMonoNl = new BundledFont("Maple Mono NL", "MapleMonoNL", "Maple Mono NL", "Maple Mono NL", true,
+            "MapleMonoNL-Regular.ttf", "MapleMonoNL-Medium.ttf", "MapleMonoNL-SemiBold.ttf", "MapleMonoNL-Bold.ttf");
+
+        public static readonly BundledFont JetBrainsMono = new BundledFont("JetBrains Mono", "JetBrainsMono", "JetBrains Mono", "JetBrains Mono", true,
+            "JetBrainsMono-Regular.ttf", "JetBrainsMono-Medium.ttf", "JetBrainsMono-SemiBold.ttf", "JetBrainsMono-Bold.ttf");
+
+        public static IReadOnlyList<BundledFont> All { get; } = new[] { IbmPlexSans, Inter, NotoSansSc, MapleMonoCn, MapleMonoNl, JetBrainsMono };
 
         /// <summary>By family name (case-insensitive); null when not bundled.</summary>
         public static BundledFont Find(string family)
@@ -204,11 +221,15 @@ namespace UEToVS.UI.Logic
     {
         public static FontChoice DefaultUiLatin => FontChoice.OfBundled(BundledFontCatalog.IbmPlexSans);
         /// <summary>
-        /// v0.5.3: Microsoft YaHei UI (Windows' own UI font, TrueType-hinted for small sizes). The bundled Noto Sans SC has
-        /// no hinting instructions, so at the 11–12px of the UI, with the pixel-snapped Display text mode, its strokes came
-        /// out thin and uneven; it stays selectable.
+        /// 思源黑体, as in Agent Panel (v0.5.17). v0.5.3–0.5.16 defaulted to Microsoft YaHei UI because the unhinted Noto Sans
+        /// SC drew thin, uneven strokes at the UI's 11–12px at weight 400; the UI text is 500 now (Agent Panel does the
+        /// same for the same reason), and 系统字体（微软雅黑）stays one click away.
         /// </summary>
-        public static FontChoice DefaultUiCjk => FontChoice.OfSystem("Microsoft YaHei UI");
+        public static FontChoice DefaultUiCjk => FontChoice.OfBundled(BundledFontCatalog.NotoSansSc);
+        /// <summary>系统字体 in the 英文字体 dropdown: Windows' UI font (Agent Panel: -apple-system / Segoe UI).</summary>
+        public static FontChoice SystemLatin => FontChoice.OfSystem("Segoe UI");
+        /// <summary>系统字体 in the 中文字体 dropdown: Windows' own hinted UI font (Agent Panel lists PingFang first, for macOS).</summary>
+        public static FontChoice SystemCjk => FontChoice.OfSystem("Microsoft YaHei UI");
         public static FontChoice DefaultCode => FontChoice.OfBundled(BundledFontCatalog.MapleMonoNl);
 
         public FontChoice UiLatin { get; set; } = DefaultUiLatin;
@@ -235,6 +256,8 @@ namespace UEToVS.UI.Logic
         {
             var list = new List<FontRef>();
             AddChoice(list, Code, vsEditorFamily);
+            // Agent Panel: Maple Mono NL falls back to JetBrains Mono for the symbols it lacks (same cell width).
+            if (Code.Kind == FontChoiceKind.Bundled && Code.Bundled == BundledFontCatalog.MapleMonoNl) AddChoice(list, FontChoice.OfBundled(BundledFontCatalog.JetBrainsMono), null);
             // CJK in comments / strings: the chosen Chinese UI font, then the generic monospace fallbacks.
             if (UiCjk.Kind == FontChoiceKind.Bundled || UiCjk.Kind == FontChoiceKind.System) AddChoice(list, UiCjk, null);
             AddNames(list, fallback);

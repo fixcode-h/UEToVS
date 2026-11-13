@@ -156,6 +156,20 @@ namespace UEToVS.Host.Logic.Tests
         }
 
         [Fact]
+        public void EveryCatalogFileIsInTheRepository()
+        {
+            string dir = AppContext.BaseDirectory;
+            while (dir != null && !File.Exists(Path.Combine(dir, "UEToVS.sln")) && !Directory.Exists(Path.Combine(dir, "src", "UEToVS.Host"))) dir = Path.GetDirectoryName(dir);
+            Assert.NotNull(dir);
+            string fonts = Path.Combine(dir, "src", "UEToVS.Host", "Resources", "Fonts");
+            foreach (var b in BundledFontCatalog.All)
+            {
+                Assert.True(File.Exists(Path.Combine(fonts, b.Folder, "OFL.txt")), b.Folder + "/OFL.txt");
+                foreach (var f in b.Files) Assert.True(File.Exists(Path.Combine(fonts, b.Folder, f)), b.Folder + "/" + f);
+            }
+        }
+
+        [Fact]
         public void AppearancePageHasTheFontRowsAndTheSchemaIsValid()
         {
             Assert.Empty(SettingsModel.Validate(Schema, HostSettingsSchema.Categories));
@@ -220,14 +234,21 @@ namespace UEToVS.Host.Logic.Tests
             var schema = HostSettingsSchema.Build(4);
             int calls = 0;
             FontSettingsSchema.AttachInstalledFonts(schema, () => { calls++; return new[] { "Segoe UI", "Consolas" }; });
+            // 英文 / 中文 / 代码三行是照 Agent 面板的固定列表，不列本机字体；手输的字体名仍显示
             var latin = schema.Single(d => d.Key == FontSettingsSchema.UiLatinKey).ResolveOptions("Gone Font");
-            Assert.Equal("vs", latin[0].Value);
-            Assert.Contains(latin, o => o.Value == "Segoe UI");
-            Assert.Equal("Gone Font", latin.Last().Value);
+            Assert.Equal(new[] { "bundled:Maple Mono NL", "Segoe UI", "bundled:Inter", "bundled:IBM Plex Sans", "Gone Font" }, latin.Select(o => o.Value).ToArray());
+            Assert.Equal("系统字体", latin[1].TitleZh);
+            var cjk = schema.Single(d => d.Key == FontSettingsSchema.UiCjkKey);
+            Assert.Equal(new[] { "bundled:Noto Sans SC", "bundled:Maple Mono CN", "Microsoft YaHei UI" }, cjk.ResolveOptions().Select(o => o.Value).ToArray());
+            Assert.Equal("思源黑体 Noto Sans SC（内置）", cjk.ResolveOptions()[0].TitleZh);
+            Assert.Equal("系统字体（微软雅黑）", cjk.ResolveOptions()[2].TitleZh);
+            Assert.False(string.IsNullOrEmpty(cjk.HintZh));
+            var code = schema.Single(d => d.Key == FontSettingsSchema.CodeKey).ResolveOptions();
+            Assert.Equal(new[] { "Maple Mono NL（内置）", "JetBrains Mono（内置）" }, code.Select(o => o.TitleZh).ToArray());
             var editor = schema.Single(d => d.Key == "fonts.vs.textEditor.family").ResolveOptions("code");
             Assert.Equal(new[] { "keep", "code", "ui", "bundled:Maple Mono NL" }, editor.Take(4).Select(o => o.Value).ToArray());
             Assert.Equal("不修改（使用 VS 当前设置）", editor[0].TitleZh);
-            Assert.Equal(2, calls);
+            Assert.Equal(1, calls);
             Assert.Null(schema.Single(d => d.Key == "nav.ctrlClick").OptionsSource);
         }
     }

@@ -199,7 +199,7 @@ namespace UEToVS.UI.Molecules
             private void Apply()
             {
                 _title.Bind(TextBlock.ForegroundProperty, _selected ? Tokens.TextPrimary : Tokens.TextSecondary);
-                _title.FontWeight = _selected ? FontWeights.SemiBold : FontWeights.Normal;
+                _title.FontWeight = _selected ? FontWeights.SemiBold : TextWeights.Body;
                 Background = Brushes.Transparent;
                 _underline.Visibility = _selected ? Visibility.Visible : Visibility.Hidden;
             }

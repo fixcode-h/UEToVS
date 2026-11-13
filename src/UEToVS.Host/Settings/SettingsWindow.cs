@@ -448,7 +448,7 @@ namespace UEToVS.Host.Settings
             if (d.Kind == SettingKind.Info && d.ActionId == Logic.IntelliSense.TakeoverFeatures.SettingsInfoId)
                 return new SettingsRow(d.Title(English), d.Description(English)) { Below = new TakeoverFeatureTable() };
 
-            var row = new SettingsRow(d.Title(English), d.Description(English));
+            var row = new SettingsRow(d.Title(English), d.Description(English), d.Hint(English));
             var labels = row.Labels;
             if (d.RequiresRestart)
                 labels.Children.Add(new UiText(SettingsText.RestartHint, TextVariant.Description) { Margin = new Thickness(0, 2, 0, 0) });

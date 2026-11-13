@@ -404,7 +404,7 @@ namespace UEToVS.UI.Controls
                 else _rows[i].Background = Brushes.Transparent;
                 if (_rows[i].Child is TextBlock tb)
                 {
-                    tb.FontWeight = FontWeights.Normal;
+                    tb.FontWeight = TextWeights.Body;
                     tb.Bind(TextBlock.ForegroundProperty, i == _selected ? Tokens.SelectionForeground : Tokens.TextPrimary);
                 }
             }

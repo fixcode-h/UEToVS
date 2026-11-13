@@ -29,11 +29,11 @@ namespace UEToVS.UI.Logic.Tests
         }
 
         [Fact]
-        public void DefaultsAreBundledLatinAndCodeAndHintedSystemCjk()
+        public void DefaultsMatchAgentPanel()
         {
             var s = new FontSettings();
             Assert.Equal("bundled:IBM Plex Sans", s.UiLatin.ToString());
-            Assert.Equal("Microsoft YaHei UI", s.UiCjk.ToString()); // v0.5.3: hinted system font, Noto Sans SC is unhinted
+            Assert.Equal("bundled:Noto Sans SC", s.UiCjk.ToString()); // v0.5.17: back to Noto, UI text is 500 (Agent Panel)
             Assert.Equal("bundled:Maple Mono NL", s.Code.ToString());
             Assert.True(s.Code.Bundled.Monospace);
         }
@@ -43,7 +43,9 @@ namespace UEToVS.UI.Logic.Tests
         {
             Assert.Equal("IBM Plex Sans（内置）", FontSettings.DefaultUiLatin.Display(false));
             Assert.Equal("思源黑体 Noto Sans SC（内置）", FontChoice.OfBundled(BundledFontCatalog.NotoSansSc).Display(false));
-            Assert.Equal("Microsoft YaHei UI", FontSettings.DefaultUiCjk.Display(false));
+            Assert.Equal("思源黑体 Noto Sans SC（内置）", FontSettings.DefaultUiCjk.Display(false));
+            Assert.Equal("Maple Mono CN（内置）", FontChoice.OfBundled(BundledFontCatalog.MapleMonoCn).Display(false));
+            Assert.Equal("Microsoft YaHei UI", FontSettings.SystemCjk.Display(false));
             Assert.Equal("Maple Mono NL (bundled)", FontSettings.DefaultCode.Display(true));
             Assert.Equal("跟随 VS", FontChoice.FollowVs.Display(false));
             Assert.Equal("不修改（使用 VS 当前设置）", FontChoice.Keep.Display(false));
@@ -53,7 +55,10 @@ namespace UEToVS.UI.Logic.Tests
         [Fact]
         public void CatalogFilesAndReferences()
         {
-            Assert.Equal(3, BundledFontCatalog.All.Count);
+            Assert.Equal(6, BundledFontCatalog.All.Count);
+            Assert.Equal(new[] { "Maple Mono NL", "JetBrains Mono" }, BundledFontCatalog.All.Where(b => b.Monospace).Select(b => b.Family).ToArray());
+            // UI text is 500: every bundled family has a Medium face
+            Assert.All(BundledFontCatalog.All, b => Assert.Contains(b.Files, f => f.EndsWith("-Medium.ttf", StringComparison.Ordinal)));
             Assert.Equal("./IBMPlexSans/#IBM Plex Sans", BundledFontCatalog.IbmPlexSans.WpfReference);
             Assert.All(BundledFontCatalog.All, b => Assert.All(b.Files, f => Assert.EndsWith(".ttf", f)));
             Assert.Null(BundledFontCatalog.Find("Segoe UI"));
@@ -63,7 +68,7 @@ namespace UEToVS.UI.Logic.Tests
         public void UiFontIsLatinThenCjkThenVsFont()
         {
             var refs = new FontSettings().ComposeUi("Segoe UI");
-            Assert.Equal("./IBMPlexSans/#IBM Plex Sans, Microsoft YaHei UI, Segoe UI", FontSettings.ToWpfFamilyList(refs));
+            Assert.Equal("./IBMPlexSans/#IBM Plex Sans, ./NotoSansSC/#Noto Sans SC, Segoe UI", FontSettings.ToWpfFamilyList(refs));
         }
 
         [Fact]
@@ -84,7 +89,10 @@ namespace UEToVS.UI.Logic.Tests
         public void CodeFontAddsCjkAndMonospaceFallbacks()
         {
             var refs = new FontSettings { UiCjk = FontChoice.OfBundled(BundledFontCatalog.NotoSansSc) }.ComposeCode("Consolas", "Cascadia Mono, Consolas");
-            Assert.Equal("./MapleMonoNL/#Maple Mono NL, ./NotoSansSC/#Noto Sans SC, Cascadia Mono, Consolas", FontSettings.ToWpfFamilyList(refs));
+            Assert.Equal("./MapleMonoNL/#Maple Mono NL, ./JetBrainsMono/#JetBrains Mono, ./NotoSansSC/#Noto Sans SC, Cascadia Mono, Consolas", FontSettings.ToWpfFamilyList(refs));
+
+            var jb = new FontSettings { Code = FontChoice.OfBundled(BundledFontCatalog.JetBrainsMono), UiCjk = FontChoice.OfBundled(BundledFontCatalog.MapleMonoCn) }.ComposeCode(null, "Consolas");
+            Assert.Equal("./JetBrainsMono/#JetBrains Mono, ./MapleMonoCN/#Maple Mono CN, Consolas", FontSettings.ToWpfFamilyList(jb));
 
             var follow = new FontSettings { Code = FontChoice.FollowVs, UiCjk = FontChoice.FollowVs };
             Assert.Equal("Fira Code, Cascadia Mono", FontSettings.ToWpfFamilyList(follow.ComposeCode("Fira Code", "Cascadia Mono")));
@@ -94,7 +102,7 @@ namespace UEToVS.UI.Logic.Tests
         public void OptionsListKeywordsBundledThenInstalledSortedWithoutDuplicates()
         {
             var options = FontSettings.Options(new[] { FontChoice.FollowVs }, new[] { "Segoe UI", "consolas", "IBM Plex Sans", "@SimSun", "Arial", "Segoe UI", "" }, null);
-            Assert.Equal(new[] { "vs", "bundled:IBM Plex Sans", "bundled:Noto Sans SC", "bundled:Maple Mono NL", "Arial", "consolas", "Segoe UI" },
+            Assert.Equal(new[] { "vs", "bundled:IBM Plex Sans", "bundled:Inter", "bundled:Noto Sans SC", "bundled:Maple Mono CN", "bundled:Maple Mono NL", "bundled:JetBrains Mono", "Arial", "consolas", "Segoe UI" },
                          options.Select(o => o.ToString()).ToArray());
 
             var mono = FontSettings.Options(null, null, FontChoice.OfSystem("Gone Font"), monospaceFirst: true);

@@ -72,7 +72,7 @@ namespace UEToVS.UI.Atoms
         private void Apply()
         {
             object fg = Tokens.TextPrimary, size = Tokens.FontSizeBody;
-            FontWeight weight = FontWeights.Normal;
+            FontWeight weight = TextWeights.Body;
             switch (_variant)
             {
                 case TextVariant.Secondary: fg = Tokens.TextSecondary; break;

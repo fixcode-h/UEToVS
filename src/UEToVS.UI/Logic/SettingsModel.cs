@@ -55,6 +55,9 @@ namespace UEToVS.UI.Logic
         public string TitleEn { get; set; }
         public string DescriptionZh { get; set; }
         public string DescriptionEn { get; set; }
+        /// <summary>Longer explanation behind a "?" next to the title (tooltip); null = none.</summary>
+        public string HintZh { get; set; }
+        public string HintEn { get; set; }
         /// <summary>Default value (invariant string). For Int, "0" may mean "auto" (see <see cref="AutoLabelZh"/>).</summary>
         public string Default { get; set; }
         public int Min { get; set; } = int.MinValue;
@@ -121,6 +124,7 @@ namespace UEToVS.UI.Logic
 
         public string Title(bool english) => english ? (TitleEn ?? TitleZh) : (TitleZh ?? TitleEn);
         public string Description(bool english) => english ? (DescriptionEn ?? DescriptionZh) : (DescriptionZh ?? DescriptionEn);
+        public string Hint(bool english) => english ? (HintEn ?? HintZh) : (HintZh ?? HintEn);
         public string Group(bool english) => english ? (GroupEn ?? GroupZh) : (GroupZh ?? GroupEn);
         public string ActionLabel(bool english) => english ? (ActionLabelEn ?? ActionLabelZh) : (ActionLabelZh ?? ActionLabelEn);
 

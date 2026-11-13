@@ -149,7 +149,7 @@ namespace UEToVS.UI.Molecules
             else
             {
                 _primary.IsSecondary = false;
-                _primary.FontWeight = FontWeights.Normal;
+                _primary.FontWeight = TextWeights.Body;
                 _primary.ClearValue(TextBlock.FontSizeProperty);
             }
 
