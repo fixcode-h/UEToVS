@@ -247,6 +247,9 @@ namespace UEToVS.Host.IntelliSense
         [Import]
         internal IViewElementFactoryService Factory { get; set; }
 
+        [Import]
+        internal Microsoft.VisualStudio.Text.Classification.IClassificationFormatMapService FormatMaps { get; set; }
+
         public TView CreateViewElement<TView>(ITextView textView, object model) where TView : class
         {
             if (!(model is MacroExpansionElement m) || typeof(TView) != typeof(UIElement)) return null;
@@ -254,18 +257,24 @@ namespace UEToVS.Host.IntelliSense
             {
                 var body = new StackPanel { Margin = new Thickness(0, 2, 0, 0) };
                 double codeMax = QuickInfoLayout.CodeMaxHeight(QuickInfoScroll.WorkAreaHeight());
+                var foreground = QuickInfoScroll.TooltipForeground(FormatMaps);
                 foreach (var step in m.Steps)
                 {
                     if (step.Label != null)
                         body.Children.Add(new UiText(step.Label, TextVariant.Caption) { Margin = new Thickness(0, 6, 0, 3), Opacity = 0.8 });
                     var code = Factory.CreateViewElement<UIElement>(textView, step.Code);
                     if (code == null) continue;
-                    if (code is FrameworkElement fe) System.Windows.Documents.TextElement.SetFontFamily(fe, Mono);
+                    if (code is FrameworkElement fe)
+                    {
+                        System.Windows.Documents.TextElement.SetFontFamily(fe, Mono);
+                        // 标点、运算符、普通文本没有分类颜色，靠继承；显式给工具提示文字色，深色主题下不再是黑字（v0.5.18）
+                        QuickInfoScroll.ApplyForeground(fe, foreground);
+                    }
                     if (step.Label == null) { body.Children.Add(code); continue; }
                     body.Children.Add(new Border
                     {
                         // 代码块限高并可滚动（GENERATED_BODY 的生成代码常有上百行）；滚到头后滚轮交给整个提示
-                        Child = QuickInfoScroll.Wrap(code, codeMax, chainWheel: true), Background = CodeBackground, BorderBrush = CodeBorder, BorderThickness = new Thickness(1),
+                        Child = QuickInfoScroll.Wrap(code, codeMax, chainWheel: true, foreground), Background = CodeBackground, BorderBrush = CodeBorder, BorderThickness = new Thickness(1),
                         CornerRadius = new CornerRadius(4), Padding = new Thickness(8, 4, 8, 5),
                         HorizontalAlignment = HorizontalAlignment.Stretch, MaxWidth = 720,
                     });
