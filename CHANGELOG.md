@@ -6,6 +6,11 @@
 - 节内用 `### 新功能`、`### 改进`、`### Bug 修复`、`### 注意` 等小标题，条目写成 `- **短标题** — 说明`。
 - 改了 `src/` 的 PR 必须在最上面加一个新版本节（PR 检查会验证），这样每次合并都会出一个带更新日志的包。
 
+## v0.5.2
+
+### 改进
+- **Live Coding 默认关闭** — 新增设置 › 常规 › UE 编辑器联动 › “启用 Live Coding 联动”，默认关闭：Live Coding 会启动 UE 的 LiveCodingConsole，大型项目可占用数 GB 内存。关闭时“Live Coding（UE 编辑器）”命令（Ctrl+Alt+F11）不再让编辑器编译，只提示去设置里打开；“Live Coding 错误映射到 VS”需要先启用它。UE 自己启动的 LiveCodingConsole 不受影响，可在 UE 的 编辑器偏好设置 > 通用 > Live Coding 里关闭。日志 `link.liveCoding.disabled`
+
 ## v0.5.1
 
 ### 改进

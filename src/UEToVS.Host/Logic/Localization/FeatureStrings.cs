@@ -140,6 +140,8 @@ namespace UEToVS.Host.Logic.Localization
         public static string GeneratingProjectFiles => Loc.T("正在生成工程文件…", "Generating project files...");
         public static string ProjectFilesGenerated => Loc.T("工程文件已生成，VS 会提示重新加载解决方案", "Project files generated; VS will offer to reload the solution");
         public static string ProjectFilesFailed => Loc.T("生成工程文件失败，详见输出窗口", "Generating project files failed; see the Output window");
+        public static string LiveCodingDisabled => Loc.T("Live Coding 联动未启用（默认关闭，LiveCodingConsole 占用内存较多）：可在 设置 > 常规 > UE 编辑器联动 中打开。",
+            "The Live Coding integration is off (off by default: LiveCodingConsole uses a lot of memory); turn it on under Settings > General > Unreal Editor link.");
         public static string LiveCodingRequesting => Loc.T("正在请求编辑器执行 Live Coding…", "Asking the editor to run Live Coding...");
         public static string LiveCodingStarted(string msg) => Loc.T("Live Coding 已开始" + (string.IsNullOrEmpty(msg) ? "" : "：" + msg), "Live Coding started" + (string.IsNullOrEmpty(msg) ? "" : ": " + msg));
         public static string LiveCodingFailed(string msg) => Loc.T("Live Coding 失败：" + msg, "Live Coding failed: " + msg);
