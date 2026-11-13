@@ -52,6 +52,7 @@
     <Reference Include="System.Net.Http" />
     <Reference Include="System.Security" />
     <Reference Include="System.ServiceProcess" />
+    <Reference Include="System.Management" />
   </ItemGroup>
 
   <ItemGroup>
