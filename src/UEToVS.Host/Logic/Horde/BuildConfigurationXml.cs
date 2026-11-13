@@ -147,7 +147,9 @@ namespace UEToVS.Host.Logic.Horde
             // Only the root element is serialized; the text around it (declaration, comments, line breaks) is kept as read.
             // The XML parser turns CRLF into LF inside the document; put the file's line breaks back.
             string root = Root.ToString(SaveOptions.DisableFormatting);
-            if (_newLine == "\r\n") root = root.Replace("\r\n", "\n").Replace("\n", "\r\n");
+            // XElement.ToString also writes Environment.NewLine for "\n" on Windows, so normalize both ways.
+            root = root.Replace("\r\n", "\n");
+            if (_newLine == "\r\n") root = root.Replace("\n", "\r\n");
             return _prefix + root + _suffix;
         }
 
