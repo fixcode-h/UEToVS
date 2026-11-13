@@ -280,6 +280,20 @@ namespace UEToVS.Host.Logic.Commands
 
         public static string SerializeBackup(Backup b) => JsonConvert.SerializeObject(b, Formatting.Indented);
 
+        /// <summary>
+        /// The bindings each command had before UEToVS first touched it: across all backups (each one holds the values
+        /// just before one change), the oldest backup that mentions a command wins. Used by "恢复 VS 原样".
+        /// </summary>
+        public static Dictionary<string, string[]> Originals(IEnumerable<Backup> backups)
+        {
+            var result = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
+            if (backups == null) return result;
+            foreach (var b in backups.Where(x => x?.Bindings != null).OrderBy(x => x.CreatedUtc))
+                foreach (var kv in b.Bindings)
+                    if (!string.IsNullOrEmpty(kv.Key) && !result.ContainsKey(kv.Key)) result[kv.Key] = kv.Value ?? Array.Empty<string>();
+            return result;
+        }
+
         public static Backup ParseBackup(string json)
         {
             if (string.IsNullOrWhiteSpace(json)) return null;

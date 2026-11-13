@@ -40,6 +40,8 @@ namespace UEToVS.Host.Logic.Settings
             /// <summary>Index status card "重建" after a failure: C++ (project + engine) and Blueprint indexes.</summary>
             public const string RebuildAllIndexes = "settings.indexing.rebuildAll";
             public const string ToggleIntelliSense = "settings.intelliSense.toggle";
+            /// <summary>"恢复 VS 原样": restores every VS setting UEToVS changed and turns the takeover / font management off.</summary>
+            public const string RestoreVsDefaults = "settings.general.restoreVs";
             public const string IndexStatus = "settings.indexing.status";
             /// <summary>"索引 Lua 脚本": applies pending settings, then drops and re-parses the Lua index.</summary>
             public const string IndexLua = "settings.indexing.indexLua";
@@ -122,9 +124,9 @@ namespace UEToVS.Host.Logic.Settings
             // code analysis and Blueprint scan follow it (listed in the table below) instead of having switches of their own.
             var mode = D(General, "intelliSense.mode", SettingKind.Choice, "接管范围", "Takeover scope",
                 "仅 UE 解决方案（默认）：打开 UE 解决方案时接管；全局：安装期间一直接管；关闭：不接管，使用 VS 自带的 C++ IntelliSense。" +
-                "接管时同时关闭 VS 的 C++ 浏览数据库、后台代码分析和自带的蓝图扫描（修改前备份，选“关闭”即恢复），见下方“接管后 VS 自带功能”。",
+                "接管时同时关闭 VS 的 C++ 浏览数据库和后台代码分析，以及下面勾选的 VS 功能（修改前备份，选“关闭”即恢复），见下方“接管后 VS 自带功能”。",
                 "UE solutions only (default): taken over while a UE solution is open; Global: always while installed; Off: not taken over, VS's own C++ IntelliSense is used. " +
-                "Taking over also turns off VS's C++ browse database, background code analysis and its own Blueprint scan (backed up first; choosing Off restores them), see “VS features after the takeover” below.",
+                "Taking over also turns off VS's C++ browse database, background code analysis and the VS features ticked below (backed up first; choosing Off restores them), see “VS features after the takeover” below.",
                 nameof(IntelliSenseTakeoverMode.UnrealSolutionOnly), gCpp, gCppEn);
             mode.Options = new[]
             {
@@ -137,11 +139,25 @@ namespace UEToVS.Host.Logic.Settings
                 "根据当前状态接管或恢复 VS 自带的 C++ IntelliSense。", "Takes over or restores VS's own C++ IntelliSense, depending on the current state.", gCpp, gCppEn));
             list.Add(A(General, "vs.unrealIntegration", WindowActions.VsUnrealIntegration, "VS 自带的 Unreal Engine 集成", "VS's built-in Unreal Engine integration",
                 null, null, gCpp, gCppEn, SettingKind.Info));
+            // v0.5.6: one switch per VS Unreal / C++ background feature; on = turned off while taken over (backed up, restored with scope Off)
+            foreach (var f in UEToVS.Host.Logic.IntelliSense.VsUnrealFeatures.Features)
+                list.Add(D(General, f.SettingKey, SettingKind.Bool, f.TitleZh, f.TitleEn,
+                    f.DescriptionZh + "（接管时生效，修改前备份；取消勾选或接管范围选“关闭”即恢复）",
+                    f.DescriptionEn + " (applies while taken over, backed up first; unticking it or scope “Off” restores it)", "true", gCpp, gCppEn));
             // ---- v0.4.5 navigation gaps: what VS loses after the takeover and the UEToVS replacement (table drawn by the settings window)
             list.Add(A(General, "intelliSense.featureMatrix", UEToVS.Host.Logic.IntelliSense.TakeoverFeatures.SettingsInfoId, "接管后 VS 自带功能", "VS features after the takeover",
                 "接管后 VS 的 C++ IntelliSense、浏览数据库、后台代码分析和蓝图扫描关闭（接管范围选“关闭”即恢复），依赖它们的 VS 功能会失效；下表列出 UEToVS 的替代命令和默认快捷键。",
                 "With the takeover, VS's C++ IntelliSense, browse database, background code analysis and Blueprint scan are off (scope “Off” restores them) and the VS features built on them stop working; the table lists the UEToVS replacements and their default keys.",
                 gCpp, gCppEn, SettingKind.Info));
+
+            list.Add(A(General, "vs.restoreAll", WindowActions.RestoreVsDefaults, "恢复 VS 原样", "Restore Visual Studio",
+                "禁用或卸载 UEToVS 之前点一下：按备份还原 UEToVS 改过的所有 VS 设置——C++ IntelliSense、浏览数据库、语义索引、后台代码分析、蓝图支持、UHT 代码分析、CodeLens、" +
+                "VS 字体和快捷键（包括为 UEToVS 让出按键的 VS 命令），并把接管范围设为“关闭”、不再管理 VS 字体，之后不会再自动改回去。" +
+                "VS 禁用或卸载扩展时不会通知扩展，所以这一步要手动做。",
+                "Click this before disabling or uninstalling UEToVS: restores, from the backups, every VS setting UEToVS changed — C++ IntelliSense, browse database, " +
+                "semantic index, background code analysis, Blueprint support, UHT code analysis, CodeLens, VS fonts and shortcuts (including VS commands that gave their keys to UEToVS) — " +
+                "and sets the takeover scope to Off and stops managing VS fonts so nothing is changed again. VS does not tell an extension it is being disabled or uninstalled, so this is a manual step.",
+                "卸载前", "Before uninstalling"));
 
             list.Add(A(Updates, "update.check", WindowActions.CheckForUpdates, "检查更新", "Check for updates",
                 "查询 GitHub 上的最新版本；有新版本时显示版本号和安装包大小，点“下载并安装”后显示下载进度，下载完启动 VS 的扩展安装程序，关闭 VS 后完成安装。",
@@ -471,6 +487,7 @@ namespace UEToVS.Host.Logic.Settings
         {
             ["engine.restart"] = ("重启", "Restart"),
             ["intelliSense.toggle"] = ("执行", "Run"),
+            ["vs.restoreAll"] = ("恢复", "Restore"),
             ["update.check"] = ("检查", "Check"),
             ["mcp.writeConfig"] = ("写入", "Write"),
             ["indexing.rebuildProject"] = ("重建", "Rebuild"),
@@ -510,6 +527,10 @@ namespace UEToVS.Host.Logic.Settings
                     ["engine.unrealEngineRoot"] = s.UnrealEngineRootOverride ?? "",
                     ["engine.requestTimeoutSeconds"] = I(s.EngineRequestTimeoutSeconds),
                     ["intelliSense.mode"] = s.IntelliSenseTakeoverMode.ToString(),
+                    ["vsFeatures.semanticIndex"] = B(s.TurnOffVsSemanticIndex),
+                    ["vsFeatures.blueprints"] = B(s.TurnOffVsBlueprints),
+                    ["vsFeatures.uhtAnalysis"] = B(s.TurnOffVsUhtAnalysis),
+                    ["vsFeatures.codeLens"] = B(s.TurnOffVsCodeLens),
                     ["toolbar.show"] = B(s.ShowToolbar),
                     ["keyboard.doubleShift"] = B(s.DoubleShiftEnabled),
                     ["keyboard.doubleShiftIntervalMs"] = I(s.DoubleShiftIntervalMs),
@@ -632,6 +653,10 @@ namespace UEToVS.Host.Logic.Settings
                         case "engine.unrealEngineRoot": s.UnrealEngineRootOverride = v; break;
                         case "engine.requestTimeoutSeconds": s.EngineRequestTimeoutSeconds = PI(v, 30); break;
                         case "intelliSense.mode": s.IntelliSenseTakeoverMode = PE(v, IntelliSenseTakeoverMode.UnrealSolutionOnly); break;
+                        case "vsFeatures.semanticIndex": s.TurnOffVsSemanticIndex = PB(v); break;
+                        case "vsFeatures.blueprints": s.TurnOffVsBlueprints = PB(v); break;
+                        case "vsFeatures.uhtAnalysis": s.TurnOffVsUhtAnalysis = PB(v); break;
+                        case "vsFeatures.codeLens": s.TurnOffVsCodeLens = PB(v); break;
                         case "toolbar.show": s.ShowToolbar = PB(v); break;
                         case "keyboard.doubleShift": s.DoubleShiftEnabled = PB(v); break;
                         case "keyboard.doubleShiftIntervalMs": s.DoubleShiftIntervalMs = PI(v, 300); break;

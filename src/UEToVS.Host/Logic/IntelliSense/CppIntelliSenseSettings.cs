@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 
 namespace UEToVS.Host.Logic.IntelliSense
 {
@@ -44,6 +45,9 @@ namespace UEToVS.Host.Logic.IntelliSense
 
         public CppSettingGate Gate { get; }
 
+        /// <summary>For <see cref="CppSettingGate.VsFeature"/>: the switch id (<see cref="VsUnrealFeatures"/>) that turns this setting off.</summary>
+        public string Feature { get; set; }
+
         /// <summary>Tried in order; the first property that exists on this VS is used.</summary>
         public IReadOnlyList<CppPropertyCandidate> Candidates { get; }
     }
@@ -56,6 +60,9 @@ namespace UEToVS.Host.Logic.IntelliSense
 
         /// <summary>Only when the "Disable Database" option is on (default on, §7.5).</summary>
         DisableDatabaseOption = 1,
+
+        /// <summary>v0.5.6: a VS Unreal / C++ background feature with its own switch (<see cref="CppSettingDefinition.Feature"/>), default off with the takeover.</summary>
+        VsFeature = 2,
     }
 
     /// <summary>
@@ -89,7 +96,7 @@ namespace UEToVS.Host.Logic.IntelliSense
 
         private static CppPropertyCandidate S(string name, bool value) => new CppPropertyCandidate(SpecificPage, name, value);
 
-        public static IReadOnlyList<CppSettingDefinition> All { get; } = new[]
+        public static IReadOnlyList<CppSettingDefinition> All { get; } = new List<CppSettingDefinition>
         {
             new CppSettingDefinition(KeyIntelliSense, "Disable IntelliSense (turns off the EDG front end)", CppSettingGate.Always,
                 S("DisableIntelliSense", true), S("IntelliSenseDisabled", true), S("DisableIntellisense", true)),
@@ -119,13 +126,9 @@ namespace UEToVS.Host.Logic.IntelliSense
             new CppSettingDefinition(KeyAutomaticUpdates, "Disable Automatic Updates", CppSettingGate.DisableDatabaseOption,
                 S("DisableAutomaticUpdates", true), S("DisableAutoUpdates", true), S("DisableAutoUpdate", true),
                 S("DisableDatabaseAutoUpdates", true)), // VS 18.x name
-            // VS 18.x "whole codebase semantic index" (settings.json languages.cpp.intelliSense.browsingNavigation.
-            // wholeCodebaseSemanticIndex.enabled; feeds the C++ CodeLens reference counts). After every build it re-indexes
-            // the whole UE codebase with up to logical-cores worker threads: a 2026-11-13 diagnostics package showed devenv
-            // +10 GB native memory for ~15 min after each build with this on and every other switch already off.
-            new CppSettingDefinition(KeySymbolIndex, "Disable whole-codebase semantic index", CppSettingGate.DisableDatabaseOption,
-                S("EnableSymbolIndex", false), S("EnableWholeCodebaseSemanticIndex", false)),
-        };
+            // v0.5.6: VS 18 Unreal / C++ background features with their own switches (semantic index, Blueprint support,
+            // UHT code analysis). Written last: some of them live only in settings.json (VsUnrealFeatures.JsonPage).
+        }.Concat(VsUnrealFeatures.Table).ToList();
 
         /// <summary>
         /// VS's C++ background code analysis ("Disable Background Code Analysis" under Text Editor > C/C++ > Advanced >

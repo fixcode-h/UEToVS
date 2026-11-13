@@ -47,6 +47,9 @@ namespace UEToVS.Host.Logic.IntelliSense
     public sealed class TakeoverOptions
     {
         public bool DisableDatabase { get; set; } = true;
+
+        /// <summary>v0.5.6: ids of the VS features (<see cref="VsUnrealFeatures"/>) to turn off; null = all of them.</summary>
+        public ISet<string> TurnOffVsFeatures { get; set; }
     }
 
     public sealed class TakeoverReport
@@ -287,6 +290,7 @@ namespace UEToVS.Host.Logic.IntelliSense
             switch (def.Gate)
             {
                 case CppSettingGate.DisableDatabaseOption: return options.DisableDatabase;
+                case CppSettingGate.VsFeature: return options.TurnOffVsFeatures == null || options.TurnOffVsFeatures.Contains(def.Feature ?? "");
                 default: return true;
             }
         }

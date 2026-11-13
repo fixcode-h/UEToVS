@@ -77,7 +77,33 @@ namespace UEToVS.Host.Logic.Settings
         public bool DisableBackgroundCodeAnalysis => IntelliSenseTakeover;
 
         /// <summary>VS's own Unreal Engine "Blueprint Support" (scans every Blueprint on each solution load): switched off (backed up) whenever the takeover is on (follows the scope since v0.5.1).</summary>
-        public bool VsBlueprintSupport => !IntelliSenseTakeover;
+        public bool VsBlueprintSupport => !(IntelliSenseTakeover && TurnOffVsBlueprints);
+
+        // v0.5.6: VS Unreal / C++ background features with switches of their own (Logic/IntelliSense/VsUnrealFeatures.cs).
+        // true = turned off (backed up first) while the takeover is active; false = left as the user has it.
+
+        /// <summary>VS 18's whole-codebase C++ semantic index and its CodeLens references.</summary>
+        public bool TurnOffVsSemanticIndex { get; set; } = true;
+
+        /// <summary>VS's Unreal Engine "enhanced Blueprint support" (Blueprint scan on every solution load).</summary>
+        public bool TurnOffVsBlueprints { get; set; } = true;
+
+        /// <summary>VS's Unreal Header Tool code analysis.</summary>
+        public bool TurnOffVsUhtAnalysis { get; set; } = true;
+
+        /// <summary>VS's CodeLens (all languages; empty once the semantic index and Blueprint support are off).</summary>
+        public bool TurnOffVsCodeLens { get; set; } = true;
+
+        /// <summary>Ids (<see cref="UEToVS.Host.Logic.IntelliSense.VsUnrealFeatures"/>) of the VS features to turn off.</summary>
+        public System.Collections.Generic.ISet<string> TurnOffVsFeatures()
+        {
+            var set = new System.Collections.Generic.HashSet<string>(System.StringComparer.Ordinal);
+            if (TurnOffVsSemanticIndex) set.Add(UEToVS.Host.Logic.IntelliSense.VsUnrealFeatures.SemanticIndex);
+            if (TurnOffVsBlueprints) set.Add(UEToVS.Host.Logic.IntelliSense.VsUnrealFeatures.Blueprints);
+            if (TurnOffVsUhtAnalysis) set.Add(UEToVS.Host.Logic.IntelliSense.VsUnrealFeatures.UhtAnalysis);
+            if (TurnOffVsCodeLens) set.Add(UEToVS.Host.Logic.IntelliSense.VsUnrealFeatures.CodeLens);
+            return set;
+        }
 
         // ---- 日志 ----
         public int LogRetentionDays { get; set; } = 7;

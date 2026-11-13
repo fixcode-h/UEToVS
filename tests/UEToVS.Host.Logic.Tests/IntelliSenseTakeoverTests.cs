@@ -85,7 +85,8 @@ namespace UEToVS.Host.Logic.Tests
             Assert.True((bool)store.Values["DisableDatabase"]);
             Assert.True(r.BackupWritten);
             Assert.Equal(7, r.Count(SettingOutcomeStatus.Changed));
-            Assert.Equal(5, r.Count(SettingOutcomeStatus.Missing)); // memberList, includeAutoComplete, databaseUpdates, automaticUpdates, symbolIndex not on this "VS"
+            // memberList, includeAutoComplete, databaseUpdates, automaticUpdates, symbolIndex and the 5 settings.json-only VS features not on this "VS"
+            Assert.Equal(10, r.Count(SettingOutcomeStatus.Missing));
             Assert.True(r.FullyTakenOver);
             Assert.Equal(TakeoverState.TakenOver, IntelliSenseTakeover.GetState(store, new TakeoverOptions()));
             var missing = r.Outcomes.Single(o => o.Key == CppIntelliSenseSettings.KeyMemberList);
@@ -93,7 +94,7 @@ namespace UEToVS.Host.Logic.Tests
         }
 
         [Fact]
-        public void Vs18SemanticIndexIsSwitchedOffWithTheDatabaseAndRestored()
+        public void Vs18SemanticIndexIsSwitchedOffByItsSwitchAndRestored()
         {
             var store = FakeStore.Vs2022().With("EnableSymbolIndex", true);
             var backup = new IntelliSenseBackup();
@@ -101,9 +102,9 @@ namespace UEToVS.Host.Logic.Tests
             Assert.False((bool)store.Values["EnableSymbolIndex"]);
             Assert.Equal(SettingOutcomeStatus.Changed, r.Outcomes.Single(o => o.Key == CppIntelliSenseSettings.KeySymbolIndex).Status);
 
-            // Without "disable database" the semantic index is left alone.
+            // With its switch off the semantic index is left alone.
             var other = FakeStore.Vs2022().With("EnableSymbolIndex", true);
-            Apply(other, new IntelliSenseBackup(), disableDb: false);
+            IntelliSenseTakeover.Apply(other, new IntelliSenseBackup(), new TakeoverOptions { TurnOffVsFeatures = new HashSet<string>() }, null);
             Assert.True((bool)other.Values["EnableSymbolIndex"]);
 
             IntelliSenseTakeover.Restore(store, backup);

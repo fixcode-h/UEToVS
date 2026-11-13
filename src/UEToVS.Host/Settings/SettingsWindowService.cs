@@ -108,6 +108,8 @@ namespace UEToVS.Host.Settings
                     var report = svc.BackupExists ? await svc.RestoreAsync("settingsWindow") : await svc.TakeOverAsync("settingsWindow");
                     return report != null ? SettingsText.Done : SettingsText.Failed;
                 }
+                case HostSettingsSchema.WindowActions.RestoreVsDefaults:
+                    return await Shell.VsRestoreService.RunAsync(_package);
                 // ---- v0.5.4 联合编译（Horde / UBA）
                 case UEToVS.Host.Logic.Horde.HordeSettingsSchema.ApplyAction:
                     return await Horde.HordeFeature.ApplyAsync(_package.Settings.Effective, true, "button") ?? SettingsText.Done;
@@ -169,9 +171,9 @@ namespace UEToVS.Host.Settings
                     return SettingsText.LogDirectory(HostLog.LogDirectory);
                 case HostSettingsSchema.WindowActions.VsUnrealIntegration:
                 {
-                    var found = _package.IntelliSense?.VsBlueprintOptions;
-                    if (found == null) return SettingsText.VsUnrealIntegration;
-                    return SettingsText.VsUnrealIntegration + "\n" + (found.Count == 0 ? SettingsText.VsBlueprintOptionsNone : SettingsText.VsBlueprintOptionsFound(string.Join(", ", found)));
+                    var svc = _package.IntelliSense;
+                    if (string.IsNullOrEmpty(svc?.SettingsJsonPath)) return SettingsText.VsUnrealIntegration;
+                    return SettingsText.VsUnrealIntegration + "\n" + (svc.SettingsJsonExists ? SettingsText.VsSettingsJsonFound(svc.SettingsJsonPath) : SettingsText.VsSettingsJsonMissing(svc.SettingsJsonPath));
                 }
                 case UEToVS.Host.Logic.Horde.HordeSettingsSchema.StatusInfo:
                     return Horde.HordeFeature.StatusText();

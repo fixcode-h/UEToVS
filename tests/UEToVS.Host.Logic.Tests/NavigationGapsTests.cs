@@ -127,7 +127,10 @@ namespace UEToVS.Host.Logic.Tests
             var off = TakeoverFeatures.All.Where(f => f.State == TakeoverFeatureState.TurnedOff).Select(f => f.FeatureEn).ToList();
             Assert.Contains(off, f => f.Contains("browse database"));
             Assert.Contains(off, f => f.Contains("Background code analysis"));
-            Assert.Contains(off, f => f.Contains("Blueprint scan"));
+            Assert.Contains(off, f => f.Contains("Blueprint support"));
+            Assert.Contains(off, f => f.Contains("semantic index"));
+            Assert.Contains(off, f => f.Contains("UHT code analysis"));
+            Assert.Contains(off, f => f.StartsWith("CodeLens"));
             Loc.Language = UiLanguage.Chinese;
             Assert.Equal("已关闭", TakeoverFeatures.StateText(TakeoverFeatureState.TurnedOff));
             // v0.5.1: "检查更新" is a page of its own, the last one

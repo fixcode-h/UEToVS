@@ -575,6 +575,15 @@ namespace UEToVS.Host.Settings
                             // "索引 Lua 脚本" works on the folders shown on the page: commit a just-typed path first.
                             if (d.ActionId == HostSettingsSchema.WindowActions.IndexLua && SettingsModel.Diff(_schema, _committed, _working).Count > 0) Apply();
                             result.Text = await _host.RunActionAsync(d.ActionId) ?? string.Empty;
+                            if (d.ActionId == HostSettingsSchema.WindowActions.RestoreVsDefaults)
+                            {
+                                // The action changed saved settings (scope Off, fonts unmanaged): show them, drop stale edits.
+                                _committed = _host.LoadValues();
+                                _working = new Dictionary<string, string>(_committed, StringComparer.Ordinal);
+                                var text = result.Text;
+                                ShowPage();
+                                L.Info("settings.window.reloaded", null, ("after", d.ActionId), ("result", text));
+                            }
                         }
                         finally
                         {
