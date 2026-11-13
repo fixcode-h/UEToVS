@@ -6,6 +6,11 @@
 - 节内用 `### 新功能`、`### 改进`、`### Bug 修复`、`### 注意` 等小标题，条目写成 `- **短标题** — 说明`。
 - 改了 `src/` 的 PR 必须在最上面加一个新版本节（PR 检查会验证），这样每次合并都会出一个带更新日志的包。
 
+## v0.5.11
+
+### 改进
+- **UE 编辑器启动时不再自动启动 Live Coding** — UE 默认在编辑器启动时就拉起 LiveCodingConsole（大型项目占用数 GB 内存），即使从不用 Live Coding。新增设置 › 常规 › UE 编辑器联动 › “UE 编辑器启动时不启动 Live Coding”，默认打开：打开 UE 解决方案时把项目 `Saved/Config/WindowsEditor/EditorPerProjectUserSettings.ini` 里 Live Coding 的启动方式改为“手动”（修改前备份到 `%LocalAppData%\UEToVS\ue-livecoding-backup.json`），控制台在第一次 Live Coding 编译时才启动，Ctrl+Alt+F11 照常可用。下次启动编辑器生效；关闭此项或“恢复 VS 原样”会还原，在 UE 里自己改过的值不会被覆盖。日志 `link.ueLiveCoding`
+
 ## v0.5.10
 
 ### 改进

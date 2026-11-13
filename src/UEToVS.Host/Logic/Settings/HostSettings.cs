@@ -155,6 +155,12 @@ namespace UEToVS.Host.Logic.Settings
         /// </summary>
         public bool LinkLiveCodingEnabled { get; set; } = false;
 
+        /// <summary>
+        /// v0.5.11: set the UE project's Live Coding startup to "Manual" (EditorPerProjectUserSettings.ini, backed up) so the
+        /// editor no longer starts LiveCodingConsole at launch; it starts on the first Live Coding compile instead.
+        /// </summary>
+        public bool UeLiveCodingManualStartup { get; set; } = true;
+
         /// <summary>Collect Live Coding compiler output from the editor and report its errors in VS (only with <see cref="LinkLiveCodingEnabled"/>).</summary>
         public bool LinkLiveCodingErrors { get; set; } = true;
 
