@@ -108,6 +108,13 @@ namespace UEToVS.Host.Settings
                     var report = svc.BackupExists ? await svc.RestoreAsync("settingsWindow") : await svc.TakeOverAsync("settingsWindow");
                     return report != null ? SettingsText.Done : SettingsText.Failed;
                 }
+                // ---- v0.5.4 联合编译（Horde / UBA）
+                case UEToVS.Host.Logic.Horde.HordeSettingsSchema.ApplyAction:
+                    return await Horde.HordeFeature.ApplyAsync(_package.Settings.Effective, true, "button") ?? SettingsText.Done;
+                case UEToVS.Host.Logic.Horde.HordeSettingsSchema.RestoreAction:
+                    return await Horde.HordeFeature.RestoreAsync();
+                case UEToVS.Host.Logic.Horde.HordeSettingsSchema.OpenConfigAction:
+                    return await Horde.HordeFeature.OpenConfigAsync();
                 // ---- v0.4.5 UE editor link
                 case HostSettingsSchema.WindowActions.LinkPluginInstall:
                     return await Link.LinkPluginManager.InstallAsync(_package, "settingsWindow");
@@ -166,6 +173,8 @@ namespace UEToVS.Host.Settings
                     if (found == null) return SettingsText.VsUnrealIntegration;
                     return SettingsText.VsUnrealIntegration + "\n" + (found.Count == 0 ? SettingsText.VsBlueprintOptionsNone : SettingsText.VsBlueprintOptionsFound(string.Join(", ", found)));
                 }
+                case UEToVS.Host.Logic.Horde.HordeSettingsSchema.StatusInfo:
+                    return Horde.HordeFeature.StatusText();
                 // ---- v0.4.5 UE editor link
                 case HostSettingsSchema.WindowActions.LinkPluginStatus:
                     return Link.LinkPluginManager.StatusText(_package);

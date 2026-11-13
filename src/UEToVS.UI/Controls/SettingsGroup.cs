@@ -244,6 +244,8 @@ namespace UEToVS.UI.Controls
         public static readonly Geometry Logs = Ui.FrozenGeometry("M 3,2.5 H 10 L 13,5.5 V 13.5 H 3 Z M 5.5,8 H 10.5 M 5.5,10.5 H 10.5");
         public static readonly Geometry Performance = Ui.FrozenGeometry("M 1.5,9 H 4.5 L 6.5,4 L 9.5,13 L 11.5,9 H 14.5");
         public static readonly Geometry Update = Ui.FrozenGeometry("M 8,1.5 V 10 M 4.5,6.5 L 8,10 L 11.5,6.5 M 2.5,11.5 V 14 H 13.5 V 11.5");
+        /// <summary>联合编译: three linked machines.</summary>
+        public static readonly Geometry Network = Ui.FrozenGeometry("M 6,1.5 H 10 V 5 H 6 Z M 1.5,11 H 5.5 V 14.5 H 1.5 Z M 10.5,11 H 14.5 V 14.5 H 10.5 Z M 8,5 V 8 M 3.5,11 V 8 H 12.5 V 11");
         public static readonly Geometry Folder = Ui.FrozenGeometry("M 1.5,4 A 1,1 0 0 1 2.5,3 H 5.5 L 7,4.5 H 12.5 A 1,1 0 0 1 13.5,5.5 V 11 A 1,1 0 0 1 12.5,12 H 2.5 A 1,1 0 0 1 1.5,11 Z");
         public static readonly Geometry Reset = Ui.FrozenGeometry("M 2,6.5 A 4.5,4.5 0 1 0 3.3,3.3 M 2,1.5 V 4 H 4.5");
         public static readonly Geometry Plus = Ui.FrozenGeometry("M 6,1.5 V 10.5 M 1.5,6 H 10.5");

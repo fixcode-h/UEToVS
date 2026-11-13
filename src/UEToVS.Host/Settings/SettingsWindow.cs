@@ -190,6 +190,7 @@ namespace UEToVS.Host.Settings
                 case HostSettingsSchema.Logging: return SettingsIcons.Logs;
                 case HostSettingsSchema.Performance: return SettingsIcons.Performance;
                 case HostSettingsSchema.Updates: return SettingsIcons.Update;
+                case UEToVS.Host.Logic.Horde.HordeSettingsSchema.Category: return SettingsIcons.Network;
                 default: return SettingsIcons.General;
             }
         }

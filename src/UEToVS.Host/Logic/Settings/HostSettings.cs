@@ -318,6 +318,50 @@ namespace UEToVS.Host.Logic.Settings
         /// <summary>LRU capacity of instantiated (template, arguments) bindings in the engine.</summary>
         public int TemplateCacheCapacity { get; set; } = 2048;
 
+        // ---- v0.5.4 联合编译（Horde / UBA；rows: Logic/Horde/HordeSettingsSchema.cs）----
+        /// <summary>Write the UBA / Horde keys to BuildConfiguration.xml (off = put back what was there before UEToVS).</summary>
+        public bool HordeEnabled { get; set; }
+
+        /// <summary>Where Horde (the agent) is installed; default C:\Horde.</summary>
+        public string HordeInstallPath { get; set; } = UEToVS.Host.Logic.Horde.HordeSettingsSchema.DefaultInstallPath;
+
+        /// <summary>Which BuildConfiguration.xml is written: the project's Saved folder (default) or the user's AppData one.</summary>
+        public UEToVS.Host.Logic.Horde.HordeConfigTarget HordeTarget { get; set; } = UEToVS.Host.Logic.Horde.HordeConfigTarget.Project;
+
+        /// <summary>Horde/Server; empty = keep what the other config files say.</summary>
+        public string HordeServer { get; set; } = string.Empty;
+
+        /// <summary>Horde/Pool; empty = not written.</summary>
+        public string HordePool { get; set; } = string.Empty;
+
+        /// <summary>Horde/MaxCores (remote cores borrowed at most); 0 = not written.</summary>
+        public int HordeMaxCores { get; set; }
+
+        /// <summary>BuildConfiguration/MaxParallelActions while Horde is on; 0 = logical cores / 4.</summary>
+        public int HordeLocalCores { get; set; }
+
+        /// <summary>Whether other people's builds may use this machine's Horde Agent (Agent.json computePort).</summary>
+        public UEToVS.Host.Logic.Horde.HordeAgentPolicy HordeAgentPolicy { get; set; } = UEToVS.Host.Logic.Horde.HordeAgentPolicy.Block;
+
+        /// <summary>Tri-state UBA switches: "default" (not written) / "true" / "false".</summary>
+        public string HordeLinkRemote { get; set; } = UEToVS.Host.Logic.Horde.HordeSettingsSchema.TriDefault;
+        public string HordePrintSummary { get; set; } = "true";
+        public string HordeForceRemote { get; set; } = UEToVS.Host.Logic.Horde.HordeSettingsSchema.TriDefault;
+        public string HordeDisableRemote { get; set; } = UEToVS.Host.Logic.Horde.HordeSettingsSchema.TriDefault;
+        public string HordeAllowRetry { get; set; } = UEToVS.Host.Logic.Horde.HordeSettingsSchema.TriDefault;
+        public string HordeLaunchVisualizer { get; set; } = UEToVS.Host.Logic.Horde.HordeSettingsSchema.TriDefault;
+        public string HordeStoreObjCompressed { get; set; } = UEToVS.Host.Logic.Horde.HordeSettingsSchema.TriDefault;
+
+        /// <summary>Advanced text values; empty = not written.</summary>
+        public string HordeCluster { get; set; } = string.Empty;
+        public string HordeZone { get; set; } = string.Empty;
+        public string HordeEncryption { get; set; } = string.Empty;
+        public string HordeConnectionMode { get; set; } = string.Empty;
+        public string HordeRootDir { get; set; } = string.Empty;
+
+        /// <summary>UnrealBuildAccelerator/StoreCapacityGb; 0 = not written.</summary>
+        public int HordeStoreCapacityGb { get; set; }
+
         public HostSettings Clone() => (HostSettings)MemberwiseClone();
     }
 }
