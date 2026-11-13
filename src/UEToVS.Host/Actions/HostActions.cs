@@ -85,10 +85,38 @@ namespace UEToVS.Host.Actions
                 return;
             }
             Log.Flush();
+            // The log is still being written (append, write handle open): VS asks for write access when it opens a
+            // document and failed with "file is in use". Open a read-only snapshot instead.
+            string view = await Task.Run(() => SnapshotLog(file));
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
             using (UiThread.Measure(L, "logs.open"))
-                VsShellUtilities.OpenDocument(package, file);
-            L.Info("logs.file.opened", null, ("file", file));
+                VsShellUtilities.OpenDocument(package, view);
+            L.Info("logs.file.opened", null, ("file", file), ("snapshot", view));
+        }
+
+        /// <summary>Copies a log that is still open for writing to %TEMP%\UEToVS\LogView (read-only); keeps the last few copies.</summary>
+        private static string SnapshotLog(string file)
+        {
+            string dir = Path.Combine(Path.GetTempPath(), "UEToVS", "LogView");
+            Directory.CreateDirectory(dir);
+            try
+            {
+                var old = new DirectoryInfo(dir).GetFiles("*.log");
+                Array.Sort(old, (a, b) => b.LastWriteTimeUtc.CompareTo(a.LastWriteTimeUtc));
+                for (int i = 4; i < old.Length; i++)
+                {
+                    try { old[i].Attributes = FileAttributes.Normal; old[i].Delete(); }
+                    catch (IOException) { } // still open in VS
+                    catch (UnauthorizedAccessException) { }
+                }
+            }
+            catch (IOException) { }
+            string target = Path.Combine(dir, Path.GetFileNameWithoutExtension(file) + "-" + DateTime.Now.ToString("HHmmss") + ".log");
+            using (var src = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
+            using (var dst = new FileStream(target, FileMode.Create, FileAccess.Write, FileShare.None))
+                src.CopyTo(dst);
+            File.SetAttributes(target, FileAttributes.ReadOnly);
+            return target;
         }
 
         /// <summary>Find Action palette (§7.4); the palette lists every other available action.</summary>

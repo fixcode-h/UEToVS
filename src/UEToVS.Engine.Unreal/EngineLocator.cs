@@ -171,33 +171,16 @@ namespace UEToVS.Engine.Unreal
         }
 
         /// <summary>
-        /// Stable identifier of an engine build, used to key engine index segments: version, the binary BuildId from
-        /// Engine/Binaries/&lt;platform&gt;/UnrealEditor.version when present (changes on every engine rebuild of a source
-        /// build), otherwise the changelist, plus a hash of the root path. Only [A-Za-z0-9._-] characters.
+        /// Stable identifier of an engine install, used to key engine index segments: version, changelist and a hash of the
+        /// root path. Only [A-Za-z0-9._-] characters. The binary BuildId (Engine/Binaries/&lt;platform&gt;/UnrealEditor.version)
+        /// is deliberately left out: a source-built engine gets a new one on every editor build, which threw away the whole
+        /// engine index (120k+ files re-parsed). Changed engine files are caught per file (size + last write time) instead.
         /// </summary>
         public static string ComputeBuildId(string engineRoot, UnrealVersion version)
         {
             if (string.IsNullOrEmpty(engineRoot)) return "no-engine";
-            string binaryId = null;
-            foreach (var platform in new[] { "Win64", "Linux", "Mac" })
-            {
-                foreach (var name in new[] { "UnrealEditor.version", "UE4Editor.version" })
-                {
-                    string f = Path.Combine(engineRoot, "Engine", "Binaries", platform, name);
-                    try
-                    {
-                        if (!File.Exists(f)) continue;
-                        using var doc = JsonDocument.Parse(File.ReadAllText(f), new JsonDocumentOptions { AllowTrailingCommas = true });
-                        if (doc.RootElement.TryGetProperty("BuildId", out var b) && b.ValueKind == JsonValueKind.String) binaryId = b.GetString();
-                    }
-                    catch (Exception) { }
-                    if (binaryId != null) break;
-                }
-                if (binaryId != null) break;
-            }
             string ver = version?.ToString() ?? "unknown";
-            string tail = !string.IsNullOrEmpty(binaryId) ? binaryId : "cl" + (version?.Changelist ?? 0);
-            return Sanitize($"{ver}-{tail}-{Fnv(engineRoot.ToLowerInvariant().TrimEnd('/', '\\')):x8}");
+            return Sanitize($"{ver}-cl{version?.Changelist ?? 0}-{Fnv(engineRoot.ToLowerInvariant().TrimEnd('/', '\\')):x8}");
         }
 
         private static string Sanitize(string s)

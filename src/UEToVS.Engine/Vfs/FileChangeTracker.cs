@@ -28,7 +28,25 @@ namespace UEToVS.Engine.Vfs
         /// <summary>The watcher lost events (buffer overflow): only a rescan is reliable.</summary>
         public bool NeedsRescan { get; set; }
 
+        /// <summary>Watched folders that lost events; a rescan only needs to cover these. Empty = everything.</summary>
+        public List<string> RescanDirs { get; } = new List<string>();
+
         public string Source { get; set; }
+    }
+
+    /// <summary>A folder to watch; <see cref="Recursive"/> false watches only its direct files and subfolder names.</summary>
+    public readonly struct WatchDir
+    {
+        public WatchDir(string path, bool recursive)
+        {
+            Path = path;
+            Recursive = recursive;
+        }
+
+        public string Path { get; }
+        public bool Recursive { get; }
+
+        public override string ToString() => Recursive ? Path : Path + " (top level)";
     }
 
     /// <summary>
@@ -50,6 +68,7 @@ namespace UEToVS.Engine.Vfs
         private readonly Timer _timer;
         private DateTime _firstPendingUtc;
         private bool _overflow;
+        private readonly HashSet<string> _overflowDirs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         private string _source;
         private bool _disposed;
 
@@ -77,18 +96,27 @@ namespace UEToVS.Engine.Vfs
         }
 
         /// <summary>Watches each directory recursively. Failures (inotify limits, missing dirs) are logged, not thrown.</summary>
-        public void Watch(IEnumerable<string> directories)
+        public void Watch(IEnumerable<string> directories) => Watch(directories.Select(d => new WatchDir(d, recursive: true)));
+
+        /// <summary>
+        /// Watches each directory, recursively or only its top level. Failures (inotify limits, missing dirs) are logged,
+        /// not thrown.
+        /// </summary>
+        public void Watch(IEnumerable<WatchDir> directories)
         {
-            foreach (var dir in directories.Distinct(StringComparer.OrdinalIgnoreCase))
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var item in directories)
             {
-                if (!Directory.Exists(dir)) continue;
+                string dir = item.Path;
+                if (string.IsNullOrEmpty(dir) || !seen.Add(dir) || !Directory.Exists(dir)) continue;
                 try
                 {
                     var w = new FileSystemWatcher(dir)
                     {
-                        IncludeSubdirectories = true,
+                        IncludeSubdirectories = item.Recursive,
                         NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName | NotifyFilters.LastWrite | NotifyFilters.Size,
-                        InternalBufferSize = 64 * 1024,
+                        // A top-level watcher only sees a handful of entries; keep its (pinned) buffer small.
+                        InternalBufferSize = item.Recursive ? 64 * 1024 : 8 * 1024,
                     };
                     string root = dir;
                     w.Changed += (s, e) => OnFsEvent(root, e.FullPath, FileChangeKind.Changed);
@@ -102,7 +130,7 @@ namespace UEToVS.Engine.Vfs
                     w.Error += (s, e) => OnWatcherError(root, e.GetException());
                     w.EnableRaisingEvents = true;
                     lock (_gate) _watchers.Add(w);
-                    L.Debug("fs.watch", null, ("dir", dir));
+                    L.Debug("fs.watch", null, ("dir", dir), ("recursive", item.Recursive));
                 }
                 catch (Exception ex)
                 {
@@ -139,6 +167,7 @@ namespace UEToVS.Engine.Vfs
             lock (_gate)
             {
                 _overflow = true;
+                if (!string.IsNullOrEmpty(root)) _overflowDirs.Add(root);
                 Schedule();
             }
         }
@@ -198,9 +227,11 @@ namespace UEToVS.Engine.Vfs
                 {
                     if (_pending.Count == 0 && !_overflow) return;
                     batch = new ChangeBatch { NeedsRescan = _overflow, Source = _source ?? "unknown" };
+                    if (_overflow) batch.RescanDirs.AddRange(_overflowDirs);
                     foreach (var kv in _pending) batch.Changes.Add(new FileChange { FilePath = kv.Key, Kind = kv.Value });
                     _pending.Clear();
                     _overflow = false;
+                    _overflowDirs.Clear();
                     _source = null;
                     _firstPendingUtc = default;
                 }
@@ -211,7 +242,7 @@ namespace UEToVS.Engine.Vfs
                         ("created", batch.Changes.Count(c => c.Kind == FileChangeKind.Created)),
                         ("changed", batch.Changes.Count(c => c.Kind == FileChangeKind.Changed)),
                         ("deleted", batch.Changes.Count(c => c.Kind == FileChangeKind.Deleted)),
-                        ("rescan", batch.NeedsRescan), ("source", batch.Source));
+                        ("rescan", batch.NeedsRescan), ("rescanDirs", batch.RescanDirs.ToArray()), ("source", batch.Source));
                 }
                 else
                 {

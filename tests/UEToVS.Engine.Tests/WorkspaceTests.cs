@@ -47,11 +47,14 @@ namespace UEToVS.Engine.Tests
         }
 
         [Fact]
-        public void BinaryBuildIdIsUsedWhenPresent()
+        public void BinaryBuildIdDoesNotChangeTheKey()
         {
+            // A source-built engine gets a new BuildId on every editor build; it must not invalidate the engine index.
+            string before = Discover().EngineBuildId;
             _t.Write("UE/Engine/Binaries/Linux/UnrealEditor.version", "{\"BuildId\":\"abc-123 x\"}");
-            var ws = Discover();
-            Assert.StartsWith("5.4.2-abc-123_x-", ws.EngineBuildId);
+            Assert.Equal(before, Discover().EngineBuildId);
+            _t.Write("UE/Engine/Binaries/Linux/UnrealEditor.version", "{\"BuildId\":\"def-456\"}");
+            Assert.Equal(before, Discover().EngineBuildId);
         }
 
         [Fact]

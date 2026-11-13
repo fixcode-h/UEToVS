@@ -85,11 +85,29 @@ namespace UEToVS.Host.Logic.Tests
             Assert.True((bool)store.Values["DisableDatabase"]);
             Assert.True(r.BackupWritten);
             Assert.Equal(7, r.Count(SettingOutcomeStatus.Changed));
-            Assert.Equal(4, r.Count(SettingOutcomeStatus.Missing)); // memberList, includeAutoComplete, databaseUpdates, automaticUpdates not on this "VS"
+            Assert.Equal(5, r.Count(SettingOutcomeStatus.Missing)); // memberList, includeAutoComplete, databaseUpdates, automaticUpdates, symbolIndex not on this "VS"
             Assert.True(r.FullyTakenOver);
             Assert.Equal(TakeoverState.TakenOver, IntelliSenseTakeover.GetState(store, new TakeoverOptions()));
             var missing = r.Outcomes.Single(o => o.Key == CppIntelliSenseSettings.KeyMemberList);
             Assert.Equal(3, missing.MissingCandidates.Count);
+        }
+
+        [Fact]
+        public void Vs18SemanticIndexIsSwitchedOffWithTheDatabaseAndRestored()
+        {
+            var store = FakeStore.Vs2022().With("EnableSymbolIndex", true);
+            var backup = new IntelliSenseBackup();
+            var r = Apply(store, backup);
+            Assert.False((bool)store.Values["EnableSymbolIndex"]);
+            Assert.Equal(SettingOutcomeStatus.Changed, r.Outcomes.Single(o => o.Key == CppIntelliSenseSettings.KeySymbolIndex).Status);
+
+            // Without "disable database" the semantic index is left alone.
+            var other = FakeStore.Vs2022().With("EnableSymbolIndex", true);
+            Apply(other, new IntelliSenseBackup(), disableDb: false);
+            Assert.True((bool)other.Values["EnableSymbolIndex"]);
+
+            IntelliSenseTakeover.Restore(store, backup);
+            Assert.True((bool)store.Values["EnableSymbolIndex"]);
         }
 
         [Fact]
