@@ -453,7 +453,12 @@ namespace UEToVS.Host.Settings
                 labels.Children.Add(new UiText(SettingsText.RestartHint, TextVariant.Description) { Margin = new Thickness(0, 2, 0, 0) });
             var editor = BuildEditor(d, labels);
             // Path lists span the row under the title; everything else sits on the right.
-            if (editor is PathListEditor list)
+            if (editor is UpdateRowEditor update)
+            {
+                row.Editor = update;
+                row.Below = update.Notes;
+            }
+            else if (editor is PathListEditor list)
             {
                 row.Editor = list.AddButton;
                 row.Below = list;
