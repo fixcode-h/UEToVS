@@ -79,6 +79,23 @@ namespace UEToVS.Engine.Navigation
             return -1;
         }
 
+        /// <summary>
+        /// <c>#include "X.generated.h"</c> → 所属模块最近一次 UHT 输出的那份 X.generated.h；不是 .generated.h 或还没编译过时 null。
+        /// </summary>
+        public static string ResolveGeneratedInclude(string includePath, string fromFile)
+        {
+            if (string.IsNullOrEmpty(includePath) || string.IsNullOrEmpty(fromFile) ||
+                !includePath.EndsWith(".generated.h", StringComparison.OrdinalIgnoreCase)) return null;
+            try
+            {
+                return FindGeneratedHeader(fromFile, Path.GetFileName(includePath.Replace('/', Path.DirectorySeparatorChar).Replace('\\', Path.DirectorySeparatorChar)));
+            }
+            catch (Exception ex) when (ex is ArgumentException || ex is IOException || ex is NotSupportedException || ex is UnauthorizedAccessException)
+            {
+                return null;
+            }
+        }
+
         /// <summary>Newest <paramref name="genName"/> under the owning module's Intermediate/Build/*/*/Inc/&lt;Module&gt;[/UHT].</summary>
         public static string FindGeneratedHeader(string headerPath, string genName)
         {

@@ -40,6 +40,25 @@ namespace UEToVS.Engine.Tests
         }
 
         [Fact]
+        public void GeneratedIncludeResolvesToTheUhtOutput()
+        {
+            string module = Path.Combine(_root, "Source", "MyGame");
+            Directory.CreateDirectory(Path.Combine(module, "Demo"));
+            File.WriteAllText(Path.Combine(_root, "MyGame.uproject"), "{}");
+            File.WriteAllText(Path.Combine(module, "MyGame.Build.cs"), "");
+            string header = Path.Combine(module, "Demo", "DemoActor.h");
+            File.WriteAllText(header, "#include \"DemoActor.generated.h\"\n");
+            Assert.Null(GeneratedBodyLocator.ResolveGeneratedInclude("DemoActor.generated.h", header)); // 还没编译
+
+            string inc = Path.Combine(_root, "Intermediate", "Build", "Win64", "UnrealEditor", "Inc", "MyGame", "UHT");
+            Directory.CreateDirectory(inc);
+            string gen = Path.Combine(inc, "DemoActor.generated.h");
+            File.WriteAllText(gen, "#pragma once\n");
+            Assert.Equal(gen, GeneratedBodyLocator.ResolveGeneratedInclude("DemoActor.generated.h", header));
+            Assert.Null(GeneratedBodyLocator.ResolveGeneratedInclude("DemoActor.h", header));
+        }
+
+        [Fact]
         public void NoBuildOutputMeansNoTarget()
         {
             string module = Path.Combine(_root, "Source", "MyGame");

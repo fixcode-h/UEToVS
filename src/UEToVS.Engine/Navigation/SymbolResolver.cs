@@ -549,7 +549,8 @@ namespace UEToVS.Engine.Navigation
                 r.Reason = "include-unparsed";
                 return;
             }
-            string path = ctx.ResolveInclude(inc.Path, doc.Path);
+            // X.generated.h 在 Intermediate 下，Intermediate 默认不进索引：按模块目录直接去 UHT 输出里找（多份时取最近编译的）
+            string path = GeneratedBodyLocator.ResolveGeneratedInclude(inc.Path, doc.Path) ?? ctx.ResolveInclude(inc.Path, doc.Path);
             if (path == null)
             {
                 r.Reason = "include-not-found";
