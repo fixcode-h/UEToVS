@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
 using UEToVS.Core.Diagnostics;
+using UEToVS.Host.Logic.Performance;
 
 namespace UEToVS.Host.Diagnostics
 {
@@ -24,6 +25,9 @@ namespace UEToVS.Host.Diagnostics
         private static readonly Logger L = Log.For("Diagnostics");
 
         public long ThresholdBytes { get; set; } = 2L * 1024 * 1024 * 1024;
+
+        /// <summary>The last spike of this session (shown by the performance panel), or null.</summary>
+        public static HostMemorySpike Last { get; private set; }
 
         private long _lastPrivate = -1;
         private Dictionary<int, double> _lastThreadCpu = new Dictionary<int, double>();
@@ -72,9 +76,43 @@ namespace UEToVS.Host.Diagnostics
                 })
                 .ToList();
             var added = _lastModules == null ? new List<string>() : names.Where(n => !_lastModules.Contains(n)).OrderBy(n => n).Take(40).ToList();
+            Last = new HostMemorySpike
+            {
+                TakenUtc = DateTime.UtcNow,
+                DeltaBytes = priv - _lastPrivate,
+                PrivateBytes = priv,
+                BusyModules = busy
+                    .GroupBy(b => (b["module"] as string) ?? "?", StringComparer.OrdinalIgnoreCase)
+                    .Select(g => new KeyValuePair<string, double>(g.Key, Math.Round(g.Sum(b => (double)b["cpuSec"]), 1)))
+                    .OrderByDescending(kv => kv.Value).Take(5).ToList(),
+                NewModules = added,
+            };
             L.Warn("resource.spike", "devenv private memory jumped; busiest threads and new modules since the last sample",
                 ("privateMB", Mb(priv)), ("deltaMB", Mb(priv - _lastPrivate)), ("managedMB", Mb(GC.GetTotalMemory(false))),
-                ("threads", cpu.Count), ("busyThreads", busy), ("newModules", added), ("children", Children(p.Id)));
+                ("threads", cpu.Count), ("busyThreads", busy), ("newModules", added), ("children", Children(p.Id)), ("memoryMap", MapSummary()));
+        }
+
+        /// <summary>Kind split + largest native heaps at the time of the spike (one address-space walk, only on a spike).</summary>
+        private static Dictionary<string, object> MapSummary()
+        {
+            try
+            {
+                var m = ProcessMemoryMap.Take(GC.GetTotalMemory(false));
+                return new Dictionary<string, object>
+                {
+                    ["privateMB"] = Mb(m.PrivateCommitBytes), ["managedMB"] = Mb(m.ManagedBytes), ["nativeHeapMB"] = Mb(m.NativeHeapBytes),
+                    ["otherPrivateMB"] = Mb(m.OtherPrivateBytes), ["imageMB"] = Mb(m.ImageBytes), ["mappedMB"] = Mb(m.MappedBytes),
+                    ["heaps"] = m.Heaps.Take(5).Select(h => new Dictionary<string, object>
+                    {
+                        ["handle"] = "0x" + h.Handle.ToString("x"), ["default"] = h.IsDefault, ["committedMB"] = Mb(h.CommittedBytes), ["allocatedMB"] = Mb(h.AllocatedBytes),
+                    }).ToList(),
+                    ["topMapped"] = m.TopMapped.Take(5).Select(x => x.Name + " " + Mb(x.Bytes) + " MB").ToList(),
+                };
+            }
+            catch (Exception ex)
+            {
+                return new Dictionary<string, object> { ["error"] = ex.GetType().Name + ": " + ex.Message };
+            }
         }
 
         private static Dictionary<int, double> ThreadCpu(Process p)

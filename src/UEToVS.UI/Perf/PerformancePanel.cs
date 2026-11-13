@@ -40,6 +40,9 @@ namespace UEToVS.UI.Perf
         private readonly UiText _activeEmpty = new UiText(() => Strings.PerfActiveNone, TextVariant.Secondary) { Margin = new Thickness(0, 4, 0, 4) };
         private readonly DataTable<PhaseView> _phases = new DataTable<PhaseView>();
         private readonly DataTable<OperationView> _ops = new DataTable<OperationView> { MaxVisibleRows = 16 };
+        private readonly DataTable<HostMemoryRowView> _hostBreakdown = new DataTable<HostMemoryRowView> { MaxVisibleRows = 24 };
+        private readonly UiText _hostBreakdownNote = new UiText((string)null, TextVariant.Small) { Margin = new Thickness(0, 6, 0, 0), Visibility = Visibility.Collapsed, TextWrapping = TextWrapping.Wrap };
+        private readonly FrameworkElement _hostBreakdownSection;
         private readonly StackedBar _memManaged = new StackedBar();
         private readonly StackedBar _memMapped = new StackedBar();
         private readonly StackedBar _memDisk = new StackedBar();
@@ -82,6 +85,12 @@ namespace UEToVS.UI.Perf
             _hostChartSection = Section(() => Strings.PerfHostChart, _hostChart);
             _hostChartSection.Visibility = Visibility.Collapsed;
             content.Children.Add(_hostChartSection);
+            var breakdown = new StackPanel();
+            breakdown.Children.Add(_hostBreakdown);
+            breakdown.Children.Add(_hostBreakdownNote);
+            _hostBreakdownSection = Section(() => Strings.PerfHostBreakdown, breakdown);
+            _hostBreakdownSection.Visibility = Visibility.Collapsed;
+            content.Children.Add(_hostBreakdownSection);
             _activeList.Children.Add(_activeEmpty);
             _activeList.Children.Add(_activeDetail);
             content.Children.Add(Section(() => Strings.PerfActive, _activeList));
@@ -130,6 +139,12 @@ namespace UEToVS.UI.Perf
             _ops.AddColumn(new TableColumn<OperationView>(() => Strings.PerfColP95, o => PerfMath.FormatDuration(o.P95Ms)) { Numeric = true, FixedWidth = 72, Sort = (a, b) => a.P95Ms.CompareTo(b.P95Ms), CellState = o => o.IsOverBudget ? Severity.Error : (Severity?)null });
             _ops.AddColumn(new TableColumn<OperationView>(() => Strings.PerfColMax, o => PerfMath.FormatDuration(o.MaxMs)) { Numeric = true, FixedWidth = 72, Sort = (a, b) => a.MaxMs.CompareTo(b.MaxMs) });
             _ops.AddColumn(new TableColumn<OperationView>(() => Strings.PerfColBudget, o => o.BudgetMs > 0 ? PerfMath.FormatDuration(o.BudgetMs) : "—") { Numeric = true, FixedWidth = 72, Sort = (a, b) => a.BudgetMs.CompareTo(b.BudgetMs) });
+            _hostBreakdown.AddColumn(new TableColumn<HostMemoryRowView>(() => Strings.PerfColItem, r => r.IsChild ? "    " + r.Name : r.Name) { Star = 1.4 });
+            _hostBreakdown.AddColumn(new TableColumn<HostMemoryRowView>(() => Strings.PerfColSize, r => PerfMath.FormatBytes(r.Bytes)) { Numeric = true, FixedWidth = 84 });
+            _hostBreakdown.AddColumn(new TableColumn<HostMemoryRowView>(() => Strings.PerfColShare, r => PerfMath.FormatPercent(r.Share)) { Numeric = true, FixedWidth = 64 });
+            _hostBreakdown.AddColumn(new TableColumn<HostMemoryRowView>(() => Strings.PerfColDetail, r => r.Detail) { Star = 2.2 });
+            _hostBreakdown.RowState = r => !r.IsChild && r.Share >= 0.5 ? Severity.Warning : (Severity?)null;
+
             _ops.RowState = o => o.IsOverBudget ? Severity.Error : (Severity?)null;
             _ops.SortBy(4, descending: true); // worst p95 first
         }
@@ -214,6 +229,11 @@ namespace UEToVS.UI.Perf
                 _hostChart.SampleIntervalSeconds = _chart.SampleIntervalSeconds;
                 _hostChart.SetData(0, d.HostMemoryHistory);
             }
+
+            _hostBreakdownSection.Visibility = d.HostMemoryRows != null ? Visibility.Visible : Visibility.Collapsed;
+            if (d.HostMemoryRows != null) _hostBreakdown.SetItems(d.HostMemoryRows);
+            _hostBreakdownNote.Text = d.HostMemoryNote ?? string.Empty;
+            _hostBreakdownNote.Visibility = string.IsNullOrEmpty(d.HostMemoryNote) ? Visibility.Collapsed : Visibility.Visible;
 
             _notice.Visibility = string.IsNullOrEmpty(d.Notice) ? Visibility.Collapsed : Visibility.Visible;
             if (!string.IsNullOrEmpty(d.Notice))

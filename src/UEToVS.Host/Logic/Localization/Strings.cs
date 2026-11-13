@@ -208,6 +208,27 @@ namespace UEToVS.Host.Logic.Localization
                 ? Loc.F("引擎不可用（{0}），以下仅显示 VS 侧数据。", "Engine unavailable ({0}); only VS-side data is shown.", state)
                 : Loc.F("引擎不可用（{0}）：{1}。以下仅显示 VS 侧数据。", "Engine unavailable ({0}): {1}. Only VS-side data is shown.", state, error);
         public static string PerfViewEngineMemoryDetail(string workingSet, string heap) => Loc.F("工作集 {0} · 托管堆 {1}", "working set {0} · heap {1}", workingSet, heap);
+        // ---- v0.5.7 VS process memory breakdown (PerformanceViewMapper)
+        public static string MemKindNativeHeap => Loc.T("原生堆", "Native heaps");
+        public static string MemKindNativeHeapDetail(int heaps) => Loc.F(
+            "C++ 组件用 new / malloc 申请的内存，共 {0} 个堆；VS 的 C++ 语言服务、Unreal 集成都在这里", "Memory C++ components got with new / malloc, {0} heaps; VS's C++ language service and Unreal integration live here", heaps);
+        public static string MemKindOtherPrivate => Loc.T("其他私有内存", "Other private memory");
+        public static string MemKindOtherPrivateDetail => Loc.T(
+            "组件直接向系统申请的内存：.NET GC 段里的空闲部分、JIT 代码、线程栈等", "Allocated directly from the OS: free space in .NET GC segments, JIT code, thread stacks, …");
+        public static string MemKindManaged => Loc.T("托管堆（存活对象）", "Managed heap (live objects)");
+        public static string MemKindManagedDetail => Loc.T("VS 和所有 .NET 扩展（含 UEToVS）的存活对象", "Live objects of VS and every .NET extension (UEToVS included)");
+        public static string MemKindImage => Loc.T("DLL 映像", "DLL images");
+        public static string MemKindImageDetail => Loc.T("已加载 DLL 的代码和数据，大部分和其他进程共享", "Code and data of loaded DLLs, mostly shared with other processes");
+        public static string MemKindMapped => Loc.T("映射文件", "Mapped files");
+        public static string MemKindMappedDetail => Loc.T("映射进内存的文件（数据库、缓存等）", "Files mapped into memory (databases, caches, …)");
+        public static string MemDefaultHeap => Loc.T("默认进程堆", "Default process heap");
+        public static string MemHeap(string handle) => Loc.F("堆 {0}", "Heap {0}", handle);
+        public static string MemHeapDetail(string allocated) => Loc.F("其中在用 {0}", "{0} in use", allocated);
+        public static string MemSpikeNote(string time, string delta, string modules) => Loc.F(
+            "最近一次突增：{0} 涨了 {1}，那段时间最忙的线程在 {2}", "Last jump: +{1} at {0}; the busiest threads then were in {2}", time, delta, modules);
+        public static string MemSpikeNone => Loc.T(
+            "本次会话还没有出现内存突增（1 分钟内涨 2 GB 以上时，这里会显示当时最忙的线程在哪个 DLL）",
+            "No memory jump this session yet (on a 2 GB rise within a minute this shows which DLLs the busiest threads were in)");
         public static string PerfViewHostMemoryDetail(string delta, string heap) => Loc.F("自加载 {0} · 托管堆 {1}", "since load {0} · heap {1}", delta, heap);
         public static string PerfViewIndexProgress(int parsed, int toParse, int symbols) =>
             Loc.F("{0:N0}/{1:N0} 文件 · {2:N0} 符号", "{0:N0}/{1:N0} files · {2:N0} symbols", parsed, toParse, symbols);
