@@ -59,13 +59,18 @@ namespace UEToVS.Host.IntelliSense
 
         public bool VsBlueprintBackupExists => File.Exists(_vsBlueprintBackupPath);
 
-        /// <summary>Options found for VS's Blueprint support on the last check (null = not checked yet; empty = none found).</summary>
-        public IReadOnlyList<string> VsBlueprintOptions { get; private set; }
+        /// <summary>VS 18's unified settings file (null = not resolved yet), and whether it exists.</summary>
+        public string SettingsJsonPath { get; private set; }
+
+        public bool SettingsJsonExists => SettingsJsonPath != null && File.Exists(SettingsJsonPath);
+
+        private bool _jsonVerifyPending;
 
         /// <summary>Visual Assist found (null = not checked yet).</summary>
         public string VisualAssistEvidence { get; private set; }
 
-        private static TakeoverOptions OptionsFrom(HostSettings s) => new TakeoverOptions { DisableDatabase = s.DisableDatabase };
+        private static TakeoverOptions OptionsFrom(HostSettings s) =>
+            new TakeoverOptions { DisableDatabase = s.DisableDatabase, TurnOffVsFeatures = s.TurnOffVsFeatures() };
 
         // ---------------------------------------------------------------- lifecycle hooks (called by the package)
 
@@ -78,7 +83,6 @@ namespace UEToVS.Host.IntelliSense
             if (s.IntelliSenseTakeover) await TakeOverAsync("auto").ConfigureAwait(false);
             else await RefreshStateAsync().ConfigureAwait(false);
             if (s.DisableBackgroundCodeAnalysis) await DisableBackgroundCodeAnalysisAsync("auto").ConfigureAwait(false);
-            if (!s.VsBlueprintSupport) await DisableVsBlueprintSupportAsync("auto").ConfigureAwait(false);
             await CheckVisualAssistAsync().ConfigureAwait(false);
         }
 
@@ -113,18 +117,14 @@ namespace UEToVS.Host.IntelliSense
                 if (!now.DisableBackgroundCodeAnalysis) await RestoreBackgroundCodeAnalysisAsync("settingOff").ConfigureAwait(false);
                 else if (unrealSolutionOpen) await DisableBackgroundCodeAnalysisAsync("settingsChanged").ConfigureAwait(false);
             }
-            if (old.VsBlueprintSupport != now.VsBlueprintSupport)
-            {
-                L.Info("vsBlueprint.settings.changed", null, ("vsBlueprintSupport", now.VsBlueprintSupport), ("ueSolutionOpen", unrealSolutionOpen));
-                if (now.VsBlueprintSupport) await RestoreVsBlueprintSupportAsync("settingOn").ConfigureAwait(false);
-                else await DisableVsBlueprintSupportAsync("settingsChanged").ConfigureAwait(false);
-            }
             bool takeoverChanged = old.IntelliSenseTakeover != now.IntelliSenseTakeover;
             bool dbChanged = old.DisableDatabase != now.DisableDatabase;
             bool modeChanged = old.IntelliSenseTakeoverMode != now.IntelliSenseTakeoverMode;
-            if (!takeoverChanged && !dbChanged && !modeChanged) return;
+            bool featuresChanged = !old.TurnOffVsFeatures().SetEquals(now.TurnOffVsFeatures());
+            if (!takeoverChanged && !dbChanged && !modeChanged && !featuresChanged) return;
             L.Info("intellisense.settings.changed", null, ("takeover", now.IntelliSenseTakeover), ("mode", now.IntelliSenseTakeoverMode.ToString()),
-                   ("disableDatabase", now.DisableDatabase), ("ueSolutionOpen", unrealSolutionOpen));
+                   ("disableDatabase", now.DisableDatabase), ("turnOffVsFeatures", now.TurnOffVsFeatures().OrderBy(x => x).ToList()),
+                   ("ueSolutionOpen", unrealSolutionOpen));
             if (!now.IntelliSenseTakeover)
             {
                 if (BackupExists) await RestoreAsync("settingOff").ConfigureAwait(false);
@@ -159,9 +159,10 @@ namespace UEToVS.Host.IntelliSense
             TakeoverReport report;
             using (UiThread.Measure(L, "intellisense.apply", ("trigger", trigger)))
             {
-                var store = await CreateStoreAsync();
-                if (store == null) return null;
-                LogPropertiesOnce(store);
+                var dteStore = await CreateStoreAsync();
+                if (dteStore == null) return null;
+                LogPropertiesOnce(dteStore);
+                var store = Combined(dteStore);
                 try { vsVersion = (await _package.GetServiceAsync(typeof(DTE)) as DTE)?.Version; } catch (Exception) { }
                 if (backup == null) backup = new IntelliSenseBackup { VsVersion = vsVersion };
                 report = IntelliSenseTakeover.Apply(store, backup, OptionsFrom(_settings.Effective),
@@ -170,6 +171,8 @@ namespace UEToVS.Host.IntelliSense
             }
             LogReport("intellisense.takeover", trigger, report);
             IntelliSenseContext.InvalidateTakeover();
+            if (trigger != "verify" && report.Outcomes.Any(o => o.Status == SettingOutcomeStatus.Changed && IsJson(o.Page)))
+                _ = VerifySettingsJsonLaterAsync();
 
             if (report.BackupError != null)
             {
@@ -226,8 +229,9 @@ namespace UEToVS.Host.IntelliSense
             TakeoverReport report;
             using (UiThread.Measure(L, "intellisense.restore", ("trigger", trigger)))
             {
-                var store = await CreateStoreAsync();
-                if (store == null) return null;
+                var dteStore = await CreateStoreAsync();
+                if (dteStore == null) return null;
+                var store = Combined(dteStore);
                 report = IntelliSenseTakeover.Restore(store, backup);
                 LastState = IntelliSenseTakeover.GetState(store, OptionsFrom(_settings.Effective));
             }
@@ -258,7 +262,7 @@ namespace UEToVS.Host.IntelliSense
                 var store = await CreateStoreAsync();
                 if (store == null) return LastState;
                 LogPropertiesOnce(store);
-                LastState = IntelliSenseTakeover.GetState(store, OptionsFrom(_settings.Effective));
+                LastState = IntelliSenseTakeover.GetState(Combined(store), OptionsFrom(_settings.Effective));
             }
             L.Info("intellisense.state", null, ("state", LastState.ToString()), ("backupExists", BackupExists));
             return LastState;
@@ -340,46 +344,9 @@ namespace UEToVS.Host.IntelliSense
         // ---------------------------------------------------------------- VS's own Blueprint scan
 
         /// <summary>
-        /// Turns off VS's own Unreal Engine "Blueprint Support" (the "Scanning Blueprints from X.uproject" pass on every solution
-        /// load). The option is undocumented, so it is discovered (<see cref="VsBlueprintSupport"/>); originals are backed up to
-        /// vs-blueprint-backup.json before anything is written. VS reads it at startup: the scan stops from the next VS start.
+        /// Legacy (v0.5.1–v0.5.5): restores the Blueprint options the old discovery changed (vs-blueprint-backup.json).
+        /// Since v0.5.6 VS's Blueprint support is a VS feature switch in the takeover table (settings.json unrealEngine.enableBlueprints).
         /// </summary>
-        public async Task<TakeoverReport> DisableVsBlueprintSupportAsync(string trigger)
-        {
-            IntelliSenseBackup backup;
-            try
-            {
-                backup = await Task.Run(() => IntelliSenseBackupFile.Load(_vsBlueprintBackupPath)).ConfigureAwait(false);
-            }
-            catch (Exception ex) when (ex is InvalidDataException || ex is IOException || ex is UnauthorizedAccessException)
-            {
-                L.Error("vsBlueprint.backup.corrupt", "VS Blueprint option backup unreadable; nothing changed", ex, ("path", _vsBlueprintBackupPath));
-                return null;
-            }
-            await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-            TakeoverReport report;
-            using (UiThread.Measure(L, "vsBlueprint.apply", ("trigger", trigger)))
-            {
-                var store = await CreateVsBlueprintStoreAsync();
-                if (store == null) return null;
-                var found = store.Discover(CppIntelliSenseSettings.Pages, out int visited);
-                VsBlueprintOptions = found.Select(f => f.Key + "/" + f.Value).ToList();
-                L.Info("vsBlueprint.discovered", "Options of VS's own Unreal Engine Blueprint support on this VS", ("trigger", trigger),
-                       ("options", VsBlueprintOptions), ("collectionsVisited", visited));
-                if (found.Count == 0)
-                {
-                    L.Warn("vsBlueprint.notFound", "No Blueprint support option found on this VS; turn it off under Project > Configure Tools for Unreal Engine");
-                    return new TakeoverReport();
-                }
-                if (backup == null) backup = new IntelliSenseBackup();
-                report = IntelliSenseTakeover.Apply(store, backup, null, b => IntelliSenseBackupFile.Save(_vsBlueprintBackupPath, b),
-                    VsBlueprintSupport.BuildTable(found));
-            }
-            LogReport("vsBlueprint.disable", trigger, report, _vsBlueprintBackupPath);
-            return report;
-        }
-
-        /// <summary>Writes back the Blueprint support options UEToVS turned off, then deletes the backup.</summary>
         public async Task<TakeoverReport> RestoreVsBlueprintSupportAsync(string trigger)
         {
             IntelliSenseBackup backup;
@@ -495,6 +462,52 @@ namespace UEToVS.Host.IntelliSense
         }
 
         // ---------------------------------------------------------------- helpers
+
+        private static bool IsJson(string page) => string.Equals(page, VsUnrealFeatures.JsonPage, StringComparison.OrdinalIgnoreCase);
+
+        /// <summary>DTE C/C++ options plus VS 18's settings.json (%LocalAppData%\Microsoft\VisualStudio\&lt;instance&gt;\settings.json).</summary>
+        private ICppSettingsStore Combined(DteCppSettingsStore dte)
+        {
+            if (SettingsJsonPath == null)
+            {
+                string dir = null;
+                try { dir = (_package as Package)?.UserLocalDataPath; } catch (Exception) { }
+                SettingsJsonPath = string.IsNullOrEmpty(dir) ? string.Empty : Path.Combine(dir, "settings.json");
+                L.Info("vsFeatures.settingsJson", "VS unified settings file", ("path", SettingsJsonPath), ("exists", SettingsJsonExists));
+            }
+            return new CompositeCppSettingsStore(dte, new UnifiedSettingsJsonStore(SettingsJsonPath));
+        }
+
+        /// <summary>
+        /// VS may write settings.json from its in-memory settings right after UEToVS edited it (e.g. when the DTE C/C++ options
+        /// were changed in the same takeover), dropping the edit. Checks once, 5 s later, and applies again if a value went back.
+        /// </summary>
+        private async Task VerifySettingsJsonLaterAsync()
+        {
+            if (_jsonVerifyPending) return;
+            _jsonVerifyPending = true;
+            try
+            {
+                await Task.Delay(5000).ConfigureAwait(false);
+                var options = OptionsFrom(_settings.Effective);
+                var json = new UnifiedSettingsJsonStore(SettingsJsonPath);
+                var reverted = new List<string>();
+                foreach (var def in VsUnrealFeatures.Table)
+                {
+                    if (!IntelliSenseTakeover.IsWanted(def, options)) continue;
+                    foreach (var c in def.Candidates.Where(c => IsJson(c.Page)))
+                        if (json.TryRead(c.Page, c.Name, out object v, out _) && v is bool b && b != c.TakeoverValue) reverted.Add(c.Name);
+                }
+                L.Info("vsFeatures.verify", reverted.Count == 0 ? "settings.json edits kept" : "VS wrote settings.json back; applying again",
+                       ("reverted", reverted));
+                if (reverted.Count > 0) await TakeOverAsync("verify").ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                L.Warn("vsFeatures.verify.failed", "settings.json check failed", ex);
+            }
+            finally { _jsonVerifyPending = false; }
+        }
 
         private async Task<DteCppSettingsStore> CreateStoreAsync()
         {

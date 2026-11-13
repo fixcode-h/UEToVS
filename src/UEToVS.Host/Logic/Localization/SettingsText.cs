@@ -73,10 +73,14 @@ namespace UEToVS.Host.Logic.Localization
         public static string IntelliSenseNotTakenOver => Loc.T("未接管（VS 自带 C++ IntelliSense 正常工作）", "Not taken over (VS C++ IntelliSense active)");
         public static string LogDirectory(string dir) => dir ?? Loc.T("（尚未打开 UE 解决方案）", "(no UE solution open yet)");
         public static string VsUnrealIntegration => Loc.T(
-            "状态栏的“正在从 X.uproject 中扫描 Blueprint”来自 VS 自带的 Unreal Engine 集成（项目 > Configure Tools for Unreal Engine 里的 Blueprint Support），不是 UEToVS；UEToVS 只列出资产文件名，不读取 .uasset。" +
-            "接管 IntelliSense 时（接管范围不是“关闭”），UEToVS 会找到这个开关并关掉（修改前备份，范围选“关闭”即恢复），下次启动 VS 生效；关掉后 VS 自己的 Code Lens 蓝图引用也会停用。",
-            "The status bar message “Scanning Blueprints from X.uproject” comes from VS's own Unreal Engine integration (Blueprint Support under Project > Configure Tools for Unreal Engine), not from UEToVS; UEToVS only lists asset file names and never reads .uasset files. " +
-            "While IntelliSense is taken over (scope not “Off”), UEToVS finds that switch and turns it off (backed up first; scope “Off” restores it); it takes effect from the next VS start and also turns off VS's Code Lens Blueprint references.");
+            "状态栏的“正在从 X.uproject 中扫描 Blueprint”、UHT 代码分析和全代码库语义索引都来自 VS 自带的功能，不是 UEToVS；UEToVS 只列出资产文件名，不读取 .uasset。" +
+            "接管时（接管范围不是“关闭”）下面勾选的项会被关掉：修改前备份，取消勾选或范围选“关闭”即恢复。其中几项保存在 VS 18 的 settings.json 里，部分要下次启动 VS 才生效。",
+            "The status bar message “Scanning Blueprints from X.uproject”, UHT code analysis and the whole-codebase semantic index all come from VS itself, not from UEToVS; UEToVS only lists asset file names and never reads .uasset files. " +
+            "While taken over (scope not “Off”) the items ticked below are turned off: backed up first, and unticking them or scope “Off” restores them. Some live in VS 18's settings.json and some take effect from the next VS start.");
+        public static string VsSettingsJsonFound(string path) => Loc.F("VS 设置文件：{0}", "VS settings file: {0}", path);
+        public static string VsSettingsJsonMissing(string path) => Loc.F(
+            "没有找到 VS 设置文件（{0}），只保存在 settings.json 里的项无法关闭（VS 2022 及更早版本没有这个文件）。",
+            "VS settings file not found ({0}); items stored only in settings.json cannot be turned off (VS 2022 and earlier have no such file).", path);
         // ---- 检查更新 (Logic/Update/UpdateState.cs renders these)
         public static string UpdateButtonCheck => Loc.T("检查", "Check");
         public static string UpdateButtonChecking => Loc.T("检查中…", "Checking…");
@@ -106,10 +110,6 @@ namespace UEToVS.Host.Logic.Localization
         public static string UpdateNoVsix => Loc.T("最新发布里没有 VSIX 安装包", "the latest release has no VSIX package");
         public static string UpdateHttpStatus(int code) => Loc.F("GitHub 返回 HTTP {0}", "GitHub answered HTTP {0}", code);
         public static string UpdateNetwork(string message) => Loc.F("无法连接 GitHub（{0}）", "cannot reach GitHub ({0})", message);
-        public static string VsBlueprintOptionsFound(string list) => Loc.F("本机找到的 VS 蓝图开关：{0}", "VS Blueprint options found on this machine: {0}", list);
-        public static string VsBlueprintOptionsNone => Loc.T(
-            "本机没有找到 VS 蓝图开关，UEToVS 无法自动关闭。请在 项目 > Configure Tools for Unreal Engine 里手动关掉 Blueprint Support。",
-            "No VS Blueprint option was found on this machine, so UEToVS cannot turn it off. Turn off Blueprint Support under Project > Configure Tools for Unreal Engine.");
 
         // ---- keymap page
         public static string KeymapIntro => Loc.T(

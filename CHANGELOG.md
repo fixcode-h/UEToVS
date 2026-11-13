@@ -10,6 +10,12 @@
 
 ### 新功能
 - **恢复 VS 原样（禁用 / 卸载前）** — 设置 › 常规 › 卸载前 › “恢复 VS 原样”（也可在查找操作里运行）：按备份还原 UEToVS 改过的所有 VS 设置——C++ IntelliSense、浏览数据库、全代码库语义索引、后台代码分析、蓝图支持、VS 字体，以及快捷键（UEToVS 自己的命令和为它让出按键的 VS 命令都回到第一次修改前的状态），然后把接管范围设为“关闭”、不再管理 VS 字体，之后不会再自动改回去。VS 禁用或卸载扩展时不会通知扩展，这些设置原本会一直保留。已用过的快捷键备份移到 `%LocalAppData%\UEToVS\KeymapBackups\restored`。日志 `vs.restoreAll.*`
+- **VS 自带的 UE / C++ 后台功能各有开关** — 设置 › 常规 › C++ IntelliSense 新增 4 个开关，默认勾选：接管时（打开 UE 解决方案，或接管范围为“全局”）关闭对应的 VS 功能，修改前备份，取消勾选或接管范围选“关闭”即按备份恢复，“恢复 VS 原样”也会还原。
+  - **全代码库语义索引**（含 C++ CodeLens 引用数）：VS 18 新增，编译后会把整个 UE 代码库重新索引，实测 devenv 涨 10 GB 以上
+  - **蓝图支持**：每次打开解决方案扫描全部蓝图，下次启动 VS 生效
+  - **UHT 代码分析**：打开 / 保存头文件时后台跑 Unreal Header Tool
+  - **CodeLens**（所有语言）：上面两项关掉后基本没有内容
+  这几项在 VS 18 只保存在 `%LocalAppData%\Microsoft\VisualStudio\<实例>\settings.json` 里，UEToVS 直接改这个文件（只改这几个键，其他内容和文件头保留；文件读不懂时不写）。改完 5 秒后再检查一次，如果被 VS 写回就再改一次。日志 `vsFeatures.*`、`intellisense.property.*`
 
 ## v0.5.5
 
