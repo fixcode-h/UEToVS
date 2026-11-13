@@ -81,16 +81,13 @@ namespace UEToVS.Host.Logic.IntelliSense
                 "开着还会给每个可见函数排查询、占用 CodeLens 服务进程。UEToVS 不依赖它。",
                 "The reference counts, Blueprint references and commit hints above code (all languages). C++ counts need the semantic index and Blueprint references need VS's " +
                 "Blueprint support, so with those off CodeLens has almost nothing to show, yet it still queues a lookup for every visible function and keeps its service process busy. UEToVS does not use it."),
-            // v0.5.9: off by default (user's choice). Measured 2026-11-13: debugging a source-built UE editor, devenv went to
+            // v0.5.10: on by default like the others (user's choice). Measured 2026-11-13: debugging a source-built UE editor, devenv went to
             // 12 GB in the default heap (vsdebugeng → msdia140 → RtlAllocateHeap) and to 3.5 GB with this unticked.
             new VsUnrealFeature(AdjacentSymbols, "vsFeatures.adjacentSymbols", "调试时不自动加载所有模块的符号", "Don't load every module's symbols when debugging",
                 "取消 VS 调试器的「始终包含模块旁边的符号」。调试 UE 编辑器时，调试器会给上千个 UnrealEditor-*.dll 都读一遍旁边的 .pdb，devenv 实测涨到 12 GB；" +
                 "取消后降到 3.5 GB。断点停下时调用栈里的模块仍会按需加载（「在需要时自动包含其他符号」保持打开）；在引擎代码里提前打的断点，要在「模块」窗口里右键加载符号，或把模块加进「包含的模块」。不影响编译。",
                 "Unticks the debugger's \"Always include symbols next to modules\". Debugging the UE editor, the debugger reads the .pdb next to each of 1000+ UnrealEditor-*.dll files; devenv was measured at 12 GB, " +
-                "3.5 GB with it unticked. Modules on the call stack still load on demand when a breakpoint hits (\"Automatically include other symbols when needed\" stays on); for breakpoints set in engine code beforehand, load the module's symbols from the Modules window or add it to the included modules. Builds are not affected.")
-            {
-                DefaultOn = false,
-            },
+                "3.5 GB with it unticked. Modules on the call stack still load on demand when a breakpoint hits (\"Automatically include other symbols when needed\" stays on); for breakpoints set in engine code beforehand, load the module's symbols from the Modules window or add it to the included modules. Builds are not affected."),
         };
 
         private static CppPropertyCandidate Json(string key) => new CppPropertyCandidate(JsonPage, key, false);

@@ -110,7 +110,7 @@ namespace UEToVS.Host.Logic.Tests
                 Assert.Contains(VsUnrealFeatures.Table, t => t.Feature == f.Id);
             }
             Assert.Equal(VsUnrealFeatures.Features.Where(f => f.DefaultOn).Select(f => f.Id).OrderBy(x => x), new HostSettings().TurnOffVsFeatures().OrderBy(x => x));
-            Assert.False(VsUnrealFeatures.ById(VsUnrealFeatures.AdjacentSymbols).DefaultOn); // user's choice: debugger symbols off by default
+            Assert.True(VsUnrealFeatures.ById(VsUnrealFeatures.AdjacentSymbols).DefaultOn); // v0.5.10: on by default like the other switches
             Assert.Contains(VsUnrealFeatures.AdjacentSymbols, new HostSettings { TurnOffVsAdjacentSymbols = true }.TurnOffVsFeatures());
             var off = new HostSettings { TurnOffVsBlueprints = false };
             Assert.False(off.TurnOffVsFeatures().Contains(VsUnrealFeatures.Blueprints));
