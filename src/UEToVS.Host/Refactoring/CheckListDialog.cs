@@ -43,11 +43,11 @@ namespace UEToVS.Host.Refactoring
         private readonly Func<T, string> _filterText;
         private List<CheckRow<T>> _rows = new List<CheckRow<T>>();
 
-        public CheckListDialog(Func<string> title, Func<string> primary, Action<T, RowData> present, Func<T, string> filterText, Size size)
+        public CheckListDialog(Func<string> title, Func<string> primary, Action<T, RowData> present, Func<T, string> filterText, Size size, string placementId = null)
         {
             _present = present;
             _filterText = filterText;
-            _shell = new DialogShell(title, primary) { VisibleSize = size, PreviewPosition = PreviewPosition.Bottom };
+            _shell = new DialogShell(title, primary) { VisibleSize = size, PreviewPosition = PreviewPosition.Bottom, PlacementId = placementId };
             _list = new VirtualList<CheckRow<T>>(new DelegatePresenter<CheckRow<T>>(Present, r => !r.IsHeader)) { AlwaysActive = true, MinHeight = 160 };
             Form = new StackPanel();
             var root = new DockPanel { LastChildFill = true, Margin = new Thickness(8) };

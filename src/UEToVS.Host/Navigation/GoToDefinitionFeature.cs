@@ -82,6 +82,7 @@ namespace UEToVS.Host.Navigation
             _chooser.OwnerHandle = VsMainWindow.Handle;
             string word = string.IsNullOrEmpty(outcome.Word) ? "?" : outcome.Word;
             string title = kind == NavigationKind.Implementation ? NavStrings.ChooseImplementation(word) : NavStrings.ChooseDefinition(word);
+            NavigationPresenters.TargetHints = outcome.LocationHints;
             var picked = await _chooser.ShowAsync(outcome.Targets, anchor, title, t => SymbolPresentation.QualifiedName(t.Symbol));
             L.Info("nav.goto.chooser", null, ("kind", kind.ToString()), ("count", outcome.Targets.Count), ("chosen", picked.Chosen),
                    ("index", picked.Chosen ? IndexOf(outcome, picked.Item) : -1));

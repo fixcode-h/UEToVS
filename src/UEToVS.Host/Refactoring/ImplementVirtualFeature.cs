@@ -79,7 +79,7 @@ namespace UEToVS.Host.Refactoring
                 rows.AddRange(g.Select(m => new CheckRow<FunctionSignature> { Item = m, Checked = false }));
             }
             var dialog = new CheckListDialog<FunctionSignature>(() => RefactorStrings.OverrideDialogTitle(className), () => RefactorStrings.OverrideButton,
-                Present, m => m.Name, new System.Windows.Size(720, 560))
+                Present, m => m.Name, new System.Windows.Size(720, 560), "dialog.implementVirtual")
             {
                 Description = RefactorStrings.OverrideDialogDescription,
             };

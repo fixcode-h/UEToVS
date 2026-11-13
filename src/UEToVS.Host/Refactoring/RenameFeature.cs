@@ -103,7 +103,7 @@ namespace UEToVS.Host.Refactoring
             bool canRenameFiles = isType && header != null && RenamedFileBase(header, oldName, oldName) != null && RefactoringFeature.IsProjectPath(header);
 
             var dialog = new CheckListDialog<RenameLocation>(() => RefactorStrings.RenameDialogTitle(oldName), () => RefactorStrings.RenameButton,
-                Present, l => l.FilePath + " " + l.LineText, new Size(820, 620))
+                Present, l => l.FilePath + " " + l.LineText, new Size(820, 620), "dialog.rename")
             {
                 Description = RefactorStrings.RenameDialogDescription(projectCount, engineCount) + (r.Value.Truncated ? " " + RefactorStrings.ReferencesTruncated : string.Empty),
             };

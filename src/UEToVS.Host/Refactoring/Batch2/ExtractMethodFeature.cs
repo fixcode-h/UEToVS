@@ -65,7 +65,7 @@ namespace UEToVS.Host.Refactoring.Batch2
             bool Free(string n) => ExtractMethodPlanner.IsFreeName(a, n) && !headerNames.Contains(n);
             string suggested = "ExtractedMethod";
             for (int i = 2; i < 100 && !Free(suggested); i++) suggested = "ExtractedMethod" + i;
-            var dialog = new NameDialog(() => Refactor2Strings.ExtractTitle, () => Refactor2Strings.ExtractButton, Refactor2Strings.MethodName, suggested);
+            var dialog = new NameDialog(() => Refactor2Strings.ExtractTitle, () => Refactor2Strings.ExtractButton, Refactor2Strings.MethodName, suggested, "dialog.extractMethod");
             dialog.NameError = n => !RenamePlanner.IsValidIdentifier(n) ? Refactor2Strings.InvalidName
                 : !Free(n) ? Refactor2Strings.NameTaken : null;
             dialog.Preview = n => RenamePlanner.IsValidIdentifier(n) ? ExtractMethodPlanner.Generate(a, n, isStatic, nl).Declaration : null;

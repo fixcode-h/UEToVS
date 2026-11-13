@@ -49,6 +49,9 @@ namespace UEToVS.Host.Navigation
             return parts.Count == 0 ? null : string.Join("\n", parts);
         }
 
+        /// <summary>当前选择列表里同名文件的区分目录（<see cref="NavigationOutcome.LocationHints"/>），弹列表前设置；只在 UI 线程用。</summary>
+        public static IReadOnlyDictionary<NavigationTarget, string> TargetHints = new Dictionary<NavigationTarget, string>();
+
         /// <summary>Go to definition / implementation chooser: "Class::Member", file:line, role badge, UE badge, module/origin.</summary>
         public static readonly IItemPresenter<NavigationTarget> Target = new DelegatePresenter<NavigationTarget>((t, row) =>
         {
@@ -56,7 +59,13 @@ namespace UEToVS.Host.Navigation
             row.Glyph = SymbolPresentation.GlyphFor(s);
             row.Primary = SymbolPresentation.QualifiedName(s);
             row.Secondary = SymbolPresentation.ModuleAndOrigin(s.Module, s.Origin);
-            row.Right = SymbolPresentation.ShortLocation(s.Location);
+            if (TargetHints.TryGetValue(t, out var hint))
+            {
+                // 同名文件的不同副本：右侧显示区分它们的相对路径，第二行补上完整目录
+                row.Right = hint + "\\" + SymbolPresentation.ShortLocation(s.Location);
+                row.Secondary += " · " + System.IO.Path.GetDirectoryName(s.Location.FilePath);
+            }
+            else row.Right = SymbolPresentation.ShortLocation(s.Location);
             row.AddBadge(SymbolPresentation.RoleText(t.Role), t.Role == NavigationTargetRole.Definition ? BadgeKind.Module : BadgeKind.Neutral);
             AddUeBadge(row, s.Ue);
             row.IsDimmed = SymbolPresentation.IsNonProject(s.Origin);

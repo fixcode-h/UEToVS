@@ -14,7 +14,9 @@ namespace UEToVS.UI.Shells
 {
     /// <summary>
     /// Modal dialog chrome: title (+ description), form area, optional preview area (right or bottom), button row
-    /// (primary + cancel). Enter = primary (unless in a multi-line box), Esc = cancel. Draggable by the title.
+    /// (primary + cancel). Enter = primary (unless in a multi-line box), Esc = cancel. Draggable by the title, resizable from
+    /// every edge; with a <see cref="ChromeWindow.PlacementId"/> the size and position the user left it at are restored next
+    /// time (double-click the title to go back to the default size, centered on the owner).
     /// </summary>
     public class DialogShell : ChromeWindow
     {
@@ -27,6 +29,7 @@ namespace UEToVS.UI.Shells
         private readonly UiButton _primary;
         private readonly UiButton _cancel;
         private PreviewPosition _previewPos = PreviewPosition.Right;
+        private Size _defaultSize;
 
         public DialogShell(Func<string> title, Func<string> primaryText = null, Func<string> cancelText = null)
         {
@@ -44,6 +47,10 @@ namespace UEToVS.UI.Shells
             var header = new StackPanel { Margin = new Thickness(20, 16, 20, 12), Background = System.Windows.Media.Brushes.Transparent };
             header.Children.Add(_title);
             header.Children.Add(_description);
+            header.MouseLeftButtonDown += (s, e) => Ui.Safe("ui.dialog.header.double", () =>
+            {
+                if (e.ClickCount == 2) { ResetPlacement(); e.Handled = true; }
+            });
             EnableDrag(header);
 
             var footer = new Border { Padding = new Thickness(20, 10, 20, 14), Child = _buttons };
@@ -157,11 +164,21 @@ namespace UEToVS.UI.Shells
         public bool ShowModal(IntPtr owner)
         {
             if (owner != IntPtr.Zero) OwnerHandle = owner;
-            PlaceAt(owner != IntPtr.Zero ? PopupAnchor.CenterOf(owner) : PopupAnchor.Mouse(AnchorMode.Center));
+            // The size the caller set is the default; the remembered one (if any) replaces it.
+            _defaultSize = VisibleSize;
+            if (!RestorePlacement()) PlaceAt(owner != IntPtr.Zero ? PopupAnchor.CenterOf(owner) : PopupAnchor.Mouse(AnchorMode.Center));
             Loaded += (s, e) => Ui.Safe("ui.dialog.focus", () => MoveFocus(new TraversalRequest(FocusNavigationDirection.First)));
             IsShownModally = true;
             try { return ShowDialog() == true; }
             finally { IsShownModally = false; }
+        }
+
+        private void ResetPlacement()
+        {
+            if (_defaultSize.Width <= 0 || _defaultSize.Height <= 0) return;
+            VisibleSize = _defaultSize;
+            var owner = OwnerHandle;
+            PlaceAt(owner != IntPtr.Zero ? PopupAnchor.CenterOf(owner) : PopupAnchor.Mouse(AnchorMode.Center));
         }
 
         private void Accept()

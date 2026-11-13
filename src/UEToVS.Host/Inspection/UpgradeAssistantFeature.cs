@@ -235,7 +235,7 @@ namespace UEToVS.Host.Inspection
             }
             var sw = Stopwatch.StartNew();
             var dialog = new CheckListDialog<DeprecatedApi>(() => HeavyFeatureStrings.ReplacePreviewTitle(count), () => HeavyFeatureStrings.ReplaceAll,
-                PresentReplacement, a => SymbolPresentation.QualifiedName(a.Symbol) + " " + a.Replacement, new System.Windows.Size(820, 600));
+                PresentReplacement, a => SymbolPresentation.QualifiedName(a.Symbol) + " " + a.Replacement, new System.Windows.Size(820, 600), "dialog.upgradeReplace");
             var rows = new List<CheckRow<DeprecatedApi>>();
             foreach (var g in UpgradeView.GroupByVersion(candidates))
             {

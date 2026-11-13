@@ -145,7 +145,7 @@ namespace UEToVS.Host.Refactoring.Batch2
             // ---- preview
             int project = sites.Count(s => s.IsEditable && s.Problem == null), engineSites = sites.Count(s => !s.IsEditable), problems = sites.Count(s => s.IsEditable && s.Problem != null);
             var dialog = new CheckListDialog<SignatureSite>(() => Refactor2Strings.PreviewTitle(f.Name), () => Refactor2Strings.ChangeSignatureButton,
-                Present, s => s.FilePath + " " + s.OldLineText, new Size(900, 620))
+                Present, s => s.FilePath + " " + s.OldLineText, new Size(900, 620), "dialog.changeSignaturePreview")
             {
                 Description = Refactor2Strings.PreviewDescription(project, engineSites, problems) + (truncated ? " " + RefactorStrings.ReferencesTruncated : string.Empty),
             };

@@ -236,6 +236,20 @@ namespace UEToVS.UI.Logic
         public FontChoice UiCjk { get; set; } = DefaultUiCjk;
         public FontChoice Code { get; set; } = DefaultCode;
 
+        /// <summary>自定义字体: installed family names, comma separated, put first in the UI font (Agent Panel's customFont).</summary>
+        public string Custom { get; set; } = string.Empty;
+
+        /// <summary>Trims the names and drops characters that would break a WPF family list (quotes, '#', ';' …), like Agent Panel.</summary>
+        public static string NormalizeCustom(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return string.Empty;
+            var names = value.Split(',')
+                .Select(n => new string(n.Where(ch => ch != '"' && ch != '\'' && ch != '\\' && ch != ';' && ch != '#' && ch != '{' && ch != '}' && ch != '<' && ch != '>').ToArray()).Trim())
+                .Where(n => n.Length > 0)
+                .Distinct(StringComparer.OrdinalIgnoreCase);
+            return string.Join(", ", names);
+        }
+
         /// <summary>
         /// UI font fallback list. <paramref name="vsUiFamily"/> is VS's environment font (e.g. "Segoe UI" or
         /// "Microsoft YaHei UI"; may itself be a list). Returns an empty list when both rows follow VS: the caller keeps
@@ -244,7 +258,9 @@ namespace UEToVS.UI.Logic
         public IReadOnlyList<FontRef> ComposeUi(string vsUiFamily)
         {
             var list = new List<FontRef>();
-            if (UiLatin.Kind == FontChoiceKind.FollowVs && UiCjk.Kind == FontChoiceKind.FollowVs) return list;
+            string custom = NormalizeCustom(Custom);
+            if (UiLatin.Kind == FontChoiceKind.FollowVs && UiCjk.Kind == FontChoiceKind.FollowVs && custom.Length == 0) return list;
+            AddNames(list, custom);
             AddChoice(list, UiLatin, vsUiFamily);
             AddChoice(list, UiCjk, vsUiFamily);
             AddNames(list, vsUiFamily);

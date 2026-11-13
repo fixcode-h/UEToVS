@@ -69,6 +69,7 @@ namespace UEToVS.Host.Build
             _shell = new DialogShell(() => BuildStrings.NewClassTitle, () => BuildStrings.NewClassCreate)
             {
                 VisibleSize = new Size(860, 540),
+                PlacementId = "dialog.newClass",
                 PreviewPosition = PreviewPosition.Right,
                 Description = BuildStrings.NewClassDescription,
             };

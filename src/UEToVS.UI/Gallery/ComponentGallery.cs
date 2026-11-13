@@ -444,7 +444,7 @@ namespace UEToVS.UI.Gallery
 
         private void OpenDialog()
         {
-            var dlg = new DialogShell(() => Loc.T("重命名符号", "Rename symbol"), () => Loc.T("重命名", "Rename"));
+            var dlg = new DialogShell(() => Loc.T("重命名符号", "Rename symbol"), () => Loc.T("重命名", "Rename")) { PlacementId = "dialog.galleryRename" };
             dlg.Description = Loc.T("将同时更新 12 个文件中的 48 处引用。", "48 references in 12 files will be updated.");
             var form = new StackPanel();
             var name = new TextInput { Text = "AMyCharacter" };
