@@ -312,6 +312,9 @@ namespace UEToVS.UI.Perf
                 }
                 try { _state = _t.RowState?.Invoke(item); }
                 catch (Exception ex) { Ui.Logger.Error("ui.table.rowstate_failed", "RowState threw", ex); _state = null; }
+                // The column layout may have changed since this row was last arranged (e.g. the table was collapsed, then
+                // shown at full width) while its texts did not, which would not re-arrange it on its own.
+                InvalidateArrange();
                 AutomationProperties.SetName(this, string.Join(", ", names) + (_state == Severity.Error ? ", " + Strings.PerfOverBudget : ""));
                 ApplyBackground();
             }

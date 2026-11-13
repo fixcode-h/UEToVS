@@ -76,6 +76,15 @@ namespace UEToVS.Host.Logic.Tests
             Assert.DoesNotContain(rows, r => r.Name == "small.bin");     // < 1 MB files are not listed
             Assert.Contains(rows, r => r.Name == "a.dll" && r.IsChild);
 
+            // Without a heap split (the panel no longer sums heaps): one native row with everything private but managed.
+            var plain = PerformanceViewMapper.HostMemoryRows(HostMemoryMap.Build(new[] { R(RegionKind.Private, 10 * Gb) }, null, 1 * Gb));
+            Assert.Equal("原生内存", plain[0].Name);
+            Assert.Equal(9 * Gb, plain[0].Bytes);
+            Assert.DoesNotContain(plain, r => r.Name == "其他私有内存");
+
+            var shared = PerformanceViewMapper.HostMemoryRows(HostMemoryMap.Build(new[] { R(RegionKind.Mapped, 224 * Mb, null) }, null, 0));
+            Assert.Contains(shared, r => r.Name == "共享内存（无文件）" && r.IsChild);
+
             var note = PerformanceViewMapper.SpikeNote(new HostMemorySpike
             {
                 TakenUtc = DateTime.UtcNow, DeltaBytes = 10 * Gb,

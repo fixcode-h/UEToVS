@@ -29,24 +29,33 @@ namespace UEToVS.Host.Logic.Performance
 
             var kinds = new List<(long Bytes, Action Add)>
             {
-                (m.NativeHeapBytes, () =>
+                (m.NativeHeapBytes + m.OtherPrivateBytes, () =>
                 {
+                    if (m.Heaps.Count == 0)
+                    {
+                        // Heaps are not summed any more (HeapSummary locks each heap): one native row.
+                        rows.Add(Row(Strings.MemKindNative, m.NativeHeapBytes + m.OtherPrivateBytes, Strings.MemKindNativeDetail, false));
+                        return;
+                    }
                     rows.Add(Row(Strings.MemKindNativeHeap, m.NativeHeapBytes, Strings.MemKindNativeHeapDetail(m.Heaps.Count), false));
                     foreach (var h in m.Heaps.Where(h => h.CommittedBytes >= 16L << 20).Take(4))
                         rows.Add(Row(h.IsDefault ? Strings.MemDefaultHeap : Strings.MemHeap("0x" + h.Handle.ToString("x", CultureInfo.InvariantCulture)),
                             h.CommittedBytes, Strings.MemHeapDetail(Size(h.AllocatedBytes)), true));
+                    rows.Add(Row(Strings.MemKindOtherPrivate, m.OtherPrivateBytes, Strings.MemKindOtherPrivateDetail, false));
                 }),
-                (m.OtherPrivateBytes, () => rows.Add(Row(Strings.MemKindOtherPrivate, m.OtherPrivateBytes, Strings.MemKindOtherPrivateDetail, false))),
                 (m.ManagedBytes, () => rows.Add(Row(Strings.MemKindManaged, m.ManagedBytes, Strings.MemKindManagedDetail, false))),
                 (m.ImageBytes, () =>
                 {
                     rows.Add(Row(Strings.MemKindImage, m.ImageBytes, Strings.MemKindImageDetail, false));
-                    foreach (var x in m.TopImages.Take(5)) rows.Add(Row(x.Name, x.Bytes, null, true));
+                    foreach (var x in m.TopImages.Take(5)) rows.Add(Row(x.Name == HostMemoryMap.Unnamed ? Strings.MemUnnamedImage : x.Name, x.Bytes, null, true));
                 }),
                 (m.MappedBytes, () =>
                 {
                     rows.Add(Row(Strings.MemKindMapped, m.MappedBytes, Strings.MemKindMappedDetail, false));
-                    foreach (var x in m.TopMapped.Where(x => x.Bytes >= 1L << 20).Take(5)) rows.Add(Row(x.Name, x.Bytes, null, true));
+                    foreach (var x in m.TopMapped.Where(x => x.Bytes >= 1L << 20).Take(5))
+                        rows.Add(x.Name == HostMemoryMap.Unnamed
+                            ? Row(Strings.MemSharedSection, x.Bytes, Strings.MemSharedSectionDetail, true)
+                            : Row(x.Name, x.Bytes, null, true));
                 }),
             };
             foreach (var k in kinds.OrderByDescending(k => k.Bytes)) k.Add();

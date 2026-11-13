@@ -333,7 +333,7 @@ namespace UEToVS.Host
                     PrivateBytesBudget = long.MaxValue,
                     ResourceExtras = () =>
                     {
-                        _spikeProbe.Sample(); // logs resource.spike (busiest threads / new DLLs / child processes) on a 2 GB jump
+                        _spikeProbe.Sample(); // logs resource.spike (busiest threads / new DLLs / child processes) on a 1 GB jump
                         return new (string, object)[]
                         {
                         ("privateDeltaSinceLoadMB", Math.Round((CurrentPrivateBytes() - Performance.PrivateBytesAtLoad) / 1048576.0, 1)),
