@@ -6,6 +6,16 @@
 - 节内用 `### 新功能`、`### 改进`、`### Bug 修复`、`### 注意` 等小标题，条目写成 `- **短标题** — 说明`。
 - 改了 `src/` 的 PR 必须在最上面加一个新版本节（PR 检查会验证），这样每次合并都会出一个带更新日志的包。
 
+## v0.5.12
+
+### 新功能
+- **灯泡菜单（Ctrl+.）里能直接修 UE 规则的波浪线** — 光标放在波浪线上：UE0003 缺 GENERATED_BODY → 插入 `GENERATED_BODY()`；UE0004 手写了 RPC / BlueprintNativeEvent 的函数体 → 改名为 `_Implementation`（只改类外定义）；UE0005 ReplicatedUsing 指向的函数不存在 → 在属性下面声明 `UFUNCTION() void OnRep_X();`，并在对应的 .cpp 里加空实现；UE0006 复制属性没注册 → 在 GetLifetimeReplicatedProps 里补 `DOREPLIFETIME`（同一处的多个属性一次补齐，缺 `Net/UnrealNetwork.h` 时一并包含）；UE0002 缺模块依赖 → 加到 Build.cs 的 Public / Private 依赖（头文件里优先 Public）。每次修复是一步撤销；代码在菜单打开后又改过时不改，提示重试。Alt+Enter 菜单里同样有。日志 `editor.ueRuleFix`
+- **生成、导航、翻译、包围也进了灯泡菜单** — 头文件的类里：生成构造函数、生成 / 补全 GetLifetimeReplicatedProps、光标在普通成员函数声明上时“为 X 生成 Server RPC”；光标在 RPC / BlueprintNativeEvent 声明上：转到已有的 `_Implementation` / `_Validate`；光标在 `#include "X.generated.h"` 或 GENERATED_BODY 行上：打开 X.generated.h（有多份时打开最近编译出的那份）；有选区或光标在注释上：翻译；选中多行：用 if / for / {} 等包围
+
+### 改进
+- **灯泡菜单分组和快捷键** — 修复类单独一组排最前面（UE 规则错误显示为错误灯泡），然后是生成、重构，导航和编辑放最后；每项带图标，有命令的项右侧显示快捷键，和 Alt+Enter 菜单一致
+- **说明** — 接管 C++ IntelliSense 后，VS 自带的 C++ 快速操作（依赖被关掉的 EDG 引擎）基本不再出现，灯泡里的项都来自 UEToVS；非 UE 解决方案或没有接管时，灯泡保持 VS 原样
+
 ## v0.5.11
 
 ### 改进

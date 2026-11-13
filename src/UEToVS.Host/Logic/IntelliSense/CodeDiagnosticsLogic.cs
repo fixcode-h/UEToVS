@@ -131,7 +131,7 @@ namespace UEToVS.Host.Logic.IntelliSense
                     Length = m.Include.Length,
                     Severity = CodeDiagnosticSeverity.Warning,
                     Code = CodeDiagnosticCodes.MissingModuleDependency,
-                    Args = new List<string> { m.Include, m.Module, m.OwnerModule },
+                    Args = new List<string> { m.Include, m.Module, m.OwnerModule, m.OwnerBuildCsPath ?? string.Empty }, // [3]: the light bulb fix edits this Build.cs
                     Message = $"'{m.Include}' belongs to module {m.Module}, which is not a dependency of {m.OwnerModule}",
                 });
             }

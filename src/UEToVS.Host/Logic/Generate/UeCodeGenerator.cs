@@ -164,7 +164,7 @@ namespace UEToVS.Host.Logic.Generate
             return i + 1;
         }
 
-        private static int MatchBrace(string b, int open)
+        internal static int MatchBrace(string b, int open)
         {
             int depth = 0;
             for (int i = open; i < b.Length; i++)
@@ -224,7 +224,7 @@ namespace UEToVS.Host.Logic.Generate
             return list;
         }
 
-        private static int MatchParen(string b, int open)
+        internal static int MatchParen(string b, int open)
         {
             int depth = 0;
             for (int i = open; i < b.Length; i++)
@@ -281,7 +281,7 @@ namespace UEToVS.Host.Logic.Generate
         }
 
         /// <summary>Appends definitions at the end of the source text (one blank line before).</summary>
-        private static TextInsertion AppendToSource(string source, string nl, string block)
+        internal static TextInsertion AppendToSource(string source, string nl, string block)
         {
             source = source ?? string.Empty;
             var sb = new StringBuilder();

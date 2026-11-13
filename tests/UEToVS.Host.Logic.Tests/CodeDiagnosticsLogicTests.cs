@@ -86,7 +86,7 @@ namespace UEToVS.Host.Logic.Tests
             Assert.Equal(2, d.Line);
             Assert.Equal("#include \"".Length, d.Column);
             Assert.Equal("Blueprint/UserWidget.h".Length, d.Length);
-            Assert.Equal(new[] { "Blueprint/UserWidget.h", "UMG", "MyGame" }, d.Args);
+            Assert.Equal(new[] { "Blueprint/UserWidget.h", "UMG", "MyGame", "C:/G/MyGame.Build.cs" }, d.Args);
 
             // raw include paths in the owner Build.cs: the header may be reachable anyway → not reported
             var none = IncludeDiagnostics.From(missing, l => lines.TryGetValue(l, out var t) ? t : null, _ => "PrivateIncludePaths.Add(\"X\");", out uncertain);
