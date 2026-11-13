@@ -94,6 +94,9 @@ namespace UEToVS.Host.Logic.Settings
         /// <summary>VS's CodeLens (all languages; empty once the semantic index and Blueprint support are off).</summary>
         public bool TurnOffVsCodeLens { get; set; } = true;
 
+        /// <summary>VS debugger "Always include symbols next to modules" (12 GB while debugging the UE editor). Off by default (v0.5.9).</summary>
+        public bool TurnOffVsAdjacentSymbols { get; set; }
+
         /// <summary>Ids (<see cref="UEToVS.Host.Logic.IntelliSense.VsUnrealFeatures"/>) of the VS features to turn off.</summary>
         public System.Collections.Generic.ISet<string> TurnOffVsFeatures()
         {
@@ -102,6 +105,7 @@ namespace UEToVS.Host.Logic.Settings
             if (TurnOffVsBlueprints) set.Add(UEToVS.Host.Logic.IntelliSense.VsUnrealFeatures.Blueprints);
             if (TurnOffVsUhtAnalysis) set.Add(UEToVS.Host.Logic.IntelliSense.VsUnrealFeatures.UhtAnalysis);
             if (TurnOffVsCodeLens) set.Add(UEToVS.Host.Logic.IntelliSense.VsUnrealFeatures.CodeLens);
+            if (TurnOffVsAdjacentSymbols) set.Add(UEToVS.Host.Logic.IntelliSense.VsUnrealFeatures.AdjacentSymbols);
             return set;
         }
 

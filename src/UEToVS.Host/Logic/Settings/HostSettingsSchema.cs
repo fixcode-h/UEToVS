@@ -143,7 +143,7 @@ namespace UEToVS.Host.Logic.Settings
             foreach (var f in UEToVS.Host.Logic.IntelliSense.VsUnrealFeatures.Features)
                 list.Add(D(General, f.SettingKey, SettingKind.Bool, f.TitleZh, f.TitleEn,
                     f.DescriptionZh + "（接管时生效，修改前备份；取消勾选或接管范围选“关闭”即恢复）",
-                    f.DescriptionEn + " (applies while taken over, backed up first; unticking it or scope “Off” restores it)", "true", gCpp, gCppEn));
+                    f.DescriptionEn + " (applies while taken over, backed up first; unticking it or scope “Off” restores it)", f.DefaultOn ? "true" : "false", gCpp, gCppEn));
             // ---- v0.4.5 navigation gaps: what VS loses after the takeover and the UEToVS replacement (table drawn by the settings window)
             list.Add(A(General, "intelliSense.featureMatrix", UEToVS.Host.Logic.IntelliSense.TakeoverFeatures.SettingsInfoId, "接管后 VS 自带功能", "VS features after the takeover",
                 "接管后 VS 的 C++ IntelliSense、浏览数据库、后台代码分析和蓝图扫描关闭（接管范围选“关闭”即恢复），依赖它们的 VS 功能会失效；下表列出 UEToVS 的替代命令和默认快捷键。",
@@ -531,6 +531,7 @@ namespace UEToVS.Host.Logic.Settings
                     ["vsFeatures.blueprints"] = B(s.TurnOffVsBlueprints),
                     ["vsFeatures.uhtAnalysis"] = B(s.TurnOffVsUhtAnalysis),
                     ["vsFeatures.codeLens"] = B(s.TurnOffVsCodeLens),
+                    ["vsFeatures.adjacentSymbols"] = B(s.TurnOffVsAdjacentSymbols),
                     ["toolbar.show"] = B(s.ShowToolbar),
                     ["keyboard.doubleShift"] = B(s.DoubleShiftEnabled),
                     ["keyboard.doubleShiftIntervalMs"] = I(s.DoubleShiftIntervalMs),
@@ -657,6 +658,7 @@ namespace UEToVS.Host.Logic.Settings
                         case "vsFeatures.blueprints": s.TurnOffVsBlueprints = PB(v); break;
                         case "vsFeatures.uhtAnalysis": s.TurnOffVsUhtAnalysis = PB(v); break;
                         case "vsFeatures.codeLens": s.TurnOffVsCodeLens = PB(v); break;
+                        case "vsFeatures.adjacentSymbols": s.TurnOffVsAdjacentSymbols = PB(v); break;
                         case "toolbar.show": s.ShowToolbar = PB(v); break;
                         case "keyboard.doubleShift": s.DoubleShiftEnabled = PB(v); break;
                         case "keyboard.doubleShiftIntervalMs": s.DoubleShiftIntervalMs = PI(v, 300); break;

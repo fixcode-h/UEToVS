@@ -42,7 +42,7 @@ namespace UEToVS.Host.Logic.Tests
 
             var json = new UnifiedSettingsJsonStore(_path);
             foreach (var key in new[] { VsUnrealFeatures.JsonSemanticIndex, VsUnrealFeatures.JsonCodeLensReferences, VsUnrealFeatures.JsonCodeLensFields,
-                                        VsUnrealFeatures.JsonBlueprints, VsUnrealFeatures.JsonUhtAnalysis, VsUnrealFeatures.JsonCodeLens })
+                                        VsUnrealFeatures.JsonBlueprints, VsUnrealFeatures.JsonUhtAnalysis, VsUnrealFeatures.JsonCodeLens, VsUnrealFeatures.JsonAdjacentSymbols })
             {
                 Assert.True(json.TryRead(VsUnrealFeatures.JsonPage, key, out object v, out _));
                 Assert.Equal(false, v);
@@ -104,11 +104,14 @@ namespace UEToVS.Host.Logic.Tests
             foreach (var f in VsUnrealFeatures.Features)
             {
                 var d = schema.Single(x => x.Key == f.SettingKey);
-                Assert.Equal("true", d.Default);
-                Assert.Equal("true", values[f.SettingKey]);
+                string def = f.DefaultOn ? "true" : "false";
+                Assert.Equal(def, d.Default);
+                Assert.Equal(def, values[f.SettingKey]);
                 Assert.Contains(VsUnrealFeatures.Table, t => t.Feature == f.Id);
             }
-            Assert.Equal(VsUnrealFeatures.Features.Select(f => f.Id).OrderBy(x => x), new HostSettings().TurnOffVsFeatures().OrderBy(x => x));
+            Assert.Equal(VsUnrealFeatures.Features.Where(f => f.DefaultOn).Select(f => f.Id).OrderBy(x => x), new HostSettings().TurnOffVsFeatures().OrderBy(x => x));
+            Assert.False(VsUnrealFeatures.ById(VsUnrealFeatures.AdjacentSymbols).DefaultOn); // user's choice: debugger symbols off by default
+            Assert.Contains(VsUnrealFeatures.AdjacentSymbols, new HostSettings { TurnOffVsAdjacentSymbols = true }.TurnOffVsFeatures());
             var off = new HostSettings { TurnOffVsBlueprints = false };
             Assert.False(off.TurnOffVsFeatures().Contains(VsUnrealFeatures.Blueprints));
             Assert.True(off.VsBlueprintSupport);
