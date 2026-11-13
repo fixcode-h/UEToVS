@@ -59,9 +59,13 @@ namespace UEToVS.Host.Navigation
             row.Glyph = SymbolPresentation.GlyphFor(s);
             row.Primary = SymbolPresentation.QualifiedName(s);
             row.Secondary = SymbolPresentation.ModuleAndOrigin(s.Module, s.Origin);
-            row.Right = TargetHints.TryGetValue(t, out var hint)
-                ? hint + " › " + SymbolPresentation.ShortLocation(s.Location)
-                : SymbolPresentation.ShortLocation(s.Location);
+            if (TargetHints.TryGetValue(t, out var hint))
+            {
+                // 同名文件的不同副本：右侧显示区分它们的相对路径，第二行补上完整目录
+                row.Right = hint + "\\" + SymbolPresentation.ShortLocation(s.Location);
+                row.Secondary += " · " + System.IO.Path.GetDirectoryName(s.Location.FilePath);
+            }
+            else row.Right = SymbolPresentation.ShortLocation(s.Location);
             row.AddBadge(SymbolPresentation.RoleText(t.Role), t.Role == NavigationTargetRole.Definition ? BadgeKind.Module : BadgeKind.Neutral);
             AddUeBadge(row, s.Ue);
             row.IsDimmed = SymbolPresentation.IsNonProject(s.Origin);

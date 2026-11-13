@@ -294,8 +294,8 @@ namespace UEToVS.Host.Logic.Tests
             var other = T(@"C:\P\Source\Foo.cpp", 3);
             var o = NavigationOutcome.Decide(EngineCallStatus.Ok, new NavigationResponse { Word = "luaL_newmetatable", IndexReady = true, Targets = { a, dup, b, other } }, NavigationKind.Definition);
             Assert.Equal(3, o.Targets.Count); // 只是斜杠不同的同一个文件去重
-            Assert.Equal("lua-5.4.3", o.LocationHints[a]);
-            Assert.Equal("lua-5.4.6", o.LocationHints[b]);
+            Assert.Equal(@"lua-5.4.3\src", o.LocationHints[a]);
+            Assert.Equal(@"lua-5.4.6\src", o.LocationHints[b]);
             Assert.False(o.LocationHints.ContainsKey(other));
         }
 

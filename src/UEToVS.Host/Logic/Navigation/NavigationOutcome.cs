@@ -32,7 +32,7 @@ namespace UEToVS.Host.Logic.Navigation
 
         /// <summary>
         /// 同名文件的不同副本（例如插件里并存的两份 lua 源码 lua-5.4.3/src/lauxlib.c 和 lua-5.4.6/src/lauxlib.c）在列表里只显示
-        /// "lauxlib.c:311" 时看起来一模一样：这里给这些目标一个区分用的目录名（第一处不同的目录），其他目标没有。
+        /// "lauxlib.c:311" 时看起来一模一样：这里给这些目标去掉共同前缀后的相对目录（从第一处不同的目录起），其他目标没有。
         /// </summary>
         public IReadOnlyDictionary<NavigationTarget, string> LocationHints { get; private set; } = new Dictionary<NavigationTarget, string>();
 
@@ -64,7 +64,7 @@ namespace UEToVS.Host.Logic.Navigation
         private static string NormalizePath(string path) => path.Replace('/', '\\').Replace("\\.\\", "\\").TrimEnd('\\');
 
         /// <summary>
-        /// 文件名相同、路径不同的目标 → 各自第一处不同的目录名（去掉共同前缀后的第一段），例如 "lua-5.4.3"；
+        /// 文件名相同、路径不同的目标 → 去掉共同前缀后的目录部分，例如 "lua-5.4.3\\src"；
         /// 没有同名冲突的目标不在结果里。
         /// </summary>
         public static Dictionary<NavigationTarget, string> DistinguishingDirectories(IEnumerable<NavigationTarget> targets)
@@ -82,8 +82,9 @@ namespace UEToVS.Host.Logic.Navigation
                 int common = 0;
                 int minDirs = items.Min(x => x.Segs.Length - 1);
                 while (common < minDirs && items.All(x => string.Equals(x.Segs[common], items[0].Segs[common], StringComparison.OrdinalIgnoreCase))) common++;
+                // 从第一处不同的目录到文件所在目录，例如 lua-5.4.3\src
                 foreach (var x in items)
-                    if (common < x.Segs.Length - 1) result[x.T] = x.Segs[common];
+                    if (common < x.Segs.Length - 1) result[x.T] = string.Join("\\", x.Segs, common, x.Segs.Length - 1 - common);
             }
             return result;
         }
