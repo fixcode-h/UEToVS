@@ -210,7 +210,7 @@ namespace UEToVS.Engine
 
         private FileChangeTracker _watchTracker;
 
-        private void ReplaceWatchers(List<string> dirs)
+        private void ReplaceWatchers(List<WatchDir> dirs)
         {
             // The tracker that receives host notifications (Changes) never goes away; watchers live in their own
             // tracker instance feeding the same apply function so restarts can replace them.
@@ -219,7 +219,8 @@ namespace UEToVS.Engine
                 _watchTracker?.Dispose();
                 _watchTracker = new FileChangeTracker(batch => Index.ApplyChangesAsync(batch, _shutdown.Token));
                 _watchTracker.Watch(dirs);
-                L.Info("fs.watching", null, ("dirs", dirs.Count), ("watchers", _watchTracker.WatcherCount), ("engine", Options.WatchEngine && !Options.SkipEngine));
+                L.Info("fs.watching", null, ("dirs", dirs.Count), ("recursive", dirs.Count(d => d.Recursive)), ("topLevel", dirs.Count(d => !d.Recursive)),
+                    ("watchers", _watchTracker.WatcherCount), ("engine", Options.WatchEngine && !Options.SkipEngine));
             }
         }
 

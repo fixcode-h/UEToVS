@@ -84,6 +84,7 @@ namespace UEToVS.Host.Logic.IntelliSense
         public const string KeyDatabase = "database";
         public const string KeyDatabaseUpdates = "databaseUpdates";
         public const string KeyAutomaticUpdates = "automaticUpdates";
+        public const string KeySymbolIndex = "symbolIndex";
         public const string KeyBackgroundCodeAnalysis = "backgroundCodeAnalysis";
 
         private static CppPropertyCandidate S(string name, bool value) => new CppPropertyCandidate(SpecificPage, name, value);
@@ -118,6 +119,12 @@ namespace UEToVS.Host.Logic.IntelliSense
             new CppSettingDefinition(KeyAutomaticUpdates, "Disable Automatic Updates", CppSettingGate.DisableDatabaseOption,
                 S("DisableAutomaticUpdates", true), S("DisableAutoUpdates", true), S("DisableAutoUpdate", true),
                 S("DisableDatabaseAutoUpdates", true)), // VS 18.x name
+            // VS 18.x "whole codebase semantic index" (settings.json languages.cpp.intelliSense.browsingNavigation.
+            // wholeCodebaseSemanticIndex.enabled; feeds the C++ CodeLens reference counts). After every build it re-indexes
+            // the whole UE codebase with up to logical-cores worker threads: a 2026-11-13 diagnostics package showed devenv
+            // +10 GB native memory for ~15 min after each build with this on and every other switch already off.
+            new CppSettingDefinition(KeySymbolIndex, "Disable whole-codebase semantic index", CppSettingGate.DisableDatabaseOption,
+                S("EnableSymbolIndex", false), S("EnableWholeCodebaseSemanticIndex", false)),
         };
 
         /// <summary>

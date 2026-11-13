@@ -6,6 +6,19 @@
 - 节内用 `### 新功能`、`### 改进`、`### Bug 修复`、`### 注意` 等小标题，条目写成 `- **短标题** — 说明`。
 - 改了 `src/` 的 PR 必须在最上面加一个新版本节（PR 检查会验证），这样每次合并都会出一个带更新日志的包。
 
+## v0.5.5
+
+### 改进
+- **编译后 VS 内存暴涨** — 诊断包显示每次编译成功后 devenv 原生内存涨约 10 GB、15 分钟后才释放。接管 IntelliSense 时（跟随“禁用浏览数据库”）现在也关闭 VS 18 新增的“全代码库语义索引”（`wholeCodebaseSemanticIndex`，C++ CodeLens 引用计数靠它，编译后会用全部核心重新索引整个 UE 代码库）；恢复时按备份还原。日志 `intellisense.property.*`，键 `symbolIndex`
+- **内存突增诊断** — VS 进程私有内存在一次采样（60 秒）内涨 2 GB 以上时，日志写 `resource.spike`：这段时间最忙的线程和它们的起始模块、新加载的 DLL、devenv 的子进程和各自内存，下次能直接看出是哪个组件
+- **编译后不再整套重扫资产** — 不再递归监视整个项目目录：项目根目录和插件目录只看顶层（.uproject / .uplugin），Source、Content、Config 等子目录递归监视，跳过 Intermediate / Binaries / Saved / DerivedDataCache 和点开头的目录。编译时这些目录里成千上万的文件变化曾让文件监视溢出，编译后要重扫 79.5 万个资产（约 40 秒，引擎句柄冲到 12 万）。监视溢出时也只重扫丢了事件的目录
+
+### Bug 修复
+- **联合编译的本机核心数不生效** — v0.5.4 把设置写进了项目的 `Saved/UnrealBuildTool/BuildConfiguration.xml`，但 UBT 只在命令行带了项目目录时才读这个文件，从 VS 里编译时被跳过，本机仍按默认核心数跑（32 线程机器跑了 20 个）。现在默认写引擎的 `Engine/Saved/UnrealBuildTool/BuildConfiguration.xml`（UBT 每次编译都读，不进版本库）；引擎目录不可写时改写用户配置。之前写到项目文件里的项在下次打开 UE 解决方案或应用设置时自动恢复。设置 › 联合编译 › 高级 › “写入哪个配置文件”可选 引擎 / 用户 / 项目。日志 `horde.apply.buildConfiguration` 的 `target`、`restoredOtherFiles`
+- **编译编辑器后引擎索引整套作废** — 引擎索引的缓存键里带了 `UnrealEditor.version` 的 BuildId，源码引擎每编译一次编辑器就变，12 万多个引擎文件全部重新解析。现在缓存键只用引擎版本、Changelist 和路径，文件改没改由逐文件的大小和修改时间判断。升级后第一次打开会重建一次引擎索引
+- **.uproject / .uplugin 只是被“碰”了一下也重建索引** — 之前只要描述文件的时间戳变了就整套重跑（每次 8～14 秒、引擎内存冲到 2 GB）。现在先比较文件内容，内容真的变了才重跑；日志 `workspace.descriptor.changed` 会写明是哪个文件、是新增 / 删除 / 修改
+- **“打开当前日志”报“文件正由另一进程使用”** — 日志还在写入，VS 打开文档时要写权限所以失败。现在打开一份只读快照（`%TEMP%\UEToVS\LogView`，保留最近几份）
+
 ## v0.5.4
 
 ### 新功能

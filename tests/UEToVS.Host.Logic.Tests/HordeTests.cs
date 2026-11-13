@@ -52,7 +52,31 @@ namespace UEToVS.Host.Logic.Tests
             Assert.False(s.HordeEnabled);
             Assert.Equal(HordeAgentPolicy.Block, s.HordeAgentPolicy);
             Assert.Equal(@"C:\Horde", s.HordeInstallPath);
+            Assert.Equal(HordeConfigTarget.Engine, s.HordeTarget);
+        }
+
+        [Fact]
+        public void TargetFilesAreTheOnesUbtReads()
+        {
+            string engine = Path.Combine(_dir, "UE"), project = Path.Combine(_dir, "Game"), appData = Path.Combine(_dir, "AppData");
+            string e = HordeLocations.TargetFile(HordeConfigTarget.Engine, engine, project, appData);
+            Assert.Equal(Path.Combine(engine, "Engine", "Saved", "UnrealBuildTool", "BuildConfiguration.xml"), e);
+            Assert.Equal(Path.Combine(appData, "Unreal Engine", "UnrealBuildTool", "BuildConfiguration.xml"), HordeLocations.TargetFile(HordeConfigTarget.User, engine, project, appData));
+            Assert.Equal(Path.Combine(project, "Saved", "UnrealBuildTool", "BuildConfiguration.xml"), HordeLocations.TargetFile(HordeConfigTarget.Project, engine, project, appData));
+            Assert.Null(HordeLocations.TargetFile(HordeConfigTarget.Engine, null, project, appData));
+            Assert.True(HordeLocations.IsEngineSavedFile(@"G:\P\Engine\Engine\Saved\UnrealBuildTool\BuildConfiguration.xml"));
+            Assert.False(HordeLocations.IsEngineSavedFile(@"G:\P\Project\Saved\UnrealBuildTool\BuildConfiguration.xml"));
+            Assert.True(HordeLocations.CanWrite(e));
+        }
+
+        [Fact]
+        public void OldTargetValuesStillParse()
+        {
+            var s = new HostSettings();
+            HordeSettingsSchema.TrySet(s, HordeSettingsSchema.TargetKey, "Project");
             Assert.Equal(HordeConfigTarget.Project, s.HordeTarget);
+            HordeSettingsSchema.TrySet(s, HordeSettingsSchema.TargetKey, "bogus");
+            Assert.Equal(HordeConfigTarget.Engine, s.HordeTarget);
         }
 
         [Fact]

@@ -43,6 +43,10 @@ namespace UEToVS.Engine.Indexing
         private readonly ISymbolIndexBackend _backend;
         private readonly IFileParser _parser;
         private readonly object _gate = new object();
+
+        /// <summary>Content hash of each .uproject / .uplugin seen at discovery: a touch without a real edit must not re-index.</summary>
+        private readonly System.Collections.Concurrent.ConcurrentDictionary<string, ulong> _descriptorHashes =
+            new System.Collections.Concurrent.ConcurrentDictionary<string, ulong>(StringComparer.OrdinalIgnoreCase);
         private readonly List<ThroughputRecorder> _throughput = new List<ThroughputRecorder>();
         private CancellationTokenSource _runCts;
         private Task _runTask = Task.CompletedTask;
@@ -53,6 +57,9 @@ namespace UEToVS.Engine.Indexing
         private Dictionary<string, IndexStateStore.FileState> _cachedState;
         private List<FoundBuildCs> _buildFiles = new List<FoundBuildCs>();
         private int _runNumber;
+
+        /// <summary>Index runs started so far (tests: a descriptor touch must not start a new one).</summary>
+        internal int RunCount => Volatile.Read(ref _runNumber);
         private volatile IndexPhase _phase = IndexPhase.NotStarted;
         private int _filesParsed;
         private int _filesToParse;
@@ -312,6 +319,7 @@ namespace UEToVS.Engine.Indexing
                     p.Add("ueVersion", ws.EngineVersion?.ToString());
                 }
                 foreach (var w in ws.Warnings) L.Warn("workspace.warning", w);
+                RememberDescriptors(ws);
                 Workspace = ws;
                 try { WorkspaceDiscovered?.Invoke(ws); }
                 catch (Exception ex) { L.Warn("workspace.handler_failed", "Workspace handler failed", ex); }
@@ -569,12 +577,13 @@ namespace UEToVS.Engine.Indexing
             return r + 2;
         }
 
-        private void RemoveStale(List<ListedFile> listed)
+        private void RemoveStale(List<ListedFile> listed, Func<string, bool> inScope = null)
         {
             var keep = new HashSet<string>(listed.Select(f => f.Path), StringComparer.OrdinalIgnoreCase);
             foreach (var e in Files.Snapshot())
             {
                 if (keep.Contains(e.File.Path)) continue;
+                if (inScope != null && !inScope(e.File.Path)) continue;
                 Files.Remove(e.File.Path);
                 _backend.RemoveFile(e.File.Path);
             }
@@ -809,7 +818,7 @@ namespace UEToVS.Engine.Indexing
 
             if (batch.NeedsRescan)
             {
-                await RescanAsync(ct).ConfigureAwait(false);
+                await RescanAsync(batch.RescanDirs, ct).ConfigureAwait(false);
                 return;
             }
 
@@ -817,13 +826,20 @@ namespace UEToVS.Engine.Indexing
             var updates = new List<ListedFile>();
             int removed = 0, assetsChanged = 0;
             bool restart = false, modulesChanged = false;
+            string restartPath = null, restartReason = null;
 
             foreach (var change in ExpandDirectories(batch.Changes))
             {
                 string path = change.FilePath;
                 if (path.EndsWith(".uproject", StringComparison.OrdinalIgnoreCase) || path.EndsWith(".uplugin", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (Files.TryGet(path, out _) || change.Kind != FileChangeKind.Deleted) restart = true;
+                    string reason = DescriptorChangeReason(path, change.Kind);
+                    if (reason != null && !restart)
+                    {
+                        restart = true;
+                        restartPath = path;
+                        restartReason = reason;
+                    }
                 }
                 if (path.EndsWith(".Build.cs", StringComparison.OrdinalIgnoreCase)) modulesChanged = true;
 
@@ -867,7 +883,7 @@ namespace UEToVS.Engine.Indexing
 
             if (restart)
             {
-                L.Info("workspace.descriptor.changed", "Project or plugin descriptor changed: re-indexing");
+                L.Info("workspace.descriptor.changed", "Project or plugin descriptor changed: re-indexing", ("path", restartPath), ("reason", restartReason));
                 _ = Start(Options, CancellationToken.None);
                 return;
             }
@@ -893,6 +909,58 @@ namespace UEToVS.Engine.Indexing
                 ("failed", c.Failed), ("removed", removed), ("assets", assetsChanged), ("batch", batch.IsBatch), ("source", batch.Source),
             });
             if (updates.Count > 0 || removed > 0) RaiseStatus();
+        }
+
+        private void RememberDescriptors(Workspace ws)
+        {
+            _descriptorHashes.Clear();
+            var paths = new List<string>();
+            if (!string.IsNullOrEmpty(ws.ProjectFile)) paths.Add(ws.ProjectFile);
+            paths.AddRange(ws.Plugins.Select(pl => pl.DescriptorPath).Where(x => !string.IsNullOrEmpty(x)));
+            foreach (string path in paths)
+                if (TryHashFile(path, out ulong h)) _descriptorHashes[Path.GetFullPath(path)] = h;
+        }
+
+        /// <summary>
+        /// Why a descriptor event needs a re-index (null = it does not): the file appeared, disappeared or its bytes
+        /// changed. A save / checkout / editor touch that leaves the content as it was is ignored (it re-indexed the whole
+        /// workspace for 10+ s before).
+        /// </summary>
+        private string DescriptorChangeReason(string path, FileChangeKind kind)
+        {
+            string full;
+            try { full = Path.GetFullPath(path); }
+            catch (Exception) { return null; }
+            bool known = _descriptorHashes.TryGetValue(full, out ulong before);
+            if (!File.Exists(full))
+            {
+                if (!known && !Files.TryGet(full, out _)) return null;
+                _descriptorHashes.TryRemove(full, out _);
+                return "deleted";
+            }
+            if (!TryHashFile(full, out ulong now)) return known ? null : "added";
+            _descriptorHashes[full] = now;
+            if (!known) return "added";
+            if (now == before)
+            {
+                L.Debug("workspace.descriptor.touched", "Descriptor touched without a content change; not re-indexing", ("path", full), ("kind", kind.ToString()));
+                return null;
+            }
+            return "edited";
+        }
+
+        private static bool TryHashFile(string path, out ulong hash)
+        {
+            hash = 0;
+            try
+            {
+                hash = ContentHasher.Hash(File.ReadAllBytes(path));
+                return true;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
         }
 
         private IEnumerable<FileChange> ExpandDirectories(List<FileChange> changes)
@@ -957,13 +1025,20 @@ namespace UEToVS.Engine.Indexing
         private static bool Under(string dir, string path) =>
             path.StartsWith(dir.TrimEnd('/', '\\') + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
 
-        /// <summary>Watcher overflow: re-list everything and apply the difference (size/mtime, then hash).</summary>
-        private async Task RescanAsync(CancellationToken ct)
+        /// <summary>
+        /// Watcher overflow: re-list the folders whose watcher lost events (everything when <paramref name="dirs"/> is empty)
+        /// and apply the difference (size/mtime, then hash). Files and assets outside those folders are left alone.
+        /// </summary>
+        private async Task RescanAsync(IReadOnlyCollection<string> dirs, CancellationToken ct)
         {
             var ws = Workspace;
             using var p = Phases.Begin(IndexPhase.ListingFiles, "rescan");
-            var roots = ws.AllListingRoots().Where(r => r.IsProject || Options.IncludeEngine).ToList();
-            var listing = FileLister.List(ws, roots, ws.DescriptorFiles, _scheduler.MaxParallelism, ct);
+            var scope = (dirs ?? Array.Empty<string>()).Where(d => !string.IsNullOrEmpty(d)).ToList();
+            bool InScope(string path) => scope.Count == 0 || scope.Any(d => SameOrUnder(d, path) || SameOrUnder(path, d));
+            var roots = ws.AllListingRoots().Where(r => (r.IsProject || Options.IncludeEngine) && InScope(r.Path)).ToList();
+            var descriptors = ws.DescriptorFiles.Where(d => scope.Count == 0 || scope.Any(s => SameOrUnder(s, d.Path))).ToList();
+            var contentRoots = ws.ContentRoots.Where(r => (r.IsProject || Options.IncludeEngine) && InScope(r.Path)).ToList();
+            var listing = FileLister.List(ws, roots, descriptors, _scheduler.MaxParallelism, ct);
             var changed = new List<ListedFile>();
             foreach (var f in listing.Files)
             {
@@ -971,19 +1046,33 @@ namespace UEToVS.Engine.Indexing
                 Files.Upsert(f);
             }
             int before = Files.Count;
-            RemoveStale(listing.Files);
-            foreach (var a in ScanAssets(ws.ContentRoots.Where(r => r.IsProject || Options.IncludeEngine), "rescan", ct)) Assets.Upsert(a);
+            if (scope.Count == 0) RemoveStale(listing.Files);
+            else
+            {
+                var rootPaths = roots.Select(r => r.Path).ToList();
+                RemoveStale(listing.Files, path => rootPaths.Any(r => SameOrUnder(r, path)) || descriptors.Any(d => string.Equals(d.Path, path, StringComparison.OrdinalIgnoreCase)));
+            }
+            int assets = 0;
+            if (contentRoots.Count > 0)
+                foreach (var a in ScanAssets(contentRoots, "rescan", ct)) { Assets.Upsert(a); assets++; }
             var c = new Counters();
             var tasks = new List<Task>();
             for (int i = 0; i < changed.Count; i += ChunkSize)
                 tasks.Add(ProcessChunkAsync(changed.GetRange(i, Math.Min(ChunkSize, changed.Count - i)), "index.rescan", WorkPriority.Background, c, force: true, ct));
             await Task.WhenAll(tasks).ConfigureAwait(false);
             p.Items = listing.Files.Count;
+            p.Add("scope", scope.Count == 0 ? (object)"all" : scope.ToArray());
+            p.Add("roots", roots.Count);
+            p.Add("contentRoots", contentRoots.Count);
+            p.Add("assets", assets);
             p.Add("changed", changed.Count);
             p.Add("parsed", c.Parsed);
             p.Add("removed", before - Files.Count);
             RaiseStatus();
         }
+
+        private static bool SameOrUnder(string dir, string path) =>
+            string.Equals(dir.TrimEnd('/', '\\'), path.TrimEnd('/', '\\'), StringComparison.OrdinalIgnoreCase) || Under(dir, path);
 
         // ---------------------------------------------------------------- persistence / status
 
@@ -1137,16 +1226,72 @@ namespace UEToVS.Engine.Indexing
         }
 
         /// <summary>Directories to watch: project roots always; engine roots only when <paramref name="includeEngine"/>.</summary>
-        public static IEnumerable<string> WatchDirectories(Workspace ws, bool includeEngine)
+        /// <summary>
+        /// Folders to watch. The project root is NOT watched recursively: its Intermediate / Binaries / Saved / .vs folders
+        /// (and those of every code plugin) churn through tens of thousands of files during a build, which overflowed the
+        /// watcher buffer and forced a full rescan of ~800k assets after every build. Instead the root and plugin folders
+        /// are watched at top level only (descriptors, new folders) and each non-skipped subfolder recursively.
+        /// </summary>
+        public static IEnumerable<WatchDir> WatchDirectories(Workspace ws, bool includeEngine)
         {
-            var dirs = new List<string>();
-            if (ws.ProjectRoot != null) dirs.Add(ws.ProjectRoot); // descriptors, Source, Config, Content, Plugins
+            var dirs = new List<WatchDir>();
+            if (ws.ProjectRoot != null) PlanProjectWatch(ws.ProjectRoot, dirs);
             if (includeEngine)
             {
-                dirs.AddRange(ws.SourceRoots.Where(r => !r.IsProject).Select(r => r.Path));
-                dirs.AddRange(ws.ConfigRoots.Where(r => !r.IsProject).Select(r => r.Path));
+                dirs.AddRange(ws.SourceRoots.Where(r => !r.IsProject).Select(r => new WatchDir(r.Path, recursive: true)));
+                dirs.AddRange(ws.ConfigRoots.Where(r => !r.IsProject).Select(r => new WatchDir(r.Path, recursive: true)));
             }
             return dirs;
+        }
+
+        /// <summary>Plugin folders nested in grouping folders (Plugins/Group/Sub/MyPlugin) are followed this deep.</summary>
+        private const int MaxPluginNesting = 4;
+
+        internal static void PlanProjectWatch(string projectRoot, List<WatchDir> dirs)
+        {
+            dirs.Add(new WatchDir(projectRoot, recursive: false));
+            foreach (string child in SubDirectories(projectRoot))
+            {
+                if (string.Equals(Path.GetFileName(child), "Plugins", StringComparison.OrdinalIgnoreCase)) PlanPluginContainer(child, dirs, 0);
+                else dirs.Add(new WatchDir(child, recursive: true));
+            }
+        }
+
+        private static void PlanPluginContainer(string dir, List<WatchDir> dirs, int depth)
+        {
+            dirs.Add(new WatchDir(dir, recursive: false));
+            foreach (string child in SubDirectories(dir))
+            {
+                if (HasPluginDescriptor(child)) PlanPlugin(child, dirs, depth + 1);
+                else if (depth < MaxPluginNesting) PlanPluginContainer(child, dirs, depth + 1);
+                else dirs.Add(new WatchDir(child, recursive: true));
+            }
+        }
+
+        private static void PlanPlugin(string dir, List<WatchDir> dirs, int depth)
+        {
+            dirs.Add(new WatchDir(dir, recursive: false));
+            foreach (string child in SubDirectories(dir))
+            {
+                if (depth < MaxPluginNesting && string.Equals(Path.GetFileName(child), "Plugins", StringComparison.OrdinalIgnoreCase))
+                    PlanPluginContainer(child, dirs, depth);
+                else dirs.Add(new WatchDir(child, recursive: true));
+            }
+        }
+
+        /// <summary>Direct subfolders that listing does not skip (Intermediate, Binaries, Saved, DerivedDataCache, dot-folders).</summary>
+        private static IEnumerable<string> SubDirectories(string dir)
+        {
+            string[] all;
+            try { all = Directory.GetDirectories(dir); }
+            catch (Exception) { return Array.Empty<string>(); }
+            return all.Where(d => !FileLister.IsSkippedDirectory(Path.GetFileName(d)));
+        }
+
+        private static bool HasPluginDescriptor(string dir)
+        {
+            try { return Directory.EnumerateFiles(dir, "*.uplugin", SearchOption.TopDirectoryOnly).Any(); }
+            catch (Exception) { return false; }
         }
 
         public void Cancel()

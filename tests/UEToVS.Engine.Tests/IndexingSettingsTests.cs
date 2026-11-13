@@ -262,6 +262,54 @@ namespace UEToVS.Engine.Tests
             Assert.Empty(parser.Parsed);
         }
 
+        [Fact]
+        public async Task DescriptorTouchWithoutEditDoesNotReindex()
+        {
+            using var t = new FakeUnrealTree();
+            using var h = Host(t.ProjectRoot, new CountingParser());
+            StartIndexing(h);
+            await Ready(h);
+            int runs = h.Index.RunCount;
+
+            // Same bytes, new timestamp (checkout, editor save without changes): no new run.
+            File.SetLastWriteTimeUtc(t.ProjectFile, DateTime.UtcNow.AddMinutes(1));
+            var batch = new Vfs.ChangeBatch { Source = "test" };
+            batch.Changes.Add(new FileChange { FilePath = t.ProjectFile, Kind = FileChangeKind.Changed });
+            await h.Index.ApplyChangesAsync(batch, CancellationToken.None);
+            Assert.Equal(runs, h.Index.RunCount);
+
+            // A real edit re-indexes.
+            File.AppendAllText(t.ProjectFile, "\n");
+            batch = new Vfs.ChangeBatch { Source = "test" };
+            batch.Changes.Add(new FileChange { FilePath = t.ProjectFile, Kind = FileChangeKind.Changed });
+            await h.Index.ApplyChangesAsync(batch, CancellationToken.None);
+            Assert.Equal(runs + 1, h.Index.RunCount);
+            await Ready(h);
+        }
+
+        [Fact]
+        public void ProjectBuildFoldersAreNotWatched()
+        {
+            using var t = new FakeUnrealTree();
+            Directory.CreateDirectory(t.P("Game/Intermediate/Build"));
+            Directory.CreateDirectory(t.P("Game/Saved/Logs"));
+            Directory.CreateDirectory(t.P("Game/.vs/UEToVS"));
+            Directory.CreateDirectory(t.P("Game/Plugins/Tools/MyTools/Intermediate"));
+            Directory.CreateDirectory(t.P("Game/Plugins/Tools/MyTools/Binaries"));
+            var dirs = new List<Vfs.WatchDir>();
+            IndexOrchestrator.PlanProjectWatch(t.ProjectRoot, dirs);
+            var recursive = dirs.Where(d => d.Recursive).Select(d => d.Path).ToList();
+            var top = dirs.Where(d => !d.Recursive).Select(d => d.Path).ToList();
+
+            Assert.Contains(t.ProjectRoot, top);                               // the .uproject
+            Assert.Contains(t.P("Game/Plugins/Tools/MyTools"), top);           // the .uplugin
+            Assert.Contains(t.P("Game/Source"), recursive);
+            Assert.Contains(t.P("Game/Content"), recursive);
+            Assert.Contains(t.P("Game/Plugins/Tools/MyTools/Source"), recursive);
+            Assert.DoesNotContain(t.ProjectRoot, recursive);
+            Assert.DoesNotContain(dirs, d => d.Path.Contains("Intermediate") || d.Path.Contains("Saved") || d.Path.Contains("Binaries") || d.Path.Contains(".vs"));
+        }
+
         // ------------------------------------------------------------------ runtime settings
 
         [Fact]

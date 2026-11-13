@@ -45,12 +45,44 @@ namespace UEToVS.Host.Logic.Horde
             return list;
         }
 
-        /// <summary>The file UEToVS writes for a target (null when the project is unknown and the target is the project).</summary>
-        public static string TargetFile(HordeConfigTarget target, string projectDirectory, string appData)
+        /// <summary>The file UEToVS writes for a target (null when the engine / project it needs is unknown).</summary>
+        public static string TargetFile(HordeConfigTarget target, string engineRoot, string projectDirectory, string appData)
         {
-            if (target == HordeConfigTarget.User)
-                return string.IsNullOrEmpty(appData) ? null : Path.Combine(appData, "Unreal Engine", "UnrealBuildTool", "BuildConfiguration.xml");
-            return string.IsNullOrEmpty(projectDirectory) ? null : Path.Combine(projectDirectory, "Saved", "UnrealBuildTool", "BuildConfiguration.xml");
+            switch (target)
+            {
+                case HordeConfigTarget.User:
+                    return string.IsNullOrEmpty(appData) ? null : Path.Combine(appData, "Unreal Engine", "UnrealBuildTool", "BuildConfiguration.xml");
+                case HordeConfigTarget.Project:
+                    return string.IsNullOrEmpty(projectDirectory) ? null : Path.Combine(projectDirectory, "Saved", "UnrealBuildTool", "BuildConfiguration.xml");
+                default:
+                    return string.IsNullOrEmpty(engineRoot) ? null : Path.Combine(engineRoot, "Engine", "Saved", "UnrealBuildTool", "BuildConfiguration.xml");
+            }
+        }
+
+        /// <summary>&lt;Engine&gt;/Engine/Saved/UnrealBuildTool/BuildConfiguration.xml of some engine.</summary>
+        public static bool IsEngineSavedFile(string path)
+        {
+            if (string.IsNullOrEmpty(path)) return false;
+            string p = path.Replace('/', '\\');
+            return p.EndsWith(@"\Engine\Saved\UnrealBuildTool\BuildConfiguration.xml", StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>Whether a file can be created / replaced in the folder of <paramref name="path"/> (installed engines under Program Files cannot).</summary>
+        public static bool CanWrite(string path)
+        {
+            try
+            {
+                string dir = Path.GetDirectoryName(path);
+                Directory.CreateDirectory(dir);
+                string probe = Path.Combine(dir, ".uetovs-write-test-" + Guid.NewGuid().ToString("N"));
+                File.WriteAllText(probe, string.Empty);
+                File.Delete(probe);
+                return true;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
         }
 
         /// <summary>C:\ProgramData\Epic\Horde\Agent\Agent.json (settings applied on top of the agent's appsettings.json).</summary>
@@ -224,6 +256,7 @@ namespace UEToVS.Host.Logic.Horde
             File.WriteAllText(path, JsonConvert.SerializeObject(this, Formatting.Indented));
         }
 
+        [JsonIgnore]
         public bool IsEmpty => AgentComputePort == null && Files.All(f => f.Value.Count == 0);
     }
 

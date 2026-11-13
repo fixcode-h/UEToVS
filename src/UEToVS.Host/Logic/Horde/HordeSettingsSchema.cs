@@ -9,11 +9,20 @@ namespace UEToVS.Host.Logic.Horde
     /// <summary>Which BuildConfiguration.xml UEToVS writes.</summary>
     public enum HordeConfigTarget
     {
-        /// <summary>&lt;Project&gt;/Saved/UnrealBuildTool/BuildConfiguration.xml: only this project's builds.</summary>
-        Project = 0,
+        /// <summary>
+        /// &lt;Engine&gt;/Engine/Saved/UnrealBuildTool/BuildConfiguration.xml: every build with this engine (default). UBT always
+        /// reads it; falls back to <see cref="User"/> when the engine folder is not writable.
+        /// </summary>
+        Engine = 0,
 
         /// <summary>%AppData%\Unreal Engine\UnrealBuildTool\BuildConfiguration.xml: every engine and project of this user.</summary>
         User = 1,
+
+        /// <summary>
+        /// &lt;Project&gt;/Saved/UnrealBuildTool/BuildConfiguration.xml. UBT reads it only when it is started with the project
+        /// directory (not for builds started from VS), so it is no longer the default (v0.5.5).
+        /// </summary>
+        Project = 2,
     }
 
     /// <summary>Whether other people's builds may run on this machine's Horde Agent.</summary>
@@ -145,13 +154,14 @@ namespace UEToVS.Host.Logic.Horde
 
             const string gAdv = "高级", gAdvEn = "Advanced";
             var target = Row(TargetKey, SettingKind.Choice, "写入哪个配置文件", "Config file written",
-                "项目：<项目>/Saved/UnrealBuildTool/BuildConfiguration.xml，只影响这个项目。用户：%AppData%\\Unreal Engine\\UnrealBuildTool\\BuildConfiguration.xml，影响这台机器上所有引擎和项目。",
-                "Project: <Project>/Saved/UnrealBuildTool/BuildConfiguration.xml, only this project. User: %AppData%\\Unreal Engine\\UnrealBuildTool\\BuildConfiguration.xml, every engine and project of this user.",
-                nameof(HordeConfigTarget.Project), gAdv, gAdvEn);
+                "引擎（默认）：<引擎>/Engine/Saved/UnrealBuildTool/BuildConfiguration.xml，用这个引擎的所有编译都会读到；引擎目录不可写时改写用户配置。用户：%AppData%\\Unreal Engine\\UnrealBuildTool\\BuildConfiguration.xml，影响这台机器上所有引擎。项目：<项目>/Saved/UnrealBuildTool/BuildConfiguration.xml，UBT 只在命令行带了项目目录时才读，从 VS 里编译时不生效。",
+                "Engine (default): <Engine>/Engine/Saved/UnrealBuildTool/BuildConfiguration.xml, read by every build with this engine; the user file is used when the engine folder is not writable. User: %AppData%\\Unreal Engine\\UnrealBuildTool\\BuildConfiguration.xml, every engine on this machine. Project: <Project>/Saved/UnrealBuildTool/BuildConfiguration.xml, which UBT reads only when started with the project directory, not for builds started from VS.",
+                nameof(HordeConfigTarget.Engine), gAdv, gAdvEn);
             target.Options = new[]
             {
-                new SettingOption(nameof(HordeConfigTarget.Project), "项目", "Project"),
+                new SettingOption(nameof(HordeConfigTarget.Engine), "引擎", "Engine"),
                 new SettingOption(nameof(HordeConfigTarget.User), "用户", "User"),
+                new SettingOption(nameof(HordeConfigTarget.Project), "项目", "Project"),
             };
             list.Add(target);
             list.Add(Tri(DisableRemoteKey, "仅本地（不要远程帮忙）", "Local only (no remote help)",
@@ -247,7 +257,7 @@ namespace UEToVS.Host.Logic.Horde
             {
                 case EnabledKey: s.HordeEnabled = string.Equals(v, "true", StringComparison.OrdinalIgnoreCase); return true;
                 case InstallPathKey: s.HordeInstallPath = string.IsNullOrWhiteSpace(v) ? DefaultInstallPath : v.Trim(); return true;
-                case TargetKey: s.HordeTarget = Enum.TryParse(v, true, out HordeConfigTarget t) && Enum.IsDefined(typeof(HordeConfigTarget), t) ? t : HordeConfigTarget.Project; return true;
+                case TargetKey: s.HordeTarget = Enum.TryParse(v, true, out HordeConfigTarget t) && Enum.IsDefined(typeof(HordeConfigTarget), t) ? t : HordeConfigTarget.Engine; return true;
                 case ServerKey: s.HordeServer = v.Trim(); return true;
                 case PoolKey: s.HordePool = v.Trim(); return true;
                 case MaxCoresKey: s.HordeMaxCores = Int(v); return true;

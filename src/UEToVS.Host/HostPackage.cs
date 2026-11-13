@@ -68,6 +68,7 @@ namespace UEToVS.Host
         private UEToVS.Host.Fonts.FontService _fonts;
         private EngineClient _engine;
         private DiagnosticsReporter _reporter;
+        private MemorySpikeProbe _spikeProbe;
         private CommandRouter _commands;
         private BuildMonitor _build;
         private Integration.ModelessEditCommandRouter _editRouter;
@@ -324,17 +325,22 @@ namespace UEToVS.Host
             WriteSessionHeader();
             if (_reporter == null)
             {
+                _spikeProbe = new MemorySpikeProbe();
                 _reporter = new DiagnosticsReporter(TimeSpan.FromSeconds(60), TimeSpan.FromMinutes(5))
                 {
                     // devenv's private bytes include all of VS; the host's own increment (budget 80 MB, §9.2) cannot be
                     // isolated, so no budget warning here: the sample carries the delta since load and the managed heap.
                     PrivateBytesBudget = long.MaxValue,
-                    ResourceExtras = () => new (string, object)[]
+                    ResourceExtras = () =>
                     {
+                        _spikeProbe.Sample(); // logs resource.spike (busiest threads / new DLLs / child processes) on a 2 GB jump
+                        return new (string, object)[]
+                        {
                         ("privateDeltaSinceLoadMB", Math.Round((CurrentPrivateBytes() - Performance.PrivateBytesAtLoad) / 1048576.0, 1)),
                         ("engineState", _engine?.State.ToString() ?? "None"),
                         ("enginePid", _engine?.ProcessId),
                         ("actions", Actions.Count),
+                        };
                     },
                 };
             }

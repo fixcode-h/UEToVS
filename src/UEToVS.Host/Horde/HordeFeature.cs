@@ -66,7 +66,12 @@ namespace UEToVS.Host.Horde
             var s = _package?.Settings?.Effective;
             InvalidateStatus();
             if (s == null || !s.HordeEnabled) return;
-            _ = Safe.RunInBackgroundAsync(L, "horde.apply.onOpen", async () => { _lastResult = await ApplyAsync(s, false, "solutionOpened"); });
+            _ = Safe.RunInBackgroundAsync(L, "horde.apply.onOpen", async () =>
+            {
+                // For a game project the engine root comes from the UEToVS engine's first status; wait for it (up to 2 min).
+                for (int i = 0; i < 60 && s.HordeTarget == HordeConfigTarget.Engine && EngineRoot == null; i++) await Task.Delay(2000).ConfigureAwait(false);
+                _lastResult = await ApplyAsync(_package.Settings.Effective, false, "solutionOpened");
+            });
         }
 
         private static string ProjectDirectory
@@ -95,6 +100,20 @@ namespace UEToVS.Host.Horde
 
         // ------------------------------------------------------------------ apply / restore
 
+        /// <summary>The file to write; the engine target falls back to the user file when the engine folder is read-only.</summary>
+        private static string ResolveTarget(HostSettings s, string engineRoot, out HordeConfigTarget kind)
+        {
+            kind = s.HordeTarget;
+            string path = HordeLocations.TargetFile(kind, engineRoot, ProjectDirectory, AppData);
+            if (kind == HordeConfigTarget.Engine && path != null && !HordeLocations.CanWrite(path))
+            {
+                L.Info("horde.target.engineReadOnly", "engine Saved folder not writable; using the user BuildConfiguration.xml", ("path", path));
+                kind = HordeConfigTarget.User;
+                path = HordeLocations.TargetFile(kind, engineRoot, ProjectDirectory, AppData);
+            }
+            return path;
+        }
+
         /// <summary>Writes BuildConfiguration.xml (and Agent.json when <paramref name="agent"/>); returns the text for the status row.</summary>
         public static async Task<string> ApplyAsync(HostSettings s, bool agent, string reason)
         {
@@ -104,7 +123,7 @@ namespace UEToVS.Host.Horde
                 var messages = new List<string>();
                 string engineRoot = EngineRoot;
                 var version = EngineVersionReader.Read(engineRoot);
-                string target = HordeLocations.TargetFile(s.HordeTarget, ProjectDirectory, AppData);
+                string target = ResolveTarget(s, engineRoot, out var targetKind);
                 var manifest = HordeBackupManifest.Load(ManifestPath);
 
                 if (version != null && version < HordeConfigPlan.MinimumEngine && s.HordeEnabled)
@@ -114,20 +133,26 @@ namespace UEToVS.Host.Horde
                 }
                 else if (target == null)
                 {
-                    if (s.HordeEnabled) messages.Add(HordeText.NoProject);
+                    if (s.HordeEnabled) messages.Add(s.HordeTarget == HordeConfigTarget.Project ? HordeText.NoProject : HordeText.NoEngine);
                 }
                 else
                 {
                     var plan = HordeConfigPlan.Build(s, Environment.ProcessorCount, KnownKeys(engineRoot));
                     _lastSkipped = plan.Skipped;
                     var result = BuildConfigurationWriter.Apply(target, plan, manifest);
-                    // The other target (switched between project and user) gets its earlier values back.
-                    string other = HordeLocations.TargetFile(s.HordeTarget == HordeConfigTarget.Project ? HordeConfigTarget.User : HordeConfigTarget.Project, ProjectDirectory, AppData);
+                    // Files written for another target get their earlier values back (e.g. the project file v0.5.4 wrote, which
+                    // UBT ignores for builds started from VS). Other engines' own Saved files stay while the target is the engine.
                     int restoredElsewhere = 0;
-                    if (other != null && manifest.Files.ContainsKey(other))
-                        restoredElsewhere = BuildConfigurationWriter.Apply(other, HordeConfigPlan.Build(null, 1), manifest).Restored.Count;
+                    var others = new List<string>();
+                    foreach (var other in manifest.Files.Keys.ToList())
+                    {
+                        if (string.Equals(other, target, StringComparison.OrdinalIgnoreCase)) continue;
+                        if (targetKind == HordeConfigTarget.Engine && HordeLocations.IsEngineSavedFile(other)) continue;
+                        restoredElsewhere += BuildConfigurationWriter.Apply(other, HordeConfigPlan.Build(null, 1), manifest).Restored.Count;
+                        others.Add(other);
+                    }
                     L.Info("horde.apply.buildConfiguration", null, ("reason", reason), ("file", target), ("enabled", s.HordeEnabled),
-                           ("written", result.Written), ("restored", result.Restored), ("restoredOtherFile", restoredElsewhere),
+                           ("written", result.Written), ("restored", result.Restored), ("restoredOtherFiles", others), ("restoredOtherKeys", restoredElsewhere), ("target", targetKind.ToString()),
                            ("skipped", plan.Skipped), ("localCores", plan.LocalCores), ("engineVersion", version?.ToString()), ("changed", result.FileChanged));
                     if (result.Written.Count > 0 || result.Restored.Count > 0 || restoredElsewhere > 0)
                         messages.Add(HordeText.Applied(result.Written.Count, result.Restored.Count + restoredElsewhere));
@@ -289,7 +314,7 @@ namespace UEToVS.Host.Horde
             {
                 EngineRoot = engineRoot,
                 EngineVersion = EngineVersionReader.Read(engineRoot),
-                TargetFile = HordeLocations.TargetFile(s.HordeTarget, ProjectDirectory, AppData),
+                TargetFile = HordeLocations.TargetFile(s.HordeTarget, engineRoot, ProjectDirectory, AppData),
                 Enabled = s.HordeEnabled,
                 LogicalCores = Environment.ProcessorCount,
                 LocalCores = HordeSettingsSchema.EffectiveLocalCores(s.HordeLocalCores, Environment.ProcessorCount),
@@ -365,8 +390,8 @@ namespace UEToVS.Host.Horde
         public static async Task<string> OpenConfigAsync()
         {
             var s = _package?.Settings?.Effective;
-            string target = s == null ? null : HordeLocations.TargetFile(s.HordeTarget, ProjectDirectory, AppData);
-            if (target == null) return HordeText.NoProject;
+            string target = s == null ? null : ResolveTarget(s, EngineRoot, out _);
+            if (target == null) return HordeText.NoEngine;
             if (!File.Exists(target)) return HordeText.NoConfigFile;
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
             VsShellUtilities.OpenDocument(_package, target);
