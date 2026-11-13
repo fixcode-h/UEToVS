@@ -28,6 +28,8 @@ namespace UEToVS.Host.Logic.Settings
         public const string Performance = "performance";
         // ---- v0.4.5 heavy features: whole-project inspection / upgrade assistant page
         public const string Inspection = "inspection";
+        /// <summary>v0.5.1: "检查更新" has a page of its own, the last one.</summary>
+        public const string Updates = "updates";
 
         /// <summary>Action ids only the settings window resolves (not registered in the ActionRegistry).</summary>
         public static class WindowActions
@@ -66,6 +68,7 @@ namespace UEToVS.Host.Logic.Settings
             new SettingCategory(Agent, "Agent / API", "Agent / API"),
             new SettingCategory(Logging, "日志与诊断", "Logs & Diagnostics"),
             new SettingCategory(Performance, "性能", "Performance"),
+            new SettingCategory(Updates, "检查更新", "Updates"),
         };
 
         /// <summary>Default indexing thread count: a quarter of the logical cores, at least 1.</summary>
@@ -113,37 +116,32 @@ namespace UEToVS.Host.Logic.Settings
 
             const string gCpp = "C++ IntelliSense", gCppEn = "C++ IntelliSense";
             list.Add(A(General, "intelliSense.status", WindowActions.IntelliSenseStatus, "当前状态", "Current state", null, null, gCpp, gCppEn, SettingKind.Info));
-            list.Add(D(General, "intelliSense.takeover", SettingKind.Bool, "接管 VS C++ IntelliSense", "Take over VS C++ IntelliSense",
-                "关闭 VS 自带的 C++ IntelliSense（修改前备份，可随时恢复），由 UEToVS 提供。", "Turns VS's own C++ IntelliSense off (backed up first, restorable); UEToVS provides it instead.",
-                "true", gCpp, gCppEn));
+            // v0.5.1: the scope has an "Off" choice instead of a separate takeover switch; VS's browse database, background
+            // code analysis and Blueprint scan follow it (listed in the table below) instead of having switches of their own.
             var mode = D(General, "intelliSense.mode", SettingKind.Choice, "接管范围", "Takeover scope",
-                "全局：安装期间一直接管；仅 UE 解决方案：打开 UE 解决方案时接管，关闭时恢复。", "Global: while installed; UE solutions only: restored when the UE solution closes.",
+                "仅 UE 解决方案（默认）：打开 UE 解决方案时接管；全局：安装期间一直接管；关闭：不接管，使用 VS 自带的 C++ IntelliSense。" +
+                "接管时同时关闭 VS 的 C++ 浏览数据库、后台代码分析和自带的蓝图扫描（修改前备份，选“关闭”即恢复），见下方“接管后 VS 自带功能”。",
+                "UE solutions only (default): taken over while a UE solution is open; Global: always while installed; Off: not taken over, VS's own C++ IntelliSense is used. " +
+                "Taking over also turns off VS's C++ browse database, background code analysis and its own Blueprint scan (backed up first; choosing Off restores them), see “VS features after the takeover” below.",
                 nameof(IntelliSenseTakeoverMode.UnrealSolutionOnly), gCpp, gCppEn);
             mode.Options = new[]
             {
-                new SettingOption(nameof(IntelliSenseTakeoverMode.Global), "全局", "Global"),
                 new SettingOption(nameof(IntelliSenseTakeoverMode.UnrealSolutionOnly), "仅 UE 解决方案", "UE solutions only"),
+                new SettingOption(nameof(IntelliSenseTakeoverMode.Global), "全局", "Global"),
+                new SettingOption(nameof(IntelliSenseTakeoverMode.Off), "关闭", "Off"),
             };
             list.Add(mode);
-            list.Add(D(General, "intelliSense.disableDatabase", SettingKind.Bool, "同时关闭 VS 的 C++ 数据库", "Also disable VS's C++ database",
-                "接管时关闭浏览数据库（.vc.db），节省大量磁盘和 CPU。", "Disables the browse database (.vc.db) while taken over; saves lots of disk and CPU.", "true", gCpp, gCppEn));
-            list.Add(D(General, "intelliSense.disableBackgroundCodeAnalysis", SettingKind.Bool, "关闭 VS 后台代码分析", "Turn off VS background code analysis",
-                "打开 UE 解决方案时关闭 VS 的 C++ 后台代码分析（修改前备份，可恢复）。", "Turns VS's C++ background code analysis off for UE solutions (backed up, restorable).", "true", gCpp, gCppEn));
             list.Add(A(General, "intelliSense.toggle", WindowActions.ToggleIntelliSense, "立即接管 / 恢复", "Take over / restore now",
                 "根据当前状态接管或恢复 VS 自带的 C++ IntelliSense。", "Takes over or restores VS's own C++ IntelliSense, depending on the current state.", gCpp, gCppEn));
-            list.Add(D(General, "vs.blueprintSupport", SettingKind.Bool, "启用 VS 自带的蓝图扫描", "Enable VS's own Blueprint scan",
-                "VS 自带的 Unreal Engine 集成每次打开解决方案都会“从 X.uproject 中扫描 Blueprint”。关闭时 UEToVS 会把它关掉（修改前备份，重新打开即恢复），下次启动 VS 生效。",
-                "VS's own Unreal Engine integration scans every Blueprint (\"Scanning Blueprints from X.uproject\") on each solution load. When off, UEToVS switches it off (backed up; turning this on restores it); takes effect from the next VS start.",
-                "false", gCpp, gCppEn));
             list.Add(A(General, "vs.unrealIntegration", WindowActions.VsUnrealIntegration, "VS 自带的 Unreal Engine 集成", "VS's built-in Unreal Engine integration",
                 null, null, gCpp, gCppEn, SettingKind.Info));
             // ---- v0.4.5 navigation gaps: what VS loses after the takeover and the UEToVS replacement (table drawn by the settings window)
             list.Add(A(General, "intelliSense.featureMatrix", UEToVS.Host.Logic.IntelliSense.TakeoverFeatures.SettingsInfoId, "接管后 VS 自带功能", "VS features after the takeover",
-                "接管后 VS 的 C++ IntelliSense 和浏览数据库关闭，依赖它们的 VS 功能会失效；下表列出 UEToVS 的替代命令和默认快捷键。",
-                "With VS's C++ IntelliSense and browse database off, the VS features built on them stop working; the table lists the UEToVS replacements and their default keys.",
+                "接管后 VS 的 C++ IntelliSense、浏览数据库、后台代码分析和蓝图扫描关闭（接管范围选“关闭”即恢复），依赖它们的 VS 功能会失效；下表列出 UEToVS 的替代命令和默认快捷键。",
+                "With the takeover, VS's C++ IntelliSense, browse database, background code analysis and Blueprint scan are off (scope “Off” restores them) and the VS features built on them stop working; the table lists the UEToVS replacements and their default keys.",
                 gCpp, gCppEn, SettingKind.Info));
 
-            list.Add(A(General, "update.check", WindowActions.CheckForUpdates, "检查更新", "Check for updates",
+            list.Add(A(Updates, "update.check", WindowActions.CheckForUpdates, "检查更新", "Check for updates",
                 "查询 GitHub 上的最新版本；有新版本时显示版本号和安装包大小，点“下载并安装”后显示下载进度，下载完启动 VS 的扩展安装程序，关闭 VS 后完成安装。",
                 "Looks up the latest release on GitHub; when there is a newer one it shows the version and size, and “Download and install” downloads it with progress and starts VS's extension installer, which finishes after VS closes.",
                 "更新", "Updates"));
@@ -240,10 +238,11 @@ namespace UEToVS.Host.Logic.Settings
                 "仅在共享时使用；留空 = %LocalAppData%\\UEToVS\\EngineIndex\\<引擎版本>。", "Used only when sharing; empty = %LocalAppData%\\UEToVS\\EngineIndex\\<engine version>.", "", gEi, gEiEn));
             const string gLua = "Lua 脚本", gLuaEn = "Lua scripts";
             var lua = D(Indexing, "indexing.luaScriptPaths", SettingKind.PathList, "Lua 脚本路径", "Lua script folders",
-                "要索引的 Lua 脚本文件夹（UnLua / sluaunreal 等）。项目内的文件夹自动存成相对 .uproject 的路径，如 Content/Script。没有文件夹就不索引 Lua。" +
+                "要索引的 Lua 脚本文件夹（UnLua / sluaunreal 等）。项目内的文件夹自动存成相对 .uproject 的路径，如 Content/Script。" +
+                "留空时，如果 <项目>/Content/Script 存在且里面有 .lua 文件，自动索引它，否则不索引 Lua。" +
                 "索引后 MCP 的 search_lua / search_lua_files / get_lua_outline 可以直接查找 Lua，脚本保存、新增、删除时自动增量更新。",
                 "Lua script folders to index (UnLua, sluaunreal…). Folders inside the project are stored relative to the .uproject folder, e.g. Content/Script. " +
-                "No folders = no Lua index. Lets the MCP tools search_lua / search_lua_files / get_lua_outline find Lua code; saved, added and deleted scripts update incrementally.",
+                "Empty = <Project>/Content/Script is indexed automatically when it exists and holds .lua files, otherwise there is no Lua index. Lets the MCP tools search_lua / search_lua_files / get_lua_outline find Lua code; saved, added and deleted scripts update incrementally.",
                 "", gLua, gLuaEn);
             lua.Keywords = "lua unlua slua script 脚本 mcp";
             list.Add(lua);
@@ -495,11 +494,7 @@ namespace UEToVS.Host.Logic.Settings
                     ["engine.path"] = s.EnginePathOverride ?? "",
                     ["engine.unrealEngineRoot"] = s.UnrealEngineRootOverride ?? "",
                     ["engine.requestTimeoutSeconds"] = I(s.EngineRequestTimeoutSeconds),
-                    ["intelliSense.takeover"] = B(s.IntelliSenseTakeover),
                     ["intelliSense.mode"] = s.IntelliSenseTakeoverMode.ToString(),
-                    ["intelliSense.disableDatabase"] = B(s.DisableDatabase),
-                    ["intelliSense.disableBackgroundCodeAnalysis"] = B(s.DisableBackgroundCodeAnalysis),
-                    ["vs.blueprintSupport"] = B(s.VsBlueprintSupport),
                     ["toolbar.show"] = B(s.ShowToolbar),
                     ["keyboard.doubleShift"] = B(s.DoubleShiftEnabled),
                     ["keyboard.doubleShiftIntervalMs"] = I(s.DoubleShiftIntervalMs),
@@ -565,8 +560,12 @@ namespace UEToVS.Host.Logic.Settings
                 return d;
             }
 
-            /// <summary>Indexing part pushed to the engine (0 threads = engine default = max(1, cores / 4)).</summary>
-            public static UEToVS.Contracts.IndexingSettings ToIndexing(HostSettings s) => new UEToVS.Contracts.IndexingSettings
+            /// <summary>
+            /// Indexing part pushed to the engine (0 threads = engine default = max(1, cores / 4)). With
+            /// <paramref name="projectDirectory"/>, no Lua folder set means &lt;Project&gt;/Content/Script if it has Lua scripts
+            /// (<see cref="LuaScriptDefaults"/>).
+            /// </summary>
+            public static UEToVS.Contracts.IndexingSettings ToIndexing(HostSettings s, string projectDirectory = null, Func<string, bool> containsLua = null) => new UEToVS.Contracts.IndexingSettings
             {
                 CppThreads = Math.Max(0, s.CppIndexThreads),
                 AssetThreads = Math.Max(0, s.BlueprintIndexThreads),
@@ -574,7 +573,7 @@ namespace UEToVS.Host.Logic.Settings
                 IncludeEngine = s.IndexEngineSource,
                 SharedEngineCache = s.ShareEngineIndex,
                 EngineCacheDirectory = string.IsNullOrWhiteSpace(s.EngineIndexPath) ? null : s.EngineIndexPath,
-                LuaScriptPaths = SplitPaths(s.LuaScriptPaths),
+                LuaScriptPaths = LuaScriptDefaults.Resolve(s.LuaScriptPaths, projectDirectory, out _, containsLua),
                 // ---- v0.4.5 heavy features
                 ProjectInspectionEnabled = s.ProjectInspectionEnabled,
                 UpgradeAssistantEnabled = s.UpgradeAssistantEnabled,
@@ -615,11 +614,7 @@ namespace UEToVS.Host.Logic.Settings
                         case "engine.path": s.EnginePathOverride = v; break;
                         case "engine.unrealEngineRoot": s.UnrealEngineRootOverride = v; break;
                         case "engine.requestTimeoutSeconds": s.EngineRequestTimeoutSeconds = PI(v, 30); break;
-                        case "intelliSense.takeover": s.IntelliSenseTakeover = PB(v); break;
                         case "intelliSense.mode": s.IntelliSenseTakeoverMode = PE(v, IntelliSenseTakeoverMode.UnrealSolutionOnly); break;
-                        case "intelliSense.disableDatabase": s.DisableDatabase = PB(v); break;
-                        case "intelliSense.disableBackgroundCodeAnalysis": s.DisableBackgroundCodeAnalysis = PB(v); break;
-                        case "vs.blueprintSupport": s.VsBlueprintSupport = PB(v); break;
                         case "toolbar.show": s.ShowToolbar = PB(v); break;
                         case "keyboard.doubleShift": s.DoubleShiftEnabled = PB(v); break;
                         case "keyboard.doubleShiftIntervalMs": s.DoubleShiftIntervalMs = PI(v, 300); break;

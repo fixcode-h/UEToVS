@@ -105,6 +105,18 @@ namespace UEToVS.Host
 
         internal string SolutionDirectory => _solutionDir;
 
+        /// <summary>The .uproject folder (relative Lua folders and the Content/Script default resolve against it); null without a UE project.</summary>
+        internal string LuaProjectDirectory
+        {
+            get
+            {
+                string project = _unreal?.ProjectFile;
+                if (string.IsNullOrEmpty(project)) return null;
+                try { return Path.GetDirectoryName(project); }
+                catch (ArgumentException) { return null; }
+            }
+        }
+
         internal string VsVersion => _vsVersion;
 
         internal static string ExtensionDirectory => Path.GetDirectoryName(typeof(HostPackage).Assembly.Location);
@@ -476,11 +488,12 @@ namespace UEToVS.Host
         private void PushIndexingSettings(EngineClient engine, string reason)
         {
             if (engine == null) return;
-            var indexing = HostSettingsSchema.Codec.ToIndexing(_settings.Effective);
+            var indexing = HostSettingsSchema.Codec.ToIndexing(_settings.Effective, LuaProjectDirectory);
+            bool luaDefault = HostSettingsSchema.Codec.SplitPaths(_settings.Effective.LuaScriptPaths).Count == 0 && indexing.LuaScriptPaths.Count > 0;
             _ = Safe.RunInBackgroundAsync(L, "engine.indexing.push", () => engine.SetIndexingSettingsAsync(indexing),
                 ("reason", reason), ("cppThreads", indexing.CppThreads), ("assetThreads", indexing.AssetThreads),
                 ("duringBuild", indexing.DuringBuild), ("includeEngine", indexing.IncludeEngine),
-                ("luaPaths", indexing.LuaScriptPaths == null ? null : string.Join(";", indexing.LuaScriptPaths)));
+                ("luaPaths", indexing.LuaScriptPaths == null ? null : string.Join(";", indexing.LuaScriptPaths)), ("luaDefault", luaDefault));
         }
 
         private static void OnEngineStateChanged(EngineClient engine)

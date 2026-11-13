@@ -122,6 +122,20 @@ namespace UEToVS.Host.Logic.Tests
         }
 
         [Fact]
+        public void ListsTheVsBackgroundFeaturesTheScopeTurnsOff()
+        {
+            var off = TakeoverFeatures.All.Where(f => f.State == TakeoverFeatureState.TurnedOff).Select(f => f.FeatureEn).ToList();
+            Assert.Contains(off, f => f.Contains("browse database"));
+            Assert.Contains(off, f => f.Contains("Background code analysis"));
+            Assert.Contains(off, f => f.Contains("Blueprint scan"));
+            Loc.Language = UiLanguage.Chinese;
+            Assert.Equal("已关闭", TakeoverFeatures.StateText(TakeoverFeatureState.TurnedOff));
+            // v0.5.1: "检查更新" is a page of its own, the last one
+            Assert.Equal(HostSettingsSchema.Updates, HostSettingsSchema.Categories.Last().Id);
+            Assert.Equal(HostSettingsSchema.Updates, HostSettingsSchema.Build(8).Single(x => x.Key == "update.check").Category);
+        }
+
+        [Fact]
         public void TextsFollowTheUiLanguage()
         {
             var ch = TakeoverFeatures.All.First(f => f.FeatureEn == "Call Hierarchy");

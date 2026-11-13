@@ -169,18 +169,6 @@ namespace UEToVS.Host.Logic.Settings
                     if (!Enum.IsDefined(typeof(IntelliSenseTakeoverMode), s.IntelliSenseTakeoverMode)) throw new FormatException();
                     applied = s.IntelliSenseTakeoverMode.ToString();
                     return true;
-                case "intellisense.disabledatabase":
-                    s.DisableDatabase = v.Value<bool>();
-                    applied = s.DisableDatabase;
-                    return true;
-                case "intellisense.disablebackgroundcodeanalysis":
-                    s.DisableBackgroundCodeAnalysis = v.Value<bool>();
-                    applied = s.DisableBackgroundCodeAnalysis;
-                    return true;
-                case "vs.blueprintsupport":
-                    s.VsBlueprintSupport = v.Value<bool>();
-                    applied = s.VsBlueprintSupport;
-                    return true;
                 default:
                     applied = null;
                     return false;

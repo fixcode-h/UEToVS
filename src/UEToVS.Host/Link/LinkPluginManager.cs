@@ -174,8 +174,18 @@ namespace UEToVS.Host.Link
                 await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
                 var installed = st.Installed;
                 if (installed == null) return LinkStrings.PluginNotInstalled;
-                var answer = MessageBox.Show(LinkStrings.PluginUninstallConfirm(installed.Directory), LinkStrings.PluginCardTitle,
-                                             MessageBoxButton.OKCancel, MessageBoxImage.Warning, MessageBoxResult.Cancel);
+                // Owned by the active UEToVS window (the settings window), so closing the box gives the activation back to it
+                // instead of to another application (VS looked hidden afterwards).
+                Window ownerWindow = null;
+                var windows = Application.Current?.Windows;
+                if (windows != null)
+                    foreach (Window w in windows)
+                        if (w.IsActive) { ownerWindow = w; break; }
+                var answer = ownerWindow != null
+                    ? MessageBox.Show(ownerWindow, LinkStrings.PluginUninstallConfirm(installed.Directory), LinkStrings.PluginCardTitle,
+                                      MessageBoxButton.OKCancel, MessageBoxImage.Warning, MessageBoxResult.Cancel)
+                    : MessageBox.Show(LinkStrings.PluginUninstallConfirm(installed.Directory), LinkStrings.PluginCardTitle,
+                                      MessageBoxButton.OKCancel, MessageBoxImage.Warning, MessageBoxResult.Cancel);
                 if (answer != MessageBoxResult.OK)
                 {
                     L.Info("link.plugin.uninstall", null, ("dir", installed.Directory), ("ok", false), ("code", "cancelled"));

@@ -169,6 +169,7 @@ namespace UEToVS.UI.Shells
             {
                 SaveState();
                 CancelReveal();
+                ReturnActivationToOwner("dismiss");
                 Hide();
                 SetCloak(false); // hidden now: nothing stale can show, and a plain Show() later must be visible
                 Dismissed?.Invoke(this, EventArgs.Empty);
