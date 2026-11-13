@@ -186,6 +186,9 @@ namespace UEToVS.Host
                 Safe.Execute(L, "refactor.initialize", () => UEToVS.Host.Refactoring.RefactoringFeature.Initialize(this, Actions, _commands,
                     GetService(typeof(System.ComponentModel.Design.IMenuCommandService)) as OleMenuCommandService));
 
+                // v0.5.4 联合编译（Horde / UBA）: BuildConfiguration.xml / Agent.json follow the settings page.
+                Safe.Execute(L, "horde.initialize", () => Horde.HordeFeature.Initialize(this));
+
                 // 4b. Toolbar: shown on the first run (double Shift → Search Everywhere is M1's InputMonitor).
                 var dte = await GetServiceAsync(typeof(DTE)) as DTE;
                 Safe.Execute(L, "toolbar.firstRun", () => ToolbarController.ApplyOnFirstRun(dte, s.ShowToolbar));
@@ -340,6 +343,7 @@ namespace UEToVS.Host
             Safe.Execute(L, "m1.solutionOpened", () => M1Feature.OnUnrealSolutionOpened(dir));
             await TaskScheduler.Default;
 
+            Safe.Execute(L, "horde.solutionOpened", Horde.HordeFeature.OnUnrealSolutionOpened);
             await _intelliSense.OnUnrealSolutionOpenedAsync();
             await StartEngineAsync();
             _ = Safe.RunInBackgroundAsync(L, "mcp.register", () => Mcp.McpRegistration.SyncAsync(dir, _settings.Effective)); // .vs\mcp.json for AI agents

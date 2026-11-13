@@ -6,6 +6,14 @@
 - 节内用 `### 新功能`、`### 改进`、`### Bug 修复`、`### 注意` 等小标题，条目写成 `- **短标题** — 说明`。
 - 改了 `src/` 的 PR 必须在最上面加一个新版本节（PR 检查会验证），这样每次合并都会出一个带更新日志的包。
 
+## v0.5.4
+
+### 新功能
+- **联合编译（Horde / UBA）设置页** — 设置 › 联合编译：启用 UBA 联合编译、Horde 服务器、机器池、远程核心上限、远程链接、编译统计，以及仅本地、强制全部远程、失败重试、可视化窗口、集群 / 区域 / 加密 / 连接方式、UBA 缓存目录和容量等高级项。保存设置时写入项目的 `Saved/UnrealBuildTool/BuildConfiguration.xml`（可在高级里改为用户级 `%AppData%\Unreal Engine\UnrealBuildTool\BuildConfiguration.xml`），只改 UEToVS 管的键，文件里其他内容和注释原样保留。支持 UE 5.4 及以上；有引擎源码时扫描 UnrealBuildTool 源码里的 `[XmlConfigFile]`，当前引擎不认识的键不写，并在状态里列出
+- **本机参与编译的核心数** — 启用联合编译时写入 `MaxParallelActions`，默认逻辑核心数的 1/4，可在设置里改；关闭联合编译时不写，由 UE 自己决定
+- **禁止别人用本机编译** — “允许别人用本机编译”默认“禁止”：把本机 Horde Agent 的 `Agent.json`（`C:\ProgramData\Epic\Horde\Agent`）里的 `computePort` 设为 0，Agent 照常在线但不再接别人的远程编译任务，不影响你借用别人的机器。修改时弹出一次管理员授权并重启 Horde Agent 服务；选“允许”恢复原来的端口
+- **状态与恢复** — 页面顶部显示引擎版本、生效的 Horde 服务器和来源文件、本机 Agent 服务状态和 computePort；“恢复到修改前”把 UEToVS 改过的每一项恢复原值（记录在 `%LocalAppData%\UEToVS\horde-backup.json`）。默认 Horde 安装路径 `C:\Horde`。日志 `horde.*`
+
 ## v0.5.3
 
 ### 改进

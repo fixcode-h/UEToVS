@@ -51,6 +51,7 @@
     <!-- Agent / API page: HttpClient for the local model gateway, DPAPI (ProtectedData) for the API keys. -->
     <Reference Include="System.Net.Http" />
     <Reference Include="System.Security" />
+    <Reference Include="System.ServiceProcess" />
   </ItemGroup>
 
   <ItemGroup>

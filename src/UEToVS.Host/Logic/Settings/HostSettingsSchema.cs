@@ -65,6 +65,8 @@ namespace UEToVS.Host.Logic.Settings
             new SettingCategory(IntelliSense, "代码感知", "IntelliSense"),
             // ---- v0.4.5 heavy features
             new SettingCategory(Inspection, "检查", "Inspections"),
+            // ---- v0.5.4 联合编译（Horde / UBA）
+            new SettingCategory(UEToVS.Host.Logic.Horde.HordeSettingsSchema.Category, "联合编译", "Distributed builds"),
             new SettingCategory(Agent, "Agent / API", "Agent / API"),
             new SettingCategory(Logging, "日志与诊断", "Logs & Diagnostics"),
             new SettingCategory(Performance, "性能", "Performance"),
@@ -413,6 +415,9 @@ namespace UEToVS.Host.Logic.Settings
                 "true", gUpg, gUpgEn));
             list.Add(A(Inspection, "upgrade.run", "uetovs.upgrade.run", "查找弃用 API", "Find deprecated APIs", null, null, gUpg, gUpgEn));
 
+            // ================= v0.5.4 联合编译（Horde / UBA）
+            UEToVS.Host.Logic.Horde.HordeSettingsSchema.AddDescriptors(list, cores);
+
             // ================= 日志与诊断
             const string gLog = "日志", gLogEn = "Logs";
             var level = D(Logging, "log.level", SettingKind.Choice, "日志级别", "Log level",
@@ -568,6 +573,7 @@ namespace UEToVS.Host.Logic.Settings
                 UEToVS.Host.Logic.Fonts.FontSettingsSchema.ToValues(s, d);
                 UEToVS.Host.Logic.Translation.TranslationSettingsSchema.ToValues(s, d);
                 EditorFeatureSettings.ToValues(s, d); // v0.4.5 编辑体验
+                UEToVS.Host.Logic.Horde.HordeSettingsSchema.ToValues(s, d); // v0.5.4 联合编译
                 return d;
             }
 
@@ -687,6 +693,7 @@ namespace UEToVS.Host.Logic.Settings
                             if (UEToVS.Host.Logic.Fonts.FontSettingsSchema.TrySet(s, d.Key, v)) break;
                             if (UEToVS.Host.Logic.Translation.TranslationSettingsSchema.TrySet(s, d.Key, v)) break;
                             if (EditorFeatureSettings.TrySet(s, d.Key, v)) break; // v0.4.5 编辑体验
+                            if (UEToVS.Host.Logic.Horde.HordeSettingsSchema.TrySet(s, d.Key, v)) break; // v0.5.4 联合编译
                             if (d.Key.StartsWith("toolbar.button.", StringComparison.Ordinal))
                             {
                                 string key = d.Key.Substring("toolbar.button.".Length);
