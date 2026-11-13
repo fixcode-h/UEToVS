@@ -29,11 +29,11 @@ namespace UEToVS.UI.Logic.Tests
         }
 
         [Fact]
-        public void DefaultsAreTheThreeBundledFonts()
+        public void DefaultsAreBundledLatinAndCodeAndHintedSystemCjk()
         {
             var s = new FontSettings();
             Assert.Equal("bundled:IBM Plex Sans", s.UiLatin.ToString());
-            Assert.Equal("bundled:Noto Sans SC", s.UiCjk.ToString());
+            Assert.Equal("Microsoft YaHei UI", s.UiCjk.ToString()); // v0.5.3: hinted system font, Noto Sans SC is unhinted
             Assert.Equal("bundled:Maple Mono NL", s.Code.ToString());
             Assert.True(s.Code.Bundled.Monospace);
         }
@@ -42,7 +42,8 @@ namespace UEToVS.UI.Logic.Tests
         public void DisplayMarksBundledFonts()
         {
             Assert.Equal("IBM Plex Sans（内置）", FontSettings.DefaultUiLatin.Display(false));
-            Assert.Equal("思源黑体 Noto Sans SC（内置）", FontSettings.DefaultUiCjk.Display(false));
+            Assert.Equal("思源黑体 Noto Sans SC（内置）", FontChoice.OfBundled(BundledFontCatalog.NotoSansSc).Display(false));
+            Assert.Equal("Microsoft YaHei UI", FontSettings.DefaultUiCjk.Display(false));
             Assert.Equal("Maple Mono NL (bundled)", FontSettings.DefaultCode.Display(true));
             Assert.Equal("跟随 VS", FontChoice.FollowVs.Display(false));
             Assert.Equal("不修改（使用 VS 当前设置）", FontChoice.Keep.Display(false));
@@ -62,7 +63,7 @@ namespace UEToVS.UI.Logic.Tests
         public void UiFontIsLatinThenCjkThenVsFont()
         {
             var refs = new FontSettings().ComposeUi("Segoe UI");
-            Assert.Equal("./IBMPlexSans/#IBM Plex Sans, ./NotoSansSC/#Noto Sans SC, Segoe UI", FontSettings.ToWpfFamilyList(refs));
+            Assert.Equal("./IBMPlexSans/#IBM Plex Sans, Microsoft YaHei UI, Segoe UI", FontSettings.ToWpfFamilyList(refs));
         }
 
         [Fact]
@@ -71,7 +72,7 @@ namespace UEToVS.UI.Logic.Tests
             var both = new FontSettings { UiLatin = FontChoice.FollowVs, UiCjk = FontChoice.FollowVs };
             Assert.Empty(both.ComposeUi("Segoe UI"));
 
-            var latinVs = new FontSettings { UiLatin = FontChoice.FollowVs };
+            var latinVs = new FontSettings { UiLatin = FontChoice.FollowVs, UiCjk = FontChoice.OfBundled(BundledFontCatalog.NotoSansSc) };
             Assert.Equal("Microsoft YaHei UI, ./NotoSansSC/#Noto Sans SC",
                 FontSettings.ToWpfFamilyList(latinVs.ComposeUi("Microsoft YaHei UI")));
 
@@ -82,7 +83,7 @@ namespace UEToVS.UI.Logic.Tests
         [Fact]
         public void CodeFontAddsCjkAndMonospaceFallbacks()
         {
-            var refs = new FontSettings().ComposeCode("Consolas", "Cascadia Mono, Consolas");
+            var refs = new FontSettings { UiCjk = FontChoice.OfBundled(BundledFontCatalog.NotoSansSc) }.ComposeCode("Consolas", "Cascadia Mono, Consolas");
             Assert.Equal("./MapleMonoNL/#Maple Mono NL, ./NotoSansSC/#Noto Sans SC, Cascadia Mono, Consolas", FontSettings.ToWpfFamilyList(refs));
 
             var follow = new FontSettings { Code = FontChoice.FollowVs, UiCjk = FontChoice.FollowVs };

@@ -117,6 +117,9 @@ namespace UEToVS.Host.Search
             _targetLayer = view.GetAdornmentLayer(PreviewAdornments.TargetLineLayer);
             view.LayoutChanged += OnLayoutChanged;
             view.VisualElement.SizeChanged += (s, e) => Safe.Execute(L, "ui.search.preview.resize", CenterIfPending);
+            // A bare IWpfTextView (no IWpfTextViewHost, input prohibited, not focusable) gets no wheel scrolling from the
+            // editor's mouse processors, so the preview could not be scrolled at all (v0.5.3). Scroll it ourselves.
+            view.VisualElement.PreviewMouseWheel += (s, e) => Safe.Execute(L, "ui.search.preview.wheel", () => e.Handled = OnWheel(e.Delta));
             _view = view;
             L.Info("ui.search.preview.view_created", null, ("ms", Math.Round(sw.Elapsed.TotalMilliseconds, 1)), ("contentType", contentType.TypeName),
                    ("count", Interlocked.Increment(ref _created)));
@@ -237,6 +240,29 @@ namespace UEToVS.Host.Search
             _view.Caret.MoveTo(new SnapshotPoint(snapshot, l.Start.Position + col));
             _centerPending = true;
             CenterIfPending();
+        }
+
+        /// <summary>Wheel: vertical by the system's wheel lines (Shift: horizontal); Ctrl does nothing (zoom is off).</summary>
+        private bool OnWheel(int delta)
+        {
+            if (_view == null || _view.IsClosed || delta == 0) return false;
+            var mods = System.Windows.Input.Keyboard.Modifiers;
+            if ((mods & System.Windows.Input.ModifierKeys.Control) != 0) return true;
+            _centerPending = false;
+            double lineHeight = _view.LineHeight > 0 ? _view.LineHeight : 16;
+            int lines = SystemParameters.WheelScrollLines;
+            double notches = delta / 120.0;
+            if ((mods & System.Windows.Input.ModifierKeys.Shift) != 0)
+            {
+                double charWidth = _view.FormattedLineSource?.ColumnWidth ?? 8;
+                double left = Math.Max(0, _view.ViewportLeft - notches * Math.Max(1, lines) * 3 * charWidth);
+                _view.ViewScroller.ScrollViewportHorizontallyByPixels(left - _view.ViewportLeft);
+                return true;
+            }
+            // WheelScrollLines -1 = "one screen at a time"; positive pixels move the viewport up (towards line 1).
+            double pixels = lines < 0 ? notches * Math.Max(lineHeight, _view.ViewportHeight - lineHeight) : notches * Math.Max(1, lines) * lineHeight;
+            _view.ViewScroller.ScrollViewportVerticallyByPixels(pixels);
+            return true;
         }
 
         private void CenterIfPending()
