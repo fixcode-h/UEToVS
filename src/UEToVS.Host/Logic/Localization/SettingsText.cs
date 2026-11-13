@@ -76,7 +76,10 @@ namespace UEToVS.Host.Logic.Localization
         public static string UpdateButtonChecking => Loc.T("检查中…", "Checking…");
         public static string UpdateButtonInstall => Loc.T("下载并安装", "Download and install");
         public static string UpdateButtonRetry => Loc.T("重试", "Retry");
-        public static string UpdateReleaseNotes => Loc.T("更新说明", "Release notes");
+        public static string UpdateReleasePage => Loc.T("发布页", "Release page");
+        public static string UpdateNotesTitle(string v) => Loc.F("{0} 更新说明", "What's new in {0}", v);
+        public static string UpdateNotesBeforeCheck => Loc.T("检查更新后，这里显示最新版本的更新说明。", "Check for updates to see the latest release notes here.");
+        public static string UpdateNotesEmpty => Loc.T("这个版本没有附带更新说明。", "This release has no notes.");
         public static string UpdateCurrentVersion(string v) => Loc.F("当前版本 {0}", "Current version {0}", v);
         public static string UpdateChecking => Loc.T("正在连接 GitHub…", "Contacting GitHub…");
         public static string UpdateUpToDate(string v) => Loc.F("已是最新版本（{0}）", "You have the latest version ({0})", v);
@@ -88,7 +91,7 @@ namespace UEToVS.Host.Logic.Localization
             "已下载 {0} 并启动安装程序：请关闭 Visual Studio，安装完成后重新打开。", "Downloaded {0} and started the installer: close Visual Studio, then reopen it after the install finishes.", v);
         public static string UpdateCheckFailed(string why) => Loc.F("检查更新失败：{0}", "Update check failed: {0}", why);
         public static string UpdateDownloadFailedWith(string why) => Loc.F(
-            "下载失败：{0}。可以重试，或点“更新说明”到发布页手动下载。", "Download failed: {0}. Retry, or use “Release notes” to download it by hand.", why);
+            "下载失败：{0}。可以重试，或点“发布页”手动下载。", "Download failed: {0}. Retry, or use “Release page” to download it by hand.", why);
         public static string UpdateDownloadIncomplete => Loc.T("下载的安装包不完整", "the downloaded package is incomplete");
         public static string UpdateDownloadStalled(int seconds) => Loc.F("{0} 秒没有收到数据", "no data for {0} seconds", seconds);
         public static string UpdateConnectTimeout => Loc.T("连接 GitHub 超时，请检查网络或代理", "timed out contacting GitHub; check your network or proxy");

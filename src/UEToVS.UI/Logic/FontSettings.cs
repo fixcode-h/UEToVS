@@ -203,7 +203,12 @@ namespace UEToVS.UI.Logic
     public sealed class FontSettings
     {
         public static FontChoice DefaultUiLatin => FontChoice.OfBundled(BundledFontCatalog.IbmPlexSans);
-        public static FontChoice DefaultUiCjk => FontChoice.OfBundled(BundledFontCatalog.NotoSansSc);
+        /// <summary>
+        /// v0.5.3: Microsoft YaHei UI (Windows' own UI font, TrueType-hinted for small sizes). The bundled Noto Sans SC has
+        /// no hinting instructions, so at the 11–12px of the UI, with the pixel-snapped Display text mode, its strokes came
+        /// out thin and uneven; it stays selectable.
+        /// </summary>
+        public static FontChoice DefaultUiCjk => FontChoice.OfSystem("Microsoft YaHei UI");
         public static FontChoice DefaultCode => FontChoice.OfBundled(BundledFontCatalog.MapleMonoNl);
 
         public FontChoice UiLatin { get; set; } = DefaultUiLatin;

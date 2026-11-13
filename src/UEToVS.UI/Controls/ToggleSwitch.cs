@@ -147,14 +147,33 @@ namespace UEToVS.UI.Controls
             EventManager.RegisterClassHandler(typeof(Control), UIElement.GotKeyboardFocusEvent, new KeyboardFocusChangedEventHandler(OnGotFocus), true);
             EventManager.RegisterClassHandler(typeof(Control), UIElement.LostKeyboardFocusEvent, new KeyboardFocusChangedEventHandler(OnLostFocus), true);
             EventManager.RegisterClassHandler(typeof(Control), UIElement.PreviewMouseDownEvent, new MouseButtonEventHandler(OnMouseDown), true);
+            EventManager.RegisterClassHandler(typeof(Control), UIElement.PreviewTouchDownEvent, new EventHandler<TouchEventArgs>(OnTouchDown), true);
         }
+
+        /// <summary>Environment.TickCount of the last mouse / touch press in any UEToVS control or window.</summary>
+        private static int _pointerDownTick = Environment.TickCount - 60000;
+
+        /// <summary>A focus change this soon after a press comes from that press, not from the keyboard.</summary>
+        private const int PointerFocusWindowMs = 500;
 
         private static void OnGotFocus(object sender, KeyboardFocusChangedEventArgs e)
         {
             if (!ReferenceEquals(e.NewFocus, sender) || !(sender is DependencyObject d)) return;
-            bool keyboard = InputManager.Current.MostRecentInputDevice is KeyboardDevice;
-            if (keyboard) d.SetValue(IsVisibleProperty, true);
+            if (IsKeyboardFocusChange()) d.SetValue(IsVisibleProperty, true);
             else d.ClearValue(IsVisibleProperty);
+        }
+
+        /// <summary>
+        /// v0.5.3: MostRecentInputDevice alone is not enough. The first click into a window (e.g. a toggle in the settings
+        /// window right after typing in its search box) can move focus while the keyboard is still the most recent device,
+        /// which showed the keyboard focus ring around the switch on the first click. A press seen just before, or a
+        /// mouse button still down, means the focus came from the pointer.
+        /// </summary>
+        private static bool IsKeyboardFocusChange()
+        {
+            if (!(InputManager.Current.MostRecentInputDevice is KeyboardDevice)) return false;
+            if (Mouse.LeftButton == MouseButtonState.Pressed || Mouse.RightButton == MouseButtonState.Pressed || Mouse.MiddleButton == MouseButtonState.Pressed) return false;
+            return unchecked(Environment.TickCount - _pointerDownTick) > PointerFocusWindowMs;
         }
 
         private static void OnLostFocus(object sender, KeyboardFocusChangedEventArgs e)
@@ -164,6 +183,13 @@ namespace UEToVS.UI.Controls
 
         private static void OnMouseDown(object sender, MouseButtonEventArgs e)
         {
+            _pointerDownTick = Environment.TickCount;
+            if (sender is DependencyObject d && GetIsVisible(d)) d.ClearValue(IsVisibleProperty);
+        }
+
+        private static void OnTouchDown(object sender, TouchEventArgs e)
+        {
+            _pointerDownTick = Environment.TickCount;
             if (sender is DependencyObject d && GetIsVisible(d)) d.ClearValue(IsVisibleProperty);
         }
     }
