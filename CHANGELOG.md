@@ -14,6 +14,7 @@
 - **编译后不再整套重扫资产** — 不再递归监视整个项目目录：项目根目录和插件目录只看顶层（.uproject / .uplugin），Source、Content、Config 等子目录递归监视，跳过 Intermediate / Binaries / Saved / DerivedDataCache 和点开头的目录。编译时这些目录里成千上万的文件变化曾让文件监视溢出，编译后要重扫 79.5 万个资产（约 40 秒，引擎句柄冲到 12 万）。监视溢出时也只重扫丢了事件的目录
 
 ### Bug 修复
+- **联合编译的本机核心数不生效** — v0.5.4 把设置写进了项目的 `Saved/UnrealBuildTool/BuildConfiguration.xml`，但 UBT 只在命令行带了项目目录时才读这个文件，从 VS 里编译时被跳过，本机仍按默认核心数跑（32 线程机器跑了 20 个）。现在默认写引擎的 `Engine/Saved/UnrealBuildTool/BuildConfiguration.xml`（UBT 每次编译都读，不进版本库）；引擎目录不可写时改写用户配置。之前写到项目文件里的项在下次打开 UE 解决方案或应用设置时自动恢复。设置 › 联合编译 › 高级 › “写入哪个配置文件”可选 引擎 / 用户 / 项目。日志 `horde.apply.buildConfiguration` 的 `target`、`restoredOtherFiles`
 - **编译编辑器后引擎索引整套作废** — 引擎索引的缓存键里带了 `UnrealEditor.version` 的 BuildId，源码引擎每编译一次编辑器就变，12 万多个引擎文件全部重新解析。现在缓存键只用引擎版本、Changelist 和路径，文件改没改由逐文件的大小和修改时间判断。升级后第一次打开会重建一次引擎索引
 - **.uproject / .uplugin 只是被“碰”了一下也重建索引** — 之前只要描述文件的时间戳变了就整套重跑（每次 8～14 秒、引擎内存冲到 2 GB）。现在先比较文件内容，内容真的变了才重跑；日志 `workspace.descriptor.changed` 会写明是哪个文件、是新增 / 删除 / 修改
 - **“打开当前日志”报“文件正由另一进程使用”** — 日志还在写入，VS 打开文档时要写权限所以失败。现在打开一份只读快照（`%TEMP%\UEToVS\LogView`，保留最近几份）

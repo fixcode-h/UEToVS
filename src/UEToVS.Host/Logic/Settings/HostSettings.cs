@@ -325,8 +325,8 @@ namespace UEToVS.Host.Logic.Settings
         /// <summary>Where Horde (the agent) is installed; default C:\Horde.</summary>
         public string HordeInstallPath { get; set; } = UEToVS.Host.Logic.Horde.HordeSettingsSchema.DefaultInstallPath;
 
-        /// <summary>Which BuildConfiguration.xml is written: the project's Saved folder (default) or the user's AppData one.</summary>
-        public UEToVS.Host.Logic.Horde.HordeConfigTarget HordeTarget { get; set; } = UEToVS.Host.Logic.Horde.HordeConfigTarget.Project;
+        /// <summary>Which BuildConfiguration.xml is written: the engine's Saved folder (default), the user's AppData one, or the project's.</summary>
+        public UEToVS.Host.Logic.Horde.HordeConfigTarget HordeTarget { get; set; } = UEToVS.Host.Logic.Horde.HordeConfigTarget.Engine;
 
         /// <summary>Horde/Server; empty = keep what the other config files say.</summary>
         public string HordeServer { get; set; } = string.Empty;

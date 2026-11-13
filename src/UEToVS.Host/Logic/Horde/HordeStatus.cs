@@ -135,6 +135,7 @@ namespace UEToVS.Host.Logic.Horde
         public static string Restored(int keys) => Loc.F("已恢复 {0} 项", "Restored {0} keys", keys);
         public static string NothingToRestore => Loc.T("没有需要恢复的修改", "Nothing to restore");
         public static string NoProject => Loc.T("没有打开 UE 项目，无法确定项目的 BuildConfiguration.xml；可在高级里改写用户配置", "No UE project is open, so the project's BuildConfiguration.xml is unknown; switch to the user file under Advanced");
+        public static string NoEngine => Loc.T("还没识别到引擎目录（打开 UE 解决方案后再应用），或在高级里改写用户配置", "The engine folder is not known yet (apply again once a UE solution is open), or write the user file under Advanced");
         public static string EngineTooOld => Loc.T("当前引擎低于 UE 5.4，不支持 UBA 联合编译，未写入", "The engine is older than UE 5.4 and has no UBA; nothing written");
         public static string AgentCancelled => Loc.T("没有获得管理员授权，Agent.json 未修改", "Administrator rights were not granted; Agent.json unchanged");
         public static string AgentFailed(string why) => Loc.F("修改 Agent.json 失败：{0}", "Changing Agent.json failed: {0}", why);
