@@ -58,6 +58,17 @@ namespace UEToVS.Host.Options
             }
             if (version != CurrentVersion)
             {
+                // v0.5.1: retired settings (takeover switch → scope Off; DB / code analysis / Blueprint scan follow the scope).
+                var retired = new Dictionary<string, string>(StringComparer.Ordinal);
+                foreach (var key in SettingsUpgrade.RetiredKeys)
+                {
+                    string v = VsUserSettings.Get(Collection, key);
+                    if (v != null) retired[key] = v;
+                }
+                foreach (var kv in SettingsUpgrade.MigrateRetired(retired))
+                    if (VsUserSettings.Set(Collection, kv.Key, kv.Value)) _values[kv.Key] = kv.Value;
+                foreach (var key in retired.Keys) VsUserSettings.Delete(Collection, key);
+                if (retired.Count > 0) L.Info("settings.retired", "Retired settings migrated", ("keys", string.Join(",", retired.Select(kv => kv.Key + "=" + kv.Value))));
                 var drop = SettingsUpgrade.KeysToDrop(version, _values, Schema);
                 foreach (var key in drop)
                     if (VsUserSettings.Delete(Collection, key)) _values.Remove(key);

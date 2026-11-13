@@ -54,14 +54,15 @@ namespace UEToVS.Host.Logic.Localization
 
         // ---- features after the takeover (settings window table)
         public static string TakeoverTableTitle => Loc.T("接管后 VS 自带功能", "VS features after the takeover");
-        public static string TakeoverTableDescription => Loc.T("接管后 VS 的 C++ IntelliSense 和浏览数据库关闭，依赖它们的 VS 功能会失效；下表列出 UEToVS 的替代命令和默认快捷键。",
-            "With VS's C++ IntelliSense and browse database off, the VS features built on them stop working; the table lists the UEToVS replacements and their default keys.");
+        public static string TakeoverTableDescription => Loc.T("接管后 VS 的 C++ IntelliSense、浏览数据库、后台代码分析和蓝图扫描关闭（接管范围选“关闭”即恢复），依赖它们的 VS 功能会失效；下表列出 UEToVS 的替代命令和默认快捷键。",
+            "With the takeover, VS's C++ IntelliSense, browse database, background code analysis and Blueprint scan are off (scope “Off” restores them) and the VS features built on them stop working; the table lists the UEToVS replacements and their default keys.");
         public static string TakeoverColumnFeature => Loc.T("VS 功能", "VS feature");
         public static string TakeoverColumnState => Loc.T("接管后", "After takeover");
         public static string TakeoverColumnReplacement => Loc.T("UEToVS 替代", "UEToVS replacement");
         public static string TakeoverUnavailable => Loc.T("不可用", "Unavailable");
         public static string TakeoverReplaced => Loc.T("由 UEToVS 提供", "Provided by UEToVS");
         public static string TakeoverAvailable => Loc.T("可用", "Available");
+        public static string TakeoverTurnedOff => Loc.T("已关闭", "Turned off");
         public static string TakeoverConfirm => Loc.T("需在 VS 中确认", "To be confirmed in VS");
         public static string TakeoverNone => Loc.T("暂无", "None yet");
     }

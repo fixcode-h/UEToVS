@@ -155,6 +155,41 @@ namespace UEToVS.UI.Shells
             set => new WindowInteropHelper(this).Owner = value;
         }
 
+        /// <summary>Set while the window runs as a modal dialog (ShowDialog disables the owner until it closes).</summary>
+        protected bool IsShownModally { get; set; }
+
+        /// <summary>
+        /// v0.5.1: hands the activation back to the owner (the VS main window) before this window closes or hides. Without
+        /// it Windows picks the next top-level window in z-order when an owned, taskbar-less window goes away, which is often
+        /// another application, so VS dropped behind it and looked hidden after OK / confirm. A modal dialog's owner is still
+        /// disabled at that point (ShowDialog re-enables it only after the window is gone), so it is re-enabled first.
+        /// Only done when this window is the active one, so closing a background window never steals the focus.
+        /// </summary>
+        protected void ReturnActivationToOwner(string reason)
+        {
+            try
+            {
+                var owner = OwnerHandle;
+                if (owner == IntPtr.Zero || !NativeMethods.IsWindow(owner) || !NativeMethods.IsWindowVisible(owner)) return;
+                var self = new WindowInteropHelper(this).Handle;
+                bool active = IsActive || (self != IntPtr.Zero && NativeMethods.GetForegroundWindow() == self);
+                if (!active) return;
+                if (IsShownModally && !NativeMethods.IsWindowEnabled(owner)) NativeMethods.EnableWindow(owner, true);
+                bool ok = NativeMethods.SetForegroundWindow(owner);
+                Ui.Logger.Debug("ui.chrome.ownerActivated", null, ("reason", reason), ("modal", IsShownModally), ("ok", ok));
+            }
+            catch (Exception ex)
+            {
+                Ui.Logger.Warn("ui.chrome.ownerActivate.failed", "Could not return the activation to the owner window", ex);
+            }
+        }
+
+        protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
+        {
+            base.OnClosing(e);
+            if (!e.Cancel) ReturnActivationToOwner("close");
+        }
+
         /// <summary>Visible (chrome) size in DIPs, excluding the shadow margin.</summary>
         public Size VisibleSize
         {

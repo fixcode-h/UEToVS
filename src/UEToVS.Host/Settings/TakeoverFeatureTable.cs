@@ -46,7 +46,7 @@ namespace UEToVS.Host.Settings
                 grid.Children.Add(line);
             }
             var stateVariant = header ? TextVariant.Strong
-                : f.State == TakeoverFeatureState.Unavailable ? TextVariant.Strong
+                : f.State == TakeoverFeatureState.Unavailable || f.State == TakeoverFeatureState.TurnedOff ? TextVariant.Strong
                 : f.State == TakeoverFeatureState.Unknown ? TextVariant.Secondary : TextVariant.Body;
             Cell(grid, row, 0, feature, header ? TextVariant.Strong : TextVariant.Body, f?.VsCommand);
             Cell(grid, row, 1, state, stateVariant, null);

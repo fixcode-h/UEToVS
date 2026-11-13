@@ -9,6 +9,9 @@ namespace UEToVS.Host.Logic.Settings
 
         /// <summary>Off while a UE solution is open; restored when it closes or a non-UE solution is opened.</summary>
         UnrealSolutionOnly = 1,
+
+        /// <summary>v0.5.1: never taken over; VS's own C++ IntelliSense, browse database, background code analysis and Blueprint scan stay as they are.</summary>
+        Off = 2,
     }
 
     /// <summary>What background indexing does while VS/UBT builds (maps to IndexingSettings.DuringBuild).</summary>
@@ -47,17 +50,34 @@ namespace UEToVS.Host.Logic.Settings
 
         public int EngineRequestTimeoutSeconds { get; set; } = 30;
 
-        public bool IntelliSenseTakeover { get; set; } = true; // ADR-08: on by default since M3 (UEToVS provides completion, Quick Info, parameter info, colouring)
-
+        /// <summary>
+        /// Takeover scope (default: UE solutions only). v0.5.1: <see cref="IntelliSenseTakeoverMode.Off"/> replaces the old
+        /// separate "take over" switch, and the VS features below follow the scope instead of having switches of their own.
+        /// </summary>
         public IntelliSenseTakeoverMode IntelliSenseTakeoverMode { get; set; } = IntelliSenseTakeoverMode.UnrealSolutionOnly;
 
-        public bool DisableDatabase { get; set; } = true;
+        /// <summary>
+        /// Whether VS's C++ IntelliSense is taken over at all (scope is not Off). Setting false (legacy "intelliSense.takeover"
+        /// value) switches the scope to Off; setting true when it is Off switches it back to the default scope.
+        /// </summary>
+        public bool IntelliSenseTakeover
+        {
+            get => IntelliSenseTakeoverMode != IntelliSenseTakeoverMode.Off;
+            set
+            {
+                if (!value) IntelliSenseTakeoverMode = IntelliSenseTakeoverMode.Off;
+                else if (IntelliSenseTakeoverMode == IntelliSenseTakeoverMode.Off) IntelliSenseTakeoverMode = IntelliSenseTakeoverMode.UnrealSolutionOnly;
+            }
+        }
 
-        /// <summary>Turn off VS's C++ background code analysis while a UE solution is open (on by default since v0.4.5; independent of the takeover).</summary>
-        public bool DisableBackgroundCodeAnalysis { get; set; } = true;
+        /// <summary>VS's C++ browse database (.vc.db) is switched off with the takeover (follows the scope since v0.5.1).</summary>
+        public bool DisableDatabase => IntelliSenseTakeover;
 
-        /// <summary>VS's own Unreal Engine "Blueprint Support" (scans every Blueprint on each solution load). Off by default: UEToVS switches it off (backed up).</summary>
-        public bool VsBlueprintSupport { get; set; } = false;
+        /// <summary>VS's C++ background code analysis is switched off while a UE solution is open whenever the takeover is on (follows the scope since v0.5.1).</summary>
+        public bool DisableBackgroundCodeAnalysis => IntelliSenseTakeover;
+
+        /// <summary>VS's own Unreal Engine "Blueprint Support" (scans every Blueprint on each solution load): switched off (backed up) whenever the takeover is on (follows the scope since v0.5.1).</summary>
+        public bool VsBlueprintSupport => !IntelliSenseTakeover;
 
         // ---- 日志 ----
         public int LogRetentionDays { get; set; } = 7;

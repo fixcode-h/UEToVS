@@ -58,10 +58,8 @@ namespace UEToVS.Host.Options
             s.EnginePathOverride = EnginePathOverride ?? string.Empty;
             s.UnrealEngineRootOverride = UnrealEngineRootOverride ?? string.Empty;
             s.EngineRequestTimeoutSeconds = EngineRequestTimeoutSeconds > 0 ? EngineRequestTimeoutSeconds : 30;
-            s.IntelliSenseTakeover = IntelliSenseTakeover;
             s.IntelliSenseTakeoverMode = IntelliSenseTakeoverMode;
-            s.DisableDatabase = DisableDatabase;
-            s.DisableBackgroundCodeAnalysis = DisableBackgroundCodeAnalysis;
+            s.IntelliSenseTakeover = IntelliSenseTakeover; // false = scope Off (v0.5.1)
         }
     }
 

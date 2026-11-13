@@ -36,8 +36,8 @@ namespace UEToVS.Host.Logic.Tests
             var s = new HostSettings
             {
                 LogLevel = UEToVS.Core.Diagnostics.LogLevel.Debug, EnginePathOverride = @"C:\e\UEToVS.Engine.exe", EngineRequestTimeoutSeconds = 12,
-                IntelliSenseTakeover = true, IntelliSenseTakeoverMode = IntelliSenseTakeoverMode.UnrealSolutionOnly, DisableDatabase = false,
-                DisableBackgroundCodeAnalysis = true, LogRetentionDays = 3, LogMaxTotalMB = 50, CppIndexThreads = 6, BlueprintIndexThreads = 2,
+                IntelliSenseTakeoverMode = IntelliSenseTakeoverMode.Off,
+                LogRetentionDays = 3, LogMaxTotalMB = 50, CppIndexThreads = 6, BlueprintIndexThreads = 2,
                 IndexDuringBuild = IndexDuringBuild.Pause, IndexEngineSource = false, ShareEngineIndex = true, EngineIndexPath = @"D:\Idx",
                 LuaScriptPaths = @"Content/Script;D:\Shared\Lua",
                 ShowToolbar = false, HiddenToolbarButtons = "findReferences,performance", PerformanceSampleSeconds = 5,
@@ -58,6 +58,36 @@ namespace UEToVS.Host.Logic.Tests
             // Path lists are normalized on load (old "a; b" text → "a;b"); the folders themselves are unchanged.
             Assert.Equal(@"Content/Script;D:\Shared\Lua", back.LuaScriptPaths);
             Assert.Equal(HostSettingsSchema.Codec.SplitPaths(s.LuaScriptPaths), HostSettingsSchema.Codec.SplitPaths(back.LuaScriptPaths));
+        }
+
+        [Fact]
+        public void LuaScriptPaths_DefaultToContentScriptOnlyWhenItHasLua()
+        {
+            string project = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "uetovs-lua-" + System.Guid.NewGuid().ToString("N"));
+            string script = System.IO.Path.Combine(project, "Content", "Script");
+            try
+            {
+                // no folder / empty folder / no .lua: no Lua index
+                Assert.Empty(HostSettingsSchema.Codec.ToIndexing(new HostSettings(), project, _ => false).LuaScriptPaths);
+                System.IO.Directory.CreateDirectory(System.IO.Path.Combine(script, "UI"));
+                System.IO.File.WriteAllText(System.IO.Path.Combine(script, "readme.txt"), "x");
+                Assert.Empty(LuaScriptDefaults.Resolve("", project, out bool d0, dir => System.IO.Directory.EnumerateFiles(dir, "*.lua", System.IO.SearchOption.AllDirectories).Any()));
+                Assert.False(d0);
+                // a .lua in a sub folder: Content/Script is used
+                System.IO.File.WriteAllText(System.IO.Path.Combine(script, "UI", "Main.lua"), "return {}");
+                var paths = LuaScriptDefaults.Resolve(null, project, out bool d1, dir => System.IO.Directory.EnumerateFiles(dir, "*.lua", System.IO.SearchOption.AllDirectories).Any());
+                Assert.True(d1);
+                Assert.Equal(new[] { LuaScriptDefaults.DefaultFolder }, paths);
+                Assert.True(LuaScriptDefaults.ContainsLua(script));
+                // configured folders replace the default; no project: nothing to probe
+                Assert.Equal(new[] { @"D:\Lua" }, LuaScriptDefaults.Resolve(@"D:\Lua", project, out bool d2, _ => true));
+                Assert.False(d2);
+                Assert.Empty(LuaScriptDefaults.Resolve("", null, out _, _ => true));
+            }
+            finally
+            {
+                try { System.IO.Directory.Delete(project, true); } catch (System.IO.IOException) { }
+            }
         }
 
         [Fact]

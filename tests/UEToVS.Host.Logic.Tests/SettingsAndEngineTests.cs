@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using UEToVS.Contracts;
 using UEToVS.Core.Diagnostics;
 using UEToVS.Host.Logic.Engine;
@@ -27,7 +29,7 @@ namespace UEToVS.Host.Logic.Tests
               // comments are allowed
               ""log"": { ""level"": ""trace"", ""retentionDays"": 3 },
               ""intelliSense.mode"": ""UnrealSolutionOnly"",
-              ""intelliSense"": { ""disableDatabase"": false },
+              ""intelliSense"": { ""takeover"": false },
               ""engine"": { ""unrealEngineRoot"": ""D:/UE_5.4"" },
               ""naming"": { ""prefix"": ""A"" }
             }";
@@ -35,7 +37,7 @@ namespace UEToVS.Host.Logic.Tests
             var r = SettingsMerger.Merge(user, json);
             Assert.Equal(LogLevel.Trace, r.Effective.LogLevel);
             Assert.Equal(3, r.Effective.LogRetentionDays);
-            Assert.Equal(IntelliSenseTakeoverMode.UnrealSolutionOnly, r.Effective.IntelliSenseTakeoverMode);
+            Assert.Equal(IntelliSenseTakeoverMode.Off, r.Effective.IntelliSenseTakeoverMode); // legacy takeover=false → scope Off
             Assert.False(r.Effective.DisableDatabase);
             Assert.Equal("D:/UE_5.4", r.Effective.UnrealEngineRootOverride);
             Assert.Contains("naming.prefix", r.ForeignKeys);
@@ -45,12 +47,41 @@ namespace UEToVS.Host.Logic.Tests
         }
 
         [Fact]
-        public void BackgroundCodeAnalysisIsTurnedOffByDefaultAndOverridable()
+        public void VsBackgroundFeaturesFollowTheTakeoverScope()
         {
-            Assert.True(new HostSettings().DisableBackgroundCodeAnalysis); // v0.4.5: VS background code analysis off by default
-            var r = SettingsMerger.Merge(new HostSettings(), @"{ ""intelliSense"": { ""disableBackgroundCodeAnalysis"": false } }");
+            // v0.5.1: no switches of their own; on by default (UE solutions), all restored with scope Off
+            var d = new HostSettings();
+            Assert.Equal(IntelliSenseTakeoverMode.UnrealSolutionOnly, d.IntelliSenseTakeoverMode);
+            Assert.True(d.IntelliSenseTakeover);
+            Assert.True(d.DisableDatabase);
+            Assert.True(d.DisableBackgroundCodeAnalysis);
+            Assert.False(d.VsBlueprintSupport);
+            var off = new HostSettings { IntelliSenseTakeoverMode = IntelliSenseTakeoverMode.Off };
+            Assert.False(off.IntelliSenseTakeover);
+            Assert.False(off.DisableDatabase);
+            Assert.False(off.DisableBackgroundCodeAnalysis);
+            Assert.True(off.VsBlueprintSupport);
+            off.IntelliSenseTakeover = true;
+            Assert.Equal(IntelliSenseTakeoverMode.UnrealSolutionOnly, off.IntelliSenseTakeoverMode);
+            var global = new HostSettings { IntelliSenseTakeoverMode = IntelliSenseTakeoverMode.Global };
+            global.IntelliSenseTakeover = true;
+            Assert.Equal(IntelliSenseTakeoverMode.Global, global.IntelliSenseTakeoverMode);
+            var r = SettingsMerger.Merge(new HostSettings(), @"{ ""intelliSense"": { ""mode"": ""Off"" } }");
             Assert.False(r.Effective.DisableBackgroundCodeAnalysis);
             Assert.Empty(r.Warnings);
+            // the retired switches are no longer settings
+            var schema = HostSettingsSchema.Build(8);
+            foreach (var key in SettingsUpgrade.RetiredKeys) Assert.DoesNotContain(schema, x => x.Key == key);
+            Assert.Contains(schema.Single(x => x.Key == "intelliSense.mode").Options, o => o.Value == nameof(IntelliSenseTakeoverMode.Off));
+        }
+
+        [Fact]
+        public void RetiredTakeoverSwitchMigratesToScopeOff()
+        {
+            Assert.Equal(nameof(IntelliSenseTakeoverMode.Off),
+                SettingsUpgrade.MigrateRetired(new Dictionary<string, string> { ["intelliSense.takeover"] = "false" })["intelliSense.mode"]);
+            Assert.Empty(SettingsUpgrade.MigrateRetired(new Dictionary<string, string> { ["intelliSense.takeover"] = "true", ["vs.blueprintSupport"] = "true" }));
+            Assert.Empty(SettingsUpgrade.MigrateRetired(null));
         }
 
         [Fact]

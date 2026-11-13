@@ -62,13 +62,14 @@ v0.3.0 起顶层菜单只保留 搜索组、导航组、性能面板 和 设置�
 
 v0.3.0 起所有设置在独立的“UEToVS 设置”窗口（`Settings/SettingsWindow.cs`，扩展 > UEToVS > 设置… / 工具栏 UEToVS 图标 / Find Action），行由 `Logic/Settings/HostSettingsSchema.cs` 的声明式描述生成，值保存在 VS 用户设置存储 `UEToVS\Settings`（首次运行从旧的 工具 > 选项 页迁移）：
 
-- **常规**：引擎路径 / UE 根目录 / 请求超时 / 重启引擎；C++ IntelliSense 接管、范围、数据库、后台代码分析、立即接管 / 恢复；工具栏及每个按钮的显隐；双击 Shift（开关、间隔、只认左 Shift）；MCP（启用、写入 .mcp.json）；Unreal（保存时检查 include 依赖、编辑器联动端口）。
+- **常规**：引擎路径 / UE 根目录 / 请求超时 / 重启引擎；C++ IntelliSense 接管范围（仅 UE 解决方案 / 全局 / 关闭）、立即接管 / 恢复、接管后 VS 自带功能表；工具栏及每个按钮的显隐；双击 Shift（开关、间隔、只认左 Shift）；MCP（启用、写入 .mcp.json）；Unreal（保存时检查 include 依赖、编辑器联动端口）。
 - **外观**：UI 组件库的 `AppearanceSettingsPanel`（实时预览，应用 / 确定提交，取消撤销；保存在 `UEToVS\Appearance`）。
-- **索引**：C++ / 蓝图线程数（0 = 逻辑核心数 / 4）、编译期间策略、索引引擎源码、共享引擎索引（`ShareEngineIndex` / `EngineIndexPath`）、重建项目 / 引擎 / 蓝图索引、实时状态；Lua 脚本路径（`LuaScriptPaths`，`;` 分隔）、Lua 索引状态、“索引 Lua 脚本”按钮（`RebuildScope.Lua`）。
+- **索引**：C++ / 蓝图线程数（0 = 逻辑核心数 / 4）、编译期间策略、索引引擎源码、共享引擎索引（`ShareEngineIndex` / `EngineIndexPath`）、重建项目 / 引擎 / 蓝图索引、实时状态；Lua 脚本路径（`LuaScriptPaths`，`;` 分隔；留空时 `<项目>/Content/Script` 存在且有 .lua 文件就自动索引，见 `Logic/Settings/LuaScriptDefaults.cs`）、Lua 索引状态、“索引 Lua 脚本”按钮（`RebuildScope.Lua`）。
 - **快捷键**：`Settings/KeymapPage.cs`（预设、录制、冲突、备份 / 还原）。
 - **导航**：Ctrl+点击、引用高亮及颜色、导航栏、鼠标侧键、历史阈值和容量、Search Everywhere 每类结果数。
 - **日志与诊断**：日志级别、保留天数、总大小、日志目录、打开日志、诊断包、组件画廊。
 - **性能**：性能面板采样间隔、打开性能面板。
+- **检查更新**（最后一页）：当前版本、检查 / 下载并安装新版本。
 
 工具 > 选项 > UEToVS 只剩一个跳转按钮。
 
@@ -77,7 +78,7 @@ v0.3.0 起所有设置在独立的“UEToVS 设置”窗口（`Settings/Settings
 ```json
 {
   "log": { "level": "Debug", "retentionDays": 3 },
-  "intelliSense": { "takeover": true, "mode": "UnrealSolutionOnly", "disableDatabase": false },
+  "intelliSense": { "mode": "UnrealSolutionOnly" },
   "engine": { "unrealEngineRoot": "D:/UE_5.4", "requestTimeoutSeconds": 30 }
 }
 ```
@@ -95,15 +96,15 @@ v0.3.0 起所有设置在独立的“UEToVS 设置”窗口（`Settings/Settings
 
 ## IntelliSense 接管与恢复（§7.5）
 
-**接管**（打开 UE 解决方案且设置开启时自动执行，也可用命令）：
+**接管**（打开 UE 解决方案且接管范围不是“关闭”时自动执行，也可用命令）：
 
 1. 通过 `DTE.Properties["TextEditor", "C/C++ Specific"]` 读取当前值。属性名随 VS 版本不同，代码中每项设置有一组候选名（见 `Logic/IntelliSense/CppIntelliSenseSettings.cs`），日志 `intellisense.properties` 会列出本机实际存在的全部属性名，`intellisense.property.*` 记录每项“已修改 / 已是目标值 / 不存在 / 失败”。
 2. **先**把要改的原始值写入 `%LocalAppData%\UEToVS\intellisense-backup.json`（VS 的这些设置是按用户全局的，所以备份也是按用户的），备份写失败则一项都不改。同一属性只记录第一次的原值，重复接管不会覆盖。
-3. 再把以下设置改为关闭：Disable IntelliSense、自动快速信息、成员列表、错误报告、错误波浪线、语义着色、#include 自动完成、外部依赖项文件夹，以及（可选，默认开）Disable Database。用户自己早已关闭的项不会记入备份，恢复时也不会被打开。
+3. 再把以下设置改为关闭：Disable IntelliSense、自动快速信息、成员列表、错误报告、错误波浪线、语义着色、#include 自动完成、外部依赖项文件夹，以及 Disable Database（浏览数据库，随接管关闭）。用户自己早已关闭的项不会记入备份，恢复时也不会被打开。
 4. 第一次接管时在 InfoBar 提示“UEToVS 已接管 C++ 感知，已关闭 VS 自带 IntelliSense”，带“恢复”链接。
 5. 检测到 Visual Assist 时记日志并提示二选一（UEToVS 不修改 VA 的设置）。
 
-**范围**：Global（默认，插件启用期间始终关闭）；UnrealSolutionOnly（打开非 UE 解决方案时自动恢复；关闭 UE 解决方案时保持接管，这样下次打开 UE 解决方案时 VS 的 C++ 解析和浏览数据库扫描一开始就是关闭的）。关闭“接管”设置会立即恢复。
+**范围**（`intelliSense.mode`）：UnrealSolutionOnly（默认；打开非 UE 解决方案时自动恢复；关闭 UE 解决方案时保持接管，这样下次打开 UE 解决方案时 VS 的 C++ 解析和浏览数据库扫描一开始就是关闭的）；Global（插件启用期间始终关闭）；Off（v0.5.1 起代替原来的“接管”开关：不接管，选中后立即恢复）。浏览数据库、后台代码分析、VS 自带的蓝图扫描不再单独设置，跟随范围开关（`HostSettings.DisableDatabase` / `DisableBackgroundCodeAnalysis` / `VsBlueprintSupport` 是派生属性），并列在设置窗口的“接管后 VS 自带功能”表里。旧设置（`intelliSense.takeover` 等）在设置存储升级到第 3 版时迁移：存过 takeover=false 的变成 Off，其余旧键删除；解决方案设置里的 `intelliSense.takeover` 仍然识别。
 
 **恢复**：命令“恢复 VS 自带 C++ IntelliSense”按备份逐项写回原值；全部成功后删除备份，失败项保留以便重试。
 
@@ -111,11 +112,11 @@ v0.3.0 起所有设置在独立的“UEToVS 设置”窗口（`Settings/Settings
 
 ## 关闭 VS C++ 后台代码分析
 
-VS 每次打开或保存 .cpp 都会在后台用编译器（/analyze）完整分析整个编译单元，也就是任务中心里的“C++ 后台 Code Analysis”。UE 源文件会展开数千个头文件，单个文件常要几十秒。设置“关闭 VS C++ 后台代码分析”（默认开，独立于 IntelliSense 接管；解决方案设置键 `intelliSense.disableBackgroundCodeAnalysis`）开启后：
+VS 每次打开或保存 .cpp 都会在后台用编译器（/analyze）完整分析整个编译单元，也就是任务中心里的“C++ 后台 Code Analysis”。UE 源文件会展开数千个头文件，单个文件常要几十秒。v0.5.1 起没有单独的设置，跟随接管范围：范围不是“关闭”时：
 
 1. 打开 UE 解决方案时，把 工具 > 选项 > 文本编辑器 > C/C++ > 高级 > Code Analysis 下的 “Disable Background Code Analysis” 设为 True（DTE 属性候选名见 `CppIntelliSenseSettings.BackgroundCodeAnalysis`）。
 2. 原值先备份到 `%LocalAppData%\UEToVS\code-analysis-backup.json`，日志事件 `codeAnalysis.*`。
-3. 关闭此设置即写回原值并删除备份。手动“分析 > 运行代码分析”不受影响。
+3. 接管范围改为“关闭”即写回原值并删除备份。手动“分析 > 运行代码分析”不受影响。
 
 ## 引擎进程
 

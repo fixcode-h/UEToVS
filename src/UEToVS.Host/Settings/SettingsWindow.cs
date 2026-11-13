@@ -189,6 +189,7 @@ namespace UEToVS.Host.Settings
                 case HostSettingsSchema.Agent: return SettingsIcons.Agent;
                 case HostSettingsSchema.Logging: return SettingsIcons.Logs;
                 case HostSettingsSchema.Performance: return SettingsIcons.Performance;
+                case HostSettingsSchema.Updates: return SettingsIcons.Update;
                 default: return SettingsIcons.General;
             }
         }

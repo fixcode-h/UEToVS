@@ -159,7 +159,9 @@ namespace UEToVS.UI.Shells
             if (owner != IntPtr.Zero) OwnerHandle = owner;
             PlaceAt(owner != IntPtr.Zero ? PopupAnchor.CenterOf(owner) : PopupAnchor.Mouse(AnchorMode.Center));
             Loaded += (s, e) => Ui.Safe("ui.dialog.focus", () => MoveFocus(new TraversalRequest(FocusNavigationDirection.First)));
-            return ShowDialog() == true;
+            IsShownModally = true;
+            try { return ShowDialog() == true; }
+            finally { IsShownModally = false; }
         }
 
         private void Accept()

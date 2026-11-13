@@ -18,7 +18,7 @@ namespace UEToVS.Host.Logic.Localization
         /// <summary>One-line description under each settings page title.</summary>
         public static string PageDescription(string categoryId) => categoryId switch
         {
-            "general" => Loc.T("引擎、IntelliSense 接管、工具栏、快捷操作和更新。", "Engine, IntelliSense takeover, toolbar, shortcuts and updates."),
+            "general" => Loc.T("引擎、IntelliSense 接管、工具栏和快捷操作。", "Engine, IntelliSense takeover, toolbar and shortcuts."),
             "appearance" => Loc.T("颜色、圆角、密度和字体。修改即时预览，点击“应用”后保存。", "Colors, corners, density and fonts. Changes preview live and are saved on Apply."),
             "indexing" => Loc.T("C++、蓝图和 Lua 索引的范围、线程数和存放位置。", "Scope, threads and location of the C++, Blueprint and Lua indexes."),
             "keymap" => Loc.T("UEToVS 命令的快捷键；和 VS 冲突时 UEToVS 优先（原绑定已备份）。", "Shortcuts of UEToVS commands; UEToVS wins conflicts with VS (originals backed up)."),
@@ -27,6 +27,7 @@ namespace UEToVS.Host.Logic.Localization
             "agent" => Loc.T("配置 OpenAI 兼容（Chat Completions）的 API 和密钥，从接口获取模型；勾选的模型会出现在 VS 自带的 Copilot 聊天里。另有给 AI Agent 用的 MCP 服务。", "OpenAI-compatible (Chat Completions) APIs and keys; enabled models show up in Visual Studio's Copilot Chat. Also the MCP server for AI agents."),
             "logging" => Loc.T("日志级别、保留时间和位置（JSON 行格式，方便分析问题）。", "Log level, retention and location (JSON lines, easy to analyse)."),
             "performance" => Loc.T("性能面板和采样。", "Performance panel and sampling."),
+            "updates" => Loc.T("查看当前版本，检查并安装 GitHub 上的新版本。", "Current version; check for and install new releases from GitHub."),
             _ => null,
         };
         public static string NoMatches(string q) => Loc.F("没有与“{0}”匹配的设置", "No settings match “{0}”", q);
@@ -49,7 +50,8 @@ namespace UEToVS.Host.Logic.Localization
         public static string IndexStatusNone => Loc.T("没有打开 UE 解决方案", "No UE solution open");
         public static string IndexStatus(string phase, int parsed, int toParse, int symbols, int assets) =>
             Loc.F("{0} · {1:N0}/{2:N0} 文件 · {3:N0} 符号 · {4:N0} 资产", "{0} · {1:N0}/{2:N0} files · {3:N0} symbols · {4:N0} assets", phase, parsed, toParse, symbols, assets);
-        public static string LuaIndexDisabled => Loc.T("未设置 Lua 脚本路径", "No Lua script folder set");
+        public static string LuaIndexDisabled => Loc.T("未设置 Lua 脚本路径，Content/Script 下也没有 .lua 文件", "No Lua script folder set, and no .lua files under Content/Script");
+        public static string LuaDefaultFolderNote => Loc.T("（未设置路径，自动使用 Content/Script）", " (no folder set: Content/Script is used automatically)");
         public static string LuaIndexStatus(string state, int files, int symbols, string roots) =>
             Loc.F("{0} · {1:N0} 个 Lua 文件 · {2:N0} 符号 · {3}", "{0} · {1:N0} Lua files · {2:N0} symbols · {3}", state, files, symbols, roots);
         public static string LuaStateName(int state) => state switch
@@ -66,9 +68,9 @@ namespace UEToVS.Host.Logic.Localization
         public static string LogDirectory(string dir) => dir ?? Loc.T("（尚未打开 UE 解决方案）", "(no UE solution open yet)");
         public static string VsUnrealIntegration => Loc.T(
             "状态栏的“正在从 X.uproject 中扫描 Blueprint”来自 VS 自带的 Unreal Engine 集成（项目 > Configure Tools for Unreal Engine 里的 Blueprint Support），不是 UEToVS；UEToVS 只列出资产文件名，不读取 .uasset。" +
-            "上面的“启用 VS 自带的蓝图扫描”关闭时，UEToVS 会找到这个开关并关掉（修改前备份），下次启动 VS 生效；关掉后 VS 自己的 Code Lens 蓝图引用也会停用。",
+            "接管 IntelliSense 时（接管范围不是“关闭”），UEToVS 会找到这个开关并关掉（修改前备份，范围选“关闭”即恢复），下次启动 VS 生效；关掉后 VS 自己的 Code Lens 蓝图引用也会停用。",
             "The status bar message “Scanning Blueprints from X.uproject” comes from VS's own Unreal Engine integration (Blueprint Support under Project > Configure Tools for Unreal Engine), not from UEToVS; UEToVS only lists asset file names and never reads .uasset files. " +
-            "With “Enable VS's own Blueprint scan” above turned off, UEToVS finds that switch and turns it off (backed up first); it takes effect from the next VS start and also turns off VS's Code Lens Blueprint references.");
+            "While IntelliSense is taken over (scope not “Off”), UEToVS finds that switch and turns it off (backed up first; scope “Off” restores it); it takes effect from the next VS start and also turns off VS's Code Lens Blueprint references.");
         // ---- 检查更新 (Logic/Update/UpdateState.cs renders these)
         public static string UpdateButtonCheck => Loc.T("检查", "Check");
         public static string UpdateButtonChecking => Loc.T("检查中…", "Checking…");

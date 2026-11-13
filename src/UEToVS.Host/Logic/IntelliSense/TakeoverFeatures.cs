@@ -16,6 +16,8 @@ namespace UEToVS.Host.Logic.IntelliSense
         Available = 2,
         /// <summary>Not verified yet: to be confirmed in VS.</summary>
         Unknown = 3,
+        /// <summary>v0.5.1: a VS background feature UEToVS switches off with the takeover (backed up; scope "Off" restores it).</summary>
+        TurnedOff = 4,
     }
 
     /// <summary>One VS feature and what the IntelliSense takeover does to it.</summary>
@@ -63,6 +65,14 @@ namespace UEToVS.Host.Logic.IntelliSense
 
         public static IReadOnlyList<TakeoverFeature> All { get; } = new[]
         {
+            // v0.5.1: VS background features that follow the takeover scope (no switches of their own any more)
+            F("C++ 浏览数据库（.vc.db）", "C++ browse database (.vc.db)", null, null, TakeoverFeatureState.TurnedOff, new int[0],
+                "随接管关闭，节省大量磁盘和 CPU；符号查找由 UEToVS 的索引提供", "Off with the takeover, saving lots of disk and CPU; symbol lookups come from the UEToVS index"),
+            F("后台代码分析", "Background code analysis", null, null, TakeoverFeatureState.TurnedOff, new[] { CommandCatalog.RunProjectInspection },
+                "打开 UE 解决方案时关闭；UE 规则检查由 UEToVS 提供", "Off while a UE solution is open; UE rule checks come from UEToVS"),
+            F("蓝图扫描（VS 的 Unreal Engine 集成）", "Blueprint scan (VS's Unreal Engine integration)", null, null, TakeoverFeatureState.TurnedOff, new[] { CommandCatalog.GoToAsset },
+                "不再每次打开解决方案都扫描全部蓝图，下次启动 VS 生效；蓝图搜索由 UEToVS 的蓝图索引提供",
+                "No longer scans every Blueprint on each solution load (from the next VS start); Blueprint search comes from the UEToVS Blueprint index"),
             F("调用层次", "Call Hierarchy", "View.CallHierarchy", "Ctrl+K, Ctrl+T", Off, new[] { CommandCatalog.CallHierarchy }),
             F("速览定义", "Peek Definition", "Edit.PeekDefinition", "Alt+F12", Ours, new int[0],
                 "Alt+F12 照常使用，显示 UEToVS 找到的定义", "Alt+F12 keeps working and shows the definitions UEToVS finds"),
@@ -100,6 +110,7 @@ namespace UEToVS.Host.Logic.IntelliSense
                 case TakeoverFeatureState.Unavailable: return NavGapStrings.TakeoverUnavailable;
                 case TakeoverFeatureState.Replaced: return NavGapStrings.TakeoverReplaced;
                 case TakeoverFeatureState.Available: return NavGapStrings.TakeoverAvailable;
+                case TakeoverFeatureState.TurnedOff: return NavGapStrings.TakeoverTurnedOff;
                 default: return NavGapStrings.TakeoverConfirm;
             }
         }
