@@ -73,7 +73,7 @@ namespace UEToVS.Host.Refactoring.Batch2
         private static EncapsulateOptions Ask(FieldDeclaration f, string text)
         {
             var (getter, setter) = EncapsulateFieldPlanner.Names(f);
-            var shell = new DialogShell(() => Refactor2Strings.EncapsulateTitle(f.Name), () => Refactor2Strings.GenerateButton) { VisibleSize = new Size(620, 380) };
+            var shell = new DialogShell(() => Refactor2Strings.EncapsulateTitle(f.Name), () => Refactor2Strings.GenerateButton) { VisibleSize = new Size(620, 380), PlacementId = "dialog.encapsulateField" };
             shell.Description = Refactor2Strings.EncapsulateDescription;
             var form = new StackPanel();
             var getBox = new UiCheckBox(Refactor2Strings.GenerateGetter(getter), true) { Margin = new Thickness(0, 4, 0, 0) };

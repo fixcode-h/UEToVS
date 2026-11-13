@@ -261,7 +261,7 @@ namespace UEToVS.Host.Inspection
             }
             var sw = Stopwatch.StartNew();
             var dialog = new CheckListDialog<InspectionFinding>(() => HeavyFeatureStrings.FixPreviewTitle(fixable.Count), () => HeavyFeatureStrings.FixAll,
-                PresentFix, f => f.FilePath + " " + f.LineText, new System.Windows.Size(820, 600));
+                PresentFix, f => f.FilePath + " " + f.LineText, new System.Windows.Size(820, 600), "dialog.inspectionFix");
             var rows = new List<CheckRow<InspectionFinding>>();
             foreach (var g in fixable.GroupBy(f => f.FilePath, StringComparer.OrdinalIgnoreCase))
             {

@@ -45,7 +45,7 @@ namespace UEToVS.Host.Refactoring.Batch2
             string type = IntroduceVariablePlanner.ChooseType(a, engineType);
             string suggested = IntroduceVariablePlanner.SuggestName(a.Expression, type, a.Identifiers);
 
-            var dialog = new NameDialog(() => Refactor2Strings.VariableTitle, () => Refactor2Strings.IntroduceButton, Refactor2Strings.VariableName, suggested)
+            var dialog = new NameDialog(() => Refactor2Strings.VariableTitle, () => Refactor2Strings.IntroduceButton, Refactor2Strings.VariableName, suggested, "dialog.introduceVariable")
             {
                 Description = Refactor2Strings.VariableDescription(Shorten(a.Expression), type),
             };

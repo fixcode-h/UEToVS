@@ -23,7 +23,7 @@ namespace UEToVS.UI.Shells
     /// Floating, non-modal tool window in the VS 2026 style (settings, performance panel, component gallery): themed
     /// <see cref="ChromeWindow"/> with a title bar (brand mark, title, title actions, close), draggable, resizable,
     /// owned by the VS main window, Esc closes. Position and size are remembered per <see cref="WindowId"/> through
-    /// <see cref="DefaultPlacementStore"/> and clamped back onto a visible monitor on restore.
+    /// <see cref="ChromeWindow.DefaultPlacementStore"/> (saved on close by <see cref="ChromeWindow"/>) and clamped back onto a visible monitor on restore.
     /// </summary>
     public class UtilityWindow : ChromeWindow
     {
@@ -33,11 +33,10 @@ namespace UEToVS.UI.Shells
         private readonly Size _defaultSize;
         private bool _placed;
 
-        public static IWindowPlacementStore DefaultPlacementStore { get; set; }
-
         public UtilityWindow(string windowId, Func<string> title, Size defaultSize)
         {
             WindowId = windowId ?? "window";
+            PlacementId = WindowId;
             _defaultSize = defaultSize;
             Resizable = true;
             MinVisibleWidth = 420;
@@ -85,7 +84,6 @@ namespace UEToVS.UI.Shells
             {
                 if (e.Key == Key.Escape && CloseOnEscape) { Close(); e.Handled = true; }
             });
-            Closing += (s, e) => Ui.Safe("ui.utility.save", SavePlacement);
         }
 
         /// <summary>Key of the remembered placement.</summary>
@@ -119,33 +117,6 @@ namespace UEToVS.UI.Shells
             if (!IsVisible) Show();
             if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
             Activate();
-        }
-
-        private bool RestorePlacement()
-        {
-            var store = DefaultPlacementStore;
-            if (store == null || !store.TryGetPlacement(WindowId, out var p) || p == null) return false;
-            new WindowInteropHelper(this).EnsureHandle();
-            double scale = VisualTreeHelper.GetDpi(this).DpiScaleX;
-            if (scale <= 0) scale = 1;
-            var areas = new List<RectD>();
-            var work = NativeMethods.WorkAreaAt((p.Left + p.Width / 2) * scale, (p.Top + 10) * scale, out _);
-            if (work.HasValue) areas.Add(new RectD(work.Value.X / scale, work.Value.Y / scale, work.Value.Width / scale, work.Value.Height / scale));
-            else areas.Add(new RectD(SystemParameters.WorkArea.X, SystemParameters.WorkArea.Y, SystemParameters.WorkArea.Width, SystemParameters.WorkArea.Height));
-            var fit = p.EnsureVisible(areas, MinVisibleWidth, MinVisibleHeight);
-            VisibleSize = new Size(fit.Width, fit.Height);
-            Left = fit.Left - ChromeMargin;
-            Top = fit.Top - ChromeMargin;
-            Ui.Logger.Debug("ui.utility.placement.restored", null, ("id", WindowId), ("placement", fit.Format()));
-            return true;
-        }
-
-        private void SavePlacement()
-        {
-            var store = DefaultPlacementStore;
-            if (store == null || WindowState != WindowState.Normal) return;
-            var size = VisibleSize;
-            store.SavePlacement(WindowId, new WindowPlacement { Left = Left + ChromeMargin, Top = Top + ChromeMargin, Width = size.Width, Height = size.Height });
         }
 
         /// <summary>Double-click on the title bar: back to the default size, centered on the owner.</summary>

@@ -18,9 +18,9 @@ namespace UEToVS.Host.Refactoring.Batch2
         private readonly UiText _error = new UiText((string)null, TextVariant.Secondary) { Margin = new Thickness(0, 2, 0, 0) };
         private readonly UiText _preview = new UiText((string)null, TextVariant.Mono) { Margin = new Thickness(0, 10, 0, 0), TextWrapping = TextWrapping.Wrap };
 
-        public NameDialog(Func<string> title, Func<string> primary, string label, string initialName)
+        public NameDialog(Func<string> title, Func<string> primary, string label, string initialName, string placementId = null)
         {
-            _shell = new DialogShell(title, primary) { VisibleSize = new Size(560, 300) };
+            _shell = new DialogShell(title, primary) { VisibleSize = new Size(560, 300), PlacementId = placementId };
             NameBox = new TextInput { Text = initialName ?? string.Empty, Margin = new Thickness(0, 4, 0, 0) };
             _form.Children.Add(new UiText(label, TextVariant.Secondary));
             _form.Children.Add(NameBox);

@@ -187,7 +187,9 @@ namespace UEToVS.UI.Shells
         protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
         {
             base.OnClosing(e);
-            if (!e.Cancel) ReturnActivationToOwner("close");
+            if (e.Cancel) return;
+            Ui.Safe("ui.chrome.placement.save", SavePlacement);
+            ReturnActivationToOwner("close");
         }
 
         /// <summary>Visible (chrome) size in DIPs, excluding the shadow margin.</summary>
@@ -238,26 +240,88 @@ namespace UEToVS.UI.Shells
                 Ui.Logger.Warn("ui.chrome.place_failed", "SetWindowPos failed", ("x", x), ("y", y));
         }
 
+        /// <summary>
+        /// v0.5.18: grips on all four edges and corners (was right / bottom / bottom-right only), so a dialog can be made
+        /// bigger towards whichever side has room. Left / top grips move the window origin with the edge
+        /// (<see cref="WindowResize"/>). A thumb moves with the edge it drags, so every DragDelta is incremental.
+        /// </summary>
         private void BuildGrips()
         {
-            Thumb Grip(HorizontalAlignment h, VerticalAlignment v, double w, double hgt, Cursor c, bool dx, bool dy)
+            const double edge = 6, corner = 12;
+            Thumb Grip(HorizontalAlignment h, VerticalAlignment v, double w, double hgt, Cursor c, int sx, int sy)
             {
                 var t = new Thumb { Style = Styles.InvisibleThumb, HorizontalAlignment = h, VerticalAlignment = v, Cursor = c, Focusable = false };
                 if (!double.IsNaN(w)) t.Width = w;
                 if (!double.IsNaN(hgt)) t.Height = hgt;
-                t.DragDelta += (s, e) => Ui.Safe("ui.chrome.resize", () =>
-                {
-                    var size = VisibleSize;
-                    VisibleSize = new Size(dx ? size.Width + e.HorizontalChange : size.Width, dy ? size.Height + e.VerticalChange : size.Height);
-                });
+                t.DragDelta += (s, e) => Ui.Safe("ui.chrome.resize", () => ResizeBy(sx, sy, e.HorizontalChange, e.VerticalChange));
+                t.DragCompleted += (s, e) => Ui.Safe("ui.chrome.resized", () =>
+                    Ui.Logger.Debug("ui.chrome.resized", null, ("id", PlacementId), ("size", VisibleSize.ToString(System.Globalization.CultureInfo.InvariantCulture))));
                 return t;
             }
-            _grips.Children.Add(Grip(HorizontalAlignment.Right, VerticalAlignment.Stretch, 5, double.NaN, Cursors.SizeWE, true, false));
-            _grips.Children.Add(Grip(HorizontalAlignment.Stretch, VerticalAlignment.Bottom, double.NaN, 5, Cursors.SizeNS, false, true));
-            _grips.Children.Add(Grip(HorizontalAlignment.Right, VerticalAlignment.Bottom, 12, 12, Cursors.SizeNWSE, true, true));
+            // Edges first, corners last so the corners win where they overlap.
+            _grips.Children.Add(Grip(HorizontalAlignment.Left, VerticalAlignment.Stretch, edge, double.NaN, Cursors.SizeWE, -1, 0));
+            _grips.Children.Add(Grip(HorizontalAlignment.Right, VerticalAlignment.Stretch, edge, double.NaN, Cursors.SizeWE, 1, 0));
+            _grips.Children.Add(Grip(HorizontalAlignment.Stretch, VerticalAlignment.Top, double.NaN, edge, Cursors.SizeNS, 0, -1));
+            _grips.Children.Add(Grip(HorizontalAlignment.Stretch, VerticalAlignment.Bottom, double.NaN, edge, Cursors.SizeNS, 0, 1));
+            _grips.Children.Add(Grip(HorizontalAlignment.Left, VerticalAlignment.Top, corner, corner, Cursors.SizeNWSE, -1, -1));
+            _grips.Children.Add(Grip(HorizontalAlignment.Right, VerticalAlignment.Top, corner, corner, Cursors.SizeNESW, 1, -1));
+            _grips.Children.Add(Grip(HorizontalAlignment.Left, VerticalAlignment.Bottom, corner, corner, Cursors.SizeNESW, -1, 1));
+            _grips.Children.Add(Grip(HorizontalAlignment.Right, VerticalAlignment.Bottom, corner, corner, Cursors.SizeNWSE, 1, 1));
             // Grips must not cover the content except at the edges.
             _grips.IsHitTestVisible = true;
             _grips.Background = null;
+        }
+
+        private void ResizeBy(int sx, int sy, double dx, double dy)
+        {
+            var size = VisibleSize;
+            double left = double.IsNaN(Left) ? 0 : Left, top = double.IsNaN(Top) ? 0 : Top;
+            var r = WindowResize.Apply(new RectD(left, top, size.Width, size.Height), sx, sy, dx, dy, MinVisibleWidth, MinVisibleHeight);
+            if (sx < 0 && !double.IsNaN(Left)) Left = r.X;
+            if (sy < 0 && !double.IsNaN(Top)) Top = r.Y;
+            VisibleSize = new Size(r.Width, r.Height);
+        }
+
+        /// <summary>
+        /// Key under which this window's position + size are remembered in <see cref="DefaultPlacementStore"/> (null: not
+        /// remembered). Set by <see cref="UtilityWindow"/> and by dialogs that want the user's size back next time.
+        /// </summary>
+        public string PlacementId { get; set; }
+
+        /// <summary>Process-wide placement store (host plugs the VS per-user settings store in at startup).</summary>
+        public static IWindowPlacementStore DefaultPlacementStore { get; set; }
+
+        /// <summary>
+        /// Applies the remembered placement of <see cref="PlacementId"/>: size clamped to [min, work area], position pulled
+        /// back onto the work area of the monitor it was on (centered on the nearest monitor when that monitor is gone).
+        /// False when nothing is stored. Creates the HWND if needed; call before Show.
+        /// </summary>
+        protected bool RestorePlacement()
+        {
+            var store = DefaultPlacementStore;
+            if (string.IsNullOrEmpty(PlacementId) || store == null || !store.TryGetPlacement(PlacementId, out var p) || p == null) return false;
+            new WindowInteropHelper(this).EnsureHandle();
+            double scale = VisualTreeHelper.GetDpi(this).DpiScaleX;
+            if (scale <= 0) scale = 1;
+            var areas = new List<RectD>();
+            var work = NativeMethods.WorkAreaAt((p.Left + p.Width / 2) * scale, (p.Top + 10) * scale, out _);
+            if (work.HasValue) areas.Add(new RectD(work.Value.X / scale, work.Value.Y / scale, work.Value.Width / scale, work.Value.Height / scale));
+            else areas.Add(new RectD(SystemParameters.WorkArea.X, SystemParameters.WorkArea.Y, SystemParameters.WorkArea.Width, SystemParameters.WorkArea.Height));
+            var fit = p.EnsureVisible(areas, MinVisibleWidth, MinVisibleHeight);
+            VisibleSize = new Size(fit.Width, fit.Height);
+            Left = fit.Left - ChromeMargin;
+            Top = fit.Top - ChromeMargin;
+            Ui.Logger.Debug("ui.chrome.placement.restored", null, ("id", PlacementId), ("stored", p.Format()), ("placement", fit.Format()));
+            return true;
+        }
+
+        /// <summary>Writes the current position + size under <see cref="PlacementId"/> (skipped when minimized / maximized).</summary>
+        protected void SavePlacement()
+        {
+            var store = DefaultPlacementStore;
+            if (string.IsNullOrEmpty(PlacementId) || store == null || WindowState != WindowState.Normal || double.IsNaN(Left) || double.IsNaN(Top)) return;
+            var size = VisibleSize;
+            store.SavePlacement(PlacementId, new WindowPlacement { Left = Left + ChromeMargin, Top = Top + ChromeMargin, Width = size.Width, Height = size.Height });
         }
 
         private void OnThemeChanged(object sender, EventArgs e) => Ui.Safe("ui.chrome.theme", ApplyTokens);

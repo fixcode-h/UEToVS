@@ -34,7 +34,7 @@ namespace UEToVS.Host.Refactoring.Batch2
             _original = original;
             _items = original.Select(p => p.Clone()).ToList();
             _prefix = prefix;
-            _shell = new DialogShell(() => Refactor2Strings.ChangeSignatureTitle(name), () => Refactor2Strings.Next) { VisibleSize = new Size(860, 480) };
+            _shell = new DialogShell(() => Refactor2Strings.ChangeSignatureTitle(name), () => Refactor2Strings.Next) { VisibleSize = new Size(860, 480), PlacementId = "dialog.changeSignature" };
             _shell.Description = Refactor2Strings.ChangeSignatureDescription;
 
             var form = new StackPanel();
