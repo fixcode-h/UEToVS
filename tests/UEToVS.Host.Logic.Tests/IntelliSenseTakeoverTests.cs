@@ -85,8 +85,8 @@ namespace UEToVS.Host.Logic.Tests
             Assert.True((bool)store.Values["DisableDatabase"]);
             Assert.True(r.BackupWritten);
             Assert.Equal(7, r.Count(SettingOutcomeStatus.Changed));
-            // memberList, includeAutoComplete, databaseUpdates, automaticUpdates, symbolIndex and the 5 settings.json-only VS features not on this "VS"
-            Assert.Equal(10, r.Count(SettingOutcomeStatus.Missing));
+            // memberList, includeAutoComplete, databaseUpdates, automaticUpdates, symbolIndex and the 6 settings.json-only VS features not on this "VS"
+            Assert.Equal(11, r.Count(SettingOutcomeStatus.Missing));
             Assert.True(r.FullyTakenOver);
             Assert.Equal(TakeoverState.TakenOver, IntelliSenseTakeover.GetState(store, new TakeoverOptions()));
             var missing = r.Outcomes.Single(o => o.Key == CppIntelliSenseSettings.KeyMemberList);
