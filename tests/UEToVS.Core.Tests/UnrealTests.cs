@@ -10,6 +10,18 @@ namespace UEToVS.Core.Tests
 {
     public class UnrealTests
     {
+        [Theory]
+        [InlineData(@"C:\P\Intermediate\Build\Win64\UnrealEditor\Inc\P\UHT\Actor.generated.h", true)]
+        [InlineData(@"C:\P\Source\P\Actor.gen.cpp", true)]
+        [InlineData(@"C:\P\Source\P\P.init.gen.cpp", true)]
+        [InlineData("/p/Intermediate/x/Def.h", true)]
+        [InlineData(@"C:\P\Source\P\Actor.h", false)]
+        [InlineData(@"C:\P\Source\P\Actor.cpp", false)]
+        [InlineData(@"E:\UE\Engine\Source\Runtime\CoreUObject\Public\UObject\ObjectMacros.h", false)]
+        [InlineData(@"C:\P\Source\IntermediateStuff\A.h", false)]
+        [InlineData(null, false)]
+        public void GeneratedFilesAreRecognised(string path, bool expected) => Assert.Equal(expected, GeneratedFiles.IsGenerated(path));
+
         [Fact]
         public void RpcPairs()
         {

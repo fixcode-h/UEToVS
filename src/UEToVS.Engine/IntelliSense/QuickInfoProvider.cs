@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using UEToVS.Contracts;
+using UEToVS.Core.Unreal;
 using UEToVS.Engine.Navigation;
 using UEToVS.Engine.Syntax;
 
@@ -289,7 +290,8 @@ namespace UEToVS.Engine.IntelliSense
             // pick the best symbol: on a call the fitting overloads, declarations (headers) before definitions, project first
             var pool = cands;
             if (r.CallArguments != null) pool = SymbolResolver.FilterByCall(cands, r.CallArguments);
-            var primary = r.OnDeclaration ?? pool.OrderBy(c => c.IsDefinition && TypeText.IsCallableKind(c.Kind) ? 1 : 0)
+            var primary = r.OnDeclaration ?? pool.OrderBy(c => GeneratedFiles.Rank(c.Location?.FilePath))
+                .ThenBy(c => c.IsDefinition && TypeText.IsCallableKind(c.Kind) ? 1 : 0)
                 .ThenBy(c => TypeText.IsProject(c.Origin) ? 0 : 1).First();
             resp.Symbol = primary;
             resp.Confidence = confidence;
