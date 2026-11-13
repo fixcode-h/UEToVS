@@ -181,7 +181,9 @@ namespace UEToVS.Host.Logic.Tests
             Assert.Equal("IBM Plex Sans（内置）", rows[0].Options.Single(o => o.Value == rows[0].Default).TitleZh);
             var manage = rows.Single(d => d.Key == FontSettingsSchema.ManageVsKey);
             Assert.Equal("true", manage.Default);
-            Assert.Equal(1 + 1 + 3 + 2 * VsFontCategories.All.Count, rows.Count);
+            Assert.Equal(1 + 1 + 4 + 2 * VsFontCategories.All.Count, rows.Count);
+            Assert.Equal("自定义字体", rows[3].TitleZh);
+            Assert.Equal(SettingKind.Text, rows[3].Kind);
             Assert.All(rows.Where(d => d.Kind == SettingKind.Choice), d => Assert.True(d.AllowCustomValue));
             Assert.All(rows.Where(d => d.Kind == SettingKind.Int), d => Assert.False(string.IsNullOrEmpty(d.AutoLabelZh)));
         }

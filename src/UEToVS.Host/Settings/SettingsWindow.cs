@@ -518,7 +518,8 @@ namespace UEToVS.Host.Settings
                 {
                     var options = d.ResolveOptions(Value(d));
                     int index = Math.Max(0, options.ToList().FindIndex(o => string.Equals(o.Value, Value(d), StringComparison.OrdinalIgnoreCase)));
-                    if (options.Count <= 4 && d.OptionsSource == null)
+                    // 字体行（可填自定义值的选项）一律用下拉框，照 Agent 面板；其余选项少的用分段按钮
+                    if (options.Count <= 4 && d.OptionsSource == null && !d.AllowCustomValue)
                     {
                         var seg = new SegmentedControl(options.Select(o => English ? o.TitleEn : o.TitleZh).ToArray());
                         seg.SelectedIndex = index;

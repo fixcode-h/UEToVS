@@ -17,6 +17,7 @@ namespace UEToVS.Host.Logic.Fonts
         public const string UiLatinKey = "fonts.uiLatin";
         public const string UiCjkKey = "fonts.uiCjk";
         public const string CodeKey = "fonts.code";
+        public const string CustomKey = "fonts.custom";
         public const string ManageVsKey = "fonts.vs.manage";
         /// <summary>Info row under the toggle: what VS shows now (fonts that need a VS restart, management off…).</summary>
         public const string VsStatusKey = "fonts.vs.status";
@@ -44,10 +45,9 @@ namespace UEToVS.Host.Logic.Fonts
         public static void AddDescriptors(List<SettingDescriptor> list, string category)
         {
             // 三行的可选字体、文案和说明照 Agent 面板的设置 → 外观 → 字体（web/src/components/settings/FontSection.tsx）。
-            // 下拉框仍可以直接输入本机装了的字体名，代替面板单独的「自定义字体」一行。
             list.Add(UiRow(category, UiLatinKey, "英文字体", "Latin font", "字母、数字和符号用的字体", "Font for letters, digits and symbols",
-                "默认是内置的 IBM Plex Sans；也可以换内置的等宽 Maple Mono NL（不带符号连字）、Inter，或系统界面字体 Segoe UI。也可以直接输入本机装了的字体名。",
-                "IBM Plex Sans (bundled) by default; the bundled monospace Maple Mono NL (no symbol ligatures), Inter, or the system UI font Segoe UI are the alternatives. You can also type the name of an installed font.",
+                "默认是内置的 IBM Plex Sans；也可以换内置的等宽 Maple Mono NL（不带符号连字）、Inter，或系统界面字体 Segoe UI。想用本机装的其他字体，填在下面的“自定义字体”里。",
+                "IBM Plex Sans (bundled) by default; the bundled monospace Maple Mono NL (no symbol ligatures), Inter, or the system UI font Segoe UI are the alternatives. For another installed font, use Custom font below.",
                 FontSettings.DefaultUiLatin, LatinOptions));
             list.Add(UiRow(category, UiCjkKey, "中文字体", "Chinese font", "汉字用的字体", "Font for Chinese characters",
                 "英文字体里没有汉字，汉字用这里选的字体。Maple Mono CN 是 Maple Mono 的中文版：一个汉字正好占两个英文字母宽，和 Maple Mono 英文上下对齐，但汉字之间比思源黑体疏；它只有常规和中粗两档，标题由系统加粗。小字号觉得发虚可以换系统字体（微软雅黑）。",
@@ -55,6 +55,15 @@ namespace UEToVS.Host.Logic.Fonts
                 FontSettings.DefaultUiCjk, CjkOptions));
             list.Add(UiRow(category, CodeKey, "代码字体", "Code font", "代码、命令和路径用的等宽字体", "Monospace font for code, commands and paths",
                 null, null, FontSettings.DefaultCode, CodeOptions));
+            list.Add(new SettingDescriptor
+            {
+                Category = category, Key = CustomKey, Kind = SettingKind.Text, GroupZh = Group, GroupEn = GroupEn,
+                TitleZh = "自定义字体", TitleEn = "Custom font",
+                DescriptionZh = "本机字体名，优先于上面选的", DescriptionEn = "Installed font names, used before the fonts above",
+                HintZh = "填本机装了的字体名，多个用逗号隔开，会排在上面选的字体前面；没有的字还用上面的。留空不用。例如 Sarasa Gothic SC。",
+                HintEn = "Names of installed fonts, comma separated; they come before the fonts chosen above, and characters they lack still use those. Leave empty for none. For example Sarasa Gothic SC.",
+                Default = string.Empty, Keywords = Keywords,
+            });
 
             list.Add(new SettingDescriptor
             {
@@ -158,6 +167,7 @@ namespace UEToVS.Host.Logic.Fonts
             d[UiLatinKey] = FontChoice.Parse(s.UiLatinFont).ToString();
             d[UiCjkKey] = FontChoice.Parse(s.UiCjkFont).ToString();
             d[CodeKey] = FontChoice.Parse(s.CodeFont).ToString();
+            d[CustomKey] = FontSettings.NormalizeCustom(s.CustomFont);
             d[ManageVsKey] = s.ManageVsFonts ? "true" : "false";
             var map = VsFontSettingsText.Parse(s.VsFonts);
             foreach (var c in VsFontCategories.All)
@@ -176,6 +186,7 @@ namespace UEToVS.Host.Logic.Fonts
                 case UiLatinKey: s.UiLatinFont = FontChoice.Parse(v).ToString(); return true;
                 case UiCjkKey: s.UiCjkFont = FontChoice.Parse(v).ToString(); return true;
                 case CodeKey: s.CodeFont = FontChoice.Parse(v).ToString(); return true;
+                case CustomKey: s.CustomFont = FontSettings.NormalizeCustom(v); return true;
                 case ManageVsKey: s.ManageVsFonts = string.Equals(v, "true", StringComparison.OrdinalIgnoreCase); return true;
             }
             foreach (var c in VsFontCategories.All)
@@ -197,13 +208,14 @@ namespace UEToVS.Host.Logic.Fonts
             d["uiLatinFont"] = s.UiLatinFont ?? "";
             d["uiCjkFont"] = s.UiCjkFont ?? "";
             d["codeFont"] = s.CodeFont ?? "";
+            d["customFont"] = s.CustomFont ?? "";
             d["manageVsFonts"] = s.ManageVsFonts;
             d["vsFonts"] = s.VsFonts ?? "";
         }
 
         /// <summary>Any font setting differs (UI fonts or VS fonts).</summary>
         public static bool Changed(HostSettings a, HostSettings b) =>
-            a == null || b == null || a.UiLatinFont != b.UiLatinFont || a.UiCjkFont != b.UiCjkFont || a.CodeFont != b.CodeFont ||
+            a == null || b == null || a.UiLatinFont != b.UiLatinFont || a.UiCjkFont != b.UiCjkFont || a.CodeFont != b.CodeFont || (a.CustomFont ?? "") != (b.CustomFont ?? "") ||
             a.ManageVsFonts != b.ManageVsFonts || (a.VsFonts ?? "") != (b.VsFonts ?? "");
     }
 }
