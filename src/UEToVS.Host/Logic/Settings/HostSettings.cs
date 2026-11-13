@@ -119,8 +119,17 @@ namespace UEToVS.Host.Logic.Settings
         /// <summary>Keep receiving editor log lines after the log window is closed (it was opened once this session).</summary>
         public bool LinkLogKeepReceiving { get; set; } = true;
 
-        /// <summary>Collect Live Coding compiler output from the editor and report its errors in VS.</summary>
+        /// <summary>
+        /// v0.5.1: UEToVS's Live Coding features (the Live Coding command, error mapping). Off by default: a Live Coding
+        /// compile starts UE's LiveCodingConsole, which can hold several GB of memory.
+        /// </summary>
+        public bool LinkLiveCodingEnabled { get; set; } = false;
+
+        /// <summary>Collect Live Coding compiler output from the editor and report its errors in VS (only with <see cref="LinkLiveCodingEnabled"/>).</summary>
         public bool LinkLiveCodingErrors { get; set; } = true;
+
+        /// <summary>Live Coding errors are collected: the feature is on and its error mapping too.</summary>
+        public bool LiveCodingErrorsActive => LinkLiveCodingEnabled && LinkLiveCodingErrors;
 
         // ---- 导航（M2）----
         /// <summary>Ctrl+left-click on an identifier = go to definition (hover with Ctrl underlines it).</summary>

@@ -202,10 +202,20 @@ namespace UEToVS.Host.Logic.Settings
                 "打开过一次 UE 日志窗口后，关闭窗口也继续接收（再打开时能看到期间的日志）；关闭此项则窗口关闭时停止接收。",
                 "Once the UE log window was opened, keep receiving lines while it is closed (they show when it reopens); off stops receiving when it closes.",
                 "true", gLink, gLinkEn));
-            list.Add(D(General, "link.liveCodingErrors", SettingKind.Bool, "Live Coding 错误映射到 VS", "Report Live Coding errors in VS",
-                "从编辑器收集 Live Coding 的编译输出，把错误交给 VS 显示（状态栏 / 信息栏，跳到第一个错误）。",
-                "Collects the Live Coding compiler output from the editor and reports its errors in VS (status bar / info bar, go to the first error).",
-                "true", gLink, gLinkEn));
+            var liveCoding = D(General, "link.liveCoding", SettingKind.Bool, "启用 Live Coding 联动", "Enable Live Coding integration",
+                "允许在 VS 中用“Live Coding（UE 编辑器）”命令（Ctrl+Alt+F11）让编辑器执行 Live Coding 编译。默认关闭：Live Coding 会启动 UE 的 LiveCodingConsole 进程，占用内存较多（大型项目可达数 GB）。" +
+                "UE 自己启动的 LiveCodingConsole 不受此项影响，可在 UE 的 编辑器偏好设置 > 通用 > Live Coding 里关闭“启用 Live Coding”。",
+                "Lets the “Live Coding (Unreal Editor)” command (Ctrl+Alt+F11) ask the editor for a Live Coding compile. Off by default: Live Coding starts UE's LiveCodingConsole process, which uses a lot of memory (several GB on large projects). " +
+                "A LiveCodingConsole started by UE itself is not affected; turn off “Enable Live Coding” under Editor Preferences > General > Live Coding in UE.",
+                "false", gLink, gLinkEn);
+            liveCoding.Keywords = "live coding livecoding hot reload 热重载 内存 memory LiveCodingConsole";
+            list.Add(liveCoding);
+            var lcErrors = D(General, "link.liveCodingErrors", SettingKind.Bool, "Live Coding 错误映射到 VS", "Report Live Coding errors in VS",
+                "从编辑器收集 Live Coding 的编译输出，把错误交给 VS 显示（状态栏 / 信息栏，跳到第一个错误）。需要先启用 Live Coding 联动。",
+                "Collects the Live Coding compiler output from the editor and reports its errors in VS (status bar / info bar, go to the first error). Needs the Live Coding integration.",
+                "true", gLink, gLinkEn);
+            lcErrors.EnabledWhenKey = "link.liveCoding";
+            list.Add(lcErrors);
 
             // ================= 索引
             const string gIdx = "索引", gIdxEn = "Indexing";
@@ -504,6 +514,7 @@ namespace UEToVS.Host.Logic.Settings
                     ["unreal.editorLinkPort"] = I(s.EditorLinkPort),
                     ["link.logMaxLines"] = I(s.LinkLogMaxLines),
                     ["link.logKeepReceiving"] = B(s.LinkLogKeepReceiving),
+                    ["link.liveCoding"] = B(s.LinkLiveCodingEnabled),
                     ["link.liveCodingErrors"] = B(s.LinkLiveCodingErrors),
                     ["indexing.cppThreads"] = I(s.CppIndexThreads),
                     ["indexing.blueprintThreads"] = I(s.BlueprintIndexThreads),
@@ -624,6 +635,7 @@ namespace UEToVS.Host.Logic.Settings
                         case "unreal.editorLinkPort": s.EditorLinkPort = PI(v, 0); break;
                         case "link.logMaxLines": s.LinkLogMaxLines = PI(v, 20000); break;
                         case "link.logKeepReceiving": s.LinkLogKeepReceiving = PB(v); break;
+                        case "link.liveCoding": s.LinkLiveCodingEnabled = PB(v); break;
                         case "link.liveCodingErrors": s.LinkLiveCodingErrors = PB(v); break;
                         case "indexing.cppThreads": s.CppIndexThreads = PI(v, 0); break;
                         case "indexing.blueprintThreads": s.BlueprintIndexThreads = PI(v, 0); break;

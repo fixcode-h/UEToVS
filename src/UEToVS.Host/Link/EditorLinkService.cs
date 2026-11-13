@@ -87,6 +87,15 @@ namespace UEToVS.Host.Link
         public async Task LiveCodingAsync()
         {
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+            if (_package.Settings?.Effective?.LinkLiveCodingEnabled != true)
+            {
+                // v0.5.1: off by default (LiveCodingConsole can hold several GB); nothing is sent to the editor.
+                L.Info("link.liveCoding.disabled", "Live Coding command ignored: the Live Coding integration is off");
+                VsStatusBar.SetText(FeatureStrings.LiveCodingDisabled);
+                Banners.Show("link.liveCoding", FeatureStrings.LiveCodingDisabled, Integration.BannerKind.Info,
+                    (Strings.Settings, () => _ = _package.ShowSettingsWindowAsync(UEToVS.Host.Logic.Settings.HostSettingsSchema.General)));
+                return;
+            }
             VsEditor.TryExecute("File.SaveAll");
             VsStatusBar.SetText(FeatureStrings.LiveCodingRequesting);
             LinkFeature.OnLiveCodingRequested(); // v0.4.5: collect the compile output for error mapping

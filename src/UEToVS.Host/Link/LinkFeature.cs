@@ -84,7 +84,7 @@ namespace UEToVS.Host.Link
         {
             if (s == null) return;
             LogStore?.SetCapacity(s.LinkLogMaxLines);
-            if (!s.LinkLiveCodingErrors && _liveCodingWanted)
+            if (!s.LiveCodingErrorsActive && _liveCodingWanted)
             {
                 _liveCodingWanted = false;
                 UpdateTopics();
@@ -101,7 +101,7 @@ namespace UEToVS.Host.Link
         /// <summary>Live Coding was requested from VS: collect its output from now on (when the setting is on).</summary>
         public static void OnLiveCodingRequested()
         {
-            if (Subscription == null || _package?.Settings?.Effective?.LinkLiveCodingErrors != true) return;
+            if (Subscription == null || _package?.Settings?.Effective?.LiveCodingErrorsActive != true) return;
             if (_liveCodingWanted) return;
             _liveCodingWanted = true;
             UpdateTopics();
@@ -110,7 +110,7 @@ namespace UEToVS.Host.Link
         internal static void UpdateTopics()
         {
             if (Subscription == null) return;
-            bool liveCoding = _package?.Settings?.Effective?.LinkLiveCodingErrors == true && (_liveCodingWanted || _logWindow != null || _testsWindow != null);
+            bool liveCoding = _package?.Settings?.Effective?.LiveCodingErrorsActive == true && (_liveCodingWanted || _logWindow != null || _testsWindow != null);
             Subscription.SetTopic(LinkProtocol.TopicLog, _logWanted || _logWindow != null);
             Subscription.SetTopic(LinkProtocol.TopicTests, _testsWindow != null);
             Subscription.SetTopic(LinkProtocol.TopicLiveCoding, liveCoding);
@@ -188,7 +188,7 @@ namespace UEToVS.Host.Link
                     LogStore?.Add(log);
                     break;
                 case LiveCodingEvent lc:
-                    if (_package?.Settings?.Effective?.LinkLiveCodingErrors != true) return;
+                    if (_package?.Settings?.Effective?.LiveCodingErrorsActive != true) return;
                     if (lc.Phase == LiveCodingPhase.Started)
                     {
                         L.Info("link.liveCoding.started", null);

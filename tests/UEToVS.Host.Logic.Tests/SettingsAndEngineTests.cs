@@ -76,6 +76,21 @@ namespace UEToVS.Host.Logic.Tests
         }
 
         [Fact]
+        public void LiveCodingIsOffByDefault()
+        {
+            // v0.5.1: LiveCodingConsole can hold several GB, so UEToVS does not use Live Coding unless asked to
+            var d = new HostSettings();
+            Assert.False(d.LinkLiveCodingEnabled);
+            Assert.False(d.LiveCodingErrorsActive);
+            Assert.True(new HostSettings { LinkLiveCodingEnabled = true }.LiveCodingErrorsActive);
+            var schema = HostSettingsSchema.Build(8);
+            Assert.Equal("false", schema.Single(x => x.Key == "link.liveCoding").Default);
+            Assert.Equal("link.liveCoding", schema.Single(x => x.Key == "link.liveCodingErrors").EnabledWhenKey);
+            var back = HostSettingsSchema.Codec.FromValues(new Dictionary<string, string> { ["link.liveCoding"] = "true" }, schema, new HostSettings());
+            Assert.True(back.LinkLiveCodingEnabled);
+        }
+
+        [Fact]
         public void RetiredTakeoverSwitchMigratesToScopeOff()
         {
             Assert.Equal(nameof(IntelliSenseTakeoverMode.Off),
