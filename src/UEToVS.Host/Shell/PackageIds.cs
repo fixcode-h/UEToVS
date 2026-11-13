@@ -90,6 +90,8 @@ namespace UEToVS.Host.Shell
         public const string RestartEngine = "uetovs.engine.restart";
         public const string TakeOverIntelliSense = "uetovs.intellisense.takeOver";
         public const string RestoreIntelliSense = "uetovs.intellisense.restore";
+        /// <summary>v0.5.6 "恢复 VS 原样": every VS setting UEToVS changed goes back (before disabling / uninstalling).</summary>
+        public const string RestoreVsDefaults = "uetovs.vs.restoreAll";
         public const string ShowComponentGallery = "uetovs.ui.componentGallery";
         public const string Settings = "uetovs.settings.open";
         public const string FindAction = "uetovs.findAction";

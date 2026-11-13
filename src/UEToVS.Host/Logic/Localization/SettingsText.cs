@@ -38,6 +38,12 @@ namespace UEToVS.Host.Logic.Localization
         public static string RestartHint => Loc.T("重启 VS 后生效", "Takes effect after restarting VS");
         public static string ActionUnavailable => Loc.T("该功能尚未就绪（由其他模块提供）。", "Not available yet (provided by another module).");
         public static string Done => Loc.T("已完成", "Done");
+        public static string CmdRestoreVsDefaults => Loc.T("恢复 VS 原样（禁用 / 卸载前）", "Restore Visual Studio (before disabling / uninstalling)");
+        public static string RestoreVsDone(int keymapCommands) => Loc.T(
+            $"已恢复：C++ IntelliSense、浏览数据库、语义索引、后台代码分析、蓝图支持、VS 字体，以及 {keymapCommands} 个命令的快捷键。接管范围已设为“关闭”，现在可以禁用或卸载 UEToVS。",
+            $"Restored: C++ IntelliSense, browse database, semantic index, background code analysis, Blueprint support, VS fonts and the shortcuts of {keymapCommands} commands. The takeover scope is now Off; UEToVS can be disabled or uninstalled.");
+        public static string RestoreVsPartly(string failed) => Loc.T(
+            $"部分设置没能恢复：{failed}。详见日志 vs.restoreAll。", $"Some settings could not be restored: {failed}. See the log (vs.restoreAll).");
         public static string Failed => Loc.T("失败，详见日志", "Failed — see the log");
         public static string Requested => Loc.T("已请求，引擎正在后台处理", "Requested; the engine works on it in the background");
         public static string EngineNotConnected => Loc.T("引擎未连接（需要先打开 UE 解决方案）", "Engine not connected (open a UE solution first)");

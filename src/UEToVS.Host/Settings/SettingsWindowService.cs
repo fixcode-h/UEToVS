@@ -108,6 +108,8 @@ namespace UEToVS.Host.Settings
                     var report = svc.BackupExists ? await svc.RestoreAsync("settingsWindow") : await svc.TakeOverAsync("settingsWindow");
                     return report != null ? SettingsText.Done : SettingsText.Failed;
                 }
+                case HostSettingsSchema.WindowActions.RestoreVsDefaults:
+                    return await Shell.VsRestoreService.RunAsync(_package);
                 // ---- v0.5.4 联合编译（Horde / UBA）
                 case UEToVS.Host.Logic.Horde.HordeSettingsSchema.ApplyAction:
                     return await Horde.HordeFeature.ApplyAsync(_package.Settings.Effective, true, "button") ?? SettingsText.Done;

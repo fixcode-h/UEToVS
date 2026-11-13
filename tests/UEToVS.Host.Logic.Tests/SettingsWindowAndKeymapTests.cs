@@ -346,5 +346,31 @@ namespace UEToVS.Host.Logic.Tests
             foreach (var t in ToolbarButtons.All) Assert.InRange(t.CommandId, 0x0400, 0x04FF);
             Assert.Equal(CommandCatalog.All.Count, CommandCatalog.All.Select(c => c.Id).Distinct().Count());
         }
-    }
+    
+        [Fact]
+        public void KeymapOriginalsComeFromTheOldestBackupOfEachCommand()
+        {
+            var first = new KeymapPlanner.Backup { CreatedUtc = new DateTime(2026, 11, 12) };
+            first.Bindings["Edit.GoToDefinition"] = new[] { "Global::F12" };
+            first.Bindings["UEToVS.Search"] = new string[0];
+            var later = new KeymapPlanner.Backup { CreatedUtc = new DateTime(2026, 11, 13) };
+            later.Bindings["Edit.GoToDefinition"] = new string[0]; // after UEToVS took F12 away
+            later.Bindings["Edit.CompleteWord"] = new[] { "Text Editor::Alt+Right Arrow" };
+
+            var o = KeymapPlanner.Originals(new[] { later, null, first }); // order of the files does not matter
+            Assert.Equal(new[] { "Global::F12" }, o["Edit.GoToDefinition"]);
+            Assert.Empty(o["UEToVS.Search"]);
+            Assert.Equal(new[] { "Text Editor::Alt+Right Arrow" }, o["edit.completeword"]);
+            Assert.Empty(KeymapPlanner.Originals(null));
+        }
+
+        [Fact]
+        public void RestoreVsActionIsOnTheGeneralPage()
+        {
+            var d = HostSettingsSchema.Build(8).Single(x => x.Key == "vs.restoreAll");
+            Assert.Equal(HostSettingsSchema.WindowActions.RestoreVsDefaults, d.ActionId);
+            Assert.Equal(HostSettingsSchema.General, d.Category);
+            Assert.Equal("恢复", d.ActionLabel(false));
+        }
+}
 }

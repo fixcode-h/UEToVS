@@ -46,6 +46,8 @@ namespace UEToVS.Host.Actions
             registry.Register(new DelegateAction(ActionIds.RestoreIntelliSense, Strings.CmdRestoreIntelliSense, ActionCategory.Settings,
                 ctx => package.IntelliSense.RestoreAsync("command"), null,
                 ctx => package.IntelliSense.BackupExists ? 5 : 0, Strings.KwIntelliSense));
+            registry.Register(new DelegateAction(ActionIds.RestoreVsDefaults, SettingsText.CmdRestoreVsDefaults, ActionCategory.Settings,
+                async ctx => VsStatusBar.SetText(await Shell.VsRestoreService.RunAsync(package)), null, null, Strings.KwIntelliSense));
             registry.Register(new DelegateAction(ActionIds.ShowComponentGallery, Strings.CmdComponentGallery, ActionCategory.Diagnostics,
                 ctx => ShowGalleryAsync(), null, null, Strings.KwGallery));
             registry.Register(new DelegateAction(ActionIds.Settings, Strings.CmdSettings, ActionCategory.Settings,
