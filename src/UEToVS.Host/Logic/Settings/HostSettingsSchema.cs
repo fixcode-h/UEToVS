@@ -402,7 +402,7 @@ namespace UEToVS.Host.Logic.Settings
                 "On demand (command / this page / MCP run_project_inspection) runs the squiggle UE rules over all project sources; results go to .vs\\UEToVS\\inspections. May use a lot of CPU/memory; when off it cannot run.",
                 "true", gInsp, gInspEn));
             list.Add(D(Inspection, "inspection.includePlugins", SettingKind.Bool, "包含项目插件", "Include project plugins",
-                "同时检查项目 Plugins 目录下的源码（文件更多，耗时更长）。", "Also inspects sources under the project's Plugins folder (more files, takes longer).", "false", gInsp, gInspEn));
+                "同时检查项目 Plugins 目录下的源码（文件更多，耗时更长）。", "Also inspects sources under the project's Plugins folder (more files, takes longer).", "true", gInsp, gInspEn));
             list.Add(A(Inspection, "inspection.run", "uetovs.inspection.run", "运行全项目检查", "Run whole-project inspection",
                 "在后台低优先级线程上运行（线程数同 C++ 索引），可随时取消。", "Runs on low-priority background threads (as many as C++ indexing), cancellable at any time.", gInsp, gInspEn));
             list.Add(A(Inspection, "inspection.results", "uetovs.inspection.show", "查看结果", "Show results", null, null, gInsp, gInspEn));

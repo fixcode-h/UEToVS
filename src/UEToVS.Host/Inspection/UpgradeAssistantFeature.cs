@@ -62,7 +62,7 @@ namespace UEToVS.Host.Inspection
                 VsStatusBar.SetText(HeavyFeatureStrings.EngineUnavailable);
                 return;
             }
-            bool plugins = package.Settings?.Effective.InspectionIncludePlugins ?? false;
+            bool plugins = package.Settings?.Effective.InspectionIncludePlugins ?? true;
             var r = await engine.DeprecationScanAsync(new DeprecationScanRequest { Action = HeavyJobAction.Start, IncludePlugins = plugins }, package.DisposalToken);
             if (r.Status != EngineCallStatus.Ok || r.Value == null)
             {
