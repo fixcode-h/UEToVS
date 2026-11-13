@@ -222,12 +222,20 @@ namespace UEToVS.Host.Logic.Settings
                 "true", gLink, gLinkEn));
             var liveCoding = D(General, "link.liveCoding", SettingKind.Bool, "启用 Live Coding 联动", "Enable Live Coding integration",
                 "允许在 VS 中用“Live Coding（UE 编辑器）”命令（Ctrl+Alt+F11）让编辑器执行 Live Coding 编译。默认关闭：Live Coding 会启动 UE 的 LiveCodingConsole 进程，占用内存较多（大型项目可达数 GB）。" +
-                "UE 自己启动的 LiveCodingConsole 不受此项影响，可在 UE 的 编辑器偏好设置 > 通用 > Live Coding 里关闭“启用 Live Coding”。",
+                "编辑器启动时自动拉起的 LiveCodingConsole 由下面的“UE 编辑器启动时不启动 Live Coding”控制。",
                 "Lets the “Live Coding (Unreal Editor)” command (Ctrl+Alt+F11) ask the editor for a Live Coding compile. Off by default: Live Coding starts UE's LiveCodingConsole process, which uses a lot of memory (several GB on large projects). " +
-                "A LiveCodingConsole started by UE itself is not affected; turn off “Enable Live Coding” under Editor Preferences > General > Live Coding in UE.",
+                "The LiveCodingConsole the editor starts at launch is controlled by “Don't start Live Coding with the UE editor” below.",
                 "false", gLink, gLinkEn);
             liveCoding.Keywords = "live coding livecoding hot reload 热重载 内存 memory LiveCodingConsole";
             list.Add(liveCoding);
+            var lcManual = D(General, "link.ueLiveCodingManual", SettingKind.Bool, "UE 编辑器启动时不启动 Live Coding", "Don't start Live Coding with the UE editor",
+                "UE 默认在编辑器启动时就拉起 LiveCodingConsole，大型项目可占用数 GB 内存，即使从不用 Live Coding。打开此项时，UEToVS 在打开 UE 解决方案时把项目的 Live Coding 启动方式改为“手动”" +
+                "（Saved/Config/WindowsEditor/EditorPerProjectUserSettings.ini，修改前备份）：控制台在第一次 Live Coding 编译时才启动，Ctrl+Alt+F11 照常可用。下次启动编辑器生效；关闭此项或“恢复 VS 原样”会还原。",
+                "UE starts LiveCodingConsole with the editor by default, which can hold several GB on large projects even if Live Coding is never used. With this on, opening a UE solution sets the project's Live Coding startup to “Manual” " +
+                "(Saved/Config/WindowsEditor/EditorPerProjectUserSettings.ini, backed up first): the console starts on the first Live Coding compile and Ctrl+Alt+F11 still works. Takes effect at the next editor start; turning this off or “Restore Visual Studio” puts it back.",
+                "true", gLink, gLinkEn);
+            lcManual.Keywords = "live coding livecoding LiveCodingConsole 内存 memory startup 启动 manual 手动";
+            list.Add(lcManual);
             var lcErrors = D(General, "link.liveCodingErrors", SettingKind.Bool, "Live Coding 错误映射到 VS", "Report Live Coding errors in VS",
                 "从编辑器收集 Live Coding 的编译输出，把错误交给 VS 显示（状态栏 / 信息栏，跳到第一个错误）。需要先启用 Live Coding 联动。",
                 "Collects the Live Coding compiler output from the editor and reports its errors in VS (status bar / info bar, go to the first error). Needs the Live Coding integration.",
@@ -543,6 +551,7 @@ namespace UEToVS.Host.Logic.Settings
                     ["link.logKeepReceiving"] = B(s.LinkLogKeepReceiving),
                     ["link.liveCoding"] = B(s.LinkLiveCodingEnabled),
                     ["link.liveCodingErrors"] = B(s.LinkLiveCodingErrors),
+                    ["link.ueLiveCodingManual"] = B(s.UeLiveCodingManualStartup),
                     ["indexing.cppThreads"] = I(s.CppIndexThreads),
                     ["indexing.blueprintThreads"] = I(s.BlueprintIndexThreads),
                     ["indexing.duringBuild"] = s.IndexDuringBuild.ToString(),
@@ -670,6 +679,7 @@ namespace UEToVS.Host.Logic.Settings
                         case "link.logKeepReceiving": s.LinkLogKeepReceiving = PB(v); break;
                         case "link.liveCoding": s.LinkLiveCodingEnabled = PB(v); break;
                         case "link.liveCodingErrors": s.LinkLiveCodingErrors = PB(v); break;
+                        case "link.ueLiveCodingManual": s.UeLiveCodingManualStartup = PB(v); break;
                         case "indexing.cppThreads": s.CppIndexThreads = PI(v, 0); break;
                         case "indexing.blueprintThreads": s.BlueprintIndexThreads = PI(v, 0); break;
                         case "indexing.duringBuild": s.IndexDuringBuild = PE(v, IndexDuringBuild.SingleThread); break;

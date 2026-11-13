@@ -18,7 +18,7 @@ namespace UEToVS.Host.Shell
     /// <summary>
     /// "恢复 VS 原样": VS never tells an extension that it is being disabled or uninstalled, so the VS settings UEToVS
     /// changed (C++ IntelliSense / browse database / semantic index, background code analysis, Blueprint support, VS fonts,
-    /// shortcuts) would stay changed afterwards. This restores all of them from their backups, then sets the takeover scope
+    /// shortcuts, the UE project's Live Coding startup) would stay changed afterwards. This restores all of them from their backups, then sets the takeover scope
     /// to Off and stops managing VS fonts so nothing is applied again. Restores run first and the settings change after, so
     /// the settings-changed handlers find no backup left and do not race the restore.
     /// </summary>
@@ -39,6 +39,11 @@ namespace UEToVS.Host.Shell
                 await StepAsync("codeAnalysis", failed, () => svc.RestoreBackgroundCodeAnalysisAsync("restoreAll"));
                 await StepAsync("vsBlueprint", failed, () => svc.RestoreVsBlueprintSupportAsync("restoreAll"));
             }
+
+            await StepAsync("ueLiveCoding", failed, async () =>
+            {
+                if (!await Link.UeLiveCodingStartupService.RestoreAllAsync("restoreAll")) throw new IOException("Live Coding startup restore failed");
+            });
 
             var fonts = package.Fonts;
             if (fonts != null)
@@ -67,6 +72,7 @@ namespace UEToVS.Host.Shell
             var values = package.Settings.UserValues();
             values["intelliSense.mode"] = nameof(IntelliSenseTakeoverMode.Off);
             values[FontSettingsSchema.ManageVsKey] = "false";
+            values["link.ueLiveCodingManual"] = "false";
             package.Settings.ApplyUserValues(values, "restoreAll");
 
             L.Info("vs.restoreAll.done", null, ("keymapCommands", keymap), ("failed", failed));
