@@ -8,10 +8,10 @@ using UEToVS.Host.Logic.Performance;
 namespace UEToVS.Host.Diagnostics
 {
     /// <summary>
-    /// Walks devenv's own address space (VirtualQuery) and its native heaps (GetProcessHeaps + HeapSummary) into a
+    /// Walks devenv's own address space (VirtualQuery) into a
     /// <see cref="HostMemoryMap"/>. Background thread only. A walk is a few thousand to a few tens of thousands of
     /// VirtualQuery calls (≈10–30 ms) plus one GetMappedFileName per DLL / mapped file; nothing is kept between walks
-    /// except the name cache. HeapSummary only reads each heap's segment totals (no per-block walk).
+    /// except the name cache. Nothing here takes a heap lock.
     /// </summary>
     internal static class ProcessMemoryMap
     {
@@ -53,7 +53,9 @@ namespace UEToVS.Host.Diagnostics
                     foreach (var k in new List<long>(NameCache.Keys))
                         if (!seen.Contains(k)) NameCache.Remove(k);
             }
-            var map = HostMemoryMap.Build(regions, Heaps(), managedBytes);
+            // No per-heap split (HeapSummary): it holds each heap's lock while it walks every block, and on a 7 GB default
+            // process heap that froze every thread allocating from it, VS's UI thread included (v0.5.7).
+            var map = HostMemoryMap.Build(regions, null, managedBytes);
             map.WalkMs = sw.Elapsed.TotalMilliseconds;
             return map;
         }
@@ -63,38 +65,9 @@ namespace UEToVS.Host.Diagnostics
             if (NameCache.TryGetValue(allocBase, out string name)) return name;
             var sb = new StringBuilder(520);
             int n = GetMappedFileNameW(process, new IntPtr(allocBase), sb, sb.Capacity);
-            name = n > 0 ? HostMemoryMap.ShortName(sb.ToString(0, n)) : "?";
+            name = n > 0 ? HostMemoryMap.ShortName(sb.ToString(0, n)) : null; // no file: pagefile-backed shared memory
             NameCache[allocBase] = name;
             return name;
-        }
-
-        private static List<NativeHeapInfo> Heaps()
-        {
-            var list = new List<NativeHeapInfo>();
-            try
-            {
-                int count = GetProcessHeaps(0, null);
-                if (count <= 0) return list;
-                var handles = new IntPtr[count + 16];
-                count = GetProcessHeaps(handles.Length, handles);
-                long defaultHeap = GetProcessHeap().ToInt64();
-                for (int i = 0; i < count && i < handles.Length; i++)
-                {
-                    var s = new HeapSummaryInfo { cb = Marshal.SizeOf(typeof(HeapSummaryInfo)) };
-                    if (!HeapSummary(handles[i], 0, ref s)) continue;
-                    list.Add(new NativeHeapInfo
-                    {
-                        Handle = handles[i].ToInt64(),
-                        IsDefault = handles[i].ToInt64() == defaultHeap,
-                        CommittedBytes = s.cbCommitted.ToInt64(),
-                        AllocatedBytes = s.cbAllocated.ToInt64(),
-                    });
-                }
-            }
-            catch (Exception) // EntryPointNotFound on very old Windows, access errors: no heap split
-            {
-            }
-            return list;
         }
 
         // ---------------------------------------------------------------- Win32
@@ -116,16 +89,6 @@ namespace UEToVS.Host.Diagnostics
             public int Type;
         }
 
-        [StructLayout(LayoutKind.Sequential)]
-        private struct HeapSummaryInfo
-        {
-            public int cb;
-            public IntPtr cbAllocated;
-            public IntPtr cbCommitted;
-            public IntPtr cbReserved;
-            public IntPtr cbMaxReserve;
-        }
-
         [DllImport("kernel32.dll")]
         private static extern IntPtr GetCurrentProcess();
 
@@ -134,14 +97,5 @@ namespace UEToVS.Host.Diagnostics
 
         [DllImport("kernel32.dll", CharSet = CharSet.Unicode, EntryPoint = "K32GetMappedFileNameW")]
         private static extern int GetMappedFileNameW(IntPtr process, IntPtr address, StringBuilder name, int size);
-
-        [DllImport("kernel32.dll")]
-        private static extern int GetProcessHeaps(int count, [Out] IntPtr[] heaps);
-
-        [DllImport("kernel32.dll")]
-        private static extern IntPtr GetProcessHeap();
-
-        [DllImport("kernel32.dll")]
-        private static extern bool HeapSummary(IntPtr heap, int flags, ref HeapSummaryInfo summary);
     }
 }

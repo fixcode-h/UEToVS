@@ -64,6 +64,9 @@ namespace UEToVS.Host.Logic.Performance
         public IReadOnlyList<NamedBytes> TopMapped { get; set; } = Array.Empty<NamedBytes>();
 
         /// <summary>Builds the map from committed regions, the process heaps and the managed heap size.</summary>
+        /// <summary>Owner of regions without a file (pagefile-backed shared memory sections, or a name that could not be read).</summary>
+        public const string Unnamed = "";
+
         public static HostMemoryMap Build(IEnumerable<MemoryRegion> regions, IEnumerable<NativeHeapInfo> heaps, long managedBytes, int top = 8)
         {
             var map = new HostMemoryMap { TakenUtc = DateTime.UtcNow };
@@ -106,7 +109,7 @@ namespace UEToVS.Host.Logic.Performance
 
         private static void Add(Dictionary<string, long> d, string name, long bytes)
         {
-            name = string.IsNullOrEmpty(name) ? "?" : name;
+            name = string.IsNullOrEmpty(name) ? Unnamed : name;
             d.TryGetValue(name, out long v);
             d[name] = v + bytes;
         }

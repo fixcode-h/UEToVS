@@ -24,7 +24,7 @@ namespace UEToVS.Host.Diagnostics
     {
         private static readonly Logger L = Log.For("Diagnostics");
 
-        public long ThresholdBytes { get; set; } = 2L * 1024 * 1024 * 1024;
+        public long ThresholdBytes { get; set; } = 1L * 1024 * 1024 * 1024;
 
         /// <summary>The last spike of this session (shown by the performance panel), or null.</summary>
         public static HostMemorySpike Last { get; private set; }
