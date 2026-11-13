@@ -166,6 +166,7 @@ namespace UEToVS.Host.Logic.Fonts
             UiLatin = FontChoice.Parse(s.UiLatinFont),
             UiCjk = FontChoice.Parse(s.UiCjkFont),
             Code = FontChoice.Parse(s.CodeFont),
+            Custom = FontSettings.NormalizeCustom(s.CustomFont),
         };
 
         /// <summary>

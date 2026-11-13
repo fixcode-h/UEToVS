@@ -324,6 +324,9 @@ namespace UEToVS.Host.Logic.Settings
         /// <summary>代码字体: code previews, and the VS categories set to "同代码字体".</summary>
         public string CodeFont { get; set; } = UEToVS.UI.Logic.FontSettings.DefaultCode.ToString();
 
+        /// <summary>自定义字体: installed family names (comma separated) put before 英文字体 / 中文字体 in the UI font; empty = none.</summary>
+        public string CustomFont { get; set; } = string.Empty;
+
         /// <summary>由 UEToVS 管理 VS 字体: write the VS font categories below (backed up first; off restores them).</summary>
         public bool ManageVsFonts { get; set; } = true;
 

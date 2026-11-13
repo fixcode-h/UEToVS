@@ -12,13 +12,13 @@ namespace UEToVS.UI.Theming
         private FontSettings _fonts = new FontSettings();
 
         /// <summary>The font choices in effect.</summary>
-        public FontSettings Fonts => new FontSettings { UiLatin = _fonts.UiLatin, UiCjk = _fonts.UiCjk, Code = _fonts.Code };
+        public FontSettings Fonts => new FontSettings { UiLatin = _fonts.UiLatin, UiCjk = _fonts.UiCjk, Code = _fonts.Code, Custom = _fonts.Custom };
 
         /// <summary>Applies new font choices (host: at startup and when the settings window applies) and rebuilds once.</summary>
         public void SetFonts(FontSettings fonts)
         {
             var f = fonts ?? new FontSettings();
-            _fonts = new FontSettings { UiLatin = f.UiLatin, UiCjk = f.UiCjk, Code = f.Code };
+            _fonts = new FontSettings { UiLatin = f.UiLatin, UiCjk = f.UiCjk, Code = f.Code, Custom = f.Custom };
             Rebuild("fonts");
         }
 

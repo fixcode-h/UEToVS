@@ -72,6 +72,17 @@ namespace UEToVS.UI.Logic.Tests
         }
 
         [Fact]
+        public void CustomFontsComeFirstAndAreSanitized()
+        {
+            Assert.Equal("Sarasa Gothic SC, LXGW WenKai", FontSettings.NormalizeCustom(" 'Sarasa Gothic SC' , ;LXGW WenKai#, , sarasa gothic sc"));
+            Assert.Equal(string.Empty, FontSettings.NormalizeCustom("  , ''"));
+            var refs = new FontSettings { Custom = "Sarasa Gothic SC" }.ComposeUi("Segoe UI");
+            Assert.Equal("Sarasa Gothic SC, ./IBMPlexSans/#IBM Plex Sans, ./NotoSansSC/#Noto Sans SC, Segoe UI", FontSettings.ToWpfFamilyList(refs));
+            var followVs = new FontSettings { UiLatin = FontChoice.FollowVs, UiCjk = FontChoice.FollowVs, Custom = "Sarasa Gothic SC" };
+            Assert.Equal("Sarasa Gothic SC, Segoe UI", FontSettings.ToWpfFamilyList(followVs.ComposeUi("Segoe UI")));
+        }
+
+        [Fact]
         public void UiFontFollowingVsIsEmptyAndPartialFollowUsesVsFont()
         {
             var both = new FontSettings { UiLatin = FontChoice.FollowVs, UiCjk = FontChoice.FollowVs };
