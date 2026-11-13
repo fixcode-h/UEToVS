@@ -16,7 +16,8 @@ namespace UEToVS.Host.Update
     /// "检查更新" in the settings window. One state for the whole VS process (<see cref="State"/>, <see cref="Changed"/>):
     /// the button first asks GitHub for the latest release (检查); when a newer one exists it shows the version and size and
     /// becomes "下载并安装", which downloads the VSIX to %TEMP%\UEToVS\Updates with live progress (the button is "取消"
-    /// meanwhile) and starts VS's own VSIXInstaller (next to devenv.exe), which asks to close VS and then installs.
+    /// meanwhile) and starts VS's own VSIXInstaller (next to devenv.exe, detached from devenv: <see cref="InstallerLauncher"/>),
+    /// which asks to close VS and then installs.
     /// A download that receives nothing for <see cref="StallSeconds"/> seconds is stopped instead of hanging; every step and
     /// every failure is logged (update.*). Nothing runs in the background or at startup.
     /// </summary>
@@ -269,6 +270,7 @@ namespace UEToVS.Host.Update
         private static void StartInstaller(string file, ReleaseInfo latest)
         {
             string installer = InstallerPath();
+            string method = "explorer";
             if (installer == null)
             {
                 L.Warn("update.installer.missing", "VSIXInstaller.exe not found next to devenv.exe; showing the downloaded file");
@@ -277,10 +279,11 @@ namespace UEToVS.Host.Update
             else
             {
                 // VSIXInstaller.exe directly (not the .vsix file association, which goes through VSLauncher.exe: a console
-                // program that opens an empty terminal window when Windows Terminal is the default terminal).
-                Process.Start(new ProcessStartInfo(installer, "\"" + file + "\"") { UseShellExecute = false, CreateNoWindow = true });
+                // program that opens an empty terminal window when Windows Terminal is the default terminal), and detached
+                // from devenv: as a plain child it went down with VS when the user closed VS for the install (v0.5.16).
+                method = InstallerLauncher.Start(installer, file).ToString();
             }
-            L.Info("update.install.started", null, ("version", latest.Version.ToString()), ("installer", installer ?? "shell"));
+            L.Info("update.install.started", null, ("version", latest.Version.ToString()), ("installer", installer ?? "shell"), ("method", method));
         }
 
         /// <summary>Opens the release page of the found version (or the releases list) in the browser.</summary>
@@ -314,7 +317,7 @@ namespace UEToVS.Host.Update
 
         private static bool IsNetworkError(Exception ex) =>
             ex is HttpRequestException || ex is IOException || ex is UnauthorizedAccessException || ex is System.ComponentModel.Win32Exception || ex is WebException
-            || ex is InvalidOperationException;
+            || ex is InvalidOperationException || ex is System.Management.ManagementException || ex is System.Runtime.InteropServices.COMException;
 
         /// <summary>The innermost message ("无法解析此远程名称" beats "发送请求时出错").</summary>
         private static string Innermost(Exception ex)
