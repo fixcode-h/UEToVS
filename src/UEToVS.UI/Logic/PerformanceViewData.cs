@@ -19,6 +19,10 @@ namespace UEToVS.UI.Perf
         public double HostMemoryBudgetBytes { get; set; }
         /// <summary>Optional secondary line of the host memory tile (e.g. delta since load / managed heap), host-localized.</summary>
         public string HostMemoryDetail { get; set; }
+        /// <summary>What the host process memory is made of (kinds, then the largest heaps / DLLs / files); null hides the section.</summary>
+        public IReadOnlyList<HostMemoryRowView> HostMemoryRows { get; set; }
+        /// <summary>Optional line under the breakdown (last memory jump and the busiest modules), host-localized.</summary>
+        public string HostMemoryNote { get; set; }
         /// <summary>Engine CPU, 0–100 % of the machine.</summary>
         public double CpuPercent { get; set; } = double.NaN;
 
@@ -76,6 +80,17 @@ namespace UEToVS.UI.Perf
         public long ManagedBytes { get; set; }
         public long MappedBytes { get; set; }
         public long DiskBytes { get; set; }
+    }
+
+    public sealed class HostMemoryRowView
+    {
+        public string Name { get; set; }
+        public long Bytes { get; set; }
+        /// <summary>0..1 of the process total.</summary>
+        public double Share { get; set; }
+        public string Detail { get; set; }
+        /// <summary>A part of the kind row above it (heap, DLL, file).</summary>
+        public bool IsChild { get; set; }
     }
 
     public sealed class OperationView

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using UEToVS.Contracts;
+using UEToVS.Core.Localization;
 using UEToVS.Host.Logic.Localization;
 using UEToVS.UI.Logic;
 using UEToVS.UI.Perf;
@@ -17,6 +18,50 @@ namespace UEToVS.Host.Logic.Performance
     /// </summary>
     public static class PerformanceViewMapper
     {
+        /// <summary>Kind rows (largest first), each followed by its largest heaps / DLLs / files.</summary>
+        public static List<HostMemoryRowView> HostMemoryRows(HostMemoryMap m)
+        {
+            var rows = new List<HostMemoryRowView>();
+            if (m == null) return rows;
+            double total = Math.Max(1, m.PrivateCommitBytes + m.ImageBytes + m.MappedBytes);
+            HostMemoryRowView Row(string name, long bytes, string detail, bool child) =>
+                new HostMemoryRowView { Name = name, Bytes = bytes, Share = bytes / total, Detail = detail, IsChild = child };
+
+            var kinds = new List<(long Bytes, Action Add)>
+            {
+                (m.NativeHeapBytes, () =>
+                {
+                    rows.Add(Row(Strings.MemKindNativeHeap, m.NativeHeapBytes, Strings.MemKindNativeHeapDetail(m.Heaps.Count), false));
+                    foreach (var h in m.Heaps.Where(h => h.CommittedBytes >= 16L << 20).Take(4))
+                        rows.Add(Row(h.IsDefault ? Strings.MemDefaultHeap : Strings.MemHeap("0x" + h.Handle.ToString("x", CultureInfo.InvariantCulture)),
+                            h.CommittedBytes, Strings.MemHeapDetail(Size(h.AllocatedBytes)), true));
+                }),
+                (m.OtherPrivateBytes, () => rows.Add(Row(Strings.MemKindOtherPrivate, m.OtherPrivateBytes, Strings.MemKindOtherPrivateDetail, false))),
+                (m.ManagedBytes, () => rows.Add(Row(Strings.MemKindManaged, m.ManagedBytes, Strings.MemKindManagedDetail, false))),
+                (m.ImageBytes, () =>
+                {
+                    rows.Add(Row(Strings.MemKindImage, m.ImageBytes, Strings.MemKindImageDetail, false));
+                    foreach (var x in m.TopImages.Take(5)) rows.Add(Row(x.Name, x.Bytes, null, true));
+                }),
+                (m.MappedBytes, () =>
+                {
+                    rows.Add(Row(Strings.MemKindMapped, m.MappedBytes, Strings.MemKindMappedDetail, false));
+                    foreach (var x in m.TopMapped.Where(x => x.Bytes >= 1L << 20).Take(5)) rows.Add(Row(x.Name, x.Bytes, null, true));
+                }),
+            };
+            foreach (var k in kinds.OrderByDescending(k => k.Bytes)) k.Add();
+            return rows;
+        }
+
+        public static string SpikeNote(HostMemorySpike s)
+        {
+            if (s == null) return Strings.MemSpikeNone;
+            string modules = s.BusyModules == null || s.BusyModules.Count == 0
+                ? "?"
+                : string.Join(Loc.IsEnglish ? ", " : "、", s.BusyModules.Select(kv => kv.Key + (Loc.IsEnglish ? " (" + kv.Value.ToString("0.#", CultureInfo.InvariantCulture) + " s)" : "（" + kv.Value.ToString("0.#", CultureInfo.InvariantCulture) + " 秒）")));
+            return Strings.MemSpikeNote(s.TakenUtc.ToLocalTime().ToString("HH:mm", CultureInfo.InvariantCulture), "+" + Size(s.DeltaBytes), modules);
+        }
+
         public static PerformanceViewData Map(PerformanceData d)
         {
             var v = new PerformanceViewData { SampleIntervalSeconds = 1 };
@@ -27,6 +72,11 @@ namespace UEToVS.Host.Logic.Performance
             {
                 v.HostMemoryBytes = d.Host.PrivateBytes;
                 v.HostMemoryDetail = Strings.PerfViewHostMemoryDetail(SignedMb(d.Host.PrivateBytesDelta), Mb(d.Host.ManagedHeapBytes));
+            }
+            if (d.HostMemory != null)
+            {
+                v.HostMemoryRows = HostMemoryRows(d.HostMemory);
+                v.HostMemoryNote = SpikeNote(d.HostSpike);
             }
             v.HostMemoryHistory = (d.HostHistory ?? Array.Empty<HostResourceSample>())
                 .Where(h => h != null).Select(h => (double)h.PrivateBytes).ToArray();
@@ -160,6 +210,10 @@ namespace UEToVS.Host.Logic.Performance
         };
 
         private static string Mb(long bytes) => (bytes / 1048576.0).ToString("F1", CultureInfo.InvariantCulture) + " MB";
+
+        private static string Size(long bytes) => bytes >= 1L << 30
+            ? (bytes / 1073741824.0).ToString("F2", CultureInfo.InvariantCulture) + " GB"
+            : Mb(bytes);
 
         private static string SignedMb(long bytes) => (bytes >= 0 ? "+" : "") + Mb(bytes);
     }

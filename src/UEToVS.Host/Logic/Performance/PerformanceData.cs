@@ -36,6 +36,12 @@ namespace UEToVS.Host.Logic.Performance
 
         public HostResourceSample Host { get; set; }
 
+        /// <summary>What devenv's memory is made of (refreshed every few seconds), or null before the first walk.</summary>
+        public HostMemoryMap HostMemory { get; set; }
+
+        /// <summary>The last devenv memory jump of this session, or null.</summary>
+        public HostMemorySpike HostSpike { get; set; }
+
         /// <summary>Recent host samples, oldest first (≈1/s, up to 10 minutes).</summary>
         public IReadOnlyList<HostResourceSample> HostHistory { get; set; } = new HostResourceSample[0];
 

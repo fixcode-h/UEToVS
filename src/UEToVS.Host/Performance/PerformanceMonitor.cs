@@ -26,6 +26,12 @@ namespace UEToVS.Host.Performance
         private int _subscribers;
         private int _ticking;
         private int _engineFailures;
+        private HostMemoryMap _memoryMap;
+        private DateTime _memoryMapUtc;
+        private bool _memoryMapLogged;
+
+        /// <summary>How often the address space is walked for the memory breakdown (each walk ≈10–30 ms on a background thread).</summary>
+        public static readonly TimeSpan MemoryMapInterval = TimeSpan.FromSeconds(5);
 
         public PerformanceMonitor(Func<EngineClient> engine)
         {
@@ -97,6 +103,8 @@ namespace UEToVS.Host.Performance
             _history.Add(data.Host);
             data.HostHistory = _history.ToArray();
             data.HostOperations = PerformanceDataBuilder.FromLatency(Log.LatencySinceStart.Snapshot());
+            data.HostMemory = MemoryMap(data.Host.ManagedHeapBytes);
+            data.HostSpike = UEToVS.Host.Diagnostics.MemorySpikeProbe.Last;
 
             var engine = _engine?.Invoke();
             data.EngineState = engine?.State.ToString() ?? "None";
@@ -150,6 +158,32 @@ namespace UEToVS.Host.Performance
                 Interlocked.Exchange(ref _ticking, 0);
             }
         }
+
+        private HostMemoryMap MemoryMap(long managedBytes)
+        {
+            if (_memoryMap != null && DateTime.UtcNow - _memoryMapUtc < MemoryMapInterval) return _memoryMap;
+            _memoryMapUtc = DateTime.UtcNow;
+            try
+            {
+                _memoryMap = UEToVS.Host.Diagnostics.ProcessMemoryMap.Take(managedBytes);
+                if (!_memoryMapLogged)
+                {
+                    _memoryMapLogged = true;
+                    L.Info("perf.memoryMap", "devenv memory breakdown (first walk of the session)",
+                           ("privateMB", Mb(_memoryMap.PrivateCommitBytes)), ("managedMB", Mb(_memoryMap.ManagedBytes)),
+                           ("nativeHeapMB", Mb(_memoryMap.NativeHeapBytes)), ("heaps", _memoryMap.Heaps.Count),
+                           ("otherPrivateMB", Mb(_memoryMap.OtherPrivateBytes)), ("imageMB", Mb(_memoryMap.ImageBytes)),
+                           ("mappedMB", Mb(_memoryMap.MappedBytes)), ("regions", _memoryMap.RegionCount), ("walkMs", Math.Round(_memoryMap.WalkMs, 1)));
+                }
+            }
+            catch (Exception ex)
+            {
+                L.Debug("perf.memoryMap.failed", ex.GetType().Name + ": " + ex.Message);
+            }
+            return _memoryMap;
+        }
+
+        private static double Mb(long bytes) => Math.Round(bytes / 1048576.0, 1);
 
         private HostResourceSample SampleHost()
         {

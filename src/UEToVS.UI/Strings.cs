@@ -127,6 +127,10 @@ namespace UEToVS.UI
         public static string PerfColItems => Loc.T("条目数", "Items");
         public static string PerfColDetail => Loc.T("详情", "Details");
         public static string PerfMemory => Loc.T("索引内存构成", "Index memory");
+        public static string PerfHostBreakdown => Loc.T("VS 进程内存构成", "VS process memory breakdown");
+        public static string PerfColItem => Loc.T("项", "Item");
+        public static string PerfColSize => Loc.T("大小", "Size");
+        public static string PerfColShare => Loc.T("占比", "Share");
         public static string PerfMemManaged => Loc.T("托管", "Managed");
         public static string PerfMemMapped => Loc.T("映射", "Mapped");
         public static string PerfMemDisk => Loc.T("磁盘", "Disk");
