@@ -88,6 +88,13 @@ namespace UEToVS.Mcp.Tests
                 Assert.Equal(t.Name != "rename_symbol", t.ProtocolTool.Annotations.ReadOnlyHint);
                 Assert.False(string.IsNullOrWhiteSpace(t.Description));
                 Assert.True(t.Description.Length < 1200, t.Name + " description is long: " + t.Description.Length);
+                // Display names for people (Agent Panel shows them on tool calls): English title plus _meta.titles zh/en.
+                Assert.False(string.IsNullOrWhiteSpace(t.ProtocolTool.Title));
+                Assert.NotNull(ToolTitles.Chinese(t.Name));
+                var titles = t.ProtocolTool.Meta?["titles"];
+                Assert.NotNull(titles);
+                Assert.Equal(ToolTitles.Chinese(t.Name), (string)titles["zh"]);
+                Assert.Equal(t.ProtocolTool.Title, (string)titles["en"]);
             }
 
             var result = await c.CallToolAsync("search_symbols", new Dictionary<string, object> { ["query"] = "MyHero", ["limit"] = 5 });
