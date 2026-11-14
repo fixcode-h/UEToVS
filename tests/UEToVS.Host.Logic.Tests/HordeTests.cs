@@ -286,5 +286,64 @@ namespace UnrealBuildTool {
             Assert.Contains("5.5", text);
             Assert.Contains("computePort=0", text);
         }
+    
+        [Fact]
+        public void LocalCoresStillApplyWhenUbaIsTurnedOnElsewhere()
+        {
+            var off = new HostSettings { HordeEnabled = false, HordeLocalCores = 6, HordeServer = "http://horde:13340" };
+            var plan = HordeConfigPlan.Build(off, 32, null, ubaElsewhere: true);
+            Assert.Equal(6, plan.LocalCores);
+            Assert.Equal(new[] { "BuildConfiguration/MaxParallelActions=6" }, plan.Entries.Where(e => e.Value != null).Select(e => e.ToString()));
+
+            var auto = HordeConfigPlan.Build(new HostSettings { HordeEnabled = false }, 32, null, ubaElsewhere: true);
+            Assert.Equal(8, auto.LocalCores);
+
+            var none = HordeConfigPlan.Build(off, 32, null, ubaElsewhere: false);
+            Assert.Equal(0, none.LocalCores);
+            Assert.All(none.Entries, e => Assert.Null(e.Value));
+        }
+
+        [Fact]
+        public void UbaTurnedOnByAnotherFileIsFound()
+        {
+            string engineFile = Path.Combine(_dir, "engine.xml");
+            string userFile = Path.Combine(_dir, "user.xml");
+            string docsFile = Path.Combine(_dir, "docs.xml");
+            const string head = "<?xml version='1.0' encoding='utf-8'?>\n<Configuration xmlns=\"https://www.unrealengine.com/BuildConfiguration\">\n";
+            File.WriteAllText(engineFile, head + "</Configuration>\n");
+            File.WriteAllText(userFile, head + "  <BuildConfiguration>\n    <bAllowUBAExecutor>true</bAllowUBAExecutor>\n  </BuildConfiguration>\n  <!-- hand-made -->\n</Configuration>\n");
+            var files = new[]
+            {
+                new HordeLocations.ConfigFile(HordeLocations.Level.Engine, engineFile),
+                new HordeLocations.ConfigFile(HordeLocations.Level.UserAppData, userFile),
+            };
+
+            var found = EffectiveBuildConfiguration.UbaTurnedOnElsewhere(files, engineFile);
+            Assert.NotNull(found);
+            Assert.Equal(userFile, found.SourceFile);
+
+            // The file UEToVS writes does not count.
+            Assert.Null(EffectiveBuildConfiguration.UbaTurnedOnElsewhere(files, userFile));
+
+            // A later file that turns it off wins.
+            File.WriteAllText(docsFile, head + "  <BuildConfiguration>\n    <bAllowUBAExecutor>false</bAllowUBAExecutor>\n  </BuildConfiguration>\n</Configuration>\n");
+            var withDocs = files.Append(new HordeLocations.ConfigFile(HordeLocations.Level.Documents, docsFile));
+            Assert.Null(EffectiveBuildConfiguration.UbaTurnedOnElsewhere(withDocs, engineFile));
+        }
+
+        [Fact]
+        public void StatusTextNamesUbaTurnedOnElsewhere()
+        {
+            var snap = new HordeStatusSnapshot
+            {
+                Enabled = false, LocalCores = 8, LogicalCores = 32,
+                UbaElsewhere = new EffectiveValue { Value = "true", SourceFile = @"C:\Users\me\AppData\Roaming\Unreal Engine\UnrealBuildTool\BuildConfiguration.xml" },
+                MaxParallelActions = new EffectiveValue { Value = "8", SourceFile = @"G:\UE\Engine\Saved\UnrealBuildTool\BuildConfiguration.xml" },
+            };
+            string text = HordeText.Format(snap);
+            Assert.Contains("8 / 32", text);
+            Assert.Contains("Roaming", text);
+            Assert.Contains("MaxParallelActions", text.Replace("UBT 本机并发", "MaxParallelActions").Replace("UBT local parallel actions", "MaxParallelActions"));
+        }
     }
 }

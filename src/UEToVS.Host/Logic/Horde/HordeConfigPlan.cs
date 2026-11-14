@@ -71,11 +71,20 @@ namespace UEToVS.Host.Logic.Horde
             (SectionUba, "StoreCapacityGb"),
         };
 
-        public static HordeConfigPlan Build(HostSettings s, int logicalCores, UbtConfigKeys known = null)
+        /// <param name="ubaElsewhere">
+        /// UBA is turned on by a BuildConfiguration.xml UEToVS does not write (e.g. a hand-made user file). With the feature
+        /// off, only the local core limit is written then, so "本机参与编译的核心数" still holds.
+        /// </param>
+        public static HordeConfigPlan Build(HostSettings s, int logicalCores, UbtConfigKeys known = null, bool ubaElsewhere = false)
         {
             var values = new Dictionary<string, string>(StringComparer.Ordinal);
             int local = 0;
-            if (s != null && s.HordeEnabled)
+            if (s != null && !s.HordeEnabled && ubaElsewhere)
+            {
+                local = HordeSettingsSchema.EffectiveLocalCores(s.HordeLocalCores, logicalCores);
+                values[SectionBuild + "/MaxParallelActions"] = local.ToString(CultureInfo.InvariantCulture);
+            }
+            else if (s != null && s.HordeEnabled)
             {
                 local = HordeSettingsSchema.EffectiveLocalCores(s.HordeLocalCores, logicalCores);
                 values[SectionBuild + "/bAllowUBAExecutor"] = "true";

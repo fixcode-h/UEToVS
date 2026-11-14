@@ -128,9 +128,9 @@ namespace UEToVS.Host.Logic.Horde
 
             const string gLocal = "本机资源", gLocalEn = "This machine";
             var local = Row(LocalCoresKey, SettingKind.Int, "本机参与编译的核心数", "Local cores used for building",
-                "启用联合编译时本机最多同时跑几个编译任务（BuildConfiguration/MaxParallelActions）；0 = 逻辑核心数的 1/4。关闭联合编译时不写，UE 按自己的规则决定。",
-                "How many compile actions run on this machine at once while distributed builds are on (BuildConfiguration/MaxParallelActions); 0 = a quarter of the logical cores. Not written while distributed builds are off.",
-                "0", gLocal, gLocalEn, EnabledKey);
+                "用 UBA 编译时本机最多同时跑几个编译任务（BuildConfiguration/MaxParallelActions）；0 = 逻辑核心数的 1/4。上面的开关关着、但 UBA 是你自己在别的 BuildConfiguration.xml 里开的，也照样生效；完全不用 UBA 时不写，UE 按自己的规则决定。",
+                "How many compile actions run on this machine at once when building with UBA (BuildConfiguration/MaxParallelActions); 0 = a quarter of the logical cores. Also applies when the switch above is off but UBA is turned on in another BuildConfiguration.xml of yours; not written when UBA is not used at all.",
+                "0", gLocal, gLocalEn);
             local.Min = 0; local.Max = cores;
             local.AutoLabelZh = $"自动（{DefaultLocalCores(cores)} / {cores}）";
             local.AutoLabelEn = $"Auto ({DefaultLocalCores(cores)} / {cores})";
