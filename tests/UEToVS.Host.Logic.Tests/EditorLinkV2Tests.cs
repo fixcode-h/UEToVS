@@ -531,6 +531,11 @@ Assert.Equal(19, view.Count); // 99, 199 … 999 and 990 … 998
         [InlineData("1.0", 1, "1.0.0", 1, 0)]
         [InlineData(null, 3, null, 2, 1)]
         [InlineData("beta", 1, "0.2.0", 2, -1)]
+        [InlineData("2.0.0-beta.1", 2, "2.0.0", 2, -1)]
+        [InlineData("2.0.0-beta.2", 2, "2.0.0-beta.10", 2, -1)]
+        [InlineData("2.1.0-beta.1", 2, "2.0.0", 2, 1)]
+        [InlineData("2.0.0-alpha", 2, "2.0.0-beta", 2, -1)]
+        [InlineData("2.0.0-beta", 2, "2.0.0-beta.1", 2, -1)]
         public void ComparesVersions(string a, int va, string b, int vb, int sign) =>
             Assert.Equal(sign, Math.Sign(LinkPluginInstaller.CompareVersions(a, va, b, vb)));
 
@@ -539,7 +544,7 @@ Assert.Equal(19, view.Count); // 99, 199 … 999 and 990 … 998
         {
             using (var t = new Temp())
             {
-                string bundled = System.IO.Path.GetDirectoryName(t.File("bundle/UEToVSLink/UEToVSLink.uplugin", UPlugin(2, "0.2.0")));
+                string bundled = System.IO.Path.GetDirectoryName(t.File("bundle/UELink/UELink.uplugin", UPlugin(2, "0.2.0")));
                 string project = System.IO.Path.Combine(t.Path, "Proj");
                 string engine = System.IO.Path.Combine(t.Path, "Engine");
                 Directory.CreateDirectory(project);
@@ -548,12 +553,12 @@ Assert.Equal(19, view.Count); // 99, 199 … 999 and 990 … 998
                 Assert.True(none.CanInstall);
                 Assert.Equal(LinkPluginStatusKind.NoProject, LinkPluginInstaller.GetStatus(null, engine, bundled).Kind);
 
-                t.File("Engine/Plugins/Marketplace/UEToVSLinkFab/UEToVSLink.uplugin", UPlugin(1, "0.1.0"));
+                t.File("Engine/Plugins/Marketplace/UELinkFab/UELink.uplugin", UPlugin(1, "0.1.0"));
                 var eng = LinkPluginInstaller.GetStatus(project, engine, bundled);
                 Assert.Equal(LinkPluginLocation.EngineMarketplace, eng.Installed.Location);
                 Assert.Equal(LinkPluginStatusKind.UpdateAvailable, eng.Kind);
 
-                t.File("Proj/Plugins/Tools/UEToVSLink/UEToVSLink.uplugin", UPlugin(2, "0.2.0"));
+                t.File("Proj/Plugins/Tools/UELink/UELink.uplugin", UPlugin(2, "0.2.0"));
                 var proj = LinkPluginInstaller.GetStatus(project, engine, bundled);
                 Assert.Equal(LinkPluginLocation.Project, proj.Installed.Location); // project wins
                 Assert.Equal(LinkPluginStatusKind.UpToDate, proj.Kind);
@@ -564,24 +569,32 @@ Assert.Equal(19, view.Count); // 99, 199 … 999 and 990 … 998
         }
 
         [Fact]
-        public void InstallCopiesSourcesAndUpdateDropsOldBinaries()
+        public void InstallCopiesSourcesAndKeepsBinaries()
         {
             using (var t = new Temp())
             {
-                t.File("bundle/UEToVSLink.uplugin", UPlugin(2, "0.2.0"));
-                t.File("bundle/Source/UEToVSLink/Private/A.cpp", "// a");
+                t.File("bundle/UELink.uplugin", UPlugin(2, "0.2.0"));
+                t.File("bundle/Source/UELink/Private/A.cpp", "// a");
                 t.File("bundle/Binaries/Win64/stale.dll", "never shipped");
                 string bundled = System.IO.Path.Combine(t.Path, "bundle");
                 string target = LinkPluginInstaller.ProjectTarget(System.IO.Path.Combine(t.Path, "Proj"));
-                t.File("Proj/Plugins/UEToVSLink/Binaries/Win64/UnrealEditor-UEToVSLink.dll", "old");
-                t.File("Proj/Plugins/UEToVSLink/Intermediate/x.obj", "old");
+                t.File("Proj/Plugins/UELink/Binaries/Win64/UnrealEditor-UELink.dll", "old");
+                t.File("Proj/Plugins/UELink/Intermediate/x.obj", "old");
+                t.File("Proj/Plugins/UELink/Source/UELink/Private/Removed.cpp", "// gone in the new version");
 
                 var r = LinkPluginInstaller.Install(bundled, target);
                 Assert.True(r.Ok, r.Detail);
                 Assert.Equal(2, r.Files);
-                Assert.True(File.Exists(System.IO.Path.Combine(target, "Source", "UEToVSLink", "Private", "A.cpp")));
-                Assert.False(Directory.Exists(System.IO.Path.Combine(target, "Binaries")));
-                Assert.False(Directory.Exists(System.IO.Path.Combine(target, "Intermediate")));
+                Assert.True(File.Exists(System.IO.Path.Combine(target, "Source", "UELink", "Private", "A.cpp")));
+                Assert.False(File.Exists(System.IO.Path.Combine(target, "Source", "UELink", "Private", "Removed.cpp")));
+                // UELink's install contract: Binaries / Intermediate stay, UBT rebuilds them by timestamp.
+                Assert.True(Directory.Exists(System.IO.Path.Combine(target, "Binaries")));
+                Assert.True(Directory.Exists(System.IO.Path.Combine(target, "Intermediate")));
+                Assert.False(File.Exists(System.IO.Path.Combine(target, "Binaries", "Win64", "stale.dll")));
+                var record = LinkPluginInstaller.ReadInstallRecord(target);
+                Assert.Equal("uetovs", record["by"].ToString());
+                Assert.Equal("0.2.0", record["version"].ToString());
+                Assert.Equal("files", record["mode"].ToString());
                 Assert.Equal("missingSource", LinkPluginInstaller.Install(System.IO.Path.Combine(t.Path, "nope"), target).Code);
                 Assert.Equal("noProject", LinkPluginInstaller.Install(bundled, null).Code);
             }
@@ -592,16 +605,16 @@ Assert.Equal(19, view.Count); // 99, 199 … 999 and 990 … 998
         {
             using (var t = new Temp())
             {
-                string dir = System.IO.Path.GetDirectoryName(t.File("Proj/Plugins/UEToVSLink/UEToVSLink.uplugin", UPlugin(1, "0.1.0")));
-                t.File("Proj/Plugins/UEToVSLink/Binaries/Win64/UnrealEditor-UEToVSLink.dll", "dll");
+                string dir = System.IO.Path.GetDirectoryName(t.File("Proj/Plugins/UELink/UELink.uplugin", UPlugin(1, "0.1.0")));
+                t.File("Proj/Plugins/UELink/Binaries/Win64/UnrealEditor-UELink.dll", "dll");
                 string uproject = t.File("Proj/Proj.uproject",
-                    "{\r\n\t\"FileVersion\": 3,\r\n\t\"Plugins\": [\r\n\t\t{\r\n\t\t\t\"Name\": \"ModelingToolsEditorMode\",\r\n\t\t\t\"Enabled\": true\r\n\t\t},\r\n\t\t{\r\n\t\t\t\"Name\": \"UEToVSLink\",\r\n\t\t\t\"Enabled\": true\r\n\t\t}\r\n\t]\r\n}\r\n");
+                    "{\r\n\t\"FileVersion\": 3,\r\n\t\"Plugins\": [\r\n\t\t{\r\n\t\t\t\"Name\": \"ModelingToolsEditorMode\",\r\n\t\t\t\"Enabled\": true\r\n\t\t},\r\n\t\t{\r\n\t\t\t\"Name\": \"UELink\",\r\n\t\t\t\"Enabled\": true\r\n\t\t}\r\n\t]\r\n}\r\n");
                 var r = LinkPluginInstaller.Uninstall(dir, uproject);
                 Assert.True(r.Ok, r.Detail);
                 Assert.True(r.UProjectChanged);
                 Assert.False(Directory.Exists(dir));
                 string text = File.ReadAllText(uproject);
-                Assert.DoesNotContain("UEToVSLink", text);
+                Assert.DoesNotContain("UELink", text);
                 Assert.Contains("ModelingToolsEditorMode", text);
                 Assert.Contains("\r\n\t\"Plugins\"", text);
                 Assert.Equal("notInstalled", LinkPluginInstaller.Uninstall(dir, uproject).Code);
@@ -613,15 +626,15 @@ Assert.Equal(19, view.Count); // 99, 199 … 999 and 990 … 998
         {
             using (var t = new Temp())
             {
-                string dir = System.IO.Path.GetDirectoryName(t.File("P/Plugins/UEToVSLink/UEToVSLink.uplugin", UPlugin(1, "0.1.0")));
-                string dll = t.File("P/Plugins/UEToVSLink/Binaries/Win64/UnrealEditor-UEToVSLink.dll", "dll");
+                string dir = System.IO.Path.GetDirectoryName(t.File("P/Plugins/UELink/UELink.uplugin", UPlugin(1, "0.1.0")));
+                string dll = t.File("P/Plugins/UELink/Binaries/Win64/UnrealEditor-UELink.dll", "dll");
                 using (new FileStream(dll, FileMode.Open, FileAccess.Read, FileShare.Read))
                 {
                     if (LinkPluginInstaller.FindLockedFile(dir) == null) return; // this OS does not enforce share modes
                     var r = LinkPluginInstaller.Uninstall(dir, null);
                     Assert.Equal("locked", r.Code);
                     Assert.True(File.Exists(dll));
-                    Assert.True(File.Exists(System.IO.Path.Combine(dir, "UEToVSLink.uplugin")));
+                    Assert.True(File.Exists(System.IO.Path.Combine(dir, "UELink.uplugin")));
                 }
             }
         }
@@ -632,7 +645,7 @@ Assert.Equal(19, view.Count); // 99, 199 … 999 and 990 … 998
             Assert.Null(LinkPluginInstaller.RemovePluginEntry("{\"Plugins\":[{\"Name\":\"Other\"}]}"));
             Assert.Null(LinkPluginInstaller.RemovePluginEntry("{\"FileVersion\":3}"));
             Assert.Null(LinkPluginInstaller.RemovePluginEntry("not json"));
-            string updated = LinkPluginInstaller.RemovePluginEntry("{\"Plugins\":[{\"Name\":\"uetovslink\",\"Enabled\":true}]}");
+            string updated = LinkPluginInstaller.RemovePluginEntry("{\"Plugins\":[{\"Name\":\"uelink\",\"Enabled\":true}]}");
             Assert.Empty((JArray)JObject.Parse(updated)["Plugins"]);
         }
     }

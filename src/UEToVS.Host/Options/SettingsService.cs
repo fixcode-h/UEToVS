@@ -144,6 +144,7 @@ namespace UEToVS.Host.Options
                 ["navigationHistoryCapacity"] = s.NavigationHistoryCapacity,
                 ["checkIncludesOnSave"] = s.CheckIncludesOnSave,
                 ["editorLinkPort"] = s.EditorLinkPort,
+                ["uelinkSource"] = s.UELinkSource ?? "",
                 ["enableMcpServer"] = s.EnableMcpServer,
             };
             UEToVS.Host.Logic.Fonts.FontSettingsSchema.Describe(s, d);

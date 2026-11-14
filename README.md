@@ -18,7 +18,7 @@ src/
   UEToVS.UI               WPF 组件库（设计令牌、Rider 风格、可在设置页微调、性能面板）
   UEToVS.Host             VSIX：包加载、命令、设置页、接管 VS C++ IntelliSense、Engine 客户端
 tests/                    各模块单元测试（dotnet test）
-ue/UEToVSLink             UE 编辑器插件（打开资产、Live Coding），由“安装 UEToVSLink 插件”复制到项目 Plugins/
+ue/UELink                 UE 编辑器插件 UELink（和 Agent 面板共用，公共库 fixcode-h/UELink 的副本，见 ue/VENDORED.md），由“安装 UELink 插件”复制到项目 Plugins/
 ```
 
 ## 功能（扩展 > UEToVS）
@@ -34,7 +34,7 @@ ue/UEToVSLink             UE 编辑器插件（打开资产、Live Coding），�
 | 相关项 | Shift+Alt+R | `Foo_Implementation` / `Foo_Validate`、对应文件、`.generated.h` |
 | 打开所属模块的 Build.cs / 为 #include 添加模块依赖 | Ctrl+Shift+Alt+U, B / Ctrl+Shift+Alt+U, A | 保存 .h/.cpp 时也会自动检查 |
 | 书签 | Ctrl+F2 切换，Ctrl+Shift+F2 列表 | 切换、0–9 数字书签、书签列表（Delete 删除） |
-| Live Coding / 生成工程文件 / 安装 UEToVSLink 插件 | Ctrl+Alt+F11 / Ctrl+Shift+Alt+U, G / Ctrl+Shift+Alt+U, E | Live Coding 与打开资产需要编辑器启用 UEToVSLink 插件 |
+| Live Coding / 生成工程文件 / 安装 UELink 插件 | Ctrl+Alt+F11 / Ctrl+Shift+Alt+U, G / Ctrl+Shift+Alt+U, E | Live Coding 与打开资产需要编辑器启用 UELink 插件 |
 | 应用 Rider 键位方案 / 恢复 VS 键位 | — | 在 Find Action 中执行；修改前备份到 `%LocalAppData%\UEToVS\keymap-backup.json` |
 
 所有功能都注册为操作，可在“查找操作…”和 Search Everywhere 的“操作”页签中搜索。每个命令都有默认快捷键（设置、日志、诊断等工具命令用 `Ctrl+Shift+Alt+U` 再按一个字母），与 VS 自带快捷键冲突时以 UEToVS 为准，修改前自动备份；可在 UEToVS 设置 > 快捷键 中修改、套用预设或还原备份。
