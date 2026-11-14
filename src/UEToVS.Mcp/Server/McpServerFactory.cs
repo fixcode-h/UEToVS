@@ -28,20 +28,19 @@ namespace UEToVS.Mcp.Server
 
         // Kept under ~2000 chars: some clients (Claude Code) truncate server instructions beyond 2 KB.
         public const string Instructions =
-            "UEToVS indexes this Unreal Engine project: C++ (project, plugins, engine source), assets (.uasset/.umap) and, when configured, " +
-            "Lua scripts (UnLua/slua). USE THESE TOOLS FIRST, before Grep/Glob/find or reading whole files: they answer from a prebuilt index in " +
-            "milliseconds with exact file:line, and skip the millions of engine lines that make grep slow and noisy.\n" +
-            "Which tool: C++ symbol by name -> search_symbols; definition -> go_to_definition; users/callers -> find_references; base/derived -> " +
-            "get_type_hierarchy; members -> get_members; UPROPERTY/UFUNCTION specifiers, replication, RPCs -> get_reflection_info; file structure -> " +
-            "get_file_outline; file by name -> search_files; Blueprints/maps/materials -> search_assets; module, Build.cs deps, 'which module has this " +
-            "header' -> get_module_info; #include + dependency for a type -> suggest_include; ini keys, UPROPERTY(config), CVars, gameplay tags -> " +
-            "search_config; who binds a handler (AddDynamic, BindUFunction, timers, input) -> find_delegate_bindings; Lua -> search_lua, " +
-            "search_lua_files, get_lua_outline.\n" +
-            "Read only the lines you need around the returned line. Lines/columns are 1-based; lists are paged (limit/offset); scope='all' adds engine code.\n" +
-            "Grep only what is not indexed: string literals, comments, log text, .uplugin contents, Lua call sites. If results look empty or stale, " +
-            "call index_status (indexing may still run) and fall back to grep.\n" +
-            "Self-check: after editing C++ call get_diagnostics on the changed files (UE/UHT/replication rules); after a build call get_build_errors " +
-            "instead of reading the build log. Rename symbols with rename_symbol (preview first, apply=true writes; adds Core Redirects).";
+            "UEToVS indexes this Unreal project: C++ (project, plugins, engine), assets and Lua scripts (UnLua/slua). USE THESE TOOLS FIRST, " +
+            "before Grep/rg/Glob/find or reading whole files, whenever you look for a C++ or Lua name: function, class, variable, module, " +
+            "GM/debug/console command, or an identifier from an error, log, stack or screenshot. They answer from a prebuilt index in " +
+            "milliseconds with exact file:line and skip the engine's millions of lines and comment/string noise.\n" +
+            "If you only see tool names (deferred tools), load these tools' descriptions first: each says when to use it and what it cannot do.\n" +
+            "Which tool: C++ name -> search_symbols; definition -> go_to_definition; callers/users -> find_references; base/derived -> " +
+            "get_type_hierarchy; members -> get_members; specifiers, replication, RPCs -> get_reflection_info; file structure -> get_file_outline; " +
+            "file by name -> search_files; Blueprints/maps -> search_assets; module, Build.cs, header's module -> get_module_info; #include for a " +
+            "type -> suggest_include; ini, CVars, console commands, gameplay tags -> search_config; who binds a handler -> find_delegate_bindings; " +
+            "Lua function/class/GM command -> search_lua; Lua file -> search_lua_files; Lua structure -> get_lua_outline.\n" +
+            "Then read only the lines around the result. Grep only what is not indexed: string literals, comments, log text, Lua call sites. " +
+            "If results look empty or stale, call index_status before falling back to grep.\n" +
+            "After editing C++ call get_diagnostics; after a build get_build_errors instead of the build log. Rename with rename_symbol (preview, then apply=true).";
 
         public static McpServerOptions CreateOptions(ToolInvoker invoker)
         {
@@ -142,6 +141,8 @@ Lua scripts are indexed separately when Lua script folders are set (UEToVS setti
 | A file by name | `search_files` |
 | Blueprints, maps, materials, data tables | `search_assets` (`class: ""Blueprint""`) |
 | Lua function / method / class / module table | `search_lua` (`M:Fire`, `kinds: [""method""]`) |
+| A Lua GM / cheat / debug command or UI handler by name | `search_lua` |
+| A console variable or C++ console command | `search_config` |
 | A Lua script by name or require path | `search_lua_files` (`UI.MainPanel`) |
 | Structure of a Lua script | `get_lua_outline` (path or module name) |
 | UPROPERTY/UFUNCTION specifiers, meta, replication, RPCs | `get_reflection_info` (`specifiers: [""BlueprintReadWrite""]`, `replicated_only`) |
@@ -154,7 +155,9 @@ Lua scripts are indexed separately when Lua script folders are set (UEToVS setti
 | Errors / warnings of the last VS build | `get_build_errors` (`file`, `severity`) |
 | Rename a symbol everywhere (preview, then `apply=true`) | `rename_symbol` |
 
-Use these before Grep/Glob or reading whole files. Grep is still the tool for what is not indexed: string literals, comments,
+Use these before Grep/rg/Glob or reading whole files whenever you look for a C++ or Lua name, including names copied from
+an error, log, crash stack or screenshot. Each tool's description says when to use it (USE FIRST WHEN), what it replaces
+(INSTEAD OF) and what it cannot do (NOT FOR); if your client shows only tool names, load the descriptions first. Grep is still the tool for what is not indexed: string literals, comments,
 log text, `.uplugin` contents, and call sites of Lua functions (Lua references are not indexed; `find_references` and
 `get_reflection_info` list Lua functions with the same name as a UFUNCTION, i.e. UnLua overrides).
 

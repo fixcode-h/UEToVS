@@ -88,6 +88,13 @@ namespace UEToVS.Mcp.Tests
                 Assert.Equal(t.Name != "rename_symbol", t.ProtocolTool.Annotations.ReadOnlyHint);
                 Assert.False(string.IsNullOrWhiteSpace(t.Description));
                 Assert.True(t.Description.Length < 1200, t.Name + " description is long: " + t.Description.Length);
+                // Agents choose between these tools and Grep/Glob from the description alone: every tool must say when to use it,
+                // what it replaces and what it cannot do (ToolGuides).
+                var guide = ToolGuides.Get(t.Name);
+                Assert.NotNull(guide);
+                foreach (var part in new[] { guide.What, guide.UseWhen, guide.InsteadOf, guide.NotFor })
+                    Assert.False(string.IsNullOrWhiteSpace(part), t.Name + " guide is incomplete");
+                Assert.Equal(ToolGuides.Description(t.Name), t.Description);
                 // Display names for people (Agent Panel shows them on tool calls): English title plus _meta.titles zh/en.
                 Assert.False(string.IsNullOrWhiteSpace(t.ProtocolTool.Title));
                 Assert.NotNull(ToolTitles.Chinese(t.Name));

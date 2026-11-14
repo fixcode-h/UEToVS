@@ -43,10 +43,7 @@ namespace UEToVS.Mcp.Tools
 
         private ToolDefinition ReflectionInfoTool() => Define(
             "get_reflection_info", "UE reflection info of a type",
-            "Every UPROPERTY and UFUNCTION of a UCLASS/USTRUCT with its specifiers split out (flags, key=value, meta=(...)), replication " +
-            "(Replicated / ReplicatedUsing=OnRep_X) and RPCs (Server/Client/NetMulticast, Reliable, WithValidation), plus the type's own UCLASS/USTRUCT " +
-            "specifiers. Filter with 'specifiers' (all must be present, e.g. [\"BlueprintReadWrite\"] or a meta key like \"AllowPrivateAccess\"), " +
-            "'kind' (property/function) or 'replicated_only'. UFUNCTIONs list same-named Lua functions (UnLua overrides) when a Lua index exists.",
+            ToolGuides.Description("get_reflection_info"),
             Schema(
                 "\"type_name\":{\"type\":\"string\",\"description\":\"Class or struct, e.g. AMyCharacter or 'Ns::FFoo'.\"}," +
                 "\"kind\":{\"type\":\"string\",\"enum\":[\"all\",\"property\",\"function\"],\"description\":\"Default all.\"}," +
@@ -148,10 +145,7 @@ namespace UEToVS.Mcp.Tools
 
         private ToolDefinition ModuleInfoTool() => Define(
             "get_module_info", "UE module of a file / module rules",
-            "Which UE module a file belongs to, the module's type (Runtime/Editor/Developer/UncookedOnly...), plugin and Build.cs " +
-            "Public/Private dependencies. Pass 'path' (any source file) or 'module' (name). With 'header' ('GameFramework/Actor.h' or a path) it also " +
-            "answers 'which module provides this header and does my module already depend on it' — the fix for 'cannot open include file' / LNK2019 " +
-            "after adding an include (dependency to add and whether it belongs in Public or Private).",
+            ToolGuides.Description("get_module_info"),
             Schema(
                 "\"path\":{\"type\":\"string\",\"description\":\"A file of the module (absolute or relative to the solution/project).\"}," +
                 "\"module\":{\"type\":\"string\",\"description\":\"Module name, e.g. Engine, UMG, MyGame.\"}," +
@@ -273,9 +267,7 @@ namespace UEToVS.Mcp.Tools
 
         private ToolDefinition SuggestIncludeTool() => Define(
             "suggest_include", "#include and Build.cs dependency for a type",
-            "The #include line to write for a C++ type (UE style: path below the module's Public/Classes folder, e.g. \"GameFramework/Character.h\") " +
-            "and the module to add to Build.cs. Pass 'from' (the file that will include it) to learn whether that module already depends on it " +
-            "and whether the dependency belongs in Public or Private.",
+            ToolGuides.Description("suggest_include"),
             Schema(
                 "\"type\":{\"type\":\"string\",\"description\":\"Type (or other symbol) name, optionally qualified: ACharacter, UUserWidget, FGameplayTag.\"}," +
                 "\"from\":{\"type\":\"string\",\"description\":\"Optional: the file that will include it (absolute or relative).\"}", "type"),
@@ -351,11 +343,7 @@ namespace UEToVS.Mcp.Tools
 
         private ToolDefinition SearchConfigTool() => Define(
             "search_config", "Search ini settings, CVars, gameplay tags",
-            "Use instead of grepping Config/*.ini or source for settings. Finds: ini keys ([Section] Key=Value with file:line, project Config " +
-            "and project plugins; scope='all' adds Engine/Config), UPROPERTY(config) properties with the ini file/section/key they are read from " +
-            "(and the current value when set), console variables (TAutoConsoleVariable / FAutoConsoleVariableRef / FAutoConsoleCommand in project " +
-            "code: name, variable, help, file:line) and gameplay tags (DefaultGameplayTags.ini, Config/Tags/*.ini, UE_DEFINE_GAMEPLAY_TAG). " +
-            "Every space-separated word of the query must occur (case-insensitive).",
+            ToolGuides.Description("search_config"),
             Schema(
                 "\"query\":{\"type\":\"string\",\"description\":\"Words to find, e.g. 'r.Shadow', 'MaxPlayers', 'Ability.Fire', 'GameMapsSettings'.\"}," +
                 "\"kinds\":{\"type\":\"array\",\"items\":{\"type\":\"string\",\"enum\":[\"ini\",\"config_property\",\"cvar\",\"tag\"]},\"description\":\"Default: all four.\"}," +
@@ -552,10 +540,7 @@ namespace UEToVS.Mcp.Tools
 
         private ToolDefinition DelegateBindingsTool() => Define(
             "find_delegate_bindings", "Where a function is bound to delegates",
-            "Who binds this function to a delegate / event / input / timer? Finds AddDynamic / AddUniqueDynamic / BindDynamic (&UClass::Func), " +
-            "AddUObject / BindUObject / BindRaw / BindSP / CreateUObject..., BindUFunction / AddUFunction (by name string or GET_FUNCTION_NAME_CHECKED), " +
-            "InputComponent BindAction / BindAxis and SetTimer. Use it for 'why is this called / who triggers this handler' instead of grep. " +
-            "Results: file, line/col, method, kind (dynamic/native/ufunction_name/input/timer), delegate expression, target, source line.",
+            ToolGuides.Description("find_delegate_bindings"),
             Schema(
                 "\"function\":{\"type\":\"string\",\"description\":\"Function name, optionally 'UMyClass::OnClicked' to keep only bindings naming that class.\"}," +
                 "\"scope\":{\"type\":\"string\",\"enum\":[\"project\",\"all\"],\"description\":\"" + ScopeDesc + "\"}," +

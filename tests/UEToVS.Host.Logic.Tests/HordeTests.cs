@@ -341,7 +341,8 @@ namespace UnrealBuildTool {
                 MaxParallelActions = new EffectiveValue { Value = "8", SourceFile = @"G:\UE\Engine\Saved\UnrealBuildTool\BuildConfiguration.xml" },
             };
             string text = HordeText.Format(snap);
-            Assert.Contains("8 / 32", text);
+            // The text follows the UI language (Chinese "8 / 32", English "8 of 32"); CI runs in English.
+            Assert.True(text.Contains("8 / 32") || text.Contains("8 of 32"), text);
             Assert.Contains("Roaming", text);
             Assert.Contains("MaxParallelActions", text.Replace("UBT 本机并发", "MaxParallelActions").Replace("UBT local parallel actions", "MaxParallelActions"));
         }
