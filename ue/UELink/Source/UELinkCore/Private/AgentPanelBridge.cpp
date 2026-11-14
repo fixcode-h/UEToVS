@@ -243,9 +243,21 @@ TSharedPtr<FJsonObject> FAgentPanelBridge::Dispatch(const TSharedPtr<FJsonObject
 void FAgentPanelBridge::SetCardField(const FString& Name, const TSharedPtr<FJsonValue>& Value)
 {
 	CardExtra.Add(Name, Value);
-	if (Port != 0)
+	EnsureIdentity();
+	WriteCard();
+}
+
+void FAgentPanelBridge::EnsureIdentity()
+{
+	if (Token.IsEmpty())
 	{
-		WriteCard();
+		Token = FGuid::NewGuid().ToString(EGuidFormats::Digits).ToLower();
+		StartedAt = FDateTime::UtcNow().ToIso8601();
+	}
+	if (Kind.IsEmpty())
+	{
+		// 只有推送通道（只在编辑器里起）会在 Start 之前走到这里
+		Kind = TEXT("editor");
 	}
 }
 
@@ -253,7 +265,11 @@ void FAgentPanelBridge::WriteCard()
 {
 	TSharedPtr<FJsonObject> O = MakeShared<FJsonObject>();
 	O->SetNumberField(TEXT("pid"), FPlatformProcess::GetCurrentProcessId());
-	O->SetNumberField(TEXT("port"), Port);
+	if (Port != 0)
+	{
+		// 没有 HTTP 服务时不写端口：面板 UE 插件跳过没有 port 的名片
+		O->SetNumberField(TEXT("port"), Port);
+	}
 	O->SetStringField(TEXT("token"), Token);
 	O->SetStringField(TEXT("kind"), Kind);
 	O->SetStringField(TEXT("engine"), FEngineVersion::Current().ToString(EVersionComponent::Patch));
@@ -264,23 +280,22 @@ void FAgentPanelBridge::WriteCard()
 	// UELink 新加的字段：旧面板不认识的字段直接忽略
 	O->SetStringField(TEXT("plugin"), TEXT("UELink"));
 	O->SetStringField(TEXT("version"), BridgeVersion);
-	O->SetNumberField(TEXT("http"), Port);
+	if (Port != 0)
+	{
+		O->SetNumberField(TEXT("http"), Port);
+	}
 	for (const TPair<FString, TSharedPtr<FJsonValue>>& Extra : CardExtra)
 	{
 		O->SetField(Extra.Key, Extra.Value);
 	}
 	const FString Json = ToJsonString(O);
-	// 同一张名片写两处：Saved/UELink/instances 是新位置；Saved/AgentPanel/instances 给还没改读新位置的面板 UE 插件（兼容层，三期去掉）
+	// 2.1 起只写 Saved/UELink/instances（2.0 还给旧面板 UE 插件写一份 Saved/AgentPanel/instances，已去掉）
+	const FString Dir = FPaths::Combine(FPaths::ConvertRelativePathToFull(FPaths::ProjectSavedDir()), TEXT("UELink"), TEXT("instances"));
+	IFileManager::Get().MakeDirectory(*Dir, true);
+	const FString File = FPaths::Combine(Dir, FString::Printf(TEXT("%u.json"), FPlatformProcess::GetCurrentProcessId()));
+	FFileHelper::SaveStringToFile(Json, *File, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM);
 	CardFiles.Reset();
-	static const TCHAR* const Folders[] = {TEXT("UELink"), TEXT("AgentPanel")};
-	for (const TCHAR* Folder : Folders)
-	{
-		const FString Dir = FPaths::Combine(FPaths::ConvertRelativePathToFull(FPaths::ProjectSavedDir()), Folder, TEXT("instances"));
-		IFileManager::Get().MakeDirectory(*Dir, true);
-		const FString File = FPaths::Combine(Dir, FString::Printf(TEXT("%u.json"), FPlatformProcess::GetCurrentProcessId()));
-		FFileHelper::SaveStringToFile(Json, *File, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM);
-		CardFiles.Add(File);
-	}
+	CardFiles.Add(File);
 }
 
 bool FAgentPanelBridge::Start(const FString& InKind)
@@ -290,8 +305,7 @@ bool FAgentPanelBridge::Start(const FString& InKind)
 		return true;
 	}
 	Kind = InKind;
-	StartedAt = FDateTime::UtcNow().ToIso8601();
-	Token = FGuid::NewGuid().ToString(EGuidFormats::Digits).ToLower();
+	EnsureIdentity();
 	FAgentPanelLog::Get().Attach();
 	if (Ops.Num() == 0 || !Ops.Contains(TEXT("console")))
 	{

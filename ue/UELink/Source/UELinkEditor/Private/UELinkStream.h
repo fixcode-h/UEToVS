@@ -94,7 +94,6 @@ private:
 	bool Tick(float DeltaTime);
 	FString Handle(const FString& Line, bool& bOutSubscribe, TArray<FString>& OutTopics);
 	void Reply(FSocket* Socket, const FString& Json);
-	FString PortFilePath() const;
 	void PublishPort();
 
 	// 订阅（UELinkStream.cpp）

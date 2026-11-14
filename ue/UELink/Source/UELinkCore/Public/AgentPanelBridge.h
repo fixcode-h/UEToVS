@@ -32,7 +32,10 @@ public:
 	static UWorld* ResolveWorld(const FString& WorldId, FString& Error);
 	static FString WorldId(const UWorld* World);
 
-	/** 往名片里加一个字段（编辑器模块用它登记推送通道的端口 stream、features）；服务已经起来时立刻重写名片 */
+	/**
+	 * 往名片里加一个字段（编辑器模块用它登记推送通道的端口 stream、features）并立刻重写名片。
+	 * HTTP 服务没起来时（-NoAgentPanel、端口没拿到）也写名片，只是没有 port / http：推送通道的客户端（UEToVS）只认名片找端口和令牌
+	 */
 	void SetCardField(const FString& Name, const TSharedPtr<FJsonValue>& Value);
 
 	/** 本次启动的令牌（推送通道用同一个令牌认新客户端） */
@@ -49,6 +52,8 @@ private:
 	double LastRequest = 0;
 
 	void WriteCard();
+	/** 令牌、启动时间、进程类型：HTTP 服务和推送通道谁先起谁生成，之后不变（客户端读到的令牌一直有效） */
+	void EnsureIdentity();
 	TSharedPtr<FJsonObject> Info() const;
 	TSharedPtr<FJsonObject> Dispatch(const TSharedPtr<FJsonObject>& Body);
 	void RegisterRuntimeOps();

@@ -85,15 +85,11 @@ namespace
 		return Line.TrimStartAndEnd();
 	}
 
-	/** 请求带了令牌就必须对；不带的是旧 UEToVS（兼容层），先放行 */
+	/** 2.1 起每个请求都要带名片里的令牌（2.0 还放行不带令牌的旧 UEToVS）：别的本机进程读不到项目 Saved 目录就连不上 */
 	bool TokenOk(const TSharedPtr<FJsonObject>& Request)
 	{
 		FString Token;
-		if (!Request->TryGetStringField(TEXT("token"), Token))
-		{
-			return true;
-		}
-		return Token == FAgentPanelBridge::Get().GetToken();
+		return Request->TryGetStringField(TEXT("token"), Token) && !Token.IsEmpty() && Token == FAgentPanelBridge::Get().GetToken();
 	}
 }
 
@@ -121,7 +117,7 @@ void FUELinkStream::Start()
 	{
 		return;
 	}
-	// 端口 0：让系统挑空闲端口，挑到的写进名片和 port.txt
+	// 端口 0：让系统挑空闲端口，挑到的写进名片
 	FIPv4Endpoint Endpoint(FIPv4Address(127, 0, 0, 1), 0);
 	Listener = MakeUnique<FTcpListener>(Endpoint, FTimespan::FromMilliseconds(100), false);
 	Listener->OnConnectionAccepted().BindRaw(this, &FUELinkStream::OnConnection);
@@ -160,8 +156,7 @@ void FUELinkStream::Start()
 
 void FUELinkStream::PublishPort()
 {
-	// 旧 UEToVS 读 port.txt（兼容层）；新客户端读名片里的 stream
-	FFileHelper::SaveStringToFile(FString::FromInt(Port), *PortFilePath());
+	// 客户端只读名片里的 stream（2.0 还写 Saved/UEToVSLink/port.txt 给旧 UEToVS，已去掉）
 	FAgentPanelBridge& Bridge = FAgentPanelBridge::Get();
 	Bridge.SetCardField(TEXT("stream"), MakeShared<FJsonValueNumber>(Port));
 	Bridge.SetCardField(TEXT("protocol"), MakeShared<FJsonValueNumber>(UELINK_STREAM_PROTOCOL));
@@ -214,13 +209,7 @@ void FUELinkStream::Stop()
 	while (TestEvents.Dequeue(Ignored))
 	{
 	}
-	IFileManager::Get().Delete(*PortFilePath(), false, true, true);
 	Port = 0;
-}
-
-FString FUELinkStream::PortFilePath() const
-{
-	return FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("UEToVSLink"), TEXT("port.txt"));
 }
 
 bool FUELinkStream::OnConnection(FSocket* Socket, const FIPv4Endpoint& Endpoint)
