@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 using ModelContextProtocol.Protocol;
@@ -119,6 +120,8 @@ namespace UEToVS.Mcp.Server
             Description = t.Description,
             InputSchema = t.InputSchema,
             Annotations = new ToolAnnotations { Title = t.Title, ReadOnlyHint = t.ReadOnly, IdempotentHint = t.ReadOnly, DestructiveHint = false, OpenWorldHint = false },
+            // Display names per language (ToolTitles): the client picks the one for its own UI language.
+            Meta = new JsonObject { ["titles"] = new JsonObject { ["zh"] = ToolTitles.Chinese(t.Name) ?? t.Title, ["en"] = t.Title } },
         };
 
         public const string Guide =
