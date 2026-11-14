@@ -1,7 +1,7 @@
 {
   "FileVersion": 3,
-  "Version": 2,
-  "VersionName": "2.0.0",
+  "Version": 3,
+  "VersionName": "2.1.0",
   "FriendlyName": "UELink",
   "Description": "让本机工具连接这个 UE 进程：Agent 面板（控制台、GM、对象属性、DataTable、资源和蓝图读写、日志、Lua）和 UEToVS（打开资源、Live Coding 结果、自动化测试、日志推送）共用这一个插件。只监听 127.0.0.1，Shipping 不加载。",
   "Category": "Developer Tools",
