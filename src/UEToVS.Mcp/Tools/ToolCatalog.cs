@@ -210,10 +210,7 @@ namespace UEToVS.Mcp.Tools
 
         private ToolDefinition SearchSymbolsTool() => Define(
             "search_symbols", "Search C++ symbols",
-            "Use this first, instead of grep, to find Unreal C++ code by name. Searches the UEToVS index of C++ declarations (project + engine source): classes, structs, enums, functions, methods, fields, " +
-            "macros, delegates... Much faster and more precise than grep: matches identifiers only (fuzzy: prefix, CamelHumps like 'AMC' → " +
-            "AMyCharacter, substring), ranked, with UE reflection markers. Use match='exact' to list every declaration/definition of a name. " +
-            "Results: name, kind, container, file, line/col (1-based), sig, ue (UCLASS/UFUNCTION/UPROPERTY...), spec (macro specifiers), module, def.",
+            ToolGuides.Description("search_symbols"),
             Schema(
                 "\"query\":{\"type\":\"string\",\"description\":\"Identifier or fragment. 'Outer::Name' restricts the container.\"}," +
                 "\"match\":{\"type\":\"string\",\"enum\":[\"fuzzy\",\"exact\"],\"description\":\"fuzzy (default) or exact name.\"}," +
@@ -294,9 +291,7 @@ namespace UEToVS.Mcp.Tools
 
         private ToolDefinition SearchFilesTool() => Define(
             "search_files", "Search indexed files",
-            "Find a C++ source/header file by name: use this instead of Glob/find/dir in the Unreal project. " +
-            "Fuzzy file-name search over the UEToVS index (project, plugins and, with scope='all', engine source) — no directory walk. " +
-            "'MyCharH' finds MyCharacter.h. Results: name, path (absolute), module, origin.",
+            ToolGuides.Description("search_files"),
             Schema(
                 "\"query\":{\"type\":\"string\",\"description\":\"File name or fragment (no folders).\"}," +
                 "\"extensions\":{\"type\":\"array\",\"items\":{\"type\":\"string\"},\"description\":\"Keep only these extensions, e.g. [\\\".h\\\", \\\".cpp\\\"].\"}," +
@@ -337,10 +332,7 @@ namespace UEToVS.Mcp.Tools
 
         private ToolDefinition SearchAssetsTool() => Define(
             "search_assets", "Search Unreal assets (Blueprints, maps, materials...)",
-            "Use this to find Unreal assets (Blueprints, widgets, maps, materials, textures, meshes, data tables) — they are binary, so grep cannot. " +
-            "Fuzzy search over the project's Unreal assets (.uasset/.umap under Content, plugin content; engine content with scope='all'). " +
-            "'BPHero' finds BP_Hero. Filter by class: 'Blueprint', 'WidgetBlueprint', 'Material', 'World', 'DataTable'... (substring match on the " +
-            "known class, or 'classGuess' inferred from UE naming prefixes such as BP_, WBP_, M_, T_, SM_, DT_). Results: name, objectPath (/Game/...), file, class or classGuess.",
+            ToolGuides.Description("search_assets"),
             Schema(
                 "\"query\":{\"type\":\"string\",\"description\":\"Asset name or fragment.\"}," +
                 "\"class\":{\"type\":\"string\",\"description\":\"Asset class filter (case-insensitive substring), e.g. Blueprint, AnimBlueprint, Material, World.\"}," +
@@ -381,8 +373,7 @@ namespace UEToVS.Mcp.Tools
 
         private ToolDefinition FileOutlineTool() => Define(
             "get_file_outline", "File outline",
-            "Declarations of one source file in source order (types, members, functions, macros) with 1-based line/col, signature and UE markers. " +
-            "Use it before reading a large .h/.cpp: cheaper than reading the file when you need its structure or a line number to read around.",
+            ToolGuides.Description("get_file_outline"),
             Schema(
                 "\"path\":{\"type\":\"string\",\"description\":\"Absolute path, or relative to the solution/project folder.\"}," +
                 "\"kinds\":{\"type\":\"array\",\"items\":{\"type\":\"string\"},\"description\":\"" + KindsDesc + "\"}," +
@@ -418,8 +409,7 @@ namespace UEToVS.Mcp.Tools
 
         private ToolDefinition GoToDefinitionTool() => Define(
             "go_to_definition", "Go to definition",
-            "Where is a C++ symbol defined/declared? Use this instead of grepping for 'class X' or 'X::Foo'. Pass a symbol name ('AMyCharacter', 'AMyCharacter::BeginPlay', 'UE_LOG') or a position (path + 1-based line/column) " +
-            "to resolve the identifier written there. Returns ranked targets (definition first unless kind='declaration') with file, line, col, signature.",
+            ToolGuides.Description("go_to_definition"),
             Schema(
                 "\"symbol\":{\"type\":\"string\",\"description\":\"Name, optionally qualified 'Outer::Name'.\"}," + CaretProps + "," +
                 "\"kind\":{\"type\":\"string\",\"enum\":[\"definition\",\"declaration\",\"implementation\"],\"description\":\"definition (default): body first; declaration: header first; implementation: overrides/derived (engine only).\"}," +
@@ -508,9 +498,7 @@ namespace UEToVS.Mcp.Tools
 
         private ToolDefinition FindReferencesTool() => Define(
             "find_references", "Find references",
-            "Who uses/calls a C++ symbol? Use this instead of grep for usages. Every use of a symbol across the indexed code, grouped by file, with 1-based line/col, kind (read/write/call/type_use) and the source line. " +
-            "Pass a symbol name or a position (path + line/column). Answers from the precomputed occurrence index, so it does not scan files like grep; " +
-            "it matches identifiers only (no hits in comments or strings).",
+            ToolGuides.Description("find_references"),
             Schema(
                 "\"symbol\":{\"type\":\"string\",\"description\":\"Name, optionally qualified 'Outer::Name'.\"}," + CaretProps + "," +
                 "\"include_declarations\":{\"type\":\"boolean\",\"description\":\"Include declarations/definitions (default true).\"}," +
@@ -602,8 +590,7 @@ namespace UEToVS.Mcp.Tools
 
         private ToolDefinition TypeHierarchyTool() => Define(
             "get_type_hierarchy", "Type hierarchy",
-            "Which classes derive from X / what does X inherit from? Base classes and/or derived classes of a C++ type as a tree (e.g. AMyCharacter → ACharacter → APawn → AActor → UObject). " +
-            "Pass type_name ('AMyCharacter' or 'Ns::FFoo') or a position on the type.",
+            ToolGuides.Description("get_type_hierarchy"),
             Schema(
                 "\"type_name\":{\"type\":\"string\",\"description\":\"Type name, optionally qualified.\"}," + CaretProps + "," +
                 "\"direction\":{\"type\":\"string\",\"enum\":[\"bases\",\"derived\",\"both\"],\"description\":\"Default both.\"}," +
@@ -686,8 +673,7 @@ namespace UEToVS.Mcp.Tools
 
         private ToolDefinition MembersTool() => Define(
             "get_members", "Members of a type",
-            "What does a C++ type contain? Use instead of reading the header. Fields, methods, nested types and enum values of a class/struct/enum, with signatures and UE markers (UPROPERTY/UFUNCTION " +
-            "specifiers). include_inherited adds members of the base classes (declaring type in 'container').",
+            ToolGuides.Description("get_members"),
             Schema(
                 "\"type_name\":{\"type\":\"string\",\"description\":\"Type name, optionally qualified.\"}," +
                 "\"include_inherited\":{\"type\":\"boolean\",\"description\":\"Also list base-class members (default false).\"}," +
@@ -718,9 +704,7 @@ namespace UEToVS.Mcp.Tools
 
         private ToolDefinition IndexStatusTool() => Define(
             "index_status", "Index status",
-            "State of the UEToVS index for this solution: whether the engine is running, indexing phase/progress, counts of files, symbols and assets, " +
-            "project/engine roots and UE version, and the Lua index state. Call it when results look empty or incomplete (indexing still running, " +
-            "no Lua script folder configured) before falling back to grep.",
+            ToolGuides.Description("index_status"),
             Schema(""),
             IndexStatusAsync);
 

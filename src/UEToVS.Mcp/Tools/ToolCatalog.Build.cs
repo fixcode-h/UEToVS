@@ -35,10 +35,7 @@ namespace UEToVS.Mcp.Tools
 
         private ToolDefinition BuildErrorsTool() => Define(
             "get_build_errors", "Errors of the last build",
-            "Compiler / linker / UHT / UBT errors and warnings of the last build done in Visual Studio (parsed from the Build output; also what UEToVS " +
-            "squiggles in the editor), with 1-based file:line:col, code (C2065, LNK2019 …), message and tool. Use it after a build instead of reading the " +
-            "build log. Filter by 'file' (path, file name or part of it) and 'severity'. 'build' tells when it ran and whether it succeeded; " +
-            "an old 'finishedUtc' means the code has not been built since.",
+            ToolGuides.Description("get_build_errors"),
             Schema(
                 "\"file\":{\"type\":\"string\",\"description\":\"Only items whose file path contains this (case-insensitive), e.g. 'MyActor.cpp'.\"}," +
                 "\"severity\":{\"type\":\"string\",\"enum\":[\"error\",\"warning\",\"all\"],\"description\":\"Default all (errors and warnings).\"}," +
@@ -115,11 +112,7 @@ namespace UEToVS.Mcp.Tools
 
         private ToolDefinition DiagnosticsTool() => Define(
             "get_diagnostics", "UE rule diagnostics of files",
-            "Runs UEToVS's Unreal checks on whole C++ files and returns the problems (1-based line/col, code UE0001…, message): unknown member on a fully " +
-            "known type (UE0001), missing GENERATED_BODY (UE0003), hand-written body of a generated UFUNCTION (UE0004), ReplicatedUsing without an OnRep " +
-            "UFUNCTION (UE0005), replicated property not in GetLifetimeReplicatedProps (UE0006), unknown gameplay tag / asset path (UE0007/8), UPROPERTY / " +
-            "UFUNCTION types UHT rejects (UE0009/10). Only certain problems are reported. Use it to check your own edits before building. " +
-            "Reads files as saved on disk; engine files are skipped.",
+            ToolGuides.Description("get_diagnostics"),
             Schema(
                 "\"path\":{\"type\":\"string\",\"description\":\"One source file: absolute, or relative to the solution/project folder.\"}," +
                 "\"paths\":{\"type\":\"array\",\"items\":{\"type\":\"string\"},\"maxItems\":50,\"description\":\"Several files (max 50).\"}," +
@@ -213,11 +206,7 @@ namespace UEToVS.Mcp.Tools
 
         private ToolDefinition RenameSymbolTool() => Define(
             "rename_symbol", "Rename a C++ symbol (preview / apply)",
-            "Safe index-based rename of a project class, struct, enum, function, property or variable: finds every reference, then by DEFAULT ONLY " +
-            "PREVIEWS the edits (file, 1-based line/col, the source line). Call again with apply=true to write the files. Engine / third-party files " +
-            "are never changed. Name-only matches (possibly another symbol with the same name) are left out unless include_name_only=true. " +
-            "Reflected UCLASS/USTRUCT/UENUM/UPROPERTY/UFUNCTION renames add a [CoreRedirects] line to Config/DefaultEngine.ini (write_redirects, " +
-            "default true) so existing Blueprints and assets keep loading. Files named after a class are not renamed. After applying, run get_diagnostics.",
+            ToolGuides.Description("rename_symbol"),
             Schema(
                 "\"symbol\":{\"type\":\"string\",\"description\":\"Current name, optionally qualified 'AMyActor::Health'.\"}," + CaretProps + "," +
                 "\"new_name\":{\"type\":\"string\",\"description\":\"New identifier.\"}," +

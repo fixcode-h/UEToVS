@@ -17,11 +17,7 @@ namespace UEToVS.Mcp.Tools
 
         private ToolDefinition ProjectInspectionTool() => Define(
             "run_project_inspection", "Run project inspection",
-            "Whole-project UE rule inspection (the UEToVS squiggle rules UE0001-UE0010: unknown members, missing GENERATED_BODY, hand-written " +
-            "Server/Client/NetMulticast bodies, unregistered replicated properties, unknown gameplay tags / asset paths, UHT-unsupported types...) " +
-            "over every project source file. Asynchronous: action 'start' begins a run in the background (low priority threads) and returns at once; " +
-            "poll 'status' until state is Completed, then page through 'results' (filter by rule / file). 'cancel' stops a run. " +
-            "Heavy on large projects (CPU/memory): it refuses to run when switched off in the UEToVS settings.",
+            ToolGuides.Description("run_project_inspection"),
             Schema(
                 "\"action\":{\"type\":\"string\",\"enum\":[\"start\",\"status\",\"results\",\"cancel\"],\"description\":\"start | status (default) | results | cancel.\"}," +
                 "\"include_plugins\":{\"type\":\"boolean\",\"description\":\"start: also inspect project plugins (default true).\"}," +
