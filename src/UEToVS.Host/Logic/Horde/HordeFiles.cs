@@ -140,6 +140,18 @@ namespace UEToVS.Host.Logic.Horde
     /// <summary>Merges the BuildConfiguration.xml files (a later file overrides an earlier one).</summary>
     public static class EffectiveBuildConfiguration
     {
+        /// <summary>
+        /// bAllowUBAExecutor=true in one of <paramref name="files"/> other than <paramref name="exclude"/> (the file UEToVS
+        /// writes), or null. Precedence is kept: a later file that sets it to false wins.
+        /// </summary>
+        public static EffectiveValue UbaTurnedOnElsewhere(IEnumerable<HordeLocations.ConfigFile> files, string exclude, Action<string, Exception> onError = null)
+        {
+            var others = files.Where(f => !string.Equals(f.Path, exclude, StringComparison.OrdinalIgnoreCase));
+            var key = (HordeConfigPlan.SectionBuild, "bAllowUBAExecutor");
+            var values = Read(others, new[] { key }, onError);
+            return values.TryGetValue(key.Item1 + "/" + key.Item2, out var v) && string.Equals(v.Value?.Trim(), "true", StringComparison.OrdinalIgnoreCase) ? v : null;
+        }
+
         public static Dictionary<string, EffectiveValue> Read(IEnumerable<HordeLocations.ConfigFile> files, IEnumerable<(string Section, string Key)> keys, Action<string, Exception> onError = null)
         {
             var result = new Dictionary<string, EffectiveValue>(StringComparer.Ordinal);

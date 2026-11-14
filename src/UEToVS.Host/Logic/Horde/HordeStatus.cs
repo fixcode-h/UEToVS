@@ -63,6 +63,8 @@ namespace UEToVS.Host.Logic.Horde
         public EffectiveValue Pool { get; set; }
         public EffectiveValue UbaExecutor { get; set; }
         public EffectiveValue MaxParallelActions { get; set; }
+        /// <summary>With the feature off: UBA turned on by a file UEToVS does not write, or null.</summary>
+        public EffectiveValue UbaElsewhere { get; set; }
         public string AgentExecutable { get; set; }
         public string AgentJsonPath { get; set; }
         public bool AgentJsonExists { get; set; }
@@ -91,9 +93,15 @@ namespace UEToVS.Host.Logic.Horde
             if (s.UbtKeysKnown > 0) engine += Loc.F("，已从 UBT 源码读到 {0} 个配置项", ", {0} config keys read from the UBT sources", s.UbtKeysKnown);
             sb.AppendLine(engine);
 
-            sb.AppendLine(s.Enabled
-                ? Loc.F("联合编译：已启用，本机参与 {0} / {1} 核", "Distributed builds: on, {0} of {1} local cores", s.LocalCores, s.LogicalCores)
-                : Loc.T("联合编译：未启用", "Distributed builds: off"));
+            if (s.Enabled)
+                sb.AppendLine(Loc.F("联合编译：已启用，本机参与 {0} / {1} 核", "Distributed builds: on, {0} of {1} local cores", s.LocalCores, s.LogicalCores));
+            else if (s.UbaElsewhere != null)
+                sb.AppendLine(Loc.F("联合编译：插件开关未开，UBA 由 {0} 开启；本机参与 {1} / {2} 核", "Distributed builds: switch off, UBA turned on by {0}; {1} of {2} local cores",
+                    s.UbaElsewhere.SourceFile, s.LocalCores, s.LogicalCores));
+            else
+                sb.AppendLine(Loc.T("联合编译：未启用", "Distributed builds: off"));
+            if (s.MaxParallelActions != null && !string.IsNullOrEmpty(s.MaxParallelActions.Value))
+                sb.AppendLine(Loc.F("UBT 本机并发：{0}", "UBT local parallel actions: {0}", Describe(s.MaxParallelActions, null)));
             sb.AppendLine(Loc.F("Horde 服务器：{0}", "Horde server: {0}", Describe(s.Server, Loc.T("未设置", "not set"))));
             if (s.Pool != null) sb.AppendLine(Loc.F("机器池：{0}", "Pool: {0}", Describe(s.Pool, null)));
             sb.AppendLine(Loc.F("写入文件：{0}", "Writes: {0}", s.TargetFile ?? Loc.T("（未打开 UE 项目）", "(no UE project open)")));

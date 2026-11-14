@@ -6,6 +6,11 @@
 - 节内用 `### 新功能`、`### 改进`、`### Bug 修复`、`### 注意` 等小标题，条目写成 `- **短标题** — 说明`。
 - 改了 `src/` 的 PR 必须在最上面加一个新版本节（PR 检查会验证），这样每次合并都会出一个带更新日志的包。
 
+## v0.6.2
+
+### Bug 修复
+- **联合编译“本机参与编译的核心数”在插件开关关着时不生效** — UBA 是在自己的 `%AppData%\Unreal Engine\UnrealBuildTool\BuildConfiguration.xml` 里手动开的、插件里的“启用 UBA 联合编译”没开时，插件之前什么都不写，UBT 本机仍按默认并发跑。现在只要检测到别的配置文件开了 UBA（bAllowUBAExecutor=true），就只把 MaxParallelActions 写进引擎的 BuildConfiguration.xml，其他项不动；完全不用 UBA 时照旧不写。这一项在开关关着时也能改了。“当前状态”会显示 UBA 是哪个文件开的，以及 UBT 实际读到的本机并发和来源文件；日志 `horde.apply.buildConfiguration` 多了 `ubaElsewhere`
+
 ## v0.6.1
 
 ### 改进

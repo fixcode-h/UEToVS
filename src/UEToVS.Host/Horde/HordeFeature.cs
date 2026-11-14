@@ -60,12 +60,15 @@ namespace UEToVS.Host.Horde
             L.Info("horde.initialized", null);
         }
 
-        /// <summary>A UE solution opened: with the feature on, the (project-level) file of this project gets the keys too.</summary>
+        /// <summary>
+        /// A UE solution opened: the engine's file gets the keys. Also runs with the feature off, because UBA may be turned on
+        /// in a hand-made BuildConfiguration.xml and the local core limit still applies then.
+        /// </summary>
         public static void OnUnrealSolutionOpened()
         {
             var s = _package?.Settings?.Effective;
             InvalidateStatus();
-            if (s == null || !s.HordeEnabled) return;
+            if (s == null) return;
             _ = Safe.RunInBackgroundAsync(L, "horde.apply.onOpen", async () =>
             {
                 // For a game project the engine root comes from the UEToVS engine's first status; wait for it (up to 2 min).
@@ -114,6 +117,14 @@ namespace UEToVS.Host.Horde
             return path;
         }
 
+        /// <summary>
+        /// bAllowUBAExecutor=true set by a file UEToVS does not write. The project file is left out: UBT does not read it for
+        /// builds started from VS.
+        /// </summary>
+        private static EffectiveValue UbaElsewhere(string engineRoot, string target) =>
+            EffectiveBuildConfiguration.UbaTurnedOnElsewhere(HordeLocations.BuildConfigurationFiles(engineRoot, null, AppData, Documents), target,
+                (path, ex) => L.Warn("horde.apply.readFailed", null, ("path", path), ("error", ex.Message)));
+
         /// <summary>Writes BuildConfiguration.xml (and Agent.json when <paramref name="agent"/>); returns the text for the status row.</summary>
         public static async Task<string> ApplyAsync(HostSettings s, bool agent, string reason)
         {
@@ -137,7 +148,8 @@ namespace UEToVS.Host.Horde
                 }
                 else
                 {
-                    var plan = HordeConfigPlan.Build(s, Environment.ProcessorCount, KnownKeys(engineRoot));
+                    var ubaElsewhere = UbaElsewhere(engineRoot, target);
+                    var plan = HordeConfigPlan.Build(s, Environment.ProcessorCount, KnownKeys(engineRoot), ubaElsewhere != null);
                     _lastSkipped = plan.Skipped;
                     var result = BuildConfigurationWriter.Apply(target, plan, manifest);
                     // Files written for another target get their earlier values back (e.g. the project file v0.5.4 wrote, which
@@ -153,7 +165,7 @@ namespace UEToVS.Host.Horde
                     }
                     L.Info("horde.apply.buildConfiguration", null, ("reason", reason), ("file", target), ("enabled", s.HordeEnabled),
                            ("written", result.Written), ("restored", result.Restored), ("restoredOtherFiles", others), ("restoredOtherKeys", restoredElsewhere), ("target", targetKind.ToString()),
-                           ("skipped", plan.Skipped), ("localCores", plan.LocalCores), ("engineVersion", version?.ToString()), ("changed", result.FileChanged));
+                           ("ubaElsewhere", ubaElsewhere?.SourceFile), ("skipped", plan.Skipped), ("localCores", plan.LocalCores), ("engineVersion", version?.ToString()), ("changed", result.FileChanged));
                     if (result.Written.Count > 0 || result.Restored.Count > 0 || restoredElsewhere > 0)
                         messages.Add(HordeText.Applied(result.Written.Count, result.Restored.Count + restoredElsewhere));
                 }
@@ -334,6 +346,7 @@ namespace UEToVS.Host.Horde
             snap.Pool = pool;
             snap.UbaExecutor = uba;
             snap.MaxParallelActions = parallel;
+            if (!s.HordeEnabled) snap.UbaElsewhere = UbaElsewhere(engineRoot, snap.TargetFile);
             try
             {
                 snap.AgentJsonExists = snap.AgentJsonPath != null && File.Exists(snap.AgentJsonPath);
