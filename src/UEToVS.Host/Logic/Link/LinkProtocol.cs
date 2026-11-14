@@ -37,6 +37,18 @@ namespace UEToVS.Host.Logic.Link
 
         public static JObject Ping() => new JObject { ["cmd"] = "ping", ["protocol"] = Version };
 
+        /// <summary>
+        /// Copy of <paramref name="command"/> with the card's token (UELink checks it when present and will require it);
+        /// unchanged when there is no token (old UEToVSLink, which ignores unknown fields anyway).
+        /// </summary>
+        public static JObject WithToken(JObject command, string token)
+        {
+            if (command == null || string.IsNullOrEmpty(token)) return command;
+            var copy = (JObject)command.DeepClone();
+            copy["token"] = token;
+            return copy;
+        }
+
         public static JObject Subscribe(IEnumerable<string> topics)
         {
             var arr = new JArray();

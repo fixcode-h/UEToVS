@@ -139,8 +139,17 @@ namespace UEToVS.Host.Logic.Settings
         /// <summary>On save of a .h/.cpp: check #include modules against Build.cs and offer to add missing dependencies.</summary>
         public bool CheckIncludesOnSave { get; set; } = true;
 
-        /// <summary>UEToVSLink editor plugin TCP port; 0 = read &lt;Project&gt;/Saved/UEToVSLink/port.txt.</summary>
+        /// <summary>
+        /// UELink push-stream TCP port; 0 = read the card &lt;Project&gt;/Saved/UELink/instances/&lt;PID&gt;.json (old
+        /// UEToVSLink: &lt;Project&gt;/Saved/UEToVSLink/port.txt).
+        /// </summary>
         public int EditorLinkPort { get; set; } = 0;
+
+        /// <summary>
+        /// Where to look for UELink updates: empty = latest release of fixcode-h/UELink on GitHub; an http(s) URL = a
+        /// mirror's manifest.json (or the folder holding it); a local folder holding manifest.json and the zip (offline).
+        /// </summary>
+        public string UELinkSource { get; set; } = "";
 
         // ---- v0.4.5 UE editor link (log window, test runner, Live Coding errors)
         /// <summary>UE log window ring buffer size (lines); older lines are dropped.</summary>

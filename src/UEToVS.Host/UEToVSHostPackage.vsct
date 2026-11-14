@@ -595,7 +595,7 @@
         <Parent guid="guidUEToVSHostCmdSet" id="grpM1Unreal" />
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
-          <ButtonText>Install UEToVSLink Editor Plugin</ButtonText>
+          <ButtonText>Install UELink Editor Plugin</ButtonText>
           <CanonicalName>UEToVS.InstallEditorPlugin</CanonicalName>
           <LocCanonicalName>UEToVS.InstallEditorPlugin</LocCanonicalName>
         </Strings>

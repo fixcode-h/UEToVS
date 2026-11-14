@@ -2,7 +2,7 @@ using UEToVS.Core.Localization;
 
 namespace UEToVS.Host.Logic.Localization
 {
-    /// <summary>v0.4.5 UE editor link texts: UE log window, automation test runner, Live Coding errors, UEToVSLink card.</summary>
+    /// <summary>v0.4.5 UE editor link texts: UE log window, automation test runner, Live Coding errors, UELink card.</summary>
     public static class LinkStrings
     {
         // ---- commands
@@ -13,9 +13,9 @@ namespace UEToVS.Host.Logic.Localization
 
         // ---- connection
         public static string StateConnected => Loc.T("已连接 UE 编辑器", "Connected to the Unreal Editor");
-        public static string StateWaiting => Loc.T("等待 UE 编辑器（未运行或未启用 UEToVSLink）", "Waiting for the Unreal Editor (not running or UEToVSLink not enabled)");
+        public static string StateWaiting => Loc.T("等待 UE 编辑器（未运行或未启用 UELink）", "Waiting for the Unreal Editor (not running or UELink not enabled)");
         public static string StateConnecting => Loc.T("正在连接 UE 编辑器…", "Connecting to the Unreal Editor…");
-        public static string StateTooOld => Loc.T("编辑器里的 UEToVSLink 版本太旧，不支持日志 / 测试，请更新插件", "The UEToVSLink plugin in the editor is too old for logs / tests; update it");
+        public static string StateTooOld => Loc.T("编辑器里的 UE 插件版本太旧，不支持日志 / 测试，请安装 UELink", "The editor plugin is too old for logs / tests; install UELink");
         public static string StateIdle => Loc.T("未连接", "Not connected");
         public static string UpdatePlugin => Loc.T("更新插件", "Update plugin");
         public static string InstallPlugin => Loc.T("安装插件", "Install plugin");
@@ -33,7 +33,7 @@ namespace UEToVS.Host.Logic.Localization
         public static string Clear => Loc.T("清空", "Clear");
         public static string CopyLine => Loc.T("复制", "Copy");
         public static string LogEmpty => Loc.T("还没有日志", "No log lines yet");
-        public static string LogEmptyHint => Loc.T("在 UE 编辑器里启用 UEToVSLink 插件后，编辑器和 PIE 的日志会实时显示在这里。", "With the UEToVSLink plugin enabled in the Unreal Editor, editor and PIE log lines show up here live.");
+        public static string LogEmptyHint => Loc.T("在 UE 编辑器里启用 UELink 插件后，编辑器和 PIE 的日志会实时显示在这里。", "With the UELink plugin enabled in the Unreal Editor, editor and PIE log lines show up here live.");
         public static string LogNoMatch => Loc.T("没有符合过滤条件的日志", "No log lines match the filter");
         public static string HintJump => Loc.T("跳到源码", "Go to source");
         public static string LogCount(int shown, int total) => Loc.F("{0} / {1} 行", "{0} / {1} lines", shown, total);
@@ -57,8 +57,8 @@ namespace UEToVS.Host.Logic.Localization
         public static string TestsNone => Loc.T("项目源码里没有找到自动化测试", "No automation tests found in the project sources");
         public static string TestsNoneHint => Loc.T("识别 IMPLEMENT_SIMPLE_AUTOMATION_TEST / IMPLEMENT_COMPLEX_AUTOMATION_TEST / BEGIN_DEFINE_SPEC / DEFINE_SPEC。", "Recognizes IMPLEMENT_SIMPLE_AUTOMATION_TEST / IMPLEMENT_COMPLEX_AUTOMATION_TEST / BEGIN_DEFINE_SPEC / DEFINE_SPEC.");
         public static string TestsFound(int tests, int files) => Loc.F("{0} 个测试（扫描了 {1} 个文件）", "{0} tests ({1} files scanned)", tests, files);
-        public static string TestsEditorOffline => Loc.T("UE 编辑器没有连接：请先启动编辑器并启用 UEToVSLink 插件，再运行测试", "The Unreal Editor is not connected: start it with the UEToVSLink plugin enabled, then run the tests");
-        public static string TestsPluginTooOld => Loc.T("编辑器里的 UEToVSLink 不支持运行测试（版本太旧），请更新插件后重启编辑器", "The UEToVSLink plugin in the editor cannot run tests (too old); update it and restart the editor");
+        public static string TestsEditorOffline => Loc.T("UE 编辑器没有连接：请先启动编辑器并启用 UELink 插件，再运行测试", "The Unreal Editor is not connected: start it with the UELink plugin enabled, then run the tests");
+        public static string TestsPluginTooOld => Loc.T("编辑器里的 UE 插件不支持运行测试（版本太旧），请安装 UELink 后重启编辑器", "The editor plugin cannot run tests (too old); install UELink and restart the editor");
         public static string TestsBusy => Loc.T("编辑器正在运行另一批测试", "The editor is already running tests");
         public static string TestsRunning(string filter) => Loc.F("正在运行 {0}…", "Running {0}…", filter);
         public static string TestsRunFailed(string message) => Loc.F("编辑器拒绝运行测试：{0}", "The editor refused to run the tests: {0}", message);
@@ -93,27 +93,34 @@ namespace UEToVS.Host.Logic.Localization
         public static string CategoryDefinition => Loc.T("定义", "Definition");
         public static string CategoryUsage => Loc.T("使用", "Usage");
 
-        // ---- UEToVSLink card (settings)
-        public static string PluginCardTitle => "UEToVSLink";
+        // ---- UELink card (settings). UELink = the editor plugin shared with Agent Panel; it replaced UEToVSLink.
+        public static string PluginCardTitle => "UELink";
         public static string PluginNotInstalled => Loc.T("未安装", "Not installed");
         public static string PluginNoProject => Loc.T("没有 .uproject（引擎解决方案），无法安装到项目", "No .uproject (engine solution): cannot install into a project");
-        public static string PluginInstalledAt(string where, string version) => Loc.F("已安装 {1}（{0}）", "Installed {1} ({0})", where, version);
+        public static string PluginInstalledAt(string where, string version) => Loc.F("已安装 UELink {1}（{0}）", "Installed UELink {1} ({0})", where, version);
+        public static string PluginInstalledBy(string by) => Loc.F("由 {0} 安装", "Installed by {0}", by == "agent-panel" ? Loc.T("Agent 面板", "Agent Panel") : by == "uetovs" ? "UEToVS" : by);
         public static string PluginLocationProject => Loc.T("项目 Plugins", "project Plugins");
         public static string PluginLocationEngine => Loc.T("引擎 Plugins", "engine Plugins");
         public static string PluginLocationMarketplace => Loc.T("引擎 Plugins/Marketplace", "engine Plugins/Marketplace");
         public static string PluginBundled(string version) => Loc.F("扩展自带版本 {0}", "Bundled with the extension: {0}", version);
-        public static string PluginUpdateAvailable => Loc.T("有更新：安装的版本比扩展自带的旧", "Update available: the installed version is older than the bundled one");
-        public static string PluginNewer => Loc.T("安装的版本比扩展自带的新", "The installed version is newer than the bundled one");
+        public static string PluginRemote(string version) => Loc.F("公共库最新正式版 {0}", "Latest release: {0}", version);
+        public static string PluginRemoteFailed(string error) => Loc.F("查不到公共库的新版本（{0}），用扩展自带的", "Could not check the UELink releases ({0}); using the bundled copy", error);
+        public static string PluginLegacy(string name, string dir) => Loc.F("旧插件 {0}：{1}（安装 UELink 时会删掉，它已经合进 UELink）", "Old plugin {0}: {1} (removed when UELink is installed; it was merged into UELink)", name, dir);
+        public static string PluginLegacyEngine(string name, string dir) => Loc.F("引擎里还有旧插件 {0}：{1}，请手动删掉，否则会和 UELink 冲突", "The engine still has the old plugin {0}: {1}; delete it by hand, it conflicts with UELink", name, dir);
+        public static string PluginUpdateAvailable => Loc.T("有更新：可以装更新的 UELink", "Update available: a newer UELink can be installed");
+        public static string PluginNewer => Loc.T("项目里的 UELink 比能装到的更新（可能是 Agent 面板装的），不会降级", "The UELink in the project is newer than the available one (Agent Panel may have installed it); it is never downgraded");
         public static string PluginEditorOnline(string info) => Loc.F("编辑器在线（{0}）", "Editor online ({0})", info);
         public static string PluginEditorOffline => Loc.T("编辑器不在线", "Editor offline");
         public static string PluginInstall => Loc.T("安装", "Install");
         public static string PluginUpdate => Loc.T("更新", "Update");
         public static string PluginUninstall => Loc.T("卸载", "Uninstall");
-        public static string PluginUninstallConfirm(string dir) => Loc.F("删除 UEToVSLink 插件目录（含 Binaries / Intermediate）并从 .uproject 移除它？\n\n{0}", "Delete the UEToVSLink plugin folder (including Binaries / Intermediate) and remove it from the .uproject?\n\n{0}", dir);
+        public static string PluginUninstallConfirm(string dir) => Loc.F("删除 UELink 插件目录（含 Binaries / Intermediate）并从 .uproject 移除它？Agent 面板的 UE 插件也在用它。\n\n{0}", "Delete the UELink plugin folder (including Binaries / Intermediate) and remove it from the .uproject? Agent Panel's UE plugin uses it too.\n\n{0}", dir);
         public static string PluginLocked(string file) => Loc.F("插件文件正在被占用（{0}）：请先关闭 UE 编辑器", "A plugin file is in use ({0}): close the Unreal Editor first", file);
-        public static string PluginInstalledDone(string target) => Loc.F("UEToVSLink 已安装到 {0}，重新打开 UE 编辑器后生效（首次会编译插件）", "UEToVSLink installed to {0}; reopen the Unreal Editor to load it (it compiles the plugin the first time)", target);
-        public static string PluginUninstalledDone => Loc.T("UEToVSLink 已卸载", "UEToVSLink uninstalled");
+        public static string PluginInstalledDone(string version, string target) => Loc.F("UELink {0} 已安装到 {1}，请关掉编辑器后完整编译一次（Live Coding 不够）", "UELink {0} installed to {1}; do a full build with the editor closed (Live Coding is not enough)", version, target);
+        public static string PluginRemovedLegacy(int count) => Loc.F("，删掉了 {0} 个旧插件", "; removed {0} old plugin(s)", count);
+        public static string PluginUninstalledDone => Loc.T("UELink 已卸载", "UELink uninstalled");
         public static string PluginOperationFailed(string detail) => Loc.F("操作失败：{0}", "Operation failed: {0}", detail);
         public static string PluginMissingSource(string dir) => Loc.F("扩展里缺少插件源码：{0}", "The extension is missing the plugin sources: {0}", dir);
+        public static string PluginNewerRefused(string version) => Loc.F("项目里已经是更新的 UELink {0}，不降级", "The project already has the newer UELink {0}; not downgrading", version);
     }
 }

@@ -42,6 +42,7 @@ namespace UEToVS.Host.Logic.Link
         private const int MaxLineChars = 4 * 1024 * 1024;
 
         private readonly Func<int> _resolvePort;
+        private readonly Func<string> _token;
         private readonly object _gate = new object();
         private readonly SemaphoreSlim _writeLock = new SemaphoreSlim(1, 1);
         private readonly HashSet<string> _topics = new HashSet<string>(StringComparer.Ordinal);
@@ -53,10 +54,12 @@ namespace UEToVS.Host.Logic.Link
         private long _eventsReceived;
         private long _parseErrors;
 
-        /// <param name="resolvePort">Current plugin port (port file / settings); 0 = unknown.</param>
-        public EditorLinkSubscription(Func<int> resolvePort)
+        /// <param name="resolvePort">Current plugin port (UELink card / port file / settings); 0 = unknown.</param>
+        /// <param name="token">Token of the editor resolvePort picked (read right after it); null = none (old plugin).</param>
+        public EditorLinkSubscription(Func<int> resolvePort, Func<string> token = null)
         {
             _resolvePort = resolvePort ?? (() => 0);
+            _token = token ?? (() => null);
         }
 
         public LinkSubscriptionState State
@@ -171,7 +174,7 @@ namespace UEToVS.Host.Logic.Link
         {
             try
             {
-                string line = LinkProtocol.Subscribe(Topics).ToString(Formatting.None);
+                string line = LinkProtocol.WithToken(LinkProtocol.Subscribe(Topics), _token()).ToString(Formatting.None);
                 await WriteLineAsync(writer, line).ConfigureAwait(false);
             }
             catch (Exception ex) when (ex is IOException || ex is ObjectDisposedException || ex is InvalidOperationException || ex is SocketException)
@@ -279,7 +282,7 @@ namespace UEToVS.Host.Logic.Link
                     using (var writer = new StreamWriter(stream, new UTF8Encoding(false), 4096, true) { NewLine = "\n", AutoFlush = true })
                     using (var reader = new StreamReader(stream, Encoding.UTF8, false, 64 * 1024, true))
                     {
-                        await WriteLineAsync(writer, LinkProtocol.Subscribe(Topics).ToString(Formatting.None)).ConfigureAwait(false);
+                        await WriteLineAsync(writer, LinkProtocol.WithToken(LinkProtocol.Subscribe(Topics), _token()).ToString(Formatting.None)).ConfigureAwait(false);
                         string first = await ReadLineAsync(reader, ct).ConfigureAwait(false);
                         var reply = first == null ? null : LinkProtocol.ParseEvent(first, out _) as SubscribeReplyEvent;
                         if (reply == null)
@@ -301,7 +304,7 @@ namespace UEToVS.Host.Logic.Link
                         L.Info("link.subscription.connected", null, ("port", port), ("protocol", reply.Protocol), ("topics", string.Join(",", Topics)),
                             ("ms", Math.Round(sw.Elapsed.TotalMilliseconds, 1)));
                         // Topics may have changed between the subscribe line and now.
-                        await WriteLineAsync(writer, LinkProtocol.Subscribe(Topics).ToString(Formatting.None)).ConfigureAwait(false);
+                        await WriteLineAsync(writer, LinkProtocol.WithToken(LinkProtocol.Subscribe(Topics), _token()).ToString(Formatting.None)).ConfigureAwait(false);
                         while (!ct.IsCancellationRequested)
                         {
                             string line = await ReadLineAsync(reader, ct).ConfigureAwait(false);

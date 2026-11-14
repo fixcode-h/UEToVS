@@ -6,6 +6,22 @@
 - 节内用 `### 新功能`、`### 改进`、`### Bug 修复`、`### 注意` 等小标题，条目写成 `- **短标题** — 说明`。
 - 改了 `src/` 的 PR 必须在最上面加一个新版本节（PR 检查会验证），这样每次合并都会出一个带更新日志的包。
 
+## v0.6.0
+
+### 新功能
+- **UE 编辑器插件换成 UELink（和 Agent 面板共用）** — 原来的 UEToVSLink 和 Agent 面板的 AgentPanelBridge 合并成了一个公共插件 UELink（[fixcode-h/UELink](https://github.com/fixcode-h/UELink)）。打开资产、Live Coding、UE 日志、自动化测试照常用，同一个 UE 项目里只要装一个插件，UEToVS 和 Agent 面板都能连上。设置 > UE 编辑器联动里的卡片、“安装 UELink 编辑器插件”命令都换成了 UELink
+- **安装时自动换掉旧插件** — 项目里还有 UEToVSLink 或 AgentPanelBridge 时，卡片会提示有更新；安装 UELink 时删掉这两个旧插件目录，并把它们从 .uproject 的 Plugins 列表里去掉（不删的话 UELink 编译时会报错拦下）。引擎目录里的旧插件不会自动删，卡片上会提示手动删
+- **能从公共库更新** — 扩展自带一份 UELink，同时每隔几小时查一次公共库的最新正式版；公共库的更新就下载（校验 sha256）再装。项目里已经是更新的版本（例如 Agent 面板装的）时不会降级。新设置“UELink 更新源”可以填内网镜像地址或放着 manifest.json 和源码包的本机目录
+- **卡片显示更多信息** — 显示是谁装的（UEToVS / Agent 面板）、扩展自带版本、公共库最新版本，以及还没删掉的旧插件
+
+### 改进
+- **连接编辑器改读 UELink 的名片** — 端口和令牌从编辑器写的 `Saved/UELink/instances/<PID>.json` 读，每条命令都带上令牌；同时开了几个编辑器时连最后启动的那个，已经退出的编辑器留下的名片不会再连。旧版 UEToVSLink 仍然读 `Saved/UEToVSLink/port.txt`
+- **更新时保留 Binaries / Intermediate** — 只替换 Source、Config 和 UELink.uplugin，让 UBT 按时间戳重编（原来会先删掉旧的编译产物）
+
+### 注意
+- 装上或更新 UELink 后要关掉编辑器**完整编译一次**（Live Coding 不够）
+- 卸载 UELink 也会影响 Agent 面板的 UE 插件，确认框里有提示
+
 ## v0.5.19
 
 ### 改进

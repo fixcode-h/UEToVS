@@ -196,22 +196,30 @@ namespace UEToVS.Host.Logic.Settings
             list.Add(D(General, "unreal.checkIncludesOnSave", SettingKind.Bool, "保存时检查 #include 的模块依赖", "Check #include module dependencies on save",
                 "保存 .h/.cpp 时对照 Build.cs 检查 #include 所属模块，缺失时提示添加依赖。", "On saving a .h/.cpp, checks the #include modules against Build.cs and offers to add missing dependencies.",
                 "true", gUe, gUeEn));
-            var port = D(General, "unreal.editorLinkPort", SettingKind.Int, "UEToVSLink 编辑器插件端口", "UEToVSLink editor plugin port",
-                "勾选“自动”时读取 <项目>/Saved/UEToVSLink/port.txt。", "“Auto” reads <Project>/Saved/UEToVSLink/port.txt.", "0", gUe, gUeEn);
+            var port = D(General, "unreal.editorLinkPort", SettingKind.Int, "UELink 编辑器插件端口", "UELink editor plugin port",
+                "勾选“自动”时读取编辑器写的 <项目>/Saved/UELink/instances 名片（旧版 UEToVSLink 读 Saved/UEToVSLink/port.txt）。",
+                "“Auto” reads the card the editor writes to <Project>/Saved/UELink/instances (old UEToVSLink: Saved/UEToVSLink/port.txt).", "0", gUe, gUeEn);
             port.Min = 0; port.Max = 65535; port.AutoLabelZh = "自动"; port.AutoLabelEn = "Auto";
             list.Add(port);
 
             // ---- v0.4.5 UE editor link
-            const string gLink = "UE 编辑器联动（UEToVSLink）", gLinkEn = "Unreal Editor link (UEToVSLink)";
-            list.Add(A(General, "link.pluginStatus", WindowActions.LinkPluginStatus, "UEToVSLink 插件", "UEToVSLink plugin", null, null, gLink, gLinkEn, SettingKind.Info));
-            list.Add(A(General, "link.pluginInstall", WindowActions.LinkPluginInstall, "安装 / 更新 UEToVSLink", "Install / update UEToVSLink",
-                "把扩展自带的插件复制到 <项目>/Plugins/UEToVSLink（更新时先删掉旧的 Binaries / Intermediate），重新打开 UE 编辑器后生效。",
-                "Copies the bundled plugin to <Project>/Plugins/UEToVSLink (an update removes the old Binaries / Intermediate first); reopen the Unreal Editor to load it.",
+            const string gLink = "UE 编辑器联动（UELink）", gLinkEn = "Unreal Editor link (UELink)";
+            list.Add(A(General, "link.pluginStatus", WindowActions.LinkPluginStatus, "UELink 插件", "UELink plugin", null, null, gLink, gLinkEn, SettingKind.Info));
+            list.Add(A(General, "link.pluginInstall", WindowActions.LinkPluginInstall, "安装 / 更新 UELink", "Install / update UELink",
+                "UELink 是和 Agent 面板共用的 UE 编辑器插件（合并了原来的 UEToVSLink）。扩展自带的和公共库最新正式版取新的，复制到 <项目>/Plugins/UELink，" +
+                "并删掉旧的 UEToVSLink / AgentPanelBridge；项目里已经是更新的版本时不动。需要关掉 UE 编辑器，装完重新完整编译一次。",
+                "UELink is the Unreal Editor plugin shared with Agent Panel (it replaces UEToVSLink). The newer of the bundled copy and the latest release " +
+                "is copied to <Project>/Plugins/UELink and the old UEToVSLink / AgentPanelBridge are removed; a newer version already in the project is left alone. " +
+                "Close the Unreal Editor first and do a full build afterwards.",
                 gLink, gLinkEn));
-            list.Add(A(General, "link.pluginUninstall", WindowActions.LinkPluginUninstall, "卸载 UEToVSLink", "Uninstall UEToVSLink",
-                "删除插件目录（含 Binaries / Intermediate）并从 .uproject 的 Plugins 列表移除；UE 编辑器运行中（DLL 被占用）时不会删除。",
-                "Deletes the plugin folder (including Binaries / Intermediate) and removes it from the .uproject Plugins list; nothing is deleted while the Unreal Editor holds the DLL.",
+            list.Add(A(General, "link.pluginUninstall", WindowActions.LinkPluginUninstall, "卸载 UELink", "Uninstall UELink",
+                "删除插件目录（含 Binaries / Intermediate）并从 .uproject 的 Plugins 列表移除；UE 编辑器运行中（DLL 被占用）时不会删除。Agent 面板的 UE 插件也用它。",
+                "Deletes the plugin folder (including Binaries / Intermediate) and removes it from the .uproject Plugins list; nothing is deleted while the Unreal Editor holds the DLL. Agent Panel's UE plugin uses it too.",
                 gLink, gLinkEn));
+            list.Add(D(General, "link.uelinkSource", SettingKind.Text, "UELink 更新源", "UELink update source",
+                "留空 = GitHub 上 fixcode-h/UELink 的最新正式版；也可以填镜像上 manifest.json 的地址，或放着 manifest.json 和源码包的本机目录（内网、断网时用）。",
+                "Empty = the latest release of fixcode-h/UELink on GitHub; or a mirror's manifest.json URL, or a local folder holding manifest.json and the source zip (intranet / offline).",
+                "", gLink, gLinkEn));
             var logLines = D(General, "link.logMaxLines", SettingKind.Int, "UE 日志窗口最多保留行数", "UE log window: max lines kept",
                 "超过后丢弃最旧的行，避免内存增长。", "Older lines are dropped beyond this, so memory stays bounded.", "20000", gLink, gLinkEn);
             logLines.Min = 1000; logLines.Max = 500000; logLines.Keywords = "log 日志 buffer 缓冲 memory 内存";
@@ -547,6 +555,7 @@ namespace UEToVS.Host.Logic.Settings
                     ["unreal.checkIncludesOnSave"] = B(s.CheckIncludesOnSave),
                     ["mcp.enable"] = B(s.EnableMcpServer),
                     ["unreal.editorLinkPort"] = I(s.EditorLinkPort),
+                    ["link.uelinkSource"] = s.UELinkSource ?? "",
                     ["link.logMaxLines"] = I(s.LinkLogMaxLines),
                     ["link.logKeepReceiving"] = B(s.LinkLogKeepReceiving),
                     ["link.liveCoding"] = B(s.LinkLiveCodingEnabled),
@@ -675,6 +684,7 @@ namespace UEToVS.Host.Logic.Settings
                         case "unreal.checkIncludesOnSave": s.CheckIncludesOnSave = PB(v); break;
                         case "mcp.enable": s.EnableMcpServer = PB(v); break;
                         case "unreal.editorLinkPort": s.EditorLinkPort = PI(v, 0); break;
+                        case "link.uelinkSource": s.UELinkSource = (v ?? "").Trim(); break;
                         case "link.logMaxLines": s.LinkLogMaxLines = PI(v, 20000); break;
                         case "link.logKeepReceiving": s.LinkLogKeepReceiving = PB(v); break;
                         case "link.liveCoding": s.LinkLiveCodingEnabled = PB(v); break;

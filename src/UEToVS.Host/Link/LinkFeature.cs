@@ -55,7 +55,7 @@ namespace UEToVS.Host.Link
         {
             ThreadHelper.ThrowIfNotOnUIThread();
             _package = package;
-            Subscription = new EditorLinkSubscription(() => EditorLinkService.Instance?.Client.ResolvePort() ?? 0);
+            Subscription = new EditorLinkSubscription(() => EditorLinkService.Instance?.Client.ResolvePort() ?? 0, () => EditorLinkService.Instance?.Client.Token);
             Subscription.EventReceived += OnEvent;
             Subscription.StateChanged += OnStateChanged;
             LogStore = new UeLogStore(package.Settings?.Effective?.LinkLogMaxLines ?? UeLogBuffer.DefaultCapacity);

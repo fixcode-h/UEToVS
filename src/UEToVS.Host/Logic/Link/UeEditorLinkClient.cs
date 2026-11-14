@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
@@ -31,9 +32,11 @@ namespace UEToVS.Host.Logic.Link
     }
 
     /// <summary>
-    /// Client of the UEToVSLink editor plugin (ue/UEToVSLink): a localhost TCP server inside the running Unreal Editor
-    /// that speaks one JSON object per line ({"cmd": "ping" | "openAsset" | "browseAsset" | "liveCoding", ...} →
-    /// {"ok": bool, "message": string}). The plugin writes its port to &lt;Project&gt;/Saved/UEToVSLink/port.txt.
+    /// Client of the UELink editor plugin's push stream (ue/UELink, shared with Agent Panel; was UEToVSLink): a localhost
+    /// TCP server inside the running Unreal Editor that speaks one JSON object per line ({"cmd": "ping" | "openAsset" |
+    /// "browseAsset" | "liveCoding", ...} → {"ok": bool, "message": string}). Port and token come from the card UELink
+    /// writes to &lt;Project&gt;/Saved/UELink/instances/&lt;PID&gt;.json (<see cref="LinkCard"/>); without a card (old
+    /// UEToVSLink) the port comes from &lt;Project&gt;/Saved/UEToVSLink/port.txt and no token is sent.
     /// Ported from the prototype; no VS types (tested against a fake server). Every call is logged with its latency.
     /// </summary>
     public sealed class UeEditorLinkClient
@@ -53,10 +56,30 @@ namespace UEToVS.Host.Logic.Link
         public static string PortFile(string projectRoot) =>
             string.IsNullOrEmpty(projectRoot) ? null : Path.Combine(projectRoot, "Saved", "UEToVSLink", "port.txt");
 
+        /// <summary>
+        /// Token of the editor that <see cref="ResolvePort"/> picked (from its card; null for an old plugin or a fixed port
+        /// that matches no card). Every command carries it: UELink checks it (later versions require it).
+        /// </summary>
+        public string Token { get; private set; }
+
+        /// <summary>For tests: replaces the "is this PID still running" check of the cards.</summary>
+        internal Func<int, bool> ProcessAlive { get; set; }
+
         public int ResolvePort()
         {
             int port = _portOverride();
-            if (port > 0) return port;
+            var cards = LinkCard.ReadLive(_projectRoot(), ProcessAlive);
+            if (port > 0)
+            {
+                Token = cards.FirstOrDefault(c => c.StreamPort == port)?.Token;
+                return port;
+            }
+            if (cards.Count > 0)
+            {
+                Token = cards[0].Token;
+                return cards[0].StreamPort;
+            }
+            Token = null;
             string file = PortFile(_projectRoot());
             if (file == null) return 0;
             try
@@ -75,6 +98,7 @@ namespace UEToVS.Host.Logic.Link
         {
             string cmd = command?["cmd"]?.ToString();
             int port = ResolvePort();
+            command = LinkProtocol.WithToken(command, Token);
             if (port <= 0)
             {
                 L.Info("link.noPort", "Editor link port unknown (editor not running or plugin missing)", ("cmd", cmd), ("portFile", PortFile(_projectRoot())));

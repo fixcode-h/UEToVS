@@ -304,7 +304,7 @@ namespace UEToVS.Host.Logic.Commands
             // Unreal (M1)
             C(M1, LiveCoding, "LiveCoding", ActionIds.LiveCoding, "Live Coding（UE 编辑器）", "Live Coding (Unreal Editor)", "unreal", Gl, "Ctrl+Alt+F11", "Ctrl+Alt+F11", "Ctrl+Alt+F11"),
             C(M1, GenerateProjectFiles, "GenerateProjectFiles", ActionIds.GenerateProjectFiles, "生成 Visual Studio 项目文件", "Generate Visual Studio Project Files", "unreal", Gl, "Ctrl+Shift+Alt+U, G", null, null),
-            C(M1, InstallEditorPlugin, "InstallEditorPlugin", ActionIds.InstallEditorPlugin, "安装 UEToVSLink 编辑器插件", "Install UEToVSLink Editor Plugin", "unreal", Gl, "Ctrl+Shift+Alt+U, E", null, null),
+            C(M1, InstallEditorPlugin, "InstallEditorPlugin", ActionIds.InstallEditorPlugin, "安装 UELink 编辑器插件", "Install UELink Editor Plugin", "unreal", Gl, "Ctrl+Shift+Alt+U, E", null, null),
             // ---- v0.4.5 UE editor link (Link/LinkFeature.cs binds them)
             C(M1, UeLogWindow, "UeLogWindow", ActionIds.UeLogWindow, "UE 日志窗口", "Unreal Log Window", "unreal", Gl, "Ctrl+Shift+Alt+U, J", null, null),
             C(M1, UeTestRunner, "UeTestRunner", ActionIds.UeTestRunner, "UE 自动化测试", "Unreal Automation Tests", "unreal", Gl, "Ctrl+Shift+Alt+U, Z", null, null),
