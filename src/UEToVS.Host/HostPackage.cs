@@ -350,7 +350,7 @@ namespace UEToVS.Host
             await TaskScheduler.Default;
 
             Safe.Execute(L, "horde.solutionOpened", Horde.HordeFeature.OnUnrealSolutionOpened);
-            _ = Link.UeLiveCodingStartupService.ApplyAsync(LuaProjectDirectory, _settings.Effective.UeLiveCodingManualStartup, "solutionOpened");
+            _ = UEToVS.Host.Unreal.UeLiveCodingStartupService.ApplyAsync(LuaProjectDirectory, _settings.Effective.UeLiveCodingManualStartup, "solutionOpened");
             await _intelliSense.OnUnrealSolutionOpenedAsync();
             await StartEngineAsync();
             _ = Safe.RunInBackgroundAsync(L, "mcp.register", () => Mcp.McpRegistration.SyncAsync(dir, _settings.Effective)); // .vs\mcp.json for AI agents
@@ -363,7 +363,7 @@ namespace UEToVS.Host
             L.Info("solution.closing", null, ("solution", _solutionFile));
             // UE may have written its own copy of the ini while it ran: set it again for the next editor start.
             if (_settings.Effective.UeLiveCodingManualStartup)
-                _ = Link.UeLiveCodingStartupService.ApplyAsync(LuaProjectDirectory, true, "solutionClosing");
+                _ = UEToVS.Host.Unreal.UeLiveCodingStartupService.ApplyAsync(LuaProjectDirectory, true, "solutionClosing");
             var engine = _engine;
             _engine = null;
             if (engine != null) _ = Safe.RunInBackgroundAsync(L, "engine.stop", async () => { await engine.StopAsync(); engine.Dispose(); });
@@ -581,7 +581,7 @@ namespace UEToVS.Host
             if (old.DebugStepFilter != now.DebugStepFilter) // v0.4.5 编辑体验
                 _ = Safe.RunInBackgroundAsync(L, "editor.stepFilter", () => Editing.StepFilterDeployer.SyncAsync(now, "settingsChanged"));
             if (old.UeLiveCodingManualStartup != now.UeLiveCodingManualStartup && _unreal.IsUnreal)
-                await Link.UeLiveCodingStartupService.ApplyAsync(LuaProjectDirectory, now.UeLiveCodingManualStartup, "settingsChanged");
+                await UEToVS.Host.Unreal.UeLiveCodingStartupService.ApplyAsync(LuaProjectDirectory, now.UeLiveCodingManualStartup, "settingsChanged");
             await _intelliSense.OnSettingsChangedAsync(old, now, _unreal.IsUnreal);
             if (_fonts != null) await _fonts.OnSettingsChangedAsync(old, now);
             if (old.EnableMcpServer != now.EnableMcpServer && _unreal.IsUnreal)

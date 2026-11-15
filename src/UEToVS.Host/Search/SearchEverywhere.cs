@@ -12,7 +12,6 @@ using UEToVS.Core.Query;
 using UEToVS.Host.Diagnostics;
 using UEToVS.Host.Engine;
 using UEToVS.Host.Integration;
-using UEToVS.Host.Link;
 using UEToVS.Host.Logic.Actions;
 using UEToVS.Host.Logic.Localization;
 using UEToVS.Host.Logic.Navigation;
@@ -291,7 +290,7 @@ namespace UEToVS.Host.Search
                         return true;
                     }
                 case SearchRowKind.Asset:
-                    EditorLinkService.Instance?.OpenAsset(row.Asset);
+                    AssetReveal.Reveal(row.Asset);
                     return true;
                 default:
                     return Open(row, kind == InvokeKind.OpenInNewTab);

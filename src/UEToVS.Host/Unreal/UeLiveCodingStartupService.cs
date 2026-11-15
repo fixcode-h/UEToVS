@@ -6,9 +6,9 @@ using System.Text;
 using System.Threading.Tasks;
 using UEToVS.Core.Diagnostics;
 using UEToVS.Host.Diagnostics;
-using UEToVS.Host.Logic.Link;
+using UEToVS.Host.Logic.Unreal;
 
-namespace UEToVS.Host.Link
+namespace UEToVS.Host.Unreal
 {
     /// <summary>
     /// File side of <see cref="UeLiveCodingStartup"/>: applies the "UE 编辑器启动时不启动 Live Coding" switch to the open

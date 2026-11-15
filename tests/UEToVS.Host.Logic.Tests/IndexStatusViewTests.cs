@@ -143,9 +143,6 @@ namespace UEToVS.Host.Logic.Tests
             Assert.Equal(4, cpp.AutoValue);
             Assert.Equal(4, bp.AutoValue);
             Assert.Equal("0", cpp.Default); // stored semantics unchanged: 0 = auto
-            var port = schema.Single(d => d.Key == "unreal.editorLinkPort");
-            Assert.Null(port.AutoValue);
-            Assert.False(string.IsNullOrEmpty(port.AutoLabelZh));
         }
     }
 }

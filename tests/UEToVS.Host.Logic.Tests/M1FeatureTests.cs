@@ -12,7 +12,6 @@ using UEToVS.Contracts;
 using UEToVS.Core.Localization;
 using UEToVS.Core.Navigation;
 using UEToVS.Core.Query;
-using UEToVS.Host.Logic.Link;
 using UEToVS.Host.Logic.Localization;
 using UEToVS.Host.Logic.Navigation;
 using UEToVS.Host.Logic.Search;
@@ -288,60 +287,6 @@ namespace UEToVS.Host.Logic.Tests
                 string cpp = d.File("Source/Game/Private/Bar.cpp", "#include \"UObject/Object.h\"\n");
                 var missing = await IncludeDependencyChecker.CheckAsync(cpp, IncludeDependencyChecker.ParseIncludes(System.IO.File.ReadAllText(cpp)), new FsEnv(d.Path), CancellationToken.None);
                 Assert.Empty(missing);
-            }
-        }
-    }
-
-    public class EditorLinkTests
-    {
-        [Fact]
-        public async Task NoPortFileMeansUnreachable()
-        {
-            using (var d = new TempDir())
-            {
-                var c = new UeEditorLinkClient(() => d.Path, () => 0);
-                Assert.Equal(0, c.ResolvePort());
-                var r = await c.PingAsync();
-                Assert.False(r.Reached);
-            }
-        }
-
-        [Fact]
-        public async Task TalksJsonLinesWithTheEditor()
-        {
-            var listener = new TcpListener(IPAddress.Loopback, 0);
-            listener.Start();
-            int port = ((IPEndPoint)listener.LocalEndpoint).Port;
-            string received = null;
-            var server = Task.Run(async () =>
-            {
-                using (var client = await listener.AcceptTcpClientAsync())
-                using (var s = client.GetStream())
-                using (var r = new StreamReader(s, Encoding.UTF8))
-                using (var w = new StreamWriter(s, new UTF8Encoding(false)) { NewLine = "\n", AutoFlush = true })
-                {
-                    received = await r.ReadLineAsync();
-                    await w.WriteLineAsync("{\"ok\":false,\"message\":\"Live Coding is disabled\"}");
-                }
-            });
-            try
-            {
-                using (var d = new TempDir())
-                {
-                    d.File("Saved/UEToVSLink/port.txt", port + "\n");
-                    var c = new UeEditorLinkClient(() => d.Path, () => 0);
-                    Assert.Equal(port, c.ResolvePort());
-                    var reply = await c.LiveCodingAsync();
-                    await server;
-                    Assert.True(reply.Reached);
-                    Assert.False(reply.Ok);
-                    Assert.Equal("Live Coding is disabled", reply.Message);
-                    Assert.Contains("\"cmd\":\"liveCoding\"", received);
-                }
-            }
-            finally
-            {
-                listener.Stop();
             }
         }
     }

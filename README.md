@@ -3,7 +3,7 @@
 面向 Unreal Engine 5 C++ 工程的 Visual Studio 2022 / 2026 扩展：对标 Visual Assist 的 C++ / UE 感知能力，交互参考 Rider。
 
 - 整体设计：[docs/design/UEToVS-架构设计.md](docs/design/UEToVS-架构设计.md)
-- 当前状态：**v0.5.0**。M0–M4 已完成：原型功能对齐（Search Everywhere、导航历史、书签、相关项、Build.cs 依赖修复、资产搜索、Live Coding、Rider 键位）、导航（转到定义/实现、查找引用、类型层次、调用层次、速览定义、导航栏、引用高亮）、IntelliSense（UE 感知成员补全、Quick Info、宏展开、参数信息、语法着色、内嵌提示、UE 规则波浪线、反射说明符补全、通用模板实例化）、重构与生成（Alt+Enter、重命名、更改签名、移动实现、提取方法、引入变量、封装字段、前置声明、生成实现、Live Templates、Surround With）、UE 专项（新建 UE 类、编译错误波浪线、UE 日志窗口、自动化测试运行器、全项目检查、引擎升级助手）。另有给 AI Agent 用的 MCP 服务（见下文）。
+- 当前状态：**v0.5.0**。M0–M4 已完成：原型功能对齐（Search Everywhere、导航历史、书签、相关项、Build.cs 依赖修复、资产搜索、Rider 键位）、导航（转到定义/实现、查找引用、类型层次、调用层次、速览定义、导航栏、引用高亮）、IntelliSense（UE 感知成员补全、Quick Info、宏展开、参数信息、语法着色、内嵌提示、UE 规则波浪线、反射说明符补全、通用模板实例化）、重构与生成（Alt+Enter、重命名、更改签名、移动实现、提取方法、引入变量、封装字段、前置声明、生成实现、Live Templates、Surround With）、UE 专项（新建 UE 类、编译错误波浪线、全项目检查、引擎升级助手）。另有给 AI Agent 用的 MCP 服务（见下文）。
 
 ## 结构
 
@@ -18,7 +18,6 @@ src/
   UEToVS.UI               WPF 组件库（设计令牌、Rider 风格、可在设置页微调、性能面板）
   UEToVS.Host             VSIX：包加载、命令、设置页、接管 VS C++ IntelliSense、Engine 客户端
 tests/                    各模块单元测试（dotnet test）
-ue/UELink                 UE 编辑器插件 UELink（和 Agent 面板共用，公共库 fixcode-h/UELink 的副本，见 ue/VENDORED.md），由“安装 UELink 插件”复制到项目 Plugins/
 ```
 
 ## 功能（扩展 > UEToVS）
@@ -34,7 +33,7 @@ ue/UELink                 UE 编辑器插件 UELink（和 Agent 面板共用，�
 | 相关项 | Shift+Alt+R | `Foo_Implementation` / `Foo_Validate`、对应文件、`.generated.h` |
 | 打开所属模块的 Build.cs / 为 #include 添加模块依赖 | Ctrl+Shift+Alt+U, B / Ctrl+Shift+Alt+U, A | 保存 .h/.cpp 时也会自动检查 |
 | 书签 | Ctrl+F2 切换，Ctrl+Shift+F2 列表 | 切换、0–9 数字书签、书签列表（Delete 删除） |
-| Live Coding / 生成工程文件 / 安装 UELink 插件 | Ctrl+Alt+F11 / Ctrl+Shift+Alt+U, G / Ctrl+Shift+Alt+U, E | Live Coding 与打开资产需要编辑器启用 UELink 插件 |
+| 生成工程文件 | Ctrl+Shift+Alt+U, G | 资产（蓝图）搜索结果回车：复制资产路径并在资源管理器里选中 .uasset |
 | 应用 Rider 键位方案 / 恢复 VS 键位 | — | 在 Find Action 中执行；修改前备份到 `%LocalAppData%\UEToVS\keymap-backup.json` |
 
 所有功能都注册为操作，可在“查找操作…”和 Search Everywhere 的“操作”页签中搜索。每个命令都有默认快捷键（设置、日志、诊断等工具命令用 `Ctrl+Shift+Alt+U` 再按一个字母），与 VS 自带快捷键冲突时以 UEToVS 为准，修改前自动备份；可在 UEToVS 设置 > 快捷键 中修改、套用预设或还原备份。

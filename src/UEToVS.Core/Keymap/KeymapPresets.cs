@@ -27,7 +27,6 @@ namespace UEToVS.Core.Keymap
         public const string AddModuleDependency = "AddModuleDependency";
         public const string ToggleBookmark = "ToggleBookmark";
         public const string ShowBookmarks = "ShowBookmarks";
-        public const string LiveCoding = "LiveCoding";
         public const string GenerateProjectFiles = "GenerateProjectFiles";
         public const string ApplyKeymap = "ApplyKeymap";
         public const string RestoreKeymap = "RestoreKeymap";
@@ -79,7 +78,6 @@ namespace UEToVS.Core.Keymap
                 new KeyBindingEntry(Own(OwnCommands.GoToRelated), Editor, "Ctrl+Alt+Home", "Related Symbol / Header-Source"),
                 new KeyBindingEntry(Own(OwnCommands.ToggleBookmark), Editor, "F11", "Toggle Bookmark"),
                 new KeyBindingEntry(Own(OwnCommands.ShowBookmarks), Global, "Shift+F11", "Show Bookmarks"),
-                new KeyBindingEntry(Own(OwnCommands.LiveCoding), Global, "Ctrl+Alt+F11", "Live Coding"),
                 new KeyBindingEntry("Edit.GoToDefinition", Editor, "Ctrl+B", "Go to Declaration"),
                 new KeyBindingEntry("Edit.GoToImplementation", Editor, "Ctrl+Alt+B", "Go to Implementation"),
                 new KeyBindingEntry("Edit.FindAllReferences", Editor, "Alt+F7", "Find Usages"),
@@ -117,7 +115,6 @@ namespace UEToVS.Core.Keymap
                 new KeyBindingEntry(Own(OwnCommands.FileStructure), Editor, "Alt+\\", "Go to File Member"),
                 new KeyBindingEntry(Own(OwnCommands.NavigateTo), Editor, "Alt+`", "Navigate To"),
                 new KeyBindingEntry(Own(OwnCommands.GoToRelated), Editor, "Ctrl+K, Ctrl+O", "Header / Source"),
-                new KeyBindingEntry(Own(OwnCommands.LiveCoding), Global, "Ctrl+Alt+F11", "Live Coding"),
                 new KeyBindingEntry("Edit.GoToDefinition", Editor, "F12", "Go to Declaration"),
                 new KeyBindingEntry("Edit.GoToImplementation", Editor, "Ctrl+F12", "Go to Implementation"),
                 new KeyBindingEntry("Edit.ExpandSelection", Editor, "Ctrl+W", "Extend Selection"),

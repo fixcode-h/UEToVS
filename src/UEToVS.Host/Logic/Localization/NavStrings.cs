@@ -9,6 +9,11 @@ namespace UEToVS.Host.Logic.Localization
     /// </summary>
     public static class NavStrings
     {
+        // ---- Go to Related on a log category (Navigation/LogCategoryNavigator.cs) ----
+        public static string LogCategoryDeclaration => Loc.T("声明", "Declaration");
+        public static string LogCategoryDefinition => Loc.T("定义", "Definition");
+        public static string LogCategoryUsage => Loc.T("使用", "Usage");
+
         // ---- commands (menu text; the VSCT holds the English default) ----
         public static string CmdGoToDefinition => Loc.T("转到定义 / 声明", "Go to Definition / Declaration");
         public static string CmdGoToImplementation => Loc.T("转到实现", "Go to Implementation");

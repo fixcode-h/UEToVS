@@ -6,6 +6,16 @@
 - 节内用 `### 新功能`、`### 改进`、`### Bug 修复`、`### 注意` 等小标题，条目写成 `- **短标题** — 说明`。
 - 改了 `src/` 的 PR 必须在最上面加一个新版本节（PR 检查会验证），这样每次合并都会出一个带更新日志的包。
 
+## v0.7.0
+
+### 改进
+- **不再连接 UE 编辑器** — UEToVS 专注 VS 里的代码体验和给 Agent 的代码信息，不再接 UE 编辑器插件 UELink：日志在 VS 和 UE 自己就能看，Live Coding、自动化测试也不需要经过 VS。去掉了 UE 日志窗口、UE 自动化测试窗口、“Live Coding（UE 编辑器）”命令和 Live Coding 错误映射、“安装 UELink 编辑器插件”命令和设置里的“UE 编辑器联动”分组，扩展也不再自带 UELink 源码
+- **资产搜索结果改成复制路径** — Search Everywhere 里选中资产（蓝图）时复制它的对象路径（在内容浏览器里粘贴即可定位），并在资源管理器里选中 .uasset
+- **“UE 编辑器启动时不启动 Live Coding”保留** — 这项只改项目的编辑器设置文件、不连编辑器，挪到设置里的“Unreal Engine”分组
+
+### 注意
+- 项目里已经装的 UELink 插件不会被删；它现在由 Agent 面板的 UE 页安装和升级（[fixcode-h/UEKit](https://github.com/fixcode-h/UEKit)），不用 Agent 面板的话可以在项目 `Plugins/` 里删掉 `UELink` 目录
+
 ## v0.6.3
 
 ### 改进

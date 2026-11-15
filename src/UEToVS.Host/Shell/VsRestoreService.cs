@@ -42,7 +42,7 @@ namespace UEToVS.Host.Shell
 
             await StepAsync("ueLiveCoding", failed, async () =>
             {
-                if (!await Link.UeLiveCodingStartupService.RestoreAllAsync("restoreAll")) throw new IOException("Live Coding startup restore failed");
+                if (!await UEToVS.Host.Unreal.UeLiveCodingStartupService.RestoreAllAsync("restoreAll")) throw new IOException("Live Coding startup restore failed");
             });
 
             var fonts = package.Fonts;

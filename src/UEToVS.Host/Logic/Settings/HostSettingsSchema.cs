@@ -51,10 +51,6 @@ namespace UEToVS.Host.Logic.Settings
             public const string VsUnrealIntegration = "settings.general.vsUnrealIntegration";
             /// <summary>"检查更新": latest GitHub release → download VSIX → start VSIXInstaller.</summary>
             public const string CheckForUpdates = "settings.general.checkForUpdates";
-            // ---- v0.4.5 UE editor link: UEToVSLink status card / install / uninstall (Link/LinkPluginManager.cs)
-            public const string LinkPluginStatus = "settings.link.pluginStatus";
-            public const string LinkPluginInstall = "settings.link.pluginInstall";
-            public const string LinkPluginUninstall = "settings.link.pluginUninstall";
         }
 
         public static IReadOnlyList<SettingCategory> Categories { get; } = new[]
@@ -196,60 +192,14 @@ namespace UEToVS.Host.Logic.Settings
             list.Add(D(General, "unreal.checkIncludesOnSave", SettingKind.Bool, "保存时检查 #include 的模块依赖", "Check #include module dependencies on save",
                 "保存 .h/.cpp 时对照 Build.cs 检查 #include 所属模块，缺失时提示添加依赖。", "On saving a .h/.cpp, checks the #include modules against Build.cs and offers to add missing dependencies.",
                 "true", gUe, gUeEn));
-            var port = D(General, "unreal.editorLinkPort", SettingKind.Int, "UELink 编辑器插件端口", "UELink editor plugin port",
-                "勾选“自动”时读取编辑器写的 <项目>/Saved/UELink/instances 名片（旧版 UEToVSLink 读 Saved/UEToVSLink/port.txt）。",
-                "“Auto” reads the card the editor writes to <Project>/Saved/UELink/instances (old UEToVSLink: Saved/UEToVSLink/port.txt).", "0", gUe, gUeEn);
-            port.Min = 0; port.Max = 65535; port.AutoLabelZh = "自动"; port.AutoLabelEn = "Auto";
-            list.Add(port);
-
-            // ---- v0.4.5 UE editor link
-            const string gLink = "UE 编辑器联动（UELink）", gLinkEn = "Unreal Editor link (UELink)";
-            list.Add(A(General, "link.pluginStatus", WindowActions.LinkPluginStatus, "UELink 插件", "UELink plugin", null, null, gLink, gLinkEn, SettingKind.Info));
-            list.Add(A(General, "link.pluginInstall", WindowActions.LinkPluginInstall, "安装 / 更新 UELink", "Install / update UELink",
-                "UELink 是和 Agent 面板共用的 UE 编辑器插件（合并了原来的 UEToVSLink）。扩展自带的和公共库最新正式版取新的，复制到 <项目>/Plugins/UELink，" +
-                "并删掉旧的 UEToVSLink / AgentPanelBridge；项目里已经是更新的版本时不动。需要关掉 UE 编辑器，装完重新完整编译一次。",
-                "UELink is the Unreal Editor plugin shared with Agent Panel (it replaces UEToVSLink). The newer of the bundled copy and the latest release " +
-                "is copied to <Project>/Plugins/UELink and the old UEToVSLink / AgentPanelBridge are removed; a newer version already in the project is left alone. " +
-                "Close the Unreal Editor first and do a full build afterwards.",
-                gLink, gLinkEn));
-            list.Add(A(General, "link.pluginUninstall", WindowActions.LinkPluginUninstall, "卸载 UELink", "Uninstall UELink",
-                "删除插件目录（含 Binaries / Intermediate）并从 .uproject 的 Plugins 列表移除；UE 编辑器运行中（DLL 被占用）时不会删除。Agent 面板的 UE 插件也用它。",
-                "Deletes the plugin folder (including Binaries / Intermediate) and removes it from the .uproject Plugins list; nothing is deleted while the Unreal Editor holds the DLL. Agent Panel's UE plugin uses it too.",
-                gLink, gLinkEn));
-            list.Add(D(General, "link.uelinkSource", SettingKind.Text, "UELink 更新源", "UELink update source",
-                "留空 = GitHub 上 fixcode-h/UELink 的最新正式版；也可以填镜像上 manifest.json 的地址，或放着 manifest.json 和源码包的本机目录（内网、断网时用）。",
-                "Empty = the latest release of fixcode-h/UELink on GitHub; or a mirror's manifest.json URL, or a local folder holding manifest.json and the source zip (intranet / offline).",
-                "", gLink, gLinkEn));
-            var logLines = D(General, "link.logMaxLines", SettingKind.Int, "UE 日志窗口最多保留行数", "UE log window: max lines kept",
-                "超过后丢弃最旧的行，避免内存增长。", "Older lines are dropped beyond this, so memory stays bounded.", "20000", gLink, gLinkEn);
-            logLines.Min = 1000; logLines.Max = 500000; logLines.Keywords = "log 日志 buffer 缓冲 memory 内存";
-            list.Add(logLines);
-            list.Add(D(General, "link.logKeepReceiving", SettingKind.Bool, "关闭日志窗口后继续接收日志", "Keep receiving the log after closing the window",
-                "打开过一次 UE 日志窗口后，关闭窗口也继续接收（再打开时能看到期间的日志）；关闭此项则窗口关闭时停止接收。",
-                "Once the UE log window was opened, keep receiving lines while it is closed (they show when it reopens); off stops receiving when it closes.",
-                "true", gLink, gLinkEn));
-            var liveCoding = D(General, "link.liveCoding", SettingKind.Bool, "启用 Live Coding 联动", "Enable Live Coding integration",
-                "允许在 VS 中用“Live Coding（UE 编辑器）”命令（Ctrl+Alt+F11）让编辑器执行 Live Coding 编译。默认关闭：Live Coding 会启动 UE 的 LiveCodingConsole 进程，占用内存较多（大型项目可达数 GB）。" +
-                "编辑器启动时自动拉起的 LiveCodingConsole 由下面的“UE 编辑器启动时不启动 Live Coding”控制。",
-                "Lets the “Live Coding (Unreal Editor)” command (Ctrl+Alt+F11) ask the editor for a Live Coding compile. Off by default: Live Coding starts UE's LiveCodingConsole process, which uses a lot of memory (several GB on large projects). " +
-                "The LiveCodingConsole the editor starts at launch is controlled by “Don't start Live Coding with the UE editor” below.",
-                "false", gLink, gLinkEn);
-            liveCoding.Keywords = "live coding livecoding hot reload 热重载 内存 memory LiveCodingConsole";
-            list.Add(liveCoding);
             var lcManual = D(General, "link.ueLiveCodingManual", SettingKind.Bool, "UE 编辑器启动时不启动 Live Coding", "Don't start Live Coding with the UE editor",
                 "UE 默认在编辑器启动时就拉起 LiveCodingConsole，大型项目可占用数 GB 内存，即使从不用 Live Coding。打开此项时，UEToVS 在打开 UE 解决方案时把项目的 Live Coding 启动方式改为“手动”" +
-                "（Saved/Config/WindowsEditor/EditorPerProjectUserSettings.ini，修改前备份）：控制台在第一次 Live Coding 编译时才启动，Ctrl+Alt+F11 照常可用。下次启动编辑器生效；关闭此项或“恢复 VS 原样”会还原。",
+                "（Saved/Config/WindowsEditor/EditorPerProjectUserSettings.ini，修改前备份）：控制台在第一次 Live Coding 编译时才启动。下次启动编辑器生效；关闭此项或“恢复 VS 原样”会还原。",
                 "UE starts LiveCodingConsole with the editor by default, which can hold several GB on large projects even if Live Coding is never used. With this on, opening a UE solution sets the project's Live Coding startup to “Manual” " +
-                "(Saved/Config/WindowsEditor/EditorPerProjectUserSettings.ini, backed up first): the console starts on the first Live Coding compile and Ctrl+Alt+F11 still works. Takes effect at the next editor start; turning this off or “Restore Visual Studio” puts it back.",
-                "true", gLink, gLinkEn);
+                "(Saved/Config/WindowsEditor/EditorPerProjectUserSettings.ini, backed up first): the console starts on the first Live Coding compile. Takes effect at the next editor start; turning this off or “Restore Visual Studio” puts it back.",
+                "true", gUe, gUeEn);
             lcManual.Keywords = "live coding livecoding LiveCodingConsole 内存 memory startup 启动 manual 手动";
             list.Add(lcManual);
-            var lcErrors = D(General, "link.liveCodingErrors", SettingKind.Bool, "Live Coding 错误映射到 VS", "Report Live Coding errors in VS",
-                "从编辑器收集 Live Coding 的编译输出，把错误交给 VS 显示（状态栏 / 信息栏，跳到第一个错误）。需要先启用 Live Coding 联动。",
-                "Collects the Live Coding compiler output from the editor and reports its errors in VS (status bar / info bar, go to the first error). Needs the Live Coding integration.",
-                "true", gLink, gLinkEn);
-            lcErrors.EnabledWhenKey = "link.liveCoding";
-            list.Add(lcErrors);
 
             // ================= 索引
             const string gIdx = "索引", gIdxEn = "Indexing";
@@ -517,8 +467,6 @@ namespace UEToVS.Host.Logic.Settings
             ["diagnostics.createPackage"] = ("生成", "Create"),
             ["diagnostics.componentGallery"] = ("打开", "Open"),
             ["perf.open"] = ("打开", "Open"),
-            ["link.pluginInstall"] = ("安装 / 更新", "Install / Update"),
-            ["link.pluginUninstall"] = ("卸载", "Uninstall"),
             // ---- v0.4.5 heavy features
             ["inspection.run"] = ("运行", "Run"),
             ["inspection.results"] = ("打开", "Open"),
@@ -554,12 +502,6 @@ namespace UEToVS.Host.Logic.Settings
                     ["keyboard.doubleShiftLeftOnly"] = B(s.DoubleShiftLeftOnly),
                     ["unreal.checkIncludesOnSave"] = B(s.CheckIncludesOnSave),
                     ["mcp.enable"] = B(s.EnableMcpServer),
-                    ["unreal.editorLinkPort"] = I(s.EditorLinkPort),
-                    ["link.uelinkSource"] = s.UELinkSource ?? "",
-                    ["link.logMaxLines"] = I(s.LinkLogMaxLines),
-                    ["link.logKeepReceiving"] = B(s.LinkLogKeepReceiving),
-                    ["link.liveCoding"] = B(s.LinkLiveCodingEnabled),
-                    ["link.liveCodingErrors"] = B(s.LinkLiveCodingErrors),
                     ["link.ueLiveCodingManual"] = B(s.UeLiveCodingManualStartup),
                     ["indexing.cppThreads"] = I(s.CppIndexThreads),
                     ["indexing.blueprintThreads"] = I(s.BlueprintIndexThreads),
@@ -683,12 +625,6 @@ namespace UEToVS.Host.Logic.Settings
                         case "keyboard.doubleShiftLeftOnly": s.DoubleShiftLeftOnly = PB(v); break;
                         case "unreal.checkIncludesOnSave": s.CheckIncludesOnSave = PB(v); break;
                         case "mcp.enable": s.EnableMcpServer = PB(v); break;
-                        case "unreal.editorLinkPort": s.EditorLinkPort = PI(v, 0); break;
-                        case "link.uelinkSource": s.UELinkSource = (v ?? "").Trim(); break;
-                        case "link.logMaxLines": s.LinkLogMaxLines = PI(v, 20000); break;
-                        case "link.logKeepReceiving": s.LinkLogKeepReceiving = PB(v); break;
-                        case "link.liveCoding": s.LinkLiveCodingEnabled = PB(v); break;
-                        case "link.liveCodingErrors": s.LinkLiveCodingErrors = PB(v); break;
                         case "link.ueLiveCodingManual": s.UeLiveCodingManualStartup = PB(v); break;
                         case "indexing.cppThreads": s.CppIndexThreads = PI(v, 0); break;
                         case "indexing.blueprintThreads": s.BlueprintIndexThreads = PI(v, 0); break;
