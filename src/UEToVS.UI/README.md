@@ -138,7 +138,7 @@ palette.Show(PopupAnchor.CenterOf(vsMainHwnd), initialText: selectedWord);
 
 其他模式：
 - **`ChooserPopup<T>`**：`await chooser.ShowAsync(items, anchor, title, s => s.Name)` 返回 `ChooserResult<T>`，适合 “选择实现” 和 “选择重载” 这类场景。
-- **`ContextMenuPopup`**：`await menu.ShowAsync(List<MenuEntry>, anchor)` 返回选中项或 null，适合 Alt+Enter 快速操作。它支持分组、快捷键、子菜单、输入即筛选和禁用项。
+- **`ContextMenuPopup`**：`await menu.ShowAsync(List<MenuEntry>, anchor)` 返回选中项或 null，适合上下文操作（Shift+Alt+Q）。它支持分组、快捷键、子菜单、输入即筛选和禁用项；每次打开按最长一项（名字 + 快捷键）自适应宽度（`MinMenuWidth`–`MaxMenuWidth`，超出才截断并在悬停提示里给全名），不沿用记住的大小（`PopupShell.PersistSize = false`）。
 - **`ResultsPanel<T>`**：结果工具窗口（“查找引用” 等）。`SetResults(roots, summary)` 设置结果；`PreviewProvider` 提供预览；`ItemInvoked` 处理打开。`Root` 是一个 `ToolWindowShell`，可以直接作为 `ToolWindowPane.Content`。
 - **`ResultsPopup<T>`**：`ResultsPanel<T>` 放进可拖动、记忆尺寸的浮动弹窗，焦点回到编辑器时不关闭（逐条查看结果），Esc / × 关闭；`AddToolbarItem` 加工具条项（筛选 `Chip`、重新搜索按钮），`IsBusy` 显示加载。
 - **`TabbedTreePopup<T>`**：标签页 + `TreeList<T>` 的浮动弹窗，`SetTabRoots(tabId, roots, count)` 按标签设置树，Tab / Shift+Tab 切换。

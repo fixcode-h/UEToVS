@@ -476,6 +476,42 @@ namespace UEToVS.UI.Molecules
 
         protected override FrameworkElement CreateRow() => new ListRow();
 
+        /// <summary>
+        /// Width a row needs to show the widest of the first <paramref name="maxItems"/> items untrimmed (icon, name,
+        /// location, badges, keycaps included), for content-sized popups such as menus. Measured with a hidden row that
+        /// lives in this list for the call, so it uses the same theme fonts as the visible rows.
+        /// </summary>
+        public double MeasureNaturalWidth(int maxItems = 200)
+        {
+            if (_presenter == null || _items.Count == 0) return 0;
+            var row = new ListRow { Visibility = Visibility.Hidden };
+            Children.Add(row);
+            try
+            {
+                double rh = Math.Max(4, RowHeight), max = 0;
+                var d = new RowData();
+                int n = Math.Min(_items.Count, Math.Max(1, maxItems));
+                for (int i = 0; i < n; i++)
+                {
+                    d.Reset();
+                    _presenter.Present(_items[i], d);
+                    row.Bind(d, i, _items.Count);
+                    row.Measure(new Size(double.PositiveInfinity, rh));
+                    max = Math.Max(max, row.DesiredSize.Width);
+                }
+                return Math.Ceiling(max);
+            }
+            catch (Exception ex)
+            {
+                Ui.Logger.Warn("ui.list.measure_width_failed", "Measuring the natural row width failed", ex);
+                return 0;
+            }
+            finally
+            {
+                Children.Remove(row);
+            }
+        }
+
         protected override void BindRow(FrameworkElement row, int index)
         {
             var d = _scratch;

@@ -80,6 +80,17 @@ namespace UEToVS.UI.Patterns
             set => _shell.OwnerHandle = value;
         }
 
+        /// <summary>
+        /// v0.7.7: when above 0, each show sizes the popup to its content (widest row, row count) up to this width instead
+        /// of the remembered size, so paths are shown whole (Code Vision Blueprint list). Resizing still works while open.
+        /// </summary>
+        public double FitToContentMaxWidth { get; set; }
+
+        public double FitToContentMinWidth { get; set; } = 320;
+
+        /// <summary>Rows measured for <see cref="FitToContentMaxWidth"/> (the rest are assumed no wider).</summary>
+        public int FitToContentSampleRows { get; set; } = 300;
+
         /// <summary>The highlighted item (default when none) — for extra keys such as Delete in a bookmark list.</summary>
         public T SelectedItem => _list.HasSelection ? _list.SelectedItem : default;
 
@@ -99,15 +110,34 @@ namespace UEToVS.UI.Patterns
             _search.Visibility = filterText != null ? Visibility.Visible : Visibility.Collapsed;
             _search.Text = string.Empty;
             ApplyFilter();
-            // Fit the height to the content (up to the remembered/default height).
-            double rows = Math.Min(Math.Max(_all.Count, 1), 14);
-            var size = _shell.VisibleSize;
             double chromeH = (filterText != null ? 44 : 0) + (string.IsNullOrEmpty(title) ? 0 : 26) + 10;
-            _shell.ShowAt(anchor);
-            _shell.VisibleSize = new Size(size.Width, Math.Min(size.Height, rows * ThemeManager.Instance.RowHeight + chromeH));
+            bool fit = FitToContentMaxWidth > 0;
+            _shell.PersistSize = !fit;
+            if (fit)
+            {
+                // sized before placing, so the placement (flip above, keep on screen) uses the real size
+                _shell.VisibleSize = new Size(ChooserFit.Width(_list.MeasureNaturalWidth(FitToContentSampleRows), TitleWidth(), FitToContentMinWidth, FitToContentMaxWidth),
+                                              ChooserFit.Height(_all.Count, ThemeManager.Instance.RowHeight, chromeH));
+                _shell.ShowAt(anchor);
+            }
+            else
+            {
+                // Fit the height to the content (up to the remembered/default height).
+                double rows = Math.Min(Math.Max(_all.Count, 1), ChooserFit.MaxRows);
+                var size = _shell.VisibleSize;
+                _shell.ShowAt(anchor);
+                _shell.VisibleSize = new Size(size.Width, Math.Min(size.Height, rows * ThemeManager.Instance.RowHeight + chromeH));
+            }
             if (filterText != null) _search.FocusInput();
             else _list.Focus();
             return _tcs.Task;
+        }
+
+        private double TitleWidth()
+        {
+            if (_title.Visibility != Visibility.Visible) return 0;
+            _title.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            return _title.DesiredSize.Width + _title.Margin.Left + _title.Margin.Right;
         }
 
         private void ApplyFilter()
@@ -215,13 +245,18 @@ namespace UEToVS.UI.Patterns
         private IDisposable _suppress;
         private readonly ContextMenuPopup _parent;
         private bool _closedByKeyboard;
+        private bool _widthCapped;
+
+        /// <summary>Narrowest / widest the menu gets when it sizes itself to its entries (DIPs).</summary>
+        public const double MinMenuWidth = 260, MaxMenuWidth = 720;
 
         public ContextMenuPopup(string id = "contextmenu") : this(id, null) { }
 
         private ContextMenuPopup(string id, ContextMenuPopup parent)
         {
             _parent = parent;
-            _shell = new PopupShell(id, new Size(340, 300)) { Resizable = false, MinVisibleWidth = 200, MinVisibleHeight = 40 };
+            // Sized to its entries on every show (see ShowAsync), so a remembered size must not win.
+            _shell = new PopupShell(id, new Size(340, 300)) { Resizable = false, PersistSize = false, MinVisibleWidth = 200, MinVisibleHeight = 40 };
             _list = new VirtualList<Row>(new DelegatePresenter<Row>(Present, r => r.Entry != null && r.Entry.IsEnabled)) { AlwaysActive = true, FocusOnClick = false };
             _filter.Padding = new Thickness(10, 5, 8, 5);
             _filter.ShowGlyphless();
@@ -261,9 +296,10 @@ namespace UEToVS.UI.Patterns
             _closedByKeyboard = false;
             _entries = entries ?? Array.Empty<MenuEntry>();
             _filter.Text = string.Empty;
+            _widthCapped = false;
             Rebuild();
             double rows = Math.Min(Math.Max(_list.Count, 1), 16);
-            _shell.VisibleSize = new Size(Math.Max(_shell.VisibleSize.Width, 260), rows * ThemeManager.Instance.RowHeight + 46);
+            _shell.VisibleSize = new Size(MenuWidth(rows < _list.Count), rows * ThemeManager.Instance.RowHeight + 46);
             _shell.ShowAt(anchor);
             _filter.FocusInput();
             return _tcs.Task;
@@ -276,7 +312,7 @@ namespace UEToVS.UI.Patterns
             public IReadOnlyList<TextRange> Ranges;
         }
 
-        private static void Present(Row r, RowData d)
+        private void Present(Row r, RowData d)
         {
             if (r.Entry == null)
             {
@@ -292,7 +328,26 @@ namespace UEToVS.UI.Patterns
             d.Shortcut = e.Shortcut;
             d.HasSubmenu = e.Children != null && e.Children.Count > 0;
             d.IsEnabled = e.IsEnabled;
-            d.ToolTip = e.Description?.Invoke();
+            string desc = e.Description?.Invoke();
+            // Names cut by the width cap are shown in full in the tooltip.
+            d.ToolTip = _widthCapped && !string.IsNullOrEmpty(d.Primary)
+                ? (string.IsNullOrEmpty(desc) ? d.Primary : d.Primary + "\n" + desc)
+                : desc;
+        }
+
+        /// <summary>
+        /// Width that shows every entry untrimmed (name + keycaps), between <see cref="MinMenuWidth"/> and
+        /// <see cref="MaxMenuWidth"/>; past the cap the names end in "…" and the tooltip carries the full text.
+        /// </summary>
+        private double MenuWidth(bool scrolls)
+        {
+            double want = _list.MeasureNaturalWidth();
+            if (want <= 0) return Math.Max(_shell.DefaultSize.Width, MinMenuWidth);
+            // Room for the scroll rail when not every row fits, plus a little slack against rounding.
+            want += (scrolls ? 10 : 0) + 4;
+            _widthCapped = want > MaxMenuWidth;
+            if (_widthCapped) _list.InvalidateAllRows();
+            return Math.Max(MinMenuWidth, Math.Min(MaxMenuWidth, want));
         }
 
         private void Rebuild()

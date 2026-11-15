@@ -164,6 +164,22 @@ namespace UEToVS.Host.Logic.Tests
         }
 
         [Fact]
+        public void FormerDefaultMovesToTheNewDefaultButUserKeysStay()
+        {
+            // v0.7.7: Context Actions moved from Alt+Enter to Shift+Alt+Q. Still on the old default = UEToVS put it there: move it.
+            var ours = AllUnbound();
+            ours["UEToVS.QuickActions"] = new[] { "Text Editor::Alt+Enter" };
+            var d = DefaultKeymapPlanner.Plan(CommandCatalog.All, ours, Array.Empty<KeyValuePair<string, string[]>>(), null).Single(x => x.Command == "UEToVS.QuickActions");
+            Assert.Equal(DefaultBindingOutcome.Apply, d.Outcome);
+            Assert.Equal("Text Editor::Shift+Alt+Q", d.Binding);
+
+            // A key the user chose (alone or next to the old default) is never replaced.
+            ours["UEToVS.QuickActions"] = new[] { "Text Editor::Alt+Enter", "Text Editor::Ctrl+." };
+            d = DefaultKeymapPlanner.Plan(CommandCatalog.All, ours, Array.Empty<KeyValuePair<string, string[]>>(), null).Single(x => x.Command == "UEToVS.QuickActions");
+            Assert.Equal(DefaultBindingOutcome.AlreadyBound, d.Outcome);
+        }
+
+        [Fact]
         public void RemovalsListOnlyNonUEToVSCommands()
         {
             var mine = new Dictionary<string, string[]> { ["UEToVS.SearchEverywhere"] = new[] { "Global::Ctrl+T" } };

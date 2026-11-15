@@ -4,7 +4,7 @@
 
 - 整体设计：[docs/design/UEToVS-架构设计.md](docs/design/UEToVS-架构设计.md)
 - 定位与能力边界：[设计文档 §1.4](docs/design/UEToVS-架构设计.md#14-定位与能力边界2026-11-15-确定)（做什么、不做什么、新需求怎么判断）
-- 当前状态：**v0.7.3**。M0–M4 已完成：原型功能对齐（Search Everywhere、导航历史、书签、相关项、Build.cs 依赖修复、资产搜索、Rider 键位）、导航（转到定义/实现、查找引用、类型层次、调用层次、速览定义、导航栏、引用高亮）、IntelliSense（UE 感知成员补全、Quick Info、宏展开、参数信息、语法着色、内嵌提示、UE 规则波浪线、反射说明符补全、通用模板实例化）、重构与生成（Alt+Enter、重命名、更改签名、移动实现、提取方法、引入变量、封装字段、前置声明、生成实现、Live Templates、Surround With）、UE 专项（新建 UE 类、编译错误波浪线、全项目检查、引擎升级助手、蓝图索引：查找引用和类型层次里列出蓝图，Code Vision 显示派生类和蓝图数量）。另有给 AI Agent 用的 MCP 服务（见下文）。
+- 当前状态：**v0.7.3**。M0–M4 已完成：原型功能对齐（Search Everywhere、导航历史、书签、相关项、Build.cs 依赖修复、资产搜索、Rider 键位）、导航（转到定义/实现、查找引用、类型层次、调用层次、速览定义、导航栏、引用高亮）、IntelliSense（UE 感知成员补全、Quick Info、宏展开、参数信息、语法着色、内嵌提示、UE 规则波浪线、反射说明符补全、通用模板实例化）、重构与生成（上下文操作 Shift+Alt+Q、重命名、更改签名、移动实现、提取方法、引入变量、封装字段、前置声明、生成实现、Live Templates、Surround With）、UE 专项（新建 UE 类、编译错误波浪线、全项目检查、引擎升级助手、蓝图索引：查找引用和类型层次里列出蓝图，Code Vision 显示派生类和蓝图数量）。另有给 AI Agent 用的 MCP 服务（见下文）。
 
 ## 结构
 
@@ -33,6 +33,7 @@ tests/                    各模块单元测试（dotnet test）
 | 切换头文件/源文件 | Alt+O | Public/Private 目录感知；多个候选时弹出列表 |
 | 相关项 | Shift+Alt+R | `Foo_Implementation` / `Foo_Validate`、对应文件、`.generated.h` |
 | 打开所属模块的 Build.cs / 为 #include 添加模块依赖 | Ctrl+Shift+Alt+U, B / Ctrl+Shift+Alt+U, A | 保存 .h/.cpp 时也会自动检查 |
+| 上下文操作 | Shift+Alt+Q | 光标处能做的修复、生成和重构；弹窗宽度随操作名自适应 |
 | 书签 | Ctrl+F2 切换，Ctrl+Shift+F2 列表 | 切换、0–9 数字书签、书签列表（Delete 删除） |
 | 生成工程文件 | Ctrl+Shift+Alt+U, G | 资产（蓝图）搜索结果回车：复制资产路径并在资源管理器里选中 .uasset |
 | 应用 Rider 键位方案 / 恢复 VS 键位 | — | 在 Find Action 中执行；修改前备份到 `%LocalAppData%\UEToVS\keymap-backup.json` |

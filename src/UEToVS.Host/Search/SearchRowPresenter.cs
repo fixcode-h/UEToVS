@@ -78,13 +78,15 @@ namespace UEToVS.Host.Search
 
         /// <summary>
         /// Like <see cref="ShowAsync"/> at <paramref name="anchor"/> (null = centered on VS, Rider's Search Everywhere spot);
-        /// <paramref name="filterText"/> null hides the filter box.
+        /// <paramref name="filterText"/> null hides the filter box. <paramref name="fitMaxWidth"/> above 0 sizes the popup to its
+        /// rows (no cut paths) up to that width instead of the remembered size.
         /// </summary>
         public static async Task<ChooserResult<SearchRow>> ShowAtAsync(string id, string title, IReadOnlyList<SearchRow> rows, PopupAnchor anchor,
-                                                                      Func<SearchRow, string> filterText, Size? size = null)
+                                                                      Func<SearchRow, string> filterText, Size? size = null, double fitMaxWidth = 0)
         {
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
             var p = Get(id, size);
+            p.FitToContentMaxWidth = fitMaxWidth;
             IntPtr owner = VsMainWindow.Handle;
             p.OwnerHandle = owner;
             L.Info("popup.show", null, ("id", id), ("rows", rows?.Count ?? 0), ("anchored", anchor != null));
