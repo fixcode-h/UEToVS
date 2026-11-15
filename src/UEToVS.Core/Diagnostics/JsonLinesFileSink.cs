@@ -133,7 +133,7 @@ namespace UEToVS.Core.Diagnostics
                     }
                 }
             }
-            catch { }
+            catch { } // log cleanup is best effort; never fail logging over it
         }
 
         public void Dispose()

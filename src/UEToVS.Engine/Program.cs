@@ -214,7 +214,7 @@ namespace UEToVS.Engine
                     }
                 }
             }
-            catch (Exception) { }
+            catch (Exception) { } // /proc/meminfo unavailable: caller falls back to the GC figure
             return 0;
         }
     }

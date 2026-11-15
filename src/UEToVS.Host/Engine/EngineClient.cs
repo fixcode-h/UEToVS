@@ -641,7 +641,7 @@ namespace UEToVS.Host.Engine
                             KillQuietly(p);
                         }
                     }
-                    catch (Exception) { }
+                    catch (Exception) { } // process already gone or not ours to wait for
                 }).ConfigureAwait(false);
             }
             if (_state != EngineState.Incompatible) SetState(EngineState.Stopped);

@@ -229,7 +229,7 @@ namespace UEToVS.Host
                     ErrorHandler.Succeeded(locale.GetUILocale(out uint uiLcid)))
                     lcid = (int)uiLcid;
             }
-            catch (Exception) { }
+            catch (Exception) { } // locale service unavailable: lcid 0 = follow the OS language
             try
             {
                 if (await GetServiceAsync(typeof(DTE)) is DTE dte)
