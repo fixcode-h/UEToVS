@@ -21,14 +21,16 @@ namespace UEToVS.Engine.IntelliSense
         private readonly ISymbolIndexBackend _backend;
         private readonly FileTable _files;
         private readonly Func<bool> _indexReady;
+        private readonly Func<long> _indexStamp;
         private readonly MemberTableCache _members = new MemberTableCache();
         private readonly CompletionEngine _completion = new CompletionEngine();
         private readonly SemanticClassifier _classifier = new SemanticClassifier();
         private readonly DiagnosticsProvider _diagnostics = new DiagnosticsProvider();
 
         public IntelliSenseService(ISymbolIndexBackend backend, FileTable files, Func<bool> indexReady = null, DocumentCache documents = null, UeMacroKnowledge knowledge = null,
-                                   AssetTable assets = null)
+                                   AssetTable assets = null, Func<long> indexStamp = null)
         {
+            _indexStamp = indexStamp ?? (() => 0);
             _backend = backend ?? throw new ArgumentNullException(nameof(backend));
             _files = files;
             _indexReady = indexReady ?? (() => true);
@@ -208,7 +210,7 @@ namespace UEToVS.Engine.IntelliSense
             var sw = Stopwatch.StartNew();
             var s = Session(request?.Document, ct, out var doc);
             if (s == null) return new ClassifyResponse { TextVersion = request?.Document?.TextVersion ?? 0, ElapsedMs = Ms(sw) };
-            var resp = _classifier.Classify(s, request.StartLine, request.EndLine, out int computed, out int cached);
+            var resp = _classifier.Classify(s, request.StartLine, request.EndLine, _indexStamp(), out int computed, out int cached);
             resp.TextVersion = request.Document.TextVersion != 0 ? request.Document.TextVersion : resp.TextVersion;
             resp.ElapsedMs = Ms(sw);
             var data = new (string, object)[]

@@ -261,7 +261,11 @@ namespace UEToVS.Host.IntelliSense
                 foreach (var step in m.Steps)
                 {
                     if (step.Label != null)
-                        body.Children.Add(new UiText(step.Label, TextVariant.Caption) { Margin = new Thickness(0, 6, 0, 3), Opacity = 0.8 });
+                    {
+                        var label = new UiText(step.Label, TextVariant.Caption) { Margin = new Thickness(0, 6, 0, 3), Opacity = 0.8 };
+                        QuickInfoScroll.ApplyTooltipText(label, foreground);
+                        body.Children.Add(label);
+                    }
                     var code = Factory.CreateViewElement<UIElement>(textView, step.Code);
                     if (code == null) continue;
                     if (code is FrameworkElement fe)
@@ -282,6 +286,7 @@ namespace UEToVS.Host.IntelliSense
                 body.Visibility = m.Expanded ? Visibility.Visible : Visibility.Collapsed;
 
                 var header = new UiText(Arrow(m.Expanded) + " " + m.Header, TextVariant.Link) { Cursor = Cursors.Hand, VerticalAlignment = VerticalAlignment.Center };
+                QuickInfoScroll.ApplyTooltipText(header, foreground, link: true);
                 header.MouseLeftButtonUp += (s, e) =>
                 {
                     bool show = body.Visibility != Visibility.Visible;
@@ -290,6 +295,7 @@ namespace UEToVS.Host.IntelliSense
                     e.Handled = true;
                 };
                 var copy = new UiText(IntelliSenseStrings.MacroExpansionCopyLink, TextVariant.Link) { Cursor = Cursors.Hand, Margin = new Thickness(16, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
+                QuickInfoScroll.ApplyTooltipText(copy, foreground, link: true);
                 UEToVS.UI.Controls.Tip.Set(copy, IntelliSenseStrings.MacroExpansionCopy);
                 copy.MouseLeftButtonUp += (s, e) =>
                 {

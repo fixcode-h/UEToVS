@@ -123,8 +123,14 @@ namespace UEToVS.Host.Translation
         private UIElement Render(ITextView view, TranslatedTextElement m)
         {
             var panel = new StackPanel();
-            if (m.Header != null) panel.Children.Add(new UiText(m.Header, TextVariant.Caption) { Margin = new Thickness(0, 0, 0, 4), Opacity = 0.8 });
+            if (m.Header != null)
+            {
+                var header = new UiText(m.Header, TextVariant.Caption) { Margin = new Thickness(0, 0, 0, 4), Opacity = 0.8 };
+                UEToVS.Host.IntelliSense.QuickInfoScroll.ApplyTooltipText(header, null); // VS 工具提示里没有 UEToVS 主题资源：跟随提示文字色
+                panel.Children.Add(header);
+            }
             var status = new UiText(TranslationStrings.Translating, TextVariant.Caption) { Margin = new Thickness(0, 6, 0, 0), Opacity = 0.7, Visibility = Visibility.Collapsed };
+            UEToVS.Host.IntelliSense.QuickInfoScroll.ApplyTooltipText(status, null);
             int pending = 0;
             string firstError = null;
             bool first = true;
