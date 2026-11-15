@@ -19,6 +19,15 @@ namespace UEToVS.Host.Logic.Navigation
         /// <summary>Delay after the last document switch before revealing (rapid Ctrl+Tab cycling reveals only the final file).</summary>
         public static readonly TimeSpan Debounce = TimeSpan.FromMilliseconds(150);
 
+        /// <summary>
+        /// Retry delays for revealing the active document in Solution Explorer after a solution opened: VS restores the
+        /// document before the projects (and the tree) are loaded, so the first attempts may find nothing to select.
+        /// </summary>
+        public static readonly TimeSpan[] RevealRetryDelays =
+        {
+            TimeSpan.FromMilliseconds(500), TimeSpan.FromSeconds(1.5), TimeSpan.FromSeconds(3), TimeSpan.FromSeconds(6), TimeSpan.FromSeconds(12),
+        };
+
         /// <summary>True for C/C++ source and header paths (by extension; no I/O).</summary>
         public static bool IsCppFile(string path)
         {

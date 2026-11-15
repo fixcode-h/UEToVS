@@ -71,6 +71,7 @@ namespace UEToVS.Host.Editor
             _view.Closed += OnClosed;
             NavigationContext.SettingsChanged += OnSettingsChanged;
             HiddenChanged += OnHiddenChanged;
+            IntelliSenseContext.EngineReady += OnEngineReady;
             _wasEnabled = Enabled;
             Schedule(ScrollDelay);
         }
@@ -288,6 +289,14 @@ namespace UEToVS.Host.Editor
 
         private void OnHiddenChanged(object sender, EventArgs e) => Safe.Execute(L, "editor.inlayHints.toggle", Refresh);
 
+        // Documents restored at VS startup asked before the engine was up (dropped), or got answers from a partial index.
+        private void OnEngineReady(object sender, string reason) => Safe.Execute(L, "editor.inlayHints.engineReady", () =>
+        {
+            if (_view.IsClosed || !Enabled) return;
+            ClearAll();
+            Schedule(ScrollDelay);
+        });
+
         private void OnClosed(object sender, EventArgs e)
         {
             _timer.Stop();
@@ -300,6 +309,7 @@ namespace UEToVS.Host.Editor
             _view.Closed -= OnClosed;
             NavigationContext.SettingsChanged -= OnSettingsChanged;
             HiddenChanged -= OnHiddenChanged;
+            IntelliSenseContext.EngineReady -= OnEngineReady;
         }
     }
 }

@@ -1,4 +1,5 @@
 using System;
+using UEToVS.Core.Diagnostics;
 using UEToVS.Host.Engine;
 using UEToVS.Host.Logic.IntelliSense;
 using UEToVS.Host.Logic.Settings;
@@ -88,5 +89,28 @@ namespace UEToVS.Host.IntelliSense
 
         /// <summary>Raised on the UI thread when <see cref="ColoringSuspended"/> changes.</summary>
         public static event EventHandler ColoringToggled;
+
+        /// <summary>
+        /// Raised on the UI thread when the engine can now answer, or answer better (UE solution detected and engine connected,
+        /// index cache loaded, index ready; see <see cref="EditorRefreshPolicy"/>). Editors opened before that
+        /// (the documents VS restores at startup) dropped their first request; they ask again for their visible lines.
+        /// The argument is the reason, for the log.
+        /// </summary>
+        public static event EventHandler<string> EngineReady;
+
+        /// <summary>Broadcasts <see cref="EngineReady"/> (UI thread). Each listener is isolated: one failing editor does not stop the rest.</summary>
+        public static void RaiseEngineReady(string reason)
+        {
+            var handlers = EngineReady;
+            int count = handlers?.GetInvocationList().Length ?? 0;
+            Log.For("IntelliSense").Info("is.editors.refresh", null, ("reason", reason), ("editors", count), ("unreal", IsUnrealSolution),
+                                         ("connected", Engine?.IsConnected == true));
+            if (handlers == null) return;
+            foreach (EventHandler<string> h in handlers.GetInvocationList())
+            {
+                try { h(null, reason); }
+                catch (Exception ex) { Log.For("IntelliSense").Error("is.editors.refresh.failed", "An editor failed to refresh", ex, ("reason", reason)); }
+            }
+        }
     }
 }
