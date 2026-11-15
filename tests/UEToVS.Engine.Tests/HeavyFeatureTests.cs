@@ -270,7 +270,9 @@ namespace UEToVS.Engine.Tests
         public void Scan_FindsUsagesGroupedWithCompatibleReplacements()
         {
             var svc = new DeprecationScanService(_backend, _files, () => true);
-            Assert.Equal(HeavyJobState.Running, svc.Handle(new DeprecationScanRequest { Action = HeavyJobAction.Start }).State);
+            // The scan runs in the background; on a fast machine this tiny index is done before Start returns its state.
+            var started = svc.Handle(new DeprecationScanRequest { Action = HeavyJobAction.Start }).State;
+            Assert.True(started == HeavyJobState.Running || started == HeavyJobState.Completed, started.ToString());
             Assert.True(svc.Wait(TimeSpan.FromSeconds(30)));
             var r = svc.Handle(new DeprecationScanRequest { Action = HeavyJobAction.Results });
             Assert.Equal(HeavyJobState.Completed, r.State);
