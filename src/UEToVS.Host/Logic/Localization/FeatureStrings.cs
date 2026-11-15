@@ -10,28 +10,28 @@ namespace UEToVS.Host.Logic.Localization
     public static class FeatureStrings
     {
         // ---- commands / actions ----
-        public static string CmdSearchEverywhere => Loc.T("全局搜索 (Search Everywhere)", "Search Everywhere");
+        public static string CmdSearchEverywhere => Loc.T("全局搜索…", "Search Everywhere...");
         public static string CmdGoToType => Loc.T("转到类型…", "Go to Type...");
         public static string CmdGoToSymbol => Loc.T("转到符号…", "Go to Symbol...");
         public static string CmdGoToFile => Loc.T("转到文件…", "Go to File...");
-        public static string CmdGoToAsset => Loc.T("转到资产（蓝图）…", "Go to Asset (Blueprint)...");
-        public static string CmdNavigateBack => Loc.T("后退", "Navigate Back");
-        public static string CmdNavigateForward => Loc.T("前进", "Navigate Forward");
+        public static string CmdGoToAsset => Loc.T("转到蓝图资产…", "Go to Blueprint Asset...");
+        public static string CmdNavigateBack => Loc.T("后退", "Back");
+        public static string CmdNavigateForward => Loc.T("前进", "Forward");
         public static string CmdRecentFiles => Loc.T("最近的文件…", "Recent Files...");
         public static string CmdRecentLocations => Loc.T("最近的位置…", "Recent Locations...");
-        public static string CmdLastEditLocation => Loc.T("上一个编辑位置", "Last Edit Location");
-        public static string CmdNextEditLocation => Loc.T("下一个编辑位置", "Next Edit Location");
+        public static string CmdLastEditLocation => Loc.T("上一个修改位置", "Previous Edit Location");
+        public static string CmdNextEditLocation => Loc.T("下一个修改位置", "Next Edit Location");
         public static string CmdFileStructure => Loc.T("文件结构…", "File Structure...");
         public static string CmdNavigateTo => Loc.T("跳转到…", "Navigate To...");
-        public static string CmdToggleHeaderSource => Loc.T("切换头文件/源文件", "Toggle Header/Source");
-        public static string CmdGoToRelated => Loc.T("相关文件和函数…", "Go to Related...");
-        public static string CmdOpenBuildCs => Loc.T("打开所属模块的 Build.cs", "Open Module Build.cs");
-        public static string CmdAddModuleDependency => Loc.T("为 #include 添加模块依赖", "Add Module Dependency for Include");
-        public static string CmdToggleBookmark => Loc.T("切换书签", "Toggle Bookmark");
-        public static string CmdShowBookmarks => Loc.T("书签列表…", "Show Bookmarks...");
+        public static string CmdToggleHeaderSource => Loc.T("切换头文件 / 源文件", "Switch Header / Source");
+        public static string CmdGoToRelated => Loc.T("相关文件和函数…", "Related Files and Functions...");
+        public static string CmdOpenBuildCs => Loc.T("打开所属模块的 Build.cs", "Open Module's Build.cs");
+        public static string CmdAddModuleDependency => Loc.T("为 #include 添加模块依赖", "Add Module Dependency for #include");
+        public static string CmdToggleBookmark => Loc.T("添加 / 删除书签", "Toggle Bookmark");
+        public static string CmdShowBookmarks => Loc.T("书签列表…", "Bookmark List...");
         public static string CmdSetBookmark(int d) => Loc.T($"设置书签 {d}", $"Set Bookmark {d}");
         public static string CmdGoToBookmark(int d) => Loc.T($"转到书签 {d}", $"Go to Bookmark {d}");
-        public static string CmdGenerateProjectFiles => Loc.T("生成 Visual Studio 项目文件", "Generate Visual Studio Project Files");
+        public static string CmdGenerateProjectFiles => Loc.T("生成 VS 项目文件", "Generate Visual Studio Project Files");
 
         public static readonly string[] KwSearch = { "search", "everywhere", "搜索", "全局", "goto", "go to", "find", "查找", "double shift", "双击 shift" };
         public static readonly string[] KwNavigation = { "navigate", "导航", "back", "forward", "后退", "前进", "history", "历史", "jump", "跳转" };

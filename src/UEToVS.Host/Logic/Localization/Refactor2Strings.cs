@@ -9,12 +9,12 @@ namespace UEToVS.Host.Logic.Localization
     public static class Refactor2Strings
     {
         // ---- commands (Find Action / menus)
-        public static string CmdChangeSignature => Loc.T("更改签名…", "Change Signature...");
-        public static string CmdMoveImplementation => Loc.T("移动实现（头文件 ↔ 源文件）", "Move Implementation (Header ↔ Source)");
+        public static string CmdChangeSignature => Loc.T("更改函数签名…", "Change Signature...");
+        public static string CmdMoveImplementation => Loc.T("移动函数实现（头文件 ↔ 源文件）", "Move Implementation (Header ↔ Source)");
         public static string CmdMoveClassImplementations => Loc.T("将类的全部内联实现移到源文件", "Move All Inline Implementations of the Class to Source");
         public static string CmdAddForwardDeclaration => Loc.T("添加前置声明", "Add Forward Declaration");
-        public static string CmdIntroduceVariable => Loc.T("引入变量…", "Introduce Variable...");
-        public static string CmdExtractMethod => Loc.T("提取方法…", "Extract Method...");
+        public static string CmdIntroduceVariable => Loc.T("提取为变量…", "Introduce Variable...");
+        public static string CmdExtractMethod => Loc.T("提取为函数…", "Extract Method...");
         public static string CmdEncapsulateField => Loc.T("封装字段…", "Encapsulate Field...");
         public static string CmdGenerateGetterSetter => Loc.T("生成 Getter / Setter…", "Generate Getter / Setter...");
 

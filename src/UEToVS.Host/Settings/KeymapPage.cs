@@ -120,7 +120,7 @@ namespace UEToVS.Host.Settings
             bool en = Loc.IsEnglish;
             foreach (var group in CommandCatalog.All.GroupBy(c => c.Group))
             {
-                _rows.Children.Add(new UiText(GroupTitle(group.Key), TextVariant.Subtitle)
+                _rows.Children.Add(new UiText(CommandCatalog.GroupTitle(group.Key, en), TextVariant.Subtitle)
                 {
                     Margin = new Thickness(0, UEToVS.UI.Logic.SettingsPageLayout.GroupHeaderTop(_rows.Children.Count == 0), 0, UEToVS.UI.Logic.SettingsPageLayout.GroupHeaderGapBelow),
                 });
@@ -128,28 +128,18 @@ namespace UEToVS.Host.Settings
             }
         }
 
-        private static string GroupTitle(string g)
-        {
-            switch (g)
-            {
-                case "navigation": return Loc.T("导航", "Navigation");
-                case "search": return Loc.T("搜索", "Search");
-                case "related": return Loc.T("相关文件", "Related files");
-                case "bookmarks": return Loc.T("书签", "Bookmarks");
-                case "unreal": return "Unreal Engine";
-                case "tools": return Loc.T("工具", "Tools");
-                case "settings": return Loc.T("设置", "Settings");
-                case "refactor": return Loc.T("重构", "Refactor");
-                default: return Loc.T("诊断", "Diagnostics");
-            }
-        }
-
         private UIElement BuildRow(CommandInfo c, bool en)
         {
-            var title = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-            title.Children.Add(new UiText(c.Title(en), TextVariant.Body));
+            var titleLine = new StackPanel { Orientation = Orientation.Horizontal };
+            titleLine.Children.Add(new UiText(c.Title(en), TextVariant.Body));
             if (_package.Actions.Get(c.ActionId) == null)
-                title.Children.Add(new UiText(SettingsText.KeymapReserved, TextVariant.Caption) { Margin = new Thickness(6, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center });
+                titleLine.Children.Add(new UiText(SettingsText.KeymapReserved, TextVariant.Caption) { Margin = new Thickness(6, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center });
+            // Title + one line on what it does: the name alone is not always enough to pick the command to rebind.
+            var title = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            title.Children.Add(titleLine);
+            string desc = c.Description(en);
+            if (!string.IsNullOrEmpty(desc))
+                title.Children.Add(new UiText(desc, TextVariant.Description) { TextWrapping = TextWrapping.Wrap, TextTrimming = TextTrimming.None, Margin = new Thickness(0, 2, 0, 0) });
 
             _ours.TryGetValue(c.Name, out var bindings);
             string current = string.Join("  ", (bindings ?? Array.Empty<string>()).Select(b => Shortcut.TryParseBinding(b, out _, out var k) ? Shortcut.Display(k) : b));

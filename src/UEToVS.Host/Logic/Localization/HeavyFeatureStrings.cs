@@ -9,11 +9,11 @@ namespace UEToVS.Host.Logic.Localization
     public static class HeavyFeatureStrings
     {
         // ---- commands / actions ----
-        public static string CmdRunInspection => Loc.T("全项目 UE 规则检查", "Inspect Whole Project (UE Rules)");
-        public static string CmdShowInspection => Loc.T("全项目检查结果", "Project Inspection Results");
-        public static string CmdRunUpgrade => Loc.T("引擎升级助手：查找弃用 API", "Engine Upgrade Assistant: Find Deprecated APIs");
-        public static string CmdShowUpgrade => Loc.T("引擎升级助手结果", "Engine Upgrade Assistant Results");
-        public static string CmdCancelHeavyJob => Loc.T("取消全项目检查 / 升级扫描", "Cancel Project Inspection / Upgrade Scan");
+        public static string CmdRunInspection => Loc.T("检查整个项目（UE 规则）", "Inspect Whole Project (UE Rules)");
+        public static string CmdShowInspection => Loc.T("查看项目检查结果", "Show Project Inspection Results");
+        public static string CmdRunUpgrade => Loc.T("扫描弃用 API（升级引擎前）", "Scan for Deprecated APIs (Engine Upgrade)");
+        public static string CmdShowUpgrade => Loc.T("查看弃用 API 扫描结果", "Show Deprecated API Scan Results");
+        public static string CmdCancelHeavyJob => Loc.T("停止正在运行的检查 / 扫描", "Stop the Running Inspection / Scan");
 
         public static readonly string[] KwInspection = { "inspect", "inspection", "检查", "全项目", "规则", "rules", "UE0001", "GENERATED_BODY", "_Implementation", "code analysis", "分析" };
         public static readonly string[] KwUpgrade = { "upgrade", "升级", "deprecated", "弃用", "UE_DEPRECATED", "migrate", "迁移", "engine version", "引擎版本" };

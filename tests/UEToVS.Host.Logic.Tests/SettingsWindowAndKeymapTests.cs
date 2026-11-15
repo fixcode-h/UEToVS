@@ -294,6 +294,56 @@ namespace UEToVS.Host.Logic.Tests
             foreach (var t in ToolbarButtons.All) Assert.True(buttons.ContainsKey(t.CommandId), t.Key);
         }
 
+        /// <summary>Commands that are only buttons in the settings window / Find Action entries (no menu parent on purpose).</summary>
+        private static readonly HashSet<string> NoMenu = new HashSet<string>
+        {
+            "UEToVS.RestartEngine", "UEToVS.ToggleIntelliSense", "UEToVS.OpenLogFolder", "UEToVS.OpenCurrentLog",
+            "UEToVS.CreateDiagnosticsPackage", "UEToVS.ShowComponentGallery", "UEToVS.WriteMcpConfig",
+        };
+
+        [Fact]
+        public void MenuTextsAndPlacesFollowTheCatalog()
+        {
+            var doc = Load();
+            var sym = Symbols(doc);
+            var buttons = doc.Descendants(Ns + "Button").ToDictionary(b => sym[(string)b.Attribute("id")]);
+            // parent group → its menu, to check each command sits in the submenu of its catalog group
+            var groupMenu = doc.Descendants(Ns + "Group").ToDictionary(g => (string)g.Attribute("id"), g => (string)g.Element(Ns + "Parent").Attribute("id"));
+            var menuOfGroup = new Dictionary<string, string>
+            {
+                ["search"] = "menuSearch", ["navigation"] = "menuNavigation", ["history"] = "menuHistory", ["bookmarks"] = "menuM1Bookmarks",
+                ["refactor"] = "menuRefactor", ["generate"] = "menuGenerate", ["editing"] = "menuEditing", ["unreal"] = "menuUnreal", ["build"] = "menuBuild",
+            };
+            foreach (var c in CommandCatalog.All)
+            {
+                var b = buttons[c.Id];
+                Assert.Equal(c.TitleEn, (string)b.Element(Ns + "Strings").Element(Ns + "ButtonText"));
+                Assert.Contains(c.Group, CommandCatalog.Groups);
+                Assert.False(string.IsNullOrWhiteSpace(c.DescriptionZh), c.Name);
+                Assert.False(string.IsNullOrWhiteSpace(c.DescriptionEn), c.Name);
+                Assert.NotEqual(c.TitleZh, c.DescriptionZh);
+                string parent = (string)b.Element(Ns + "Parent")?.Attribute("id");
+                if (NoMenu.Contains(c.Name)) { Assert.Null(parent); continue; }
+                Assert.NotNull(parent);
+                string menu = groupMenu[parent];
+                bool top = c.Id == CommandCatalog.FindAction || c.Id == CommandCatalog.SearchEverywhere; // on top of Extensions > UEToVS
+                if (!top && menuOfGroup.TryGetValue(c.Group, out var expected)) Assert.True(expected == menu, $"{c.Name}: in {menu}, group {c.Group}");
+                else Assert.Equal("menuUEToVS", menu); // search top items, performance panel, settings
+            }
+        }
+
+        [Fact]
+        public void GroupsHaveTitlesInBothLanguages()
+        {
+            foreach (var g in CommandCatalog.Groups)
+            {
+                Assert.False(string.IsNullOrEmpty(CommandCatalog.GroupTitle(g, true)));
+                Assert.False(string.IsNullOrEmpty(CommandCatalog.GroupTitle(g, false)));
+            }
+            Assert.Null(CommandCatalog.ByActionId("uetovs.intellisense.takeOver")); // the toggle keeps the two actions' own titles
+            Assert.Equal(CommandCatalog.FindReferences, CommandCatalog.ByActionId(CommandCatalog.ActionIds.FindReferences).Id);
+        }
+
         [Fact]
         public void KeyBindingsMatchVisualAssistPreset()
         {

@@ -6,10 +6,12 @@
     Texts: the English default is here; the host sets the localized text (Chinese unless VS is English) at runtime in
     BeforeQueryStatus, which is why every button has the TextChanges flag (Shell/CommandRouter.cs, Logic/Localization/Strings.cs).
     The menu lives under Extensions > UEToVS and is always visible; availability is decided in BeforeQueryStatus.
-    v0.3.0 slimmed the top menu to Find Action / Search Everywhere (+ the search group), the navigation groups (M1/M2),
-    the performance panel and Settings...: restart engine, IntelliSense take over/restore, log folder, current log,
-    diagnostics package and component gallery have no menu parent any more (they are buttons in the settings window),
-    but stay registered commands: Find Action lists them and Tools > Options > Keyboard can bind them.
+    v0.7.1 menu layout: Find Action / Search Everywhere on top, then one submenu per CommandCatalog group (Search,
+    Code Navigation, Navigation History, Bookmarks, Refactor, Generate Code, Editing, Unreal Engine, Build), then
+    Performance Panel / Settings... The English texts here equal CommandCatalog.TitleEn; the submenus have TextChanges and
+    get their localized titles from CommandRouter. Restart engine, IntelliSense take over/restore, MCP config, logs,
+    diagnostics package and component gallery have no menu parent (buttons in the settings window), but stay registered
+    commands: Find Action lists them and Tools > Options > Keyboard can bind them.
     The UEToVS toolbar (tbUEToVS, 0x0400-0x04FF) is shown on the first run; buttons hide through DynamicVisibility
     from the settings (CommandRouter / ToolbarButtons). Ids 0x0400-0x04FF are reserved for settings/windows/toolbar.
   -->
@@ -25,14 +27,87 @@
           <ButtonText>UEToVS</ButtonText>
         </Strings>
       </Menu>
-      <!-- M1: bookmarks submenu (toggle, list, set/go to 0-9) -->
-      <Menu guid="guidUEToVSHostCmdSet" id="menuM1Bookmarks" priority="0x0100" type="Menu">
-        <Parent guid="guidUEToVSHostCmdSet" id="grpM1BookmarksMenu" />
+      <!-- v0.7.1 Extensions > UEToVS submenus, one per CommandCatalog group (same names as the keymap page / Find Action).
+           Every submenu has TextChanges: CommandRouter binds the menu id and sets the localized title. -->
+      <Menu guid="guidUEToVSHostCmdSet" id="menuSearch" priority="0x0010" type="Menu">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpMenuSubmenus" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Search</ButtonText>
+        </Strings>
+      </Menu>
+      <Menu guid="guidUEToVSHostCmdSet" id="menuNavigation" priority="0x0020" type="Menu">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpMenuSubmenus" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Code Navigation</ButtonText>
+        </Strings>
+      </Menu>
+      <Menu guid="guidUEToVSHostCmdSet" id="menuHistory" priority="0x0030" type="Menu">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpMenuSubmenus" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Navigation History</ButtonText>
+        </Strings>
+      </Menu>
+      <Menu guid="guidUEToVSHostCmdSet" id="menuM1Bookmarks" priority="0x0040" type="Menu">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpMenuSubmenus" />
+        <CommandFlag>TextChanges</CommandFlag>
         <Strings>
           <ButtonText>Bookmarks</ButtonText>
         </Strings>
       </Menu>
-      <!-- Editor right-click > UEToVS (C++ code windows; only while an Unreal solution is open, see VisibilityConstraints). -->
+      <Menu guid="guidUEToVSHostCmdSet" id="menuBookmarkSet" priority="0x0010" type="Menu">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpM1BookmarkDigits" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Set Numbered Bookmark</ButtonText>
+        </Strings>
+      </Menu>
+      <Menu guid="guidUEToVSHostCmdSet" id="menuBookmarkGo" priority="0x0020" type="Menu">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpM1BookmarkDigits" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Go to Numbered Bookmark</ButtonText>
+        </Strings>
+      </Menu>
+      <Menu guid="guidUEToVSHostCmdSet" id="menuRefactor" priority="0x0050" type="Menu">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpMenuSubmenus" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Refactor</ButtonText>
+        </Strings>
+      </Menu>
+      <Menu guid="guidUEToVSHostCmdSet" id="menuGenerate" priority="0x0060" type="Menu">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpMenuSubmenus" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Generate Code</ButtonText>
+        </Strings>
+      </Menu>
+      <Menu guid="guidUEToVSHostCmdSet" id="menuEditing" priority="0x0070" type="Menu">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpMenuSubmenus" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Editing</ButtonText>
+        </Strings>
+      </Menu>
+      <Menu guid="guidUEToVSHostCmdSet" id="menuUnreal" priority="0x0080" type="Menu">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpMenuSubmenus" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Unreal Engine</ButtonText>
+        </Strings>
+      </Menu>
+      <Menu guid="guidUEToVSHostCmdSet" id="menuBuild" priority="0x0090" type="Menu">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpMenuSubmenus" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Build</ButtonText>
+        </Strings>
+      </Menu>
+      <!-- Editor right-click > UEToVS (C++ code windows; only while an Unreal solution is open, see VisibilityConstraints).
+           Refactor / Generate Code are the same submenus as in Extensions > UEToVS (CommandPlacements). -->
       <Menu guid="guidUEToVSHostCmdSet" id="menuUEToVSContext" priority="0x0100" type="Menu">
         <Parent guid="guidUEToVSHostCmdSet" id="grpCodeWinUEToVS" />
         <CommandFlag>DynamicVisibility</CommandFlag>
@@ -54,42 +129,97 @@
       <Group guid="guidUEToVSHostCmdSet" id="grpTopLevel" priority="0x0100">
         <Parent guid="guidVsExtensionsMenu" id="IDM_VS_MENU_EXTENSIONS" />
       </Group>
-      <Group guid="guidUEToVSHostCmdSet" id="grpSearch" priority="0x0050">
+      <!-- Extensions > UEToVS: [Find Action, Search Everywhere] [submenus] [Performance Panel, Settings...] -->
+      <Group guid="guidUEToVSHostCmdSet" id="grpMenuTop" priority="0x0010">
         <Parent guid="guidUEToVSHostCmdSet" id="menuUEToVS" />
       </Group>
-      <Group guid="guidUEToVSHostCmdSet" id="grpNavigation" priority="0x0060">
-        <Parent guid="guidUEToVSHostCmdSet" id="menuUEToVS" />
-      </Group>
-      <Group guid="guidUEToVSHostCmdSet" id="grpCodeWinUEToVS" priority="0x0100">
-        <Parent guid="guidSHLMainMenu" id="IDM_VS_CTXT_CODEWIN" />
-      </Group>
-      <Group guid="guidUEToVSHostCmdSet" id="grpContextNavigation" priority="0x0100">
-        <Parent guid="guidUEToVSHostCmdSet" id="menuUEToVSContext" />
-      </Group>
-      <Group guid="guidUEToVSHostCmdSet" id="grpDiagnostics" priority="0x0300">
+      <Group guid="guidUEToVSHostCmdSet" id="grpMenuSubmenus" priority="0x0020">
         <Parent guid="guidUEToVSHostCmdSet" id="menuUEToVS" />
       </Group>
       <Group guid="guidUEToVSHostCmdSet" id="grpSettings" priority="0x0400">
         <Parent guid="guidUEToVSHostCmdSet" id="menuUEToVS" />
       </Group>
-      <!-- M1 groups: navigation, related/Build.cs, bookmarks submenu, Unreal editor tools -->
-      <Group guid="guidUEToVSHostCmdSet" id="grpM1Navigation" priority="0x0060">
-        <Parent guid="guidUEToVSHostCmdSet" id="menuUEToVS" />
+      <!-- 搜索 -->
+      <Group guid="guidUEToVSHostCmdSet" id="grpSearch" priority="0x0010">
+        <Parent guid="guidUEToVSHostCmdSet" id="menuSearch" />
       </Group>
-      <Group guid="guidUEToVSHostCmdSet" id="grpM1Related" priority="0x0070">
-        <Parent guid="guidUEToVSHostCmdSet" id="menuUEToVS" />
+      <!-- 代码导航: jump to / structure lists / related files -->
+      <Group guid="guidUEToVSHostCmdSet" id="grpNavigation" priority="0x0010">
+        <Parent guid="guidUEToVSHostCmdSet" id="menuNavigation" />
       </Group>
-      <Group guid="guidUEToVSHostCmdSet" id="grpM1BookmarksMenu" priority="0x0080">
-        <Parent guid="guidUEToVSHostCmdSet" id="menuUEToVS" />
+      <Group guid="guidUEToVSHostCmdSet" id="grpNavStructure" priority="0x0020">
+        <Parent guid="guidUEToVSHostCmdSet" id="menuNavigation" />
       </Group>
-      <Group guid="guidUEToVSHostCmdSet" id="grpM1Bookmarks" priority="0x0100">
+      <Group guid="guidUEToVSHostCmdSet" id="grpM1Related" priority="0x0030">
+        <Parent guid="guidUEToVSHostCmdSet" id="menuNavigation" />
+      </Group>
+      <!-- 导航历史: back / forward / edit locations, then the lists -->
+      <Group guid="guidUEToVSHostCmdSet" id="grpM1Navigation" priority="0x0010">
+        <Parent guid="guidUEToVSHostCmdSet" id="menuHistory" />
+      </Group>
+      <Group guid="guidUEToVSHostCmdSet" id="grpHistoryLists" priority="0x0020">
+        <Parent guid="guidUEToVSHostCmdSet" id="menuHistory" />
+      </Group>
+      <!-- 书签: toggle / lists, then the numbered-bookmark submenus -->
+      <Group guid="guidUEToVSHostCmdSet" id="grpM1Bookmarks" priority="0x0010">
         <Parent guid="guidUEToVSHostCmdSet" id="menuM1Bookmarks" />
       </Group>
-      <Group guid="guidUEToVSHostCmdSet" id="grpM1BookmarkDigits" priority="0x0200">
+      <Group guid="guidUEToVSHostCmdSet" id="grpM1BookmarkDigits" priority="0x0020">
         <Parent guid="guidUEToVSHostCmdSet" id="menuM1Bookmarks" />
       </Group>
-      <Group guid="guidUEToVSHostCmdSet" id="grpM1Unreal" priority="0x0090">
-        <Parent guid="guidUEToVSHostCmdSet" id="menuUEToVS" />
+      <Group guid="guidUEToVSHostCmdSet" id="grpBookmarkSet" priority="0x0010">
+        <Parent guid="guidUEToVSHostCmdSet" id="menuBookmarkSet" />
+      </Group>
+      <Group guid="guidUEToVSHostCmdSet" id="grpBookmarkGo" priority="0x0010">
+        <Parent guid="guidUEToVSHostCmdSet" id="menuBookmarkGo" />
+      </Group>
+      <!-- 重构: context actions + rename / extract / move -->
+      <Group guid="guidUEToVSHostCmdSet" id="grpRefactorMain" priority="0x0010">
+        <Parent guid="guidUEToVSHostCmdSet" id="menuRefactor" />
+      </Group>
+      <Group guid="guidUEToVSHostCmdSet" id="grpRefactorExtract" priority="0x0020">
+        <Parent guid="guidUEToVSHostCmdSet" id="menuRefactor" />
+      </Group>
+      <Group guid="guidUEToVSHostCmdSet" id="grpRefactorMove" priority="0x0030">
+        <Parent guid="guidUEToVSHostCmdSet" id="menuRefactor" />
+      </Group>
+      <!-- 生成代码 -->
+      <Group guid="guidUEToVSHostCmdSet" id="grpGenerate" priority="0x0010">
+        <Parent guid="guidUEToVSHostCmdSet" id="menuGenerate" />
+      </Group>
+      <Group guid="guidUEToVSHostCmdSet" id="grpGenerateSurround" priority="0x0020">
+        <Parent guid="guidUEToVSHostCmdSet" id="menuGenerate" />
+      </Group>
+      <!-- 编辑 -->
+      <Group guid="guidUEToVSHostCmdSet" id="grpEditSelect" priority="0x0010">
+        <Parent guid="guidUEToVSHostCmdSet" id="menuEditing" />
+      </Group>
+      <Group guid="guidUEToVSHostCmdSet" id="grpEditView" priority="0x0020">
+        <Parent guid="guidUEToVSHostCmdSet" id="menuEditing" />
+      </Group>
+      <!-- Unreal Engine: project files / modules, then the whole-project scans -->
+      <Group guid="guidUEToVSHostCmdSet" id="grpM1Unreal" priority="0x0010">
+        <Parent guid="guidUEToVSHostCmdSet" id="menuUnreal" />
+      </Group>
+      <Group guid="guidUEToVSHostCmdSet" id="grpUnrealInspect" priority="0x0020">
+        <Parent guid="guidUEToVSHostCmdSet" id="menuUnreal" />
+      </Group>
+      <!-- 编译 -->
+      <Group guid="guidUEToVSHostCmdSet" id="grpBuild" priority="0x0010">
+        <Parent guid="guidUEToVSHostCmdSet" id="menuBuild" />
+      </Group>
+      <!-- Editor right-click > UEToVS: [Context Actions, Rename] [navigation] [Refactor ▸, Generate Code ▸] -->
+      <Group guid="guidUEToVSHostCmdSet" id="grpCodeWinUEToVS" priority="0x0100">
+        <Parent guid="guidSHLMainMenu" id="IDM_VS_CTXT_CODEWIN" />
+      </Group>
+      <Group guid="guidUEToVSHostCmdSet" id="grpContextRefactor" priority="0x0050">
+        <Parent guid="guidUEToVSHostCmdSet" id="menuUEToVSContext" />
+      </Group>
+      <Group guid="guidUEToVSHostCmdSet" id="grpContextNavigation" priority="0x0100">
+        <Parent guid="guidUEToVSHostCmdSet" id="menuUEToVSContext" />
+      </Group>
+      <Group guid="guidUEToVSHostCmdSet" id="grpContextGenerate" priority="0x0200">
+        <Parent guid="guidUEToVSHostCmdSet" id="menuUEToVSContext" />
       </Group>
       <Group guid="guidUEToVSHostCmdSet" id="grpToolbarMain" priority="0x0100">
         <Parent guid="guidUEToVSHostCmdSet" id="tbUEToVS" />
@@ -103,10 +233,6 @@
       <!-- 注释翻译 (Translation/TranslationActions.cs): directly on the editor context menu (every text editor) -->
       <Group guid="guidUEToVSHostCmdSet" id="grpCodeWinTranslate" priority="0x0600">
         <Parent guid="guidSHLMainMenu" id="IDM_VS_CTXT_CODEWIN" />
-      </Group>
-      <!-- v0.4.2 Generate (Generate/GenerateActions.cs): editor context menu > UEToVS -->
-      <Group guid="guidUEToVSHostCmdSet" id="grpContextGenerate" priority="0x0200">
-        <Parent guid="guidUEToVSHostCmdSet" id="menuUEToVSContext" />
       </Group>
       <!-- v0.4.5 构建结果 / 新建 UE 类: Solution Explorer context menus (solution / project / item / folder nodes).
            Commands in them decide visibility in BeforeQueryStatus (UE solution, game project, .uproject, source folder). -->
@@ -125,8 +251,8 @@
     </Groups>
 
     <Buttons>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdFindAction" priority="0x0100" type="Button">
-        <Parent guid="guidUEToVSHostCmdSet" id="grpSearch" />
+      <Button guid="guidUEToVSHostCmdSet" id="cmdFindAction" priority="0x0010" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpMenuTop" />
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
           <ButtonText>Find Action...</ButtonText>
@@ -140,7 +266,7 @@
         <CommandFlag>TextChanges</CommandFlag>
         <CommandFlag>DefaultDisabled</CommandFlag>
         <Strings>
-          <ButtonText>Restart Engine</ButtonText>
+          <ButtonText>Restart UEToVS Code Engine</ButtonText>
           <CanonicalName>UEToVS.RestartEngine</CanonicalName>
           <LocCanonicalName>UEToVS.RestartEngine</LocCanonicalName>
         </Strings>
@@ -151,7 +277,7 @@
         <!-- no menu parent (v0.3.0): settings window button, Find Action, key bindings -->
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
-          <ButtonText>Take Over C++ IntelliSense</ButtonText>
+          <ButtonText>Take Over / Restore VS C++ IntelliSense</ButtonText>
           <CanonicalName>UEToVS.ToggleIntelliSense</CanonicalName>
           <LocCanonicalName>UEToVS.ToggleIntelliSense</LocCanonicalName>
         </Strings>
@@ -184,8 +310,8 @@
           <LocCanonicalName>UEToVS.CreateDiagnosticsPackage</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdShowPerformancePanel" priority="0x0103" type="Button">
-        <Parent guid="guidUEToVSHostCmdSet" id="grpDiagnostics" />
+      <Button guid="guidUEToVSHostCmdSet" id="cmdShowPerformancePanel" priority="0x0010" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpSettings" />
         <Icon guid="ImageCatalogGuid" id="Performance" />
         <CommandFlag>IconIsMoniker</CommandFlag>
         <CommandFlag>TextChanges</CommandFlag>
@@ -199,13 +325,13 @@
         <!-- no menu parent (v0.3.0): settings window button, Find Action, key bindings -->
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
-          <ButtonText>Component Gallery</ButtonText>
+          <ButtonText>UI Component Gallery</ButtonText>
           <CanonicalName>UEToVS.ShowComponentGallery</CanonicalName>
           <LocCanonicalName>UEToVS.ShowComponentGallery</LocCanonicalName>
         </Strings>
       </Button>
 
-      <Button guid="guidUEToVSHostCmdSet" id="cmdSettings" priority="0x0100" type="Button">
+      <Button guid="guidUEToVSHostCmdSet" id="cmdSettings" priority="0x0020" type="Button">
         <Parent guid="guidUEToVSHostCmdSet" id="grpSettings" />
         <Icon guid="guidUEToVSImages" id="bmpLogo" />
         <CommandFlag>TextChanges</CommandFlag>
@@ -216,18 +342,18 @@
         </Strings>
       </Button>
       <!-- ===== M1 prototype parity (Features/M1Feature.cs, ids 0x0300-0x03FF) ===== -->
-      <Button guid="guidUEToVSHostCmdSet" id="cmdSearchEverywhere" priority="0x0010" type="Button">
-        <Parent guid="guidUEToVSHostCmdSet" id="grpSearch" />
+      <Button guid="guidUEToVSHostCmdSet" id="cmdSearchEverywhere" priority="0x0020" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpMenuTop" />
         <Icon guid="ImageCatalogGuid" id="Search" />
         <CommandFlag>IconIsMoniker</CommandFlag>
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
-          <ButtonText>Search Everywhere</ButtonText>
+          <ButtonText>Search Everywhere...</ButtonText>
           <CanonicalName>UEToVS.SearchEverywhere</CanonicalName>
           <LocCanonicalName>UEToVS.SearchEverywhere</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdGoToType" priority="0x0011" type="Button">
+      <Button guid="guidUEToVSHostCmdSet" id="cmdGoToType" priority="0x0010" type="Button">
         <Parent guid="guidUEToVSHostCmdSet" id="grpSearch" />
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
@@ -236,7 +362,7 @@
           <LocCanonicalName>UEToVS.GoToType</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdGoToSymbol" priority="0x0012" type="Button">
+      <Button guid="guidUEToVSHostCmdSet" id="cmdGoToSymbol" priority="0x0020" type="Button">
         <Parent guid="guidUEToVSHostCmdSet" id="grpSearch" />
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
@@ -245,7 +371,7 @@
           <LocCanonicalName>UEToVS.GoToSymbol</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdGoToFile" priority="0x0013" type="Button">
+      <Button guid="guidUEToVSHostCmdSet" id="cmdGoToFile" priority="0x0030" type="Button">
         <Parent guid="guidUEToVSHostCmdSet" id="grpSearch" />
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
@@ -254,39 +380,39 @@
           <LocCanonicalName>UEToVS.GoToFile</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdGoToAsset" priority="0x0014" type="Button">
+      <Button guid="guidUEToVSHostCmdSet" id="cmdGoToAsset" priority="0x0040" type="Button">
         <Parent guid="guidUEToVSHostCmdSet" id="grpSearch" />
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
-          <ButtonText>Go to Asset (Blueprint)...</ButtonText>
+          <ButtonText>Go to Blueprint Asset...</ButtonText>
           <CanonicalName>UEToVS.GoToAsset</CanonicalName>
           <LocCanonicalName>UEToVS.GoToAsset</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdNavigateBack" priority="0x0100" type="Button">
+      <Button guid="guidUEToVSHostCmdSet" id="cmdNavigateBack" priority="0x0010" type="Button">
         <Parent guid="guidUEToVSHostCmdSet" id="grpM1Navigation" />
         <Icon guid="ImageCatalogGuid" id="Backwards" />
         <CommandFlag>IconIsMoniker</CommandFlag>
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
-          <ButtonText>Navigate Back</ButtonText>
+          <ButtonText>Back</ButtonText>
           <CanonicalName>UEToVS.NavigateBack</CanonicalName>
           <LocCanonicalName>UEToVS.NavigateBack</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdNavigateForward" priority="0x0101" type="Button">
+      <Button guid="guidUEToVSHostCmdSet" id="cmdNavigateForward" priority="0x0020" type="Button">
         <Parent guid="guidUEToVSHostCmdSet" id="grpM1Navigation" />
         <Icon guid="ImageCatalogGuid" id="Forwards" />
         <CommandFlag>IconIsMoniker</CommandFlag>
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
-          <ButtonText>Navigate Forward</ButtonText>
+          <ButtonText>Forward</ButtonText>
           <CanonicalName>UEToVS.NavigateForward</CanonicalName>
           <LocCanonicalName>UEToVS.NavigateForward</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdRecentFiles" priority="0x0102" type="Button">
-        <Parent guid="guidUEToVSHostCmdSet" id="grpM1Navigation" />
+      <Button guid="guidUEToVSHostCmdSet" id="cmdRecentFiles" priority="0x0010" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpHistoryLists" />
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
           <ButtonText>Recent Files...</ButtonText>
@@ -294,8 +420,8 @@
           <LocCanonicalName>UEToVS.RecentFiles</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdRecentLocations" priority="0x0103" type="Button">
-        <Parent guid="guidUEToVSHostCmdSet" id="grpM1Navigation" />
+      <Button guid="guidUEToVSHostCmdSet" id="cmdRecentLocations" priority="0x0020" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpHistoryLists" />
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
           <ButtonText>Recent Locations...</ButtonText>
@@ -303,16 +429,16 @@
           <LocCanonicalName>UEToVS.RecentLocations</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdLastEditLocation" priority="0x0104" type="Button">
+      <Button guid="guidUEToVSHostCmdSet" id="cmdLastEditLocation" priority="0x0030" type="Button">
         <Parent guid="guidUEToVSHostCmdSet" id="grpM1Navigation" />
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
-          <ButtonText>Last Edit Location</ButtonText>
+          <ButtonText>Previous Edit Location</ButtonText>
           <CanonicalName>UEToVS.LastEditLocation</CanonicalName>
           <LocCanonicalName>UEToVS.LastEditLocation</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdNextEditLocation" priority="0x0105" type="Button">
+      <Button guid="guidUEToVSHostCmdSet" id="cmdNextEditLocation" priority="0x0040" type="Button">
         <Parent guid="guidUEToVSHostCmdSet" id="grpM1Navigation" />
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
@@ -321,8 +447,8 @@
           <LocCanonicalName>UEToVS.NextEditLocation</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdFileStructure" priority="0x0106" type="Button">
-        <Parent guid="guidUEToVSHostCmdSet" id="grpM1Navigation" />
+      <Button guid="guidUEToVSHostCmdSet" id="cmdFileStructure" priority="0x0030" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpNavStructure" />
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
           <ButtonText>File Structure...</ButtonText>
@@ -330,8 +456,8 @@
           <LocCanonicalName>UEToVS.FileStructure</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdNavigateTo" priority="0x0107" type="Button">
-        <Parent guid="guidUEToVSHostCmdSet" id="grpM1Navigation" />
+      <Button guid="guidUEToVSHostCmdSet" id="cmdNavigateTo" priority="0x0040" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpNavStructure" />
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
           <ButtonText>Navigate To...</ButtonText>
@@ -339,43 +465,43 @@
           <LocCanonicalName>UEToVS.NavigateTo</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdToggleHeaderSource" priority="0x0100" type="Button">
+      <Button guid="guidUEToVSHostCmdSet" id="cmdToggleHeaderSource" priority="0x0010" type="Button">
         <Parent guid="guidUEToVSHostCmdSet" id="grpM1Related" />
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
-          <ButtonText>Toggle Header/Source</ButtonText>
+          <ButtonText>Switch Header / Source</ButtonText>
           <CanonicalName>UEToVS.ToggleHeaderSource</CanonicalName>
           <LocCanonicalName>UEToVS.ToggleHeaderSource</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdGoToRelated" priority="0x0101" type="Button">
+      <Button guid="guidUEToVSHostCmdSet" id="cmdGoToRelated" priority="0x0020" type="Button">
         <Parent guid="guidUEToVSHostCmdSet" id="grpM1Related" />
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
-          <ButtonText>Go to Related...</ButtonText>
+          <ButtonText>Related Files and Functions...</ButtonText>
           <CanonicalName>UEToVS.GoToRelated</CanonicalName>
           <LocCanonicalName>UEToVS.GoToRelated</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdOpenBuildCs" priority="0x0102" type="Button">
-        <Parent guid="guidUEToVSHostCmdSet" id="grpM1Related" />
+      <Button guid="guidUEToVSHostCmdSet" id="cmdOpenBuildCs" priority="0x0030" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpM1Unreal" />
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
-          <ButtonText>Open Module Build.cs</ButtonText>
+          <ButtonText>Open Module's Build.cs</ButtonText>
           <CanonicalName>UEToVS.OpenBuildCs</CanonicalName>
           <LocCanonicalName>UEToVS.OpenBuildCs</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdAddModuleDependency" priority="0x0103" type="Button">
-        <Parent guid="guidUEToVSHostCmdSet" id="grpM1Related" />
+      <Button guid="guidUEToVSHostCmdSet" id="cmdAddModuleDependency" priority="0x0040" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpM1Unreal" />
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
-          <ButtonText>Add Module Dependency for Include</ButtonText>
+          <ButtonText>Add Module Dependency for #include</ButtonText>
           <CanonicalName>UEToVS.AddModuleDependency</CanonicalName>
           <LocCanonicalName>UEToVS.AddModuleDependency</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdToggleBookmark" priority="0x0100" type="Button">
+      <Button guid="guidUEToVSHostCmdSet" id="cmdToggleBookmark" priority="0x0010" type="Button">
         <Parent guid="guidUEToVSHostCmdSet" id="grpM1Bookmarks" />
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
@@ -384,17 +510,17 @@
           <LocCanonicalName>UEToVS.ToggleBookmark</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdShowBookmarks" priority="0x0101" type="Button">
+      <Button guid="guidUEToVSHostCmdSet" id="cmdShowBookmarks" priority="0x0020" type="Button">
         <Parent guid="guidUEToVSHostCmdSet" id="grpM1Bookmarks" />
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
-          <ButtonText>Show Bookmarks...</ButtonText>
+          <ButtonText>Bookmark List...</ButtonText>
           <CanonicalName>UEToVS.ShowBookmarks</CanonicalName>
           <LocCanonicalName>UEToVS.ShowBookmarks</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdSetBookmark0" priority="0x0100" type="Button">
-        <Parent guid="guidUEToVSHostCmdSet" id="grpM1BookmarkDigits" />
+      <Button guid="guidUEToVSHostCmdSet" id="cmdSetBookmark0" priority="0x0010" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpBookmarkSet" />
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
           <ButtonText>Set Bookmark 0</ButtonText>
@@ -402,8 +528,8 @@
           <LocCanonicalName>UEToVS.SetBookmark0</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdSetBookmark1" priority="0x0101" type="Button">
-        <Parent guid="guidUEToVSHostCmdSet" id="grpM1BookmarkDigits" />
+      <Button guid="guidUEToVSHostCmdSet" id="cmdSetBookmark1" priority="0x0020" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpBookmarkSet" />
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
           <ButtonText>Set Bookmark 1</ButtonText>
@@ -411,8 +537,8 @@
           <LocCanonicalName>UEToVS.SetBookmark1</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdSetBookmark2" priority="0x0102" type="Button">
-        <Parent guid="guidUEToVSHostCmdSet" id="grpM1BookmarkDigits" />
+      <Button guid="guidUEToVSHostCmdSet" id="cmdSetBookmark2" priority="0x0030" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpBookmarkSet" />
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
           <ButtonText>Set Bookmark 2</ButtonText>
@@ -420,8 +546,8 @@
           <LocCanonicalName>UEToVS.SetBookmark2</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdSetBookmark3" priority="0x0103" type="Button">
-        <Parent guid="guidUEToVSHostCmdSet" id="grpM1BookmarkDigits" />
+      <Button guid="guidUEToVSHostCmdSet" id="cmdSetBookmark3" priority="0x0040" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpBookmarkSet" />
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
           <ButtonText>Set Bookmark 3</ButtonText>
@@ -429,8 +555,8 @@
           <LocCanonicalName>UEToVS.SetBookmark3</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdSetBookmark4" priority="0x0104" type="Button">
-        <Parent guid="guidUEToVSHostCmdSet" id="grpM1BookmarkDigits" />
+      <Button guid="guidUEToVSHostCmdSet" id="cmdSetBookmark4" priority="0x0050" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpBookmarkSet" />
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
           <ButtonText>Set Bookmark 4</ButtonText>
@@ -438,8 +564,8 @@
           <LocCanonicalName>UEToVS.SetBookmark4</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdSetBookmark5" priority="0x0105" type="Button">
-        <Parent guid="guidUEToVSHostCmdSet" id="grpM1BookmarkDigits" />
+      <Button guid="guidUEToVSHostCmdSet" id="cmdSetBookmark5" priority="0x0060" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpBookmarkSet" />
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
           <ButtonText>Set Bookmark 5</ButtonText>
@@ -447,8 +573,8 @@
           <LocCanonicalName>UEToVS.SetBookmark5</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdSetBookmark6" priority="0x0106" type="Button">
-        <Parent guid="guidUEToVSHostCmdSet" id="grpM1BookmarkDigits" />
+      <Button guid="guidUEToVSHostCmdSet" id="cmdSetBookmark6" priority="0x0070" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpBookmarkSet" />
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
           <ButtonText>Set Bookmark 6</ButtonText>
@@ -456,8 +582,8 @@
           <LocCanonicalName>UEToVS.SetBookmark6</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdSetBookmark7" priority="0x0107" type="Button">
-        <Parent guid="guidUEToVSHostCmdSet" id="grpM1BookmarkDigits" />
+      <Button guid="guidUEToVSHostCmdSet" id="cmdSetBookmark7" priority="0x0080" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpBookmarkSet" />
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
           <ButtonText>Set Bookmark 7</ButtonText>
@@ -465,8 +591,8 @@
           <LocCanonicalName>UEToVS.SetBookmark7</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdSetBookmark8" priority="0x0108" type="Button">
-        <Parent guid="guidUEToVSHostCmdSet" id="grpM1BookmarkDigits" />
+      <Button guid="guidUEToVSHostCmdSet" id="cmdSetBookmark8" priority="0x0090" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpBookmarkSet" />
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
           <ButtonText>Set Bookmark 8</ButtonText>
@@ -474,8 +600,8 @@
           <LocCanonicalName>UEToVS.SetBookmark8</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdSetBookmark9" priority="0x0109" type="Button">
-        <Parent guid="guidUEToVSHostCmdSet" id="grpM1BookmarkDigits" />
+      <Button guid="guidUEToVSHostCmdSet" id="cmdSetBookmark9" priority="0x00A0" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpBookmarkSet" />
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
           <ButtonText>Set Bookmark 9</ButtonText>
@@ -483,8 +609,8 @@
           <LocCanonicalName>UEToVS.SetBookmark9</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdGoToBookmark0" priority="0x0200" type="Button">
-        <Parent guid="guidUEToVSHostCmdSet" id="grpM1BookmarkDigits" />
+      <Button guid="guidUEToVSHostCmdSet" id="cmdGoToBookmark0" priority="0x0010" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpBookmarkGo" />
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
           <ButtonText>Go to Bookmark 0</ButtonText>
@@ -492,8 +618,8 @@
           <LocCanonicalName>UEToVS.GoToBookmark0</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdGoToBookmark1" priority="0x0201" type="Button">
-        <Parent guid="guidUEToVSHostCmdSet" id="grpM1BookmarkDigits" />
+      <Button guid="guidUEToVSHostCmdSet" id="cmdGoToBookmark1" priority="0x0020" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpBookmarkGo" />
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
           <ButtonText>Go to Bookmark 1</ButtonText>
@@ -501,8 +627,8 @@
           <LocCanonicalName>UEToVS.GoToBookmark1</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdGoToBookmark2" priority="0x0202" type="Button">
-        <Parent guid="guidUEToVSHostCmdSet" id="grpM1BookmarkDigits" />
+      <Button guid="guidUEToVSHostCmdSet" id="cmdGoToBookmark2" priority="0x0030" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpBookmarkGo" />
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
           <ButtonText>Go to Bookmark 2</ButtonText>
@@ -510,8 +636,8 @@
           <LocCanonicalName>UEToVS.GoToBookmark2</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdGoToBookmark3" priority="0x0203" type="Button">
-        <Parent guid="guidUEToVSHostCmdSet" id="grpM1BookmarkDigits" />
+      <Button guid="guidUEToVSHostCmdSet" id="cmdGoToBookmark3" priority="0x0040" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpBookmarkGo" />
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
           <ButtonText>Go to Bookmark 3</ButtonText>
@@ -519,8 +645,8 @@
           <LocCanonicalName>UEToVS.GoToBookmark3</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdGoToBookmark4" priority="0x0204" type="Button">
-        <Parent guid="guidUEToVSHostCmdSet" id="grpM1BookmarkDigits" />
+      <Button guid="guidUEToVSHostCmdSet" id="cmdGoToBookmark4" priority="0x0050" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpBookmarkGo" />
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
           <ButtonText>Go to Bookmark 4</ButtonText>
@@ -528,8 +654,8 @@
           <LocCanonicalName>UEToVS.GoToBookmark4</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdGoToBookmark5" priority="0x0205" type="Button">
-        <Parent guid="guidUEToVSHostCmdSet" id="grpM1BookmarkDigits" />
+      <Button guid="guidUEToVSHostCmdSet" id="cmdGoToBookmark5" priority="0x0060" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpBookmarkGo" />
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
           <ButtonText>Go to Bookmark 5</ButtonText>
@@ -537,8 +663,8 @@
           <LocCanonicalName>UEToVS.GoToBookmark5</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdGoToBookmark6" priority="0x0206" type="Button">
-        <Parent guid="guidUEToVSHostCmdSet" id="grpM1BookmarkDigits" />
+      <Button guid="guidUEToVSHostCmdSet" id="cmdGoToBookmark6" priority="0x0070" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpBookmarkGo" />
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
           <ButtonText>Go to Bookmark 6</ButtonText>
@@ -546,8 +672,8 @@
           <LocCanonicalName>UEToVS.GoToBookmark6</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdGoToBookmark7" priority="0x0207" type="Button">
-        <Parent guid="guidUEToVSHostCmdSet" id="grpM1BookmarkDigits" />
+      <Button guid="guidUEToVSHostCmdSet" id="cmdGoToBookmark7" priority="0x0080" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpBookmarkGo" />
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
           <ButtonText>Go to Bookmark 7</ButtonText>
@@ -555,8 +681,8 @@
           <LocCanonicalName>UEToVS.GoToBookmark7</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdGoToBookmark8" priority="0x0208" type="Button">
-        <Parent guid="guidUEToVSHostCmdSet" id="grpM1BookmarkDigits" />
+      <Button guid="guidUEToVSHostCmdSet" id="cmdGoToBookmark8" priority="0x0090" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpBookmarkGo" />
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
           <ButtonText>Go to Bookmark 8</ButtonText>
@@ -564,8 +690,8 @@
           <LocCanonicalName>UEToVS.GoToBookmark8</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdGoToBookmark9" priority="0x0209" type="Button">
-        <Parent guid="guidUEToVSHostCmdSet" id="grpM1BookmarkDigits" />
+      <Button guid="guidUEToVSHostCmdSet" id="cmdGoToBookmark9" priority="0x00A0" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpBookmarkGo" />
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
           <ButtonText>Go to Bookmark 9</ButtonText>
@@ -573,7 +699,7 @@
           <LocCanonicalName>UEToVS.GoToBookmark9</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdGenerateProjectFiles" priority="0x0101" type="Button">
+      <Button guid="guidUEToVSHostCmdSet" id="cmdGenerateProjectFiles" priority="0x0010" type="Button">
         <Parent guid="guidUEToVSHostCmdSet" id="grpM1Unreal" />
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
@@ -584,7 +710,7 @@
       </Button>
 
       <!-- M2 navigation (ids 0x0200-0x02FF; Navigation/NavigationActions.cs). Also placed in the editor context submenu. -->
-      <Button guid="guidUEToVSHostCmdSet" id="cmdGoToDefinition" priority="0x0100" type="Button">
+      <Button guid="guidUEToVSHostCmdSet" id="cmdGoToDefinition" priority="0x0010" type="Button">
         <Parent guid="guidUEToVSHostCmdSet" id="grpNavigation" />
         <Icon guid="ImageCatalogGuid" id="GoToDefinition" />
         <CommandFlag>IconIsMoniker</CommandFlag>
@@ -596,7 +722,7 @@
           <LocCanonicalName>UEToVS.GoToDefinition</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdGoToImplementation" priority="0x0101" type="Button">
+      <Button guid="guidUEToVSHostCmdSet" id="cmdGoToImplementation" priority="0x0020" type="Button">
         <Parent guid="guidUEToVSHostCmdSet" id="grpNavigation" />
         <CommandFlag>TextChanges</CommandFlag>
         <CommandFlag>DefaultDisabled</CommandFlag>
@@ -606,19 +732,19 @@
           <LocCanonicalName>UEToVS.GoToImplementation</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdFindReferences" priority="0x0102" type="Button">
+      <Button guid="guidUEToVSHostCmdSet" id="cmdFindReferences" priority="0x0030" type="Button">
         <Parent guid="guidUEToVSHostCmdSet" id="grpNavigation" />
         <Icon guid="ImageCatalogGuid" id="ShowReferencedElements" />
         <CommandFlag>IconIsMoniker</CommandFlag>
         <CommandFlag>TextChanges</CommandFlag>
         <CommandFlag>DefaultDisabled</CommandFlag>
         <Strings>
-          <ButtonText>Find References</ButtonText>
+          <ButtonText>Find All References</ButtonText>
           <CanonicalName>UEToVS.FindReferences</CanonicalName>
           <LocCanonicalName>UEToVS.FindReferences</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdTypeHierarchy" priority="0x0103" type="Button">
+      <Button guid="guidUEToVSHostCmdSet" id="cmdTypeHierarchy" priority="0x0050" type="Button">
         <Parent guid="guidUEToVSHostCmdSet" id="grpNavigation" />
         <CommandFlag>TextChanges</CommandFlag>
         <CommandFlag>DefaultDisabled</CommandFlag>
@@ -628,28 +754,28 @@
           <LocCanonicalName>UEToVS.TypeHierarchy</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdListMembersInFile" priority="0x0104" type="Button">
-        <Parent guid="guidUEToVSHostCmdSet" id="grpNavigation" />
+      <Button guid="guidUEToVSHostCmdSet" id="cmdListMembersInFile" priority="0x0010" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpNavStructure" />
         <CommandFlag>TextChanges</CommandFlag>
         <CommandFlag>DefaultDisabled</CommandFlag>
         <Strings>
-          <ButtonText>List Members in File</ButtonText>
+          <ButtonText>Members of This File...</ButtonText>
           <CanonicalName>UEToVS.ListMembersInFile</CanonicalName>
           <LocCanonicalName>UEToVS.ListMembersInFile</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdListTypeMembers" priority="0x0105" type="Button">
-        <Parent guid="guidUEToVSHostCmdSet" id="grpNavigation" />
+      <Button guid="guidUEToVSHostCmdSet" id="cmdListTypeMembers" priority="0x0020" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpNavStructure" />
         <CommandFlag>TextChanges</CommandFlag>
         <CommandFlag>DefaultDisabled</CommandFlag>
         <Strings>
-          <ButtonText>Type Members (with Inherited)</ButtonText>
+          <ButtonText>Class Members (incl. Inherited)...</ButtonText>
           <CanonicalName>UEToVS.ListTypeMembers</CanonicalName>
           <LocCanonicalName>UEToVS.ListTypeMembers</LocCanonicalName>
         </Strings>
       </Button>
       <!-- ==== v0.4.5 navigation gaps (0x0210–0x022F) ==== -->
-      <Button guid="guidUEToVSHostCmdSet" id="cmdCallHierarchy" priority="0x0106" type="Button">
+      <Button guid="guidUEToVSHostCmdSet" id="cmdCallHierarchy" priority="0x0040" type="Button">
         <Parent guid="guidUEToVSHostCmdSet" id="grpNavigation" />
         <Icon guid="ImageCatalogGuid" id="CallHierarchy" />
         <CommandFlag>IconIsMoniker</CommandFlag>
@@ -667,7 +793,7 @@
         <CommandFlag>TextChanges</CommandFlag>
         <CommandFlag>DefaultDisabled</CommandFlag>
         <Strings>
-          <ButtonText>Write .mcp.json to Project Root</ButtonText>
+          <ButtonText>Write .mcp.json for Agents</ButtonText>
           <CanonicalName>UEToVS.WriteMcpConfig</CanonicalName>
           <LocCanonicalName>UEToVS.WriteMcpConfig</LocCanonicalName>
         </Strings>
@@ -716,7 +842,7 @@
         <CommandFlag>DynamicVisibility</CommandFlag>
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
-          <ButtonText>Find References</ButtonText>
+          <ButtonText>Find All References</ButtonText>
           <CanonicalName>UEToVS.Toolbar.FindReferences</CanonicalName>
           <LocCanonicalName>UEToVS.Toolbar.FindReferences</LocCanonicalName>
         </Strings>
@@ -764,16 +890,18 @@
       </Button>
       <!-- M4 refactoring (ids 0x0700-0x07FF; Refactoring/RefactoringFeature.cs). Alt+Enter context actions and Rename are also
            in the editor right-click > UEToVS menu (CommandPlacements); Implement Virtual is reachable from Alt+Enter / Find Action. -->
-      <Button guid="guidUEToVSHostCmdSet" id="cmdQuickActions" priority="0x0110" type="Button">
+      <Button guid="guidUEToVSHostCmdSet" id="cmdQuickActions" priority="0x0010" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpRefactorMain" />
         <CommandFlag>DefaultDisabled</CommandFlag>
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
-          <ButtonText>Context Actions (Alt+Enter)</ButtonText>
+          <ButtonText>Context Actions...</ButtonText>
           <CanonicalName>UEToVS.QuickActions</CanonicalName>
           <LocCanonicalName>UEToVS.QuickActions</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdRename" priority="0x0111" type="Button">
+      <Button guid="guidUEToVSHostCmdSet" id="cmdRename" priority="0x0020" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpRefactorMain" />
         <CommandFlag>DefaultDisabled</CommandFlag>
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
@@ -782,18 +910,20 @@
           <LocCanonicalName>UEToVS.Rename</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdImplementVirtual" priority="0x0112" type="Button">
+      <Button guid="guidUEToVSHostCmdSet" id="cmdImplementVirtual" priority="0x0030" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpRefactorMove" />
         <CommandFlag>CommandWellOnly</CommandFlag>
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
-          <ButtonText>Implement Virtual Methods / Override...</ButtonText>
+          <ButtonText>Implement / Override Virtual Functions...</ButtonText>
           <CanonicalName>UEToVS.ImplementVirtual</CanonicalName>
           <LocCanonicalName>UEToVS.ImplementVirtual</LocCanonicalName>
         </Strings>
       </Button>
       <!-- ===== v0.4.5 refactoring batch 2 (0x0710-0x073F; Refactoring/Batch2/*): reachable from Alt+Enter, Find Action and the
            Ctrl+R chords; Generate Getter / Setter is also in the editor right-click > UEToVS > Generate group. ===== -->
-      <Button guid="guidUEToVSHostCmdSet" id="cmdChangeSignature" priority="0x0120" type="Button">
+      <Button guid="guidUEToVSHostCmdSet" id="cmdChangeSignature" priority="0x0030" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpRefactorMain" />
         <CommandFlag>CommandWellOnly</CommandFlag>
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
@@ -802,16 +932,18 @@
           <LocCanonicalName>UEToVS.ChangeSignature</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdMoveImplementation" priority="0x0121" type="Button">
+      <Button guid="guidUEToVSHostCmdSet" id="cmdMoveImplementation" priority="0x0010" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpRefactorMove" />
         <CommandFlag>CommandWellOnly</CommandFlag>
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
-          <ButtonText>Move Implementation (Header / Source)</ButtonText>
+          <ButtonText>Move Implementation (Header ↔ Source)</ButtonText>
           <CanonicalName>UEToVS.MoveImplementation</CanonicalName>
           <LocCanonicalName>UEToVS.MoveImplementation</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdAddForwardDeclaration" priority="0x0122" type="Button">
+      <Button guid="guidUEToVSHostCmdSet" id="cmdAddForwardDeclaration" priority="0x0020" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpRefactorMove" />
         <CommandFlag>CommandWellOnly</CommandFlag>
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
@@ -820,7 +952,8 @@
           <LocCanonicalName>UEToVS.AddForwardDeclaration</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdIntroduceVariable" priority="0x0123" type="Button">
+      <Button guid="guidUEToVSHostCmdSet" id="cmdIntroduceVariable" priority="0x0020" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpRefactorExtract" />
         <CommandFlag>CommandWellOnly</CommandFlag>
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
@@ -829,7 +962,8 @@
           <LocCanonicalName>UEToVS.IntroduceVariable</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdExtractMethod" priority="0x0124" type="Button">
+      <Button guid="guidUEToVSHostCmdSet" id="cmdExtractMethod" priority="0x0010" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpRefactorExtract" />
         <CommandFlag>CommandWellOnly</CommandFlag>
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
@@ -838,7 +972,8 @@
           <LocCanonicalName>UEToVS.ExtractMethod</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdEncapsulateField" priority="0x0125" type="Button">
+      <Button guid="guidUEToVSHostCmdSet" id="cmdEncapsulateField" priority="0x0030" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpRefactorExtract" />
         <CommandFlag>CommandWellOnly</CommandFlag>
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
@@ -847,8 +982,8 @@
           <LocCanonicalName>UEToVS.EncapsulateField</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdGenerateGetterSetter" priority="0x0103" type="Button">
-        <Parent guid="guidUEToVSHostCmdSet" id="grpContextGenerate" />
+      <Button guid="guidUEToVSHostCmdSet" id="cmdGenerateGetterSetter" priority="0x0020" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpGenerate" />
         <CommandFlag>DefaultDisabled</CommandFlag>
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
@@ -858,8 +993,8 @@
         </Strings>
       </Button>
       <!-- ===== v0.4.2 Generate (0x0160-0x016F) ===== -->
-      <Button guid="guidUEToVSHostCmdSet" id="cmdGenerateConstructor" priority="0x0100" type="Button">
-        <Parent guid="guidUEToVSHostCmdSet" id="grpContextGenerate" />
+      <Button guid="guidUEToVSHostCmdSet" id="cmdGenerateConstructor" priority="0x0010" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpGenerate" />
         <CommandFlag>TextChanges</CommandFlag>
         <CommandFlag>DefaultDisabled</CommandFlag>
         <Strings>
@@ -868,36 +1003,38 @@
           <LocCanonicalName>UEToVS.GenerateConstructor</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdGenerateReplication" priority="0x0101" type="Button">
-        <Parent guid="guidUEToVSHostCmdSet" id="grpContextGenerate" />
+      <Button guid="guidUEToVSHostCmdSet" id="cmdGenerateReplication" priority="0x0030" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpGenerate" />
         <CommandFlag>TextChanges</CommandFlag>
         <CommandFlag>DefaultDisabled</CommandFlag>
         <Strings>
-          <ButtonText>Generate GetLifetimeReplicatedProps</ButtonText>
+          <ButtonText>Generate Replication (GetLifetimeReplicatedProps)</ButtonText>
           <CanonicalName>UEToVS.GenerateReplication</CanonicalName>
           <LocCanonicalName>UEToVS.GenerateReplication</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdGenerateRpc" priority="0x0102" type="Button">
-        <Parent guid="guidUEToVSHostCmdSet" id="grpContextGenerate" />
+      <Button guid="guidUEToVSHostCmdSet" id="cmdGenerateRpc" priority="0x0040" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpGenerate" />
         <CommandFlag>TextChanges</CommandFlag>
         <CommandFlag>DefaultDisabled</CommandFlag>
         <Strings>
-          <ButtonText>Generate RPC (Implementation / Validate)</ButtonText>
+          <ButtonText>Generate RPC Bodies (_Implementation / _Validate)</ButtonText>
           <CanonicalName>UEToVS.GenerateRpc</CanonicalName>
           <LocCanonicalName>UEToVS.GenerateRpc</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdExpandSelection" priority="0x0110" type="Button">
+      <Button guid="guidUEToVSHostCmdSet" id="cmdExpandSelection" priority="0x0010" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpEditSelect" />
         <CommandFlag>TextChanges</CommandFlag>
         <CommandFlag>DefaultDisabled</CommandFlag>
         <Strings>
-          <ButtonText>Extend Selection</ButtonText>
+          <ButtonText>Expand Selection</ButtonText>
           <CanonicalName>UEToVS.ExpandSelection</CanonicalName>
           <LocCanonicalName>UEToVS.ExpandSelection</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdShrinkSelection" priority="0x0111" type="Button">
+      <Button guid="guidUEToVSHostCmdSet" id="cmdShrinkSelection" priority="0x0020" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpEditSelect" />
         <CommandFlag>TextChanges</CommandFlag>
         <CommandFlag>DefaultDisabled</CommandFlag>
         <Strings>
@@ -906,8 +1043,8 @@
           <LocCanonicalName>UEToVS.ShrinkSelection</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdTranslateSelection" priority="0x0100" type="Button">
-        <Parent guid="guidUEToVSHostCmdSet" id="grpCodeWinTranslate" />
+      <Button guid="guidUEToVSHostCmdSet" id="cmdTranslateSelection" priority="0x0020" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpEditView" />
         <CommandFlag>TextChanges</CommandFlag>
         <CommandFlag>DefaultDisabled</CommandFlag>
         <Strings>
@@ -917,7 +1054,7 @@
         </Strings>
       </Button>
       <!-- ===== v0.4.5 构建结果 / 错误列表 / 新建 UE 类 (0x0170-0x017F; Build/BuildFeature.cs) ===== -->
-      <Button guid="guidUEToVSHostCmdSet" id="cmdNewUeClass" priority="0x0103" type="Button">
+      <Button guid="guidUEToVSHostCmdSet" id="cmdNewUeClass" priority="0x0020" type="Button">
         <Parent guid="guidUEToVSHostCmdSet" id="grpM1Unreal" />
         <Icon guid="ImageCatalogGuid" id="AddClass" />
         <CommandFlag>IconIsMoniker</CommandFlag>
@@ -928,16 +1065,18 @@
           <LocCanonicalName>UEToVS.NewUeClass</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdNextBuildError" priority="0x0104" type="Button">
+      <Button guid="guidUEToVSHostCmdSet" id="cmdNextBuildError" priority="0x0010" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpBuild" />
         <CommandFlag>CommandWellOnly</CommandFlag>
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
-          <ButtonText>Next Build Error</ButtonText>
+          <ButtonText>Go to Next Build Error</ButtonText>
           <CanonicalName>UEToVS.NextBuildError</CanonicalName>
           <LocCanonicalName>UEToVS.NextBuildError</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdClearBuildErrors" priority="0x0105" type="Button">
+      <Button guid="guidUEToVSHostCmdSet" id="cmdClearBuildErrors" priority="0x0020" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpBuild" />
         <CommandFlag>CommandWellOnly</CommandFlag>
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
@@ -987,7 +1126,8 @@
         </Strings>
       </Button>
       <!-- ===== v0.4.5 编辑体验 (0x0180-0x019F, Editing/EditorFeatureActions.cs) ===== -->
-      <Button guid="guidUEToVSHostCmdSet" id="cmdSurroundWith" priority="0x0120" type="Button">
+      <Button guid="guidUEToVSHostCmdSet" id="cmdSurroundWith" priority="0x0010" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpGenerateSurround" />
         <CommandFlag>TextChanges</CommandFlag>
         <CommandFlag>DefaultDisabled</CommandFlag>
         <Strings>
@@ -996,23 +1136,26 @@
           <LocCanonicalName>UEToVS.SurroundWith</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdToggleInlayHints" priority="0x0121" type="Button">
+      <Button guid="guidUEToVSHostCmdSet" id="cmdToggleInlayHints" priority="0x0010" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpEditView" />
         <CommandFlag>DefaultDisabled</CommandFlag>
         <Strings>
-          <ButtonText>Toggle Inlay Hints</ButtonText>
+          <ButtonText>Show / Hide Inlay Hints</ButtonText>
           <CanonicalName>UEToVS.ToggleInlayHints</CanonicalName>
           <LocCanonicalName>UEToVS.ToggleInlayHints</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdShowHashtags" priority="0x0122" type="Button">
+      <Button guid="guidUEToVSHostCmdSet" id="cmdShowHashtags" priority="0x0030" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpM1Bookmarks" />
         <CommandFlag>DefaultDisabled</CommandFlag>
         <Strings>
-          <ButtonText>#tag Bookmarks</ButtonText>
+          <ButtonText>#tag Comments...</ButtonText>
           <CanonicalName>UEToVS.ShowHashtags</CanonicalName>
           <LocCanonicalName>UEToVS.ShowHashtags</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdPasteFromHistory" priority="0x0123" type="Button">
+      <Button guid="guidUEToVSHostCmdSet" id="cmdPasteFromHistory" priority="0x0030" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpEditSelect" />
         <CommandFlag>TextChanges</CommandFlag>
         <CommandFlag>DefaultDisabled</CommandFlag>
         <Strings>
@@ -1022,8 +1165,8 @@
         </Strings>
       </Button>
       <!-- ===== v0.4.5 heavy features (0x01A0-0x01AF): Inspection/HeavyFeatureActions.cs ===== -->
-      <Button guid="guidUEToVSHostCmdSet" id="cmdRunProjectInspection" priority="0x0200" type="Button">
-        <Parent guid="guidUEToVSHostCmdSet" id="grpM1Unreal" />
+      <Button guid="guidUEToVSHostCmdSet" id="cmdRunProjectInspection" priority="0x0010" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpUnrealInspect" />
         <CommandFlag>TextChanges</CommandFlag>
         <CommandFlag>DefaultDisabled</CommandFlag>
         <Strings>
@@ -1032,42 +1175,42 @@
           <LocCanonicalName>UEToVS.RunProjectInspection</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdShowInspectionResults" priority="0x0201" type="Button">
-        <Parent guid="guidUEToVSHostCmdSet" id="grpM1Unreal" />
+      <Button guid="guidUEToVSHostCmdSet" id="cmdShowInspectionResults" priority="0x0020" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpUnrealInspect" />
         <CommandFlag>TextChanges</CommandFlag>
         <CommandFlag>DefaultDisabled</CommandFlag>
         <Strings>
-          <ButtonText>Project Inspection Results</ButtonText>
+          <ButtonText>Show Project Inspection Results</ButtonText>
           <CanonicalName>UEToVS.ShowInspectionResults</CanonicalName>
           <LocCanonicalName>UEToVS.ShowInspectionResults</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdRunUpgradeAssistant" priority="0x0202" type="Button">
-        <Parent guid="guidUEToVSHostCmdSet" id="grpM1Unreal" />
+      <Button guid="guidUEToVSHostCmdSet" id="cmdRunUpgradeAssistant" priority="0x0030" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpUnrealInspect" />
         <CommandFlag>TextChanges</CommandFlag>
         <CommandFlag>DefaultDisabled</CommandFlag>
         <Strings>
-          <ButtonText>Engine Upgrade Assistant: Find Deprecated APIs</ButtonText>
+          <ButtonText>Scan for Deprecated APIs (Engine Upgrade)</ButtonText>
           <CanonicalName>UEToVS.RunUpgradeAssistant</CanonicalName>
           <LocCanonicalName>UEToVS.RunUpgradeAssistant</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdShowUpgradeResults" priority="0x0203" type="Button">
-        <Parent guid="guidUEToVSHostCmdSet" id="grpM1Unreal" />
+      <Button guid="guidUEToVSHostCmdSet" id="cmdShowUpgradeResults" priority="0x0040" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpUnrealInspect" />
         <CommandFlag>TextChanges</CommandFlag>
         <CommandFlag>DefaultDisabled</CommandFlag>
         <Strings>
-          <ButtonText>Engine Upgrade Assistant Results</ButtonText>
+          <ButtonText>Show Deprecated API Scan Results</ButtonText>
           <CanonicalName>UEToVS.ShowUpgradeResults</CanonicalName>
           <LocCanonicalName>UEToVS.ShowUpgradeResults</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidUEToVSHostCmdSet" id="cmdCancelHeavyJob" priority="0x0204" type="Button">
-        <Parent guid="guidUEToVSHostCmdSet" id="grpM1Unreal" />
+      <Button guid="guidUEToVSHostCmdSet" id="cmdCancelHeavyJob" priority="0x0050" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpUnrealInspect" />
         <CommandFlag>TextChanges</CommandFlag>
         <CommandFlag>DefaultDisabled</CommandFlag>
         <Strings>
-          <ButtonText>Cancel Project Inspection / Upgrade Scan</ButtonText>
+          <ButtonText>Stop the Running Inspection / Scan</ButtonText>
           <CanonicalName>UEToVS.CancelHeavyJob</CanonicalName>
           <LocCanonicalName>UEToVS.CancelHeavyJob</LocCanonicalName>
         </Strings>
@@ -1081,33 +1224,43 @@
   </Commands>
 
   <CommandPlacements>
-    <CommandPlacement guid="guidUEToVSHostCmdSet" id="cmdGoToDefinition" priority="0x0100">
+    <!-- Editor right-click > UEToVS -->
+    <CommandPlacement guid="guidUEToVSHostCmdSet" id="cmdQuickActions" priority="0x0010">
+      <Parent guid="guidUEToVSHostCmdSet" id="grpContextRefactor" />
+    </CommandPlacement>
+    <CommandPlacement guid="guidUEToVSHostCmdSet" id="cmdRename" priority="0x0020">
+      <Parent guid="guidUEToVSHostCmdSet" id="grpContextRefactor" />
+    </CommandPlacement>
+    <CommandPlacement guid="guidUEToVSHostCmdSet" id="cmdGoToDefinition" priority="0x0010">
       <Parent guid="guidUEToVSHostCmdSet" id="grpContextNavigation" />
     </CommandPlacement>
-    <CommandPlacement guid="guidUEToVSHostCmdSet" id="cmdGoToImplementation" priority="0x0101">
+    <CommandPlacement guid="guidUEToVSHostCmdSet" id="cmdGoToImplementation" priority="0x0020">
       <Parent guid="guidUEToVSHostCmdSet" id="grpContextNavigation" />
     </CommandPlacement>
-    <CommandPlacement guid="guidUEToVSHostCmdSet" id="cmdFindReferences" priority="0x0102">
+    <CommandPlacement guid="guidUEToVSHostCmdSet" id="cmdFindReferences" priority="0x0030">
       <Parent guid="guidUEToVSHostCmdSet" id="grpContextNavigation" />
     </CommandPlacement>
-    <CommandPlacement guid="guidUEToVSHostCmdSet" id="cmdTypeHierarchy" priority="0x0103">
+    <CommandPlacement guid="guidUEToVSHostCmdSet" id="cmdCallHierarchy" priority="0x0040">
       <Parent guid="guidUEToVSHostCmdSet" id="grpContextNavigation" />
     </CommandPlacement>
-    <CommandPlacement guid="guidUEToVSHostCmdSet" id="cmdListMembersInFile" priority="0x0104">
+    <CommandPlacement guid="guidUEToVSHostCmdSet" id="cmdTypeHierarchy" priority="0x0050">
       <Parent guid="guidUEToVSHostCmdSet" id="grpContextNavigation" />
     </CommandPlacement>
-    <CommandPlacement guid="guidUEToVSHostCmdSet" id="cmdListTypeMembers" priority="0x0105">
+    <CommandPlacement guid="guidUEToVSHostCmdSet" id="cmdListMembersInFile" priority="0x0060">
       <Parent guid="guidUEToVSHostCmdSet" id="grpContextNavigation" />
     </CommandPlacement>
-    <!-- v0.4.5 navigation gaps -->
-    <CommandPlacement guid="guidUEToVSHostCmdSet" id="cmdCallHierarchy" priority="0x0106">
+    <CommandPlacement guid="guidUEToVSHostCmdSet" id="cmdListTypeMembers" priority="0x0070">
       <Parent guid="guidUEToVSHostCmdSet" id="grpContextNavigation" />
     </CommandPlacement>
-    <CommandPlacement guid="guidUEToVSHostCmdSet" id="cmdQuickActions" priority="0x0110">
-      <Parent guid="guidUEToVSHostCmdSet" id="grpContextNavigation" />
+    <CommandPlacement guid="guidUEToVSHostCmdSet" id="menuRefactor" priority="0x0010">
+      <Parent guid="guidUEToVSHostCmdSet" id="grpContextGenerate" />
     </CommandPlacement>
-    <CommandPlacement guid="guidUEToVSHostCmdSet" id="cmdRename" priority="0x0111">
-      <Parent guid="guidUEToVSHostCmdSet" id="grpContextNavigation" />
+    <CommandPlacement guid="guidUEToVSHostCmdSet" id="menuGenerate" priority="0x0020">
+      <Parent guid="guidUEToVSHostCmdSet" id="grpContextGenerate" />
+    </CommandPlacement>
+    <!-- Translate Selection: also directly on the right-click menu of every text editor -->
+    <CommandPlacement guid="guidUEToVSHostCmdSet" id="cmdTranslateSelection" priority="0x0100">
+      <Parent guid="guidUEToVSHostCmdSet" id="grpCodeWinTranslate" />
     </CommandPlacement>
     <!-- v0.4.5 构建结果 / 新建 UE 类: the same Solution Explorer commands on project / item nodes; New UE Class on project nodes too. -->
     <CommandPlacement guid="guidUEToVSHostCmdSet" id="cmdCtxGenerateProjectFiles" priority="0x0100">
@@ -1219,7 +1372,33 @@
     <GuidSymbol name="guidUEToVSHostCmdSet" value="{aacea68e-71c0-4b88-baf0-43e34d9fa8a7}">
       <IDSymbol name="menuUEToVS" value="0x1000" />
       <IDSymbol name="grpTopLevel" value="0x1010" />
-      <IDSymbol name="grpDiagnostics" value="0x1013" />
+      <!-- v0.7.1 menu reorganisation: submenus 0x1200-0x120F (ids mirrored in Shell/CommandRouter.Submenus), groups 0x1220+ -->
+      <IDSymbol name="grpMenuTop" value="0x1220" />
+      <IDSymbol name="grpMenuSubmenus" value="0x1221" />
+      <IDSymbol name="menuSearch" value="0x1200" />
+      <IDSymbol name="menuNavigation" value="0x1201" />
+      <IDSymbol name="menuHistory" value="0x1202" />
+      <IDSymbol name="menuRefactor" value="0x1203" />
+      <IDSymbol name="menuGenerate" value="0x1204" />
+      <IDSymbol name="menuEditing" value="0x1205" />
+      <IDSymbol name="menuUnreal" value="0x1206" />
+      <IDSymbol name="menuBuild" value="0x1207" />
+      <IDSymbol name="menuBookmarkSet" value="0x1208" />
+      <IDSymbol name="menuBookmarkGo" value="0x1209" />
+      <IDSymbol name="grpNavStructure" value="0x1222" />
+      <IDSymbol name="grpHistoryLists" value="0x1223" />
+      <IDSymbol name="grpBookmarkSet" value="0x1224" />
+      <IDSymbol name="grpBookmarkGo" value="0x1225" />
+      <IDSymbol name="grpRefactorMain" value="0x1226" />
+      <IDSymbol name="grpRefactorExtract" value="0x1227" />
+      <IDSymbol name="grpRefactorMove" value="0x1228" />
+      <IDSymbol name="grpGenerate" value="0x1229" />
+      <IDSymbol name="grpGenerateSurround" value="0x122A" />
+      <IDSymbol name="grpEditSelect" value="0x122B" />
+      <IDSymbol name="grpEditView" value="0x122C" />
+      <IDSymbol name="grpUnrealInspect" value="0x122D" />
+      <IDSymbol name="grpBuild" value="0x122E" />
+      <IDSymbol name="grpContextRefactor" value="0x122F" />
       <IDSymbol name="grpSettings" value="0x1014" />
       <IDSymbol name="grpSearch" value="0x1015" />
       <IDSymbol name="cmdOpenLogFolder" value="0x0100" />

@@ -6,10 +6,10 @@ namespace UEToVS.Host.Logic.Localization
     public static class RefactorStrings
     {
         // ---- commands / action titles ----
-        public static string CmdQuickActions => Loc.T("上下文操作（Alt+Enter）", "Context Actions (Alt+Enter)");
+        public static string CmdQuickActions => Loc.T("上下文操作…", "Context Actions...");
         public static string CmdCreateImplementation => Loc.T("生成实现", "Create Implementation");
         public static string CmdCreateDeclaration => Loc.T("生成声明", "Create Declaration");
-        public static string CmdImplementVirtual => Loc.T("实现虚函数 / 重写…", "Implement Virtual Methods / Override...");
+        public static string CmdImplementVirtual => Loc.T("实现 / 重写虚函数…", "Implement / Override Virtual Functions...");
         public static string CmdAddInclude => Loc.T("添加 #include", "Add #include");
         public static string CmdRename => Loc.T("重命名…", "Rename...");
 
