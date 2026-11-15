@@ -51,6 +51,35 @@ VS 自带的 C++ IntelliSense（EDG 前端 + 浏览数据库）在 UE 工程上�
 - 不替代编译器诊断。错误以编译结果为准，我们的红线只做“快速、高置信度”的提示。
 - 不做 C# / 其他语言的通用支持（HLSL/USF 例外，UE 刚需）。
 
+### 1.4 定位与能力边界（2026-11-15 确定）
+
+**定位**：UEToVS 是 Visual Studio 里的 UE 感知代码助手：在编辑器里读懂 UE 工程的 C++ 代码（导航、补全、着色、检查、重构、生成），并通过 MCP 把同一份索引交给 AI Agent。它替代的是 Visual Assist / Rider 的代码层能力，不是 UE 编辑器的延伸，也不是 VS 构建、调试系统的替代。
+
+**边界内（做，做深）**
+
+| 范围 | 说明 |
+| --- | --- |
+| 读磁盘上的工程文件 | `.uproject` / `.uplugin` / `*.Build.cs` / `*.Target.cs` / `.ini` / 源码 / `.usf` `.ush` / `.lua`，以及**只读**解析 `.uasset` `.umap` 的包头、名称表、导入表 |
+| 编辑器内的代码体验 | 导航、搜索、补全、Quick Info、参数信息、着色、行内提示、波浪线、Alt+Enter、重构、代码生成、模板 |
+| UE 语义规则 | 反射、复制、RPC、委托、GameplayTag、config、弃用 API、命名规范、模块依赖 |
+| 给 VS 自带功能减负 | 关掉 VS 在 UE 大工程上代价过高的后台功能；没有等价替代的要在说明里写清楚 |
+| MCP | 只读查询索引，不做写操作 |
+
+**边界外（不做）**
+
+| 不做 | 交给谁 |
+| --- | --- |
+| 连接 UE 编辑器（日志、PIE、Live Coding 触发、蓝图节点跳转、AssetRegistry 在线查询） | UE 编辑器本身、Agent 面板的 UELink（v0.7.0 起移除） |
+| 自动化测试运行器、UE 日志窗口 | VS 自带的 Unreal Engine 集成、UE 编辑器 |
+| 构建系统、调试器本体、调试可视化（natvis） | VS + UBT、引擎自带 natvis |
+| 资产 / 蓝图编辑 | UE 编辑器 |
+| 代码格式化、拼写检查、模块 / 插件新建向导 | VS 自带 |
+| MCP 写操作 | Agent 自己的写文件能力 |
+
+**边界边上、冻结不再扩展的模块**：字体管理、Agent / API 模型转发、注释翻译、UBA / Horde 联合编译配置。
+
+**判断新需求**：依次问三个问题，任一个答“否”就不做：(1) 只在 VS 代码编辑器里、只依赖磁盘文件就能完成吗？(2) VS 自带功能在 UE 大工程上做得不够好或代价过高吗？(3) 它帮助读懂 / 改对 UE 代码吗？
+
 ---
 
 ## 2. 现有代码：功能参考与重构依据
@@ -233,15 +262,15 @@ Rider 在 UE 上的优势主要不在“能做什么”，而在“怎么做”�
 
 | 功能 | 对标 | 依赖 | 状态 |
 | --- | --- | --- | --- |
-| Rename（含文件、Core Redirects 写入 ini） | VA Rename | L1 | ⬜ |
-| Create Declaration / Create Implementation（UFUNCTION、`_Implementation`/`_Validate`） | VA | L1 | ⬜ |
-| Change Signature（同步 `_Implementation`/`_Validate`） | VA | L1 | ⬜ |
-| Extract Method / Introduce Variable | VA | L1 | ⬜ |
-| Encapsulate Field（UPROPERTY 下生成 BlueprintGetter/Setter 可选） | VA | L1 | ⬜ |
-| Move Implementation to Source / Header | VA | L1 | ⬜ |
-| Implement Virtual Methods / Override（含 `Super::` 调用） | VA | L1 | ⬜ |
-| Add Forward Declaration | VA | L1 | ⬜ |
-| 代码片段（Snippet / Surround With，带 UE 内置模板） | VA Snippets；Rider Live Templates | — | ⬜ |
+| Rename（含文件、Core Redirects 写入 ini） | VA Rename | L1 | ✅ |
+| Create Declaration / Create Implementation（UFUNCTION、`_Implementation`/`_Validate`） | VA | L1 | ✅ |
+| Change Signature（同步 `_Implementation`/`_Validate`） | VA | L1 | ✅ |
+| Extract Method / Introduce Variable | VA | L1 | ✅ |
+| Encapsulate Field（UPROPERTY 下生成 BlueprintGetter/Setter 可选） | VA | L1 | ✅ |
+| Move Implementation to Source / Header | VA | L1 | ✅ |
+| Implement Virtual Methods / Override（含 `Super::` 调用） | VA | L1 | ✅ |
+| Add Forward Declaration | VA | L1 | ✅ |
+| 代码片段（Snippet / Surround With，带 UE 内置模板） | VA Snippets；Rider Live Templates | — | ✅ |
 
 #### UE 专项
 
@@ -253,8 +282,8 @@ Rider 在 UE 上的优势主要不在“能做什么”，而在“怎么做”�
 | `CreateDefaultSubobject<T>` 等模板工厂的类型推导 | VA 2024.1 | L1 | ⬜ |
 | 反射说明符补全与文档（UPROPERTY/UFUNCTION/UCLASS/USTRUCT/meta） | Rider | L0 + 知识库 | ✅ |
 | Build.cs 模块依赖检查与修复 | Rider | L0 | ✅ |
-| HLSL / USF / USH 着色、导航、补全 | VA | 独立轻量解析 | ⬜ |
-| 生成工程文件、Live Coding | — | Link | ✅ |
+| HLSL / USF / USH 着色、导航、补全 | VA | 独立轻量解析 | 🔶（词法着色 + #include 跳转） |
+| 生成工程文件 | — | — | ✅（Live Coding 触发需连编辑器，v0.7.0 移除） |
 
 #### 基础设施（不面向用户，但 P0）
 
@@ -516,6 +545,8 @@ UTF-8 字节 ──▶ 词法分析（零分配，Span）──▶ 轻量预处�
 - 资源治理：按需启动、空闲 5 分钟退出；设置内存上限（进程 Job Object 限制）；禁止它建立全工程后台索引（我们的索引已经覆盖），只对请求涉及的文件构建 preamble。
 
 ### 6.9 UE 编辑器桥（UEToVSLink 扩展）
+
+> **已废弃（v0.7.0）**：UEToVS 不再连接 UE 编辑器，见 §1.4。本节保留作为历史记录；其中“离线回退”（只读解析 `.uasset`）仍在边界内，作为离线蓝图用法的实现方向。
 
 现有：打开资产、触发 Live Coding、端口写入 `Saved/UEToVSLink/port.txt`。
 

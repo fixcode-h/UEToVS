@@ -3,7 +3,8 @@
 面向 Unreal Engine 5 C++ 工程的 Visual Studio 2022 / 2026 扩展：对标 Visual Assist 的 C++ / UE 感知能力，交互参考 Rider。
 
 - 整体设计：[docs/design/UEToVS-架构设计.md](docs/design/UEToVS-架构设计.md)
-- 当前状态：**v0.5.0**。M0–M4 已完成：原型功能对齐（Search Everywhere、导航历史、书签、相关项、Build.cs 依赖修复、资产搜索、Rider 键位）、导航（转到定义/实现、查找引用、类型层次、调用层次、速览定义、导航栏、引用高亮）、IntelliSense（UE 感知成员补全、Quick Info、宏展开、参数信息、语法着色、内嵌提示、UE 规则波浪线、反射说明符补全、通用模板实例化）、重构与生成（Alt+Enter、重命名、更改签名、移动实现、提取方法、引入变量、封装字段、前置声明、生成实现、Live Templates、Surround With）、UE 专项（新建 UE 类、编译错误波浪线、全项目检查、引擎升级助手）。另有给 AI Agent 用的 MCP 服务（见下文）。
+- 定位与能力边界：[设计文档 §1.4](docs/design/UEToVS-架构设计.md#14-定位与能力边界2026-11-15-确定)（做什么、不做什么、新需求怎么判断）
+- 当前状态：**v0.7.3**。M0–M4 已完成：原型功能对齐（Search Everywhere、导航历史、书签、相关项、Build.cs 依赖修复、资产搜索、Rider 键位）、导航（转到定义/实现、查找引用、类型层次、调用层次、速览定义、导航栏、引用高亮）、IntelliSense（UE 感知成员补全、Quick Info、宏展开、参数信息、语法着色、内嵌提示、UE 规则波浪线、反射说明符补全、通用模板实例化）、重构与生成（Alt+Enter、重命名、更改签名、移动实现、提取方法、引入变量、封装字段、前置声明、生成实现、Live Templates、Surround With）、UE 专项（新建 UE 类、编译错误波浪线、全项目检查、引擎升级助手）。另有给 AI Agent 用的 MCP 服务（见下文）。
 
 ## 结构
 

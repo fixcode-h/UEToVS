@@ -76,8 +76,10 @@ namespace UEToVS.Host.Logic.IntelliSense
                 "默认关闭（可在上方开关保留）：省下编译后十几 GB 内存；查找引用由 UEToVS 提供",
                 "Off by default (switch above keeps it): saves the 10+ GB after each build; references come from UEToVS"),
             F("蓝图支持（VS 的 Unreal Engine 集成）", "Blueprint support (VS's Unreal Engine integration)", null, null, TakeoverFeatureState.TurnedOff, new[] { CommandCatalog.GoToAsset },
-                "默认关闭（可在上方开关保留）：不再每次打开解决方案都扫描全部蓝图，下次启动 VS 生效；蓝图搜索由 UEToVS 的蓝图索引提供",
-                "Off by default (switch above keeps it): no Blueprint scan on each solution load, from the next VS start; Blueprint search comes from the UEToVS Blueprint index"),
+                "默认关闭（可在上方开关保留）：不再每次打开解决方案都扫描全部蓝图，下次启动 VS 生效。UEToVS 只能按名字搜索蓝图资产，" +
+                "暂时没有“哪些蓝图用了这个函数 / 属性”的提示；需要时请保留这项",
+                "Off by default (switch above keeps it): no Blueprint scan on each solution load, from the next VS start. UEToVS can only search Blueprint assets by name " +
+                "and does not yet show which Blueprints use a function or property; keep this switch if you need that"),
             F("UHT 代码分析（VS 的 Unreal Engine 集成）", "UHT code analysis (VS's Unreal Engine integration)", null, null, TakeoverFeatureState.TurnedOff,
                 new[] { CommandCatalog.RunProjectInspection },
                 "默认关闭（可在上方开关保留）：反射宏检查由 UEToVS 的项目检查提供",
@@ -108,8 +110,7 @@ namespace UEToVS.Host.Logic.IntelliSense
             F("导航栏（类型 / 成员下拉框）", "Navigation bar (type / member drop-downs)", null, null, Ours, new int[0],
                 "由 UEToVS 的导航栏代替", "Replaced by the UEToVS navigation bar"),
             F("重命名（C++ 重构）", "Rename (C++ refactoring)", "Refactor.Rename", "Ctrl+R, Ctrl+R", Off, new[] { CommandCatalog.Rename }),
-            F("提取函数（C++ 重构）", "Extract Function (C++ refactoring)", "Refactor.ExtractFunction", "Ctrl+R, Ctrl+M", Off, new int[0],
-                "暂无替代", "No replacement yet"),
+            F("提取函数（C++ 重构）", "Extract Function (C++ refactoring)", "Refactor.ExtractFunction", "Ctrl+R, Ctrl+M", Off, new[] { CommandCatalog.ExtractMethod }),
             F("创建声明 / 定义（快速操作）", "Create Declaration / Definition (quick actions)", "View.QuickActions", "Ctrl+.", Off, new[] { CommandCatalog.QuickActions },
                 "Alt+Enter：生成实现 / 声明、重写虚函数、添加 #include", "Alt+Enter: generate implementation / declaration, override, add #include"),
             F("代码段（插入代码段）", "Code Snippets (Insert Snippet)", "Edit.InsertSnippet", "Ctrl+K, Ctrl+X", TakeoverFeatureState.Unknown, new int[0],

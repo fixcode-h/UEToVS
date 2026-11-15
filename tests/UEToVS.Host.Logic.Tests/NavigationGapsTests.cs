@@ -149,7 +149,7 @@ namespace UEToVS.Host.Logic.Tests
             Loc.Language = UiLanguage.Chinese;
             Assert.Equal("调用层次（Ctrl+Shift+Alt+U, H）", TakeoverFeatures.ReplacementText(ch));
             Assert.Equal("需在 VS 中确认", TakeoverFeatures.StateText(TakeoverFeatureState.Unknown));
-            Assert.Equal("暂无替代", TakeoverFeatures.ReplacementText(TakeoverFeatures.All.First(f => f.FeatureEn.StartsWith("Extract", StringComparison.Ordinal))));
+            Assert.StartsWith("提取为函数…", TakeoverFeatures.ReplacementText(TakeoverFeatures.All.First(f => f.FeatureEn.StartsWith("Extract", StringComparison.Ordinal))));
         }
 
         [Fact]
