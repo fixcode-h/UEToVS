@@ -108,6 +108,9 @@ namespace UEToVS.Contracts
 
         /// <summary>Inlay hints (parameter names before literal arguments, deduced auto types) for a line range of a document.</summary>
         Task<InlayHintsResponse> GetInlayHintsAsync(InlayHintsRequest request, CancellationToken ct);
+
+        /// <summary>v0.7.6: the derived C++ types and Blueprints behind a Code Vision hint (clicking "N 个蓝图" lists them, Rider style).</summary>
+        Task<CodeVisionItemsResponse> GetCodeVisionItemsAsync(CodeVisionItemsRequest request, CancellationToken ct);
         // ---- v0.4.5 UE editor link (see UeCode.cs): on-demand scans of the project sources ----
 
         /// <summary>Automation tests declared in the project (IMPLEMENT_*_AUTOMATION_TEST, BEGIN_DEFINE_SPEC / DEFINE_SPEC).</summary>

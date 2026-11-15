@@ -300,6 +300,23 @@ namespace UEToVS.Engine.Tests
             Assert.Equal("AMyCharacter::Fire", usages[9].SymbolName);
             Assert.Equal(1, usages[9].Column);
             Assert.Equal(1, usages[12].Blueprints);                // Health: used in L_Main
+            // v0.7.6: clicking a count lists what it stands for (same set as the number)
+            var classItems = await service.GetCodeVisionItemsAsync(new CodeVisionItemsRequest { SymbolName = usages[4].SymbolName }, CancellationToken.None);
+            Assert.True(classItems.BlueprintIndexReady);
+            var heroItem = Assert.Single(classItems.Blueprints);
+            Assert.Equal("BP_Hero", heroItem.Asset.Name);
+            Assert.Equal("/Game/Characters/BP_Hero.BP_Hero", heroItem.Asset.ObjectPath);
+            Assert.EndsWith("BP_Hero.uasset", heroItem.Asset.FilePath);
+            Assert.Equal("MyCharacter", heroItem.ParentClass);
+            Assert.Equal(0, heroItem.Depth);
+            Assert.Equal(usages[4].DerivedTypes, classItems.DerivedTypes.Count);
+            var fireItems = await service.GetCodeVisionItemsAsync(new CodeVisionItemsRequest { SymbolName = usages[9].SymbolName }, CancellationToken.None);
+            Assert.Equal("BP_Hero", Assert.Single(fireItems.Blueprints).Asset.Name);
+            var healthItems = await service.GetCodeVisionItemsAsync(new CodeVisionItemsRequest { SymbolName = "AMyCharacter::Health" }, CancellationToken.None);
+            var level = Assert.Single(healthItems.Blueprints);
+            Assert.True(level.IsLevel);
+            Assert.Equal("World", level.Asset.ClassName);
+            Assert.Empty((await service.GetCodeVisionItemsAsync(new CodeVisionItemsRequest { SymbolName = " " }, CancellationToken.None)).Blueprints);
             var off = await service.GetInlayHintsAsync(new InlayHintsRequest { Document = new CaretRequest { FilePath = header }, StartLine = 0, EndLine = 20 }, CancellationToken.None);
             Assert.DoesNotContain(off.Items, h => h.Kind == InlayHintKind.Usages);
             await host.StopAsync(TimeSpan.FromSeconds(5));

@@ -363,6 +363,69 @@ namespace UEToVS.Engine.Rpc
             return null;
         }
 
+        /// <summary>
+        /// v0.7.6: what a Code Vision count stands for, listed when the user clicks it (Rider). Same queries as
+        /// <see cref="CodeVisionHint"/>, so the list matches the number: a class gets its direct C++ subclasses and the
+        /// Blueprints deriving from it (Blueprint children under their parent); a member gets the Blueprints / levels using it.
+        /// </summary>
+        public Task<CodeVisionItemsResponse> GetCodeVisionItemsAsync(CodeVisionItemsRequest request, CancellationToken ct) =>
+            InvokeAsync("rpc.getCodeVisionItems", c => string.IsNullOrWhiteSpace(request?.SymbolName)
+                    ? Task.FromResult(new CodeVisionItemsResponse())
+                    : _host.Scheduler.RunAsync(WorkPriority.Interactive, "rpc.getCodeVisionItems", t => CodeVisionItems(request, t), c),
+                ct, ("symbol", request?.SymbolName), ("max", request?.MaxItems));
+
+        internal CodeVisionItemsResponse CodeVisionItems(CodeVisionItemsRequest request, CancellationToken ct)
+        {
+            var sw = Stopwatch.StartNew();
+            int max = Math.Max(1, Math.Min(request.MaxItems, 2000));
+            var bpIndex = _host.Blueprints.Index;
+            var resp = new CodeVisionItemsResponse { BlueprintIndexReady = bpIndex.IsReady };
+            string name = request.SymbolName.Trim();
+            int sep = name.LastIndexOf("::", StringComparison.Ordinal);
+            if (sep < 0)
+            {
+                foreach (var d in _host.Index.Backend.FindDerivedTypes(name))
+                {
+                    if (d?.Symbol == null) continue;
+                    if (resp.DerivedTypes.Count >= max) { resp.Truncated = true; break; }
+                    resp.DerivedTypes.Add(d.Symbol);
+                }
+                resp.DerivedTypes.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase));
+                void Walk(IEnumerable<DerivedBlueprint> nodes, int depth)
+                {
+                    foreach (var n in nodes.Where(n => n?.Entry != null).OrderBy(n => n.Entry.Name, StringComparer.OrdinalIgnoreCase))
+                    {
+                        ct.ThrowIfCancellationRequested();
+                        if (resp.Blueprints.Count >= max) { resp.Truncated = true; return; }
+                        resp.Blueprints.Add(CodeVisionBlueprintOf(n.Entry, depth));
+                        Walk(n.Children, depth + 1);
+                    }
+                }
+                Walk(bpIndex.Derived(new[] { BlueprintIndex.UeClassName(name) }), 0);
+            }
+            else
+            {
+                string container = name.Substring(0, sep), member = name.Substring(sep + 2);
+                var used = bpIndex.Usages(member, new[] { BlueprintIndex.UeClassName(container) }, max + 1);
+                if (used.Count > max) resp.Truncated = true;
+                // Blueprints first, then levels; by name inside each group
+                foreach (var e in used.Take(max).OrderBy(e => e.IsMap ? 1 : 0).ThenBy(e => e.Name, StringComparer.OrdinalIgnoreCase))
+                    resp.Blueprints.Add(CodeVisionBlueprintOf(e, 0, member: true));
+            }
+            resp.ElapsedMs = sw.Elapsed.TotalMilliseconds;
+            L.Debug("rpc.getCodeVisionItems.result", null, ("symbol", name), ("derived", resp.DerivedTypes.Count), ("blueprints", resp.Blueprints.Count),
+                ("truncated", resp.Truncated), ("bpIndexReady", resp.BlueprintIndexReady), ("ms", Math.Round(resp.ElapsedMs, 1)));
+            return resp;
+        }
+
+        private static CodeVisionBlueprint CodeVisionBlueprintOf(BlueprintEntry e, int depth, bool member = false) => new CodeVisionBlueprint
+        {
+            Asset = new AssetItem { Name = e.Name, FilePath = e.FilePath, ObjectPath = e.ObjectPath, ClassName = e.IsMap ? "World" : "Blueprint", Origin = ItemOrigin.Project },
+            ParentClass = member ? null : UEToVS.Engine.Unreal.UassetReader.ClassName(e.ParentClass ?? e.NativeParentClass),
+            Depth = depth,
+            IsLevel = e.IsMap,
+        };
+
         public Task<HighlightResponse> GetHighlightsAsync(CaretRequest caret, CancellationToken ct) =>
             InvokeAsync("rpc.getHighlights", c => caret == null
                     ? Task.FromResult(new HighlightResponse { Word = string.Empty })

@@ -73,15 +73,22 @@ namespace UEToVS.Host.Search
         public static bool IsVisible(string id) => Popups.TryGetValue(id, out var p) && p.Shell.IsVisible;
 
         /// <summary>Shows rows; completes with the pick (Chosen false when dismissed or replaced by a newer Show).</summary>
-        public static async Task<ChooserResult<SearchRow>> ShowAsync(string id, string title, IReadOnlyList<SearchRow> rows, bool filterable = true, Size? size = null)
+        public static Task<ChooserResult<SearchRow>> ShowAsync(string id, string title, IReadOnlyList<SearchRow> rows, bool filterable = true, Size? size = null) =>
+            ShowAtAsync(id, title, rows, null, filterable ? (Func<SearchRow, string>)(r => (r.Title ?? string.Empty) + " " + (r.Detail ?? string.Empty)) : null, size);
+
+        /// <summary>
+        /// Like <see cref="ShowAsync"/> at <paramref name="anchor"/> (null = centered on VS, Rider's Search Everywhere spot);
+        /// <paramref name="filterText"/> null hides the filter box.
+        /// </summary>
+        public static async Task<ChooserResult<SearchRow>> ShowAtAsync(string id, string title, IReadOnlyList<SearchRow> rows, PopupAnchor anchor,
+                                                                      Func<SearchRow, string> filterText, Size? size = null)
         {
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
             var p = Get(id, size);
             IntPtr owner = VsMainWindow.Handle;
             p.OwnerHandle = owner;
-            L.Info("popup.show", null, ("id", id), ("rows", rows?.Count ?? 0));
-            return await p.ShowAsync(rows, owner != IntPtr.Zero ? PopupAnchor.CenterOf(owner) : null, title,
-                               filterable ? (Func<SearchRow, string>)(r => (r.Title ?? string.Empty) + " " + (r.Detail ?? string.Empty)) : null);
+            L.Info("popup.show", null, ("id", id), ("rows", rows?.Count ?? 0), ("anchored", anchor != null));
+            return await p.ShowAsync(rows, anchor ?? (owner != IntPtr.Zero ? PopupAnchor.CenterOf(owner) : null), title, filterText);
         }
     }
 }
