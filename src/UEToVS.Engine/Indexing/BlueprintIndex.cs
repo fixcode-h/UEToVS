@@ -142,6 +142,14 @@ namespace UEToVS.Engine.Indexing
             return true;
         }
 
+        /// <summary>Replaces the whole index (tests, tools that build entries themselves).</summary>
+        public void Replace(IEnumerable<BlueprintEntry> entries)
+        {
+            var next = new Dictionary<string, BlueprintEntry>(StringComparer.OrdinalIgnoreCase);
+            foreach (var e in entries) next[e.FilePath] = e;
+            Publish(next);
+        }
+
         private void Publish(Dictionary<string, BlueprintEntry> next)
         {
             var searchable = next.Values.Where(e => e.IsSearchable).OrderBy(e => e.FilePath, StringComparer.OrdinalIgnoreCase).ToArray();

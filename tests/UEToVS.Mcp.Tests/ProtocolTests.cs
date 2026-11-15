@@ -20,7 +20,7 @@ namespace UEToVS.Mcp.Tests
     {
         private static readonly string[] ExpectedTools =
         {
-            "find_delegate_bindings", "find_references", "get_build_errors", "get_diagnostics", "get_file_outline", "get_lua_outline", "get_members",
+            "find_blueprint_usages", "find_delegate_bindings", "find_references", "get_build_errors", "get_diagnostics", "get_file_outline", "get_lua_outline", "get_members",
             "get_module_info", "get_reflection_info", "get_type_hierarchy", "go_to_definition", "index_status", "rename_symbol", "run_project_inspection",
             "search_assets", "search_config", "search_files", "search_lua", "search_lua_files", "search_symbols", "suggest_include",
         };
@@ -69,7 +69,7 @@ namespace UEToVS.Mcp.Tests
             // in the 2 KB some clients (Claude Code) keep.
             foreach (var name in new[] { "search_files", "search_assets", "find_references", "search_lua", "search_lua_files", "get_lua_outline",
                                          "get_reflection_info", "get_module_info", "suggest_include", "search_config", "find_delegate_bindings",
-                                         "get_diagnostics", "get_build_errors", "rename_symbol" })
+                                         "get_diagnostics", "get_build_errors", "rename_symbol", "find_blueprint_usages" })
                 Assert.Contains(name, c.ServerInstructions);
             Assert.Contains("Grep", c.ServerInstructions);
             Assert.True(c.ServerInstructions.Length < 2000, "instructions are long: " + c.ServerInstructions.Length);

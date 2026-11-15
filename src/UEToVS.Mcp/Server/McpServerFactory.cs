@@ -35,7 +35,7 @@ namespace UEToVS.Mcp.Server
             "If you only see tool names (deferred tools), load these tools' descriptions first: each says when to use it and what it cannot do.\n" +
             "Which tool: C++ name -> search_symbols; definition -> go_to_definition; callers/users -> find_references; base/derived -> " +
             "get_type_hierarchy; members -> get_members; specifiers, replication, RPCs -> get_reflection_info; file structure -> get_file_outline; " +
-            "file by name -> search_files; Blueprints/maps -> search_assets; module, Build.cs, header's module -> get_module_info; #include for a " +
+            "file by name -> search_files; Blueprints/maps -> search_assets; Blueprint users/children of C++ -> find_blueprint_usages; module, Build.cs, header's module -> get_module_info; #include for a " +
             "type -> suggest_include; ini, CVars, console commands, gameplay tags -> search_config; who binds a handler -> find_delegate_bindings; " +
             "Lua function/class/GM command -> search_lua; Lua file -> search_lua_files; Lua structure -> get_lua_outline.\n" +
             "Then read only the lines around the result. Grep only what is not indexed: string literals, comments, log text, Lua call sites. " +

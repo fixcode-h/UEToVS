@@ -63,7 +63,7 @@ VS 自带的 C++ IntelliSense（EDG 前端 + 浏览数据库）在 UE 工程上�
 | 编辑器内的代码体验 | 导航、搜索、补全、Quick Info、参数信息、着色、行内提示、波浪线、Alt+Enter、重构、代码生成、模板 |
 | UE 语义规则 | 反射、复制、RPC、委托、GameplayTag、config、弃用 API、命名规范、模块依赖 |
 | 给 VS 自带功能减负 | 关掉 VS 在 UE 大工程上代价过高的后台功能；没有等价替代的要在说明里写清楚 |
-| MCP | 只读查询索引，不做写操作 |
+| MCP | 以只读查询索引为主；唯一的写操作是已有的 `rename_symbol`（先预览、再 `apply=true`），不再新增写操作 |
 
 **边界外（不做）**
 
@@ -74,7 +74,7 @@ VS 自带的 C++ IntelliSense（EDG 前端 + 浏览数据库）在 UE 工程上�
 | 构建系统、调试器本体、调试可视化（natvis） | VS + UBT、引擎自带 natvis |
 | 资产 / 蓝图编辑 | UE 编辑器 |
 | 代码格式化、拼写检查、模块 / 插件新建向导 | VS 自带 |
-| MCP 写操作 | Agent 自己的写文件能力 |
+| 新增 MCP 写操作（`rename_symbol` 之外） | Agent 自己的写文件能力 |
 
 **边界边上、冻结不再扩展的模块**：字体管理、Agent / API 模型转发、注释翻译、UBA / Horde 联合编译配置。
 

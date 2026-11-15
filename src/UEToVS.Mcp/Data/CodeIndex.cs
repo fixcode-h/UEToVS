@@ -62,6 +62,7 @@ namespace UEToVS.Mcp.Data
             _engine = engine ?? new EngineConnection(solutionDir);
             _offline = offline ?? new OfflineIndex(solutionDir);
             Lua = new LuaIndexReader(solutionDir);
+            Blueprints = new BlueprintIndexReader(solutionDir);
         }
 
         public string SolutionDir { get; }
@@ -72,6 +73,9 @@ namespace UEToVS.Mcp.Data
 
         /// <summary>Lua script index (lua-index.json written by the engine); always read from disk.</summary>
         public LuaIndexReader Lua { get; }
+
+        /// <summary>v0.7.3 offline Blueprint index (blueprints.jsonl.gz written by the engine); always read from disk.</summary>
+        public BlueprintIndexReader Blueprints { get; }
 
         // ------------------------------------------------------------------ engine plumbing
 
