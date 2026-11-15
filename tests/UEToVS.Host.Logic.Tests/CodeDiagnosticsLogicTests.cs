@@ -111,7 +111,7 @@ namespace UEToVS.Host.Logic.Tests
         {
             var schema = HostSettingsSchema.Build(8);
             var d = schema.Single(x => x.Key == "diagnostics.enabled");
-            Assert.Equal(HostSettingsSchema.IntelliSense, d.Category);
+            Assert.Equal(HostSettingsSchema.Highlighting, d.Category);
             Assert.Equal("true", d.Default);
             Assert.True(new HostSettings().DiagnosticsEnabled);
             var off = HostSettingsSchema.Codec.FromValues(new Dictionary<string, string> { ["diagnostics.enabled"] = "false" }, schema, new HostSettings());

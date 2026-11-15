@@ -111,8 +111,8 @@ namespace UEToVS.Host.Navigation
             var rows = new List<SearchRow>();
             var engine = package.Engine;
 
-            // ---- v0.4.5 log category: declaration / definition / UE_LOG uses (Link/LogCategoryNavigator.cs)
-            rows.AddRange(await Link.LogCategoryNavigator.RelatedRowsAsync(package, file, word, lineText, ct).ConfigureAwait(false));
+            // ---- v0.4.5 log category: declaration / definition / UE_LOG uses (Navigation/LogCategoryNavigator.cs)
+            rows.AddRange(await LogCategoryNavigator.RelatedRowsAsync(package, file, word, lineText, ct).ConfigureAwait(false));
 
             // 1. UE function trios (Foo / Foo_Implementation / Foo_Validate) in the same class.
             if (engine?.IsConnected == true && !string.IsNullOrEmpty(word))

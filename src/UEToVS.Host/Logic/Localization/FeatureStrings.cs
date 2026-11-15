@@ -10,31 +10,28 @@ namespace UEToVS.Host.Logic.Localization
     public static class FeatureStrings
     {
         // ---- commands / actions ----
-        public static string CmdSearchEverywhere => Loc.T("全局搜索 (Search Everywhere)", "Search Everywhere");
+        public static string CmdSearchEverywhere => Loc.T("全局搜索…", "Search Everywhere...");
         public static string CmdGoToType => Loc.T("转到类型…", "Go to Type...");
         public static string CmdGoToSymbol => Loc.T("转到符号…", "Go to Symbol...");
         public static string CmdGoToFile => Loc.T("转到文件…", "Go to File...");
-        public static string CmdGoToAsset => Loc.T("转到资产（蓝图）…", "Go to Asset (Blueprint)...");
-        public static string CmdNavigateBack => Loc.T("后退", "Navigate Back");
-        public static string CmdNavigateForward => Loc.T("前进", "Navigate Forward");
+        public static string CmdGoToAsset => Loc.T("转到蓝图资产…", "Go to Blueprint Asset...");
+        public static string CmdNavigateBack => Loc.T("后退", "Back");
+        public static string CmdNavigateForward => Loc.T("前进", "Forward");
         public static string CmdRecentFiles => Loc.T("最近的文件…", "Recent Files...");
         public static string CmdRecentLocations => Loc.T("最近的位置…", "Recent Locations...");
-        public static string CmdLastEditLocation => Loc.T("上一个编辑位置", "Last Edit Location");
-        public static string CmdNextEditLocation => Loc.T("下一个编辑位置", "Next Edit Location");
+        public static string CmdLastEditLocation => Loc.T("上一个修改位置", "Previous Edit Location");
+        public static string CmdNextEditLocation => Loc.T("下一个修改位置", "Next Edit Location");
         public static string CmdFileStructure => Loc.T("文件结构…", "File Structure...");
         public static string CmdNavigateTo => Loc.T("跳转到…", "Navigate To...");
-        public static string CmdToggleHeaderSource => Loc.T("切换头文件/源文件", "Toggle Header/Source");
-        public static string CmdGoToRelated => Loc.T("相关文件和函数…", "Go to Related...");
-        public static string CmdOpenBuildCs => Loc.T("打开所属模块的 Build.cs", "Open Module Build.cs");
-        public static string CmdAddModuleDependency => Loc.T("为 #include 添加模块依赖", "Add Module Dependency for Include");
-        public static string CmdToggleBookmark => Loc.T("切换书签", "Toggle Bookmark");
-        public static string CmdShowBookmarks => Loc.T("书签列表…", "Show Bookmarks...");
+        public static string CmdToggleHeaderSource => Loc.T("切换头文件 / 源文件", "Switch Header / Source");
+        public static string CmdGoToRelated => Loc.T("相关文件和函数…", "Related Files and Functions...");
+        public static string CmdOpenBuildCs => Loc.T("打开所属模块的 Build.cs", "Open Module's Build.cs");
+        public static string CmdAddModuleDependency => Loc.T("为 #include 添加模块依赖", "Add Module Dependency for #include");
+        public static string CmdToggleBookmark => Loc.T("添加 / 删除书签", "Toggle Bookmark");
+        public static string CmdShowBookmarks => Loc.T("书签列表…", "Bookmark List...");
         public static string CmdSetBookmark(int d) => Loc.T($"设置书签 {d}", $"Set Bookmark {d}");
         public static string CmdGoToBookmark(int d) => Loc.T($"转到书签 {d}", $"Go to Bookmark {d}");
-        public static string CmdLiveCoding => Loc.T("Live Coding 编译（UE 编辑器）", "Live Coding (Unreal Editor)");
-        public static string CmdGenerateProjectFiles => Loc.T("生成 Visual Studio 项目文件", "Generate Visual Studio Project Files");
-        public static string CmdInstallEditorPlugin => Loc.T("安装 UE 编辑器插件 UELink 到当前项目", "Install the UELink Editor Plugin into the Project");
-        public static string CmdOpenAssetInEditor => Loc.T("在 UE 编辑器中打开资产", "Open Asset in Unreal Editor");
+        public static string CmdGenerateProjectFiles => Loc.T("生成 VS 项目文件", "Generate Visual Studio Project Files");
 
         public static readonly string[] KwSearch = { "search", "everywhere", "搜索", "全局", "goto", "go to", "find", "查找", "double shift", "双击 shift" };
         public static readonly string[] KwNavigation = { "navigate", "导航", "back", "forward", "后退", "前进", "history", "历史", "jump", "跳转" };
@@ -140,18 +137,9 @@ namespace UEToVS.Host.Logic.Localization
         public static string GeneratingProjectFiles => Loc.T("正在生成工程文件…", "Generating project files...");
         public static string ProjectFilesGenerated => Loc.T("工程文件已生成，VS 会提示重新加载解决方案", "Project files generated; VS will offer to reload the solution");
         public static string ProjectFilesFailed => Loc.T("生成工程文件失败，详见输出窗口", "Generating project files failed; see the Output window");
-        public static string LiveCodingDisabled => Loc.T("Live Coding 联动未启用（默认关闭，LiveCodingConsole 占用内存较多）：可在 设置 > 常规 > UE 编辑器联动 中打开。",
-            "The Live Coding integration is off (off by default: LiveCodingConsole uses a lot of memory); turn it on under Settings > General > Unreal Editor link.");
-        public static string LiveCodingRequesting => Loc.T("正在请求编辑器执行 Live Coding…", "Asking the editor to run Live Coding...");
-        public static string LiveCodingStarted(string msg) => Loc.T("Live Coding 已开始" + (string.IsNullOrEmpty(msg) ? "" : "：" + msg), "Live Coding started" + (string.IsNullOrEmpty(msg) ? "" : ": " + msg));
-        public static string LiveCodingFailed(string msg) => Loc.T("Live Coding 失败：" + msg, "Live Coding failed: " + msg);
-        public static string EditorNotConnected => Loc.T("连不上 UE 编辑器。请先打开 Unreal Editor 并启用 UELink 插件", "Cannot reach the Unreal Editor. Open it and enable the UELink plugin");
-        public static string AssetOpened(string name) => Loc.T("已在编辑器中打开 " + name, "Opened " + name + " in the editor");
-        public static string AssetOpenFailed(string msg) => Loc.T("编辑器无法打开资产：" + msg, "The editor could not open the asset: " + msg);
-        public static string AssetPathCopied(string path) => Loc.T("编辑器未连接，已复制资产路径 " + path, "Editor not connected; copied the asset path " + path);
+        public static string AssetPathCopied(string path) => Loc.T("已复制资产路径 " + path + "（在内容浏览器里粘贴即可定位）", "Copied the asset path " + path + " (paste it into the Content Browser)");
         public static string NoUProject => Loc.T("当前解决方案没有 .uproject", "The solution has no .uproject");
         public static string PluginSourceMissing(string path) => Loc.T("扩展里没有找到插件源码 " + path, "Plugin source not found in the extension: " + path);
-        public static string PluginInstalled => Loc.T("插件已复制到 Plugins/UELink，重新生成工程文件并编译编辑器后生效", "Plugin copied to Plugins/UELink; regenerate project files and build the editor");
         // ---- keymap presets ----
         public static string PresetName(string presetId) =>
             presetId == Core.Keymap.KeymapPresets.RiderVisualStudioId ? Loc.T("Rider（Visual Studio 键位）", "Rider (Visual Studio keys)") : Loc.T("Rider 默认键位", "Rider default keys");

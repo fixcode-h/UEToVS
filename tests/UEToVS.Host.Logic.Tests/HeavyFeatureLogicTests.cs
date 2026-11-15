@@ -43,8 +43,8 @@ namespace UEToVS.Host.Logic.Tests
                 Assert.Contains("CPU/memory", d.DescriptionEn);
             }
             Assert.Equal(HostSettingsSchema.IntelliSense, schema.Single(x => x.Key == "templates.enabled").Category);
-            Assert.Equal(HostSettingsSchema.Inspection, schema.Single(x => x.Key == "inspection.enabled").Category);
-            Assert.Contains(HostSettingsSchema.Categories, c => c.Id == HostSettingsSchema.Inspection);
+            Assert.Equal(HostSettingsSchema.Unreal, schema.Single(x => x.Key == "inspection.enabled").Category);
+            Assert.Contains(HostSettingsSchema.Categories, c => c.Id == HostSettingsSchema.Unreal);
             Assert.Equal("uetovs.inspection.run", schema.Single(x => x.Key == "inspection.run").ActionId);
             Assert.Equal("uetovs.upgrade.run", schema.Single(x => x.Key == "upgrade.run").ActionId);
 

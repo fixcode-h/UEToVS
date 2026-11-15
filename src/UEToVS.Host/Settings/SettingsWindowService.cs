@@ -117,11 +117,6 @@ namespace UEToVS.Host.Settings
                     return await Horde.HordeFeature.RestoreAsync();
                 case UEToVS.Host.Logic.Horde.HordeSettingsSchema.OpenConfigAction:
                     return await Horde.HordeFeature.OpenConfigAsync();
-                // ---- v0.4.5 UE editor link
-                case HostSettingsSchema.WindowActions.LinkPluginInstall:
-                    return await Link.LinkPluginManager.InstallAsync(_package, "settingsWindow");
-                case HostSettingsSchema.WindowActions.LinkPluginUninstall:
-                    return await Link.LinkPluginManager.UninstallAsync(_package);
                 default:
                     if (_package.Actions.Get(actionId) == null) return SettingsText.ActionUnavailable;
                     _package.ExecuteAction(actionId);
@@ -177,9 +172,6 @@ namespace UEToVS.Host.Settings
                 }
                 case UEToVS.Host.Logic.Horde.HordeSettingsSchema.StatusInfo:
                     return Horde.HordeFeature.StatusText();
-                // ---- v0.4.5 UE editor link
-                case HostSettingsSchema.WindowActions.LinkPluginStatus:
-                    return Link.LinkPluginManager.StatusText(_package);
                 default:
                     return null;
             }

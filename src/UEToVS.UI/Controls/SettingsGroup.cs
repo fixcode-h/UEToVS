@@ -274,6 +274,12 @@ namespace UEToVS.UI.Controls
         public static readonly Geometry Performance = Ui.FrozenGeometry("M 1.5,9 H 4.5 L 6.5,4 L 9.5,13 L 11.5,9 H 14.5");
         public static readonly Geometry Update = Ui.FrozenGeometry("M 8,1.5 V 10 M 4.5,6.5 L 8,10 L 11.5,6.5 M 2.5,11.5 V 14 H 13.5 V 11.5");
         /// <summary>联合编译: three linked machines.</summary>
+        // v0.7.1 pages: 接管 VS (swap), 着色与检查 (drop), 编辑 (pencil), 注释翻译 (globe), Unreal Engine (cube)
+        public static readonly Geometry Takeover = Ui.FrozenGeometry("M 2,5 H 12 M 9.5,2.5 L 12,5 L 9.5,7.5 M 14,11 H 4 M 6.5,8.5 L 4,11 L 6.5,13.5");
+        public static readonly Geometry Highlight = Ui.FrozenGeometry("M 8,1.8 C 8,1.8 3.5,7 3.5,9.8 A 4.5,4.5 0 0 0 12.5,9.8 C 12.5,7 8,1.8 8,1.8 Z");
+        public static readonly Geometry Edit = Ui.FrozenGeometry("M 10.5,2.5 L 13.5,5.5 L 5.5,13.5 H 2.5 V 10.5 Z M 9,4 L 12,7");
+        public static readonly Geometry Translate = Ui.FrozenGeometry("M 8,1.5 A 6.5,6.5 0 1 0 8,14.5 A 6.5,6.5 0 1 0 8,1.5 Z M 1.5,8 H 14.5 M 8,1.5 C 5.8,4 5.8,12 8,14.5 M 8,1.5 C 10.2,4 10.2,12 8,14.5");
+        public static readonly Geometry Unreal = Ui.FrozenGeometry("M 8,1.5 L 14,4.75 V 11.25 L 8,14.5 L 2,11.25 V 4.75 Z M 2,4.75 L 8,8 L 14,4.75 M 8,8 V 14.5");
         public static readonly Geometry Network = Ui.FrozenGeometry("M 6,1.5 H 10 V 5 H 6 Z M 1.5,11 H 5.5 V 14.5 H 1.5 Z M 10.5,11 H 14.5 V 14.5 H 10.5 Z M 8,5 V 8 M 3.5,11 V 8 H 12.5 V 11");
         public static readonly Geometry Folder = Ui.FrozenGeometry("M 1.5,4 A 1,1 0 0 1 2.5,3 H 5.5 L 7,4.5 H 12.5 A 1,1 0 0 1 13.5,5.5 V 11 A 1,1 0 0 1 12.5,12 H 2.5 A 1,1 0 0 1 1.5,11 Z");
         public static readonly Geometry Reset = Ui.FrozenGeometry("M 2,6.5 A 4.5,4.5 0 1 0 3.3,3.3 M 2,1.5 V 4 H 4.5");

@@ -1,4 +1,4 @@
-using UEToVS.Host.Logic.Link;
+using UEToVS.Host.Logic.Unreal;
 using UEToVS.Host.Logic.Settings;
 using Xunit;
 

@@ -122,7 +122,7 @@ namespace UEToVS.Host.Logic.Tests
             var ours = AllUnbound();
             ours["UEToVS.GoToDefinition"] = new[] { "Text Editor::F12" };       // user choice
             ours["UEToVS.GoToSymbol"] = new[] { "Global::Alt+M" };              // user moved another UEToVS command onto Alt+M
-            ours.Remove("UEToVS.LiveCoding");                                    // not registered yet
+            ours.Remove("UEToVS.GenerateProjectFiles");                                  // not registered yet
             var others = new Dictionary<string, string[]>
             {
                 ["Edit.Custom"] = new[] { "Global::Alt+O" },                     // takes ToggleHeaderSource's Alt+O
@@ -133,7 +133,7 @@ namespace UEToVS.Host.Logic.Tests
             var d = DefaultKeymapPlanner.Plan(CommandCatalog.All, ours, others, null).ToDictionary(x => x.Command);
             Assert.Equal(DefaultBindingOutcome.AlreadyBound, d["UEToVS.GoToDefinition"].Outcome);
             Assert.Empty(d["UEToVS.GoToDefinition"].Overrides);                   // the user's own key: nothing to fight for
-            Assert.Equal(DefaultBindingOutcome.CommandMissing, d["UEToVS.LiveCoding"].Outcome);
+            Assert.Equal(DefaultBindingOutcome.CommandMissing, d["UEToVS.GenerateProjectFiles"].Outcome);
             // UEToVS wins over VS commands: applied, the VS binding is removed
             Assert.Equal(DefaultBindingOutcome.Apply, d["UEToVS.ToggleHeaderSource"].Outcome);
             Assert.Equal(new[] { new KeyValuePair<string, string>("Edit.Custom", "Global::Alt+O") }, d["UEToVS.ToggleHeaderSource"].Overrides);

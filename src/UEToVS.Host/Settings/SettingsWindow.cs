@@ -185,10 +185,14 @@ namespace UEToVS.Host.Settings
                 case HostSettingsSchema.Indexing: return SettingsIcons.Index;
                 case HostSettingsSchema.Keymap: return SettingsIcons.Keymap;
                 case HostSettingsSchema.Navigation: return SettingsIcons.Navigation;
+                case HostSettingsSchema.Takeover: return SettingsIcons.Takeover;
                 case HostSettingsSchema.IntelliSense: return SettingsIcons.Code;
+                case HostSettingsSchema.Highlighting: return SettingsIcons.Highlight;
+                case HostSettingsSchema.Editing: return SettingsIcons.Edit;
+                case HostSettingsSchema.Translation: return SettingsIcons.Translate;
+                case HostSettingsSchema.Unreal: return SettingsIcons.Unreal;
                 case HostSettingsSchema.Agent: return SettingsIcons.Agent;
                 case HostSettingsSchema.Logging: return SettingsIcons.Logs;
-                case HostSettingsSchema.Performance: return SettingsIcons.Performance;
                 case HostSettingsSchema.Updates: return SettingsIcons.Update;
                 case UEToVS.Host.Logic.Horde.HordeSettingsSchema.Category: return SettingsIcons.Network;
                 default: return SettingsIcons.General;

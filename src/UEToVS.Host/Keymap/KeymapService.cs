@@ -53,7 +53,6 @@ namespace UEToVS.Host.Keymap
                 [OwnCommands.AddModuleDependency] = M1CommandIds.AddModuleDependency,
                 [OwnCommands.ToggleBookmark] = M1CommandIds.ToggleBookmark,
                 [OwnCommands.ShowBookmarks] = M1CommandIds.ShowBookmarks,
-                [OwnCommands.LiveCoding] = M1CommandIds.LiveCoding,
                 [OwnCommands.GenerateProjectFiles] = M1CommandIds.GenerateProjectFiles,
             };
             for (int d = 0; d <= 9; d++)

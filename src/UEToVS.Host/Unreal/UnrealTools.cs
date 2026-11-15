@@ -8,13 +8,12 @@ using Microsoft.VisualStudio.Shell.Interop;
 using UEToVS.Core.Diagnostics;
 using UEToVS.Host.Diagnostics;
 using UEToVS.Host.Logic.Build;
-using UEToVS.Host.Link;
 using UEToVS.Host.Logic.Localization;
 using UEToVS.Host.Shell;
 
 namespace UEToVS.Host.Unreal
 {
-    /// <summary>Generate project files (UBT) and installing the UEToVSLink editor plugin into the project.</summary>
+    /// <summary>Generate project files (UBT).</summary>
     internal static class UnrealTools
     {
         private static readonly Logger L = Log.For("Unreal");
@@ -190,14 +189,6 @@ namespace UEToVS.Host.Unreal
                 tcs.TrySetResult(-1);
             }
             return tcs.Task;
-        }
-
-        /// <summary>Copies the bundled UEToVSLink plugin (&lt;extension&gt;/EditorPlugin/UEToVSLink) into &lt;Project&gt;/Plugins.</summary>
-        public static async Task InstallEditorPluginAsync(HostPackage package)
-        {
-            // v0.4.5: same code path as the settings card (update in place, lock check, link.plugin.install log).
-            string text = await Link.LinkPluginManager.InstallAsync(package, "command");
-            if (text != null) VsStatusBar.SetText(text);
         }
     }
 }

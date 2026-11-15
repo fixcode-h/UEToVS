@@ -16,14 +16,14 @@ namespace UEToVS.Host.Logic.Localization
         public static string OutputPaneName => "UEToVS";
 
         // ---- commands (menu text; VSCT holds the English default, set at runtime via TextChanges) ----
-        public static string CmdRestartEngine => Loc.T("重启引擎", "Restart Engine");
-        public static string CmdTakeOverIntelliSense => Loc.T("接管 VS C++ IntelliSense", "Take Over C++ IntelliSense");
-        public static string CmdRestoreIntelliSense => Loc.T("恢复 VS 自带 C++ IntelliSense", "Restore Visual Studio C++ IntelliSense");
+        public static string CmdRestartEngine => Loc.T("重启 UEToVS 代码引擎", "Restart UEToVS Code Engine");
+        public static string CmdTakeOverIntelliSense => Loc.T("接管 VS 的 C++ IntelliSense", "Take Over VS C++ IntelliSense");
+        public static string CmdRestoreIntelliSense => Loc.T("恢复 VS 自带的 C++ IntelliSense", "Restore VS C++ IntelliSense");
         public static string CmdOpenLogFolder => Loc.T("打开日志文件夹", "Open Log Folder");
         public static string CmdOpenCurrentLog => Loc.T("打开当前日志", "Open Current Log");
         public static string CmdCreateDiagnostics => Loc.T("生成诊断包", "Create Diagnostics Package");
         public static string CmdPerformancePanel => Loc.T("性能面板", "Performance Panel");
-        public static string CmdComponentGallery => Loc.T("组件画廊", "Component Gallery");
+        public static string CmdComponentGallery => Loc.T("界面组件预览", "UI Component Gallery");
         public static string CmdSettings => Loc.T("设置…", "Settings...");
         public static string CmdFindAction => Loc.T("查找操作…", "Find Action...");
 

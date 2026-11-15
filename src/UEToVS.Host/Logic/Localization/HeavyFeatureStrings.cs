@@ -9,19 +9,19 @@ namespace UEToVS.Host.Logic.Localization
     public static class HeavyFeatureStrings
     {
         // ---- commands / actions ----
-        public static string CmdRunInspection => Loc.T("全项目 UE 规则检查", "Inspect Whole Project (UE Rules)");
-        public static string CmdShowInspection => Loc.T("全项目检查结果", "Project Inspection Results");
-        public static string CmdRunUpgrade => Loc.T("引擎升级助手：查找弃用 API", "Engine Upgrade Assistant: Find Deprecated APIs");
-        public static string CmdShowUpgrade => Loc.T("引擎升级助手结果", "Engine Upgrade Assistant Results");
-        public static string CmdCancelHeavyJob => Loc.T("取消全项目检查 / 升级扫描", "Cancel Project Inspection / Upgrade Scan");
+        public static string CmdRunInspection => Loc.T("检查整个项目（UE 规则）", "Inspect Whole Project (UE Rules)");
+        public static string CmdShowInspection => Loc.T("查看项目检查结果", "Show Project Inspection Results");
+        public static string CmdRunUpgrade => Loc.T("扫描弃用 API（升级引擎前）", "Scan for Deprecated APIs (Engine Upgrade)");
+        public static string CmdShowUpgrade => Loc.T("查看弃用 API 扫描结果", "Show Deprecated API Scan Results");
+        public static string CmdCancelHeavyJob => Loc.T("停止正在运行的检查 / 扫描", "Stop the Running Inspection / Scan");
 
         public static readonly string[] KwInspection = { "inspect", "inspection", "检查", "全项目", "规则", "rules", "UE0001", "GENERATED_BODY", "_Implementation", "code analysis", "分析" };
         public static readonly string[] KwUpgrade = { "upgrade", "升级", "deprecated", "弃用", "UE_DEPRECATED", "migrate", "迁移", "engine version", "引擎版本" };
         public static readonly string[] KwCancel = { "cancel", "取消", "stop", "停止", "inspection", "检查", "upgrade", "升级" };
 
         // ---- switches off / not ready ----
-        public static string InspectionDisabled => Loc.T("全项目检查已在 UEToVS 设置 > 检查 中关闭", "Project inspection is switched off in UEToVS Settings > Inspections");
-        public static string UpgradeDisabled => Loc.T("引擎升级助手已在 UEToVS 设置 > 检查 中关闭", "The engine upgrade assistant is switched off in UEToVS Settings > Inspections");
+        public static string InspectionDisabled => Loc.T("全项目检查已在 UEToVS 设置 > Unreal Engine 中关闭", "Project inspection is switched off in UEToVS Settings > Unreal Engine");
+        public static string UpgradeDisabled => Loc.T("引擎升级助手已在 UEToVS 设置 > Unreal Engine 中关闭", "The engine upgrade assistant is switched off in UEToVS Settings > Unreal Engine");
         public static string IndexNotReady => Loc.T("索引还没建好，完成后再运行", "The index is still being built; run it once indexing has finished");
         public static string EngineUnavailable => Loc.T("UEToVS 引擎未连接", "The UEToVS engine is not connected");
         public static string NothingRunning => Loc.T("没有正在运行的全项目检查或升级扫描", "No project inspection or upgrade scan is running");

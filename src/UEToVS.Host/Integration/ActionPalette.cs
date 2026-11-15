@@ -7,7 +7,9 @@ using System.Windows;
 using Microsoft.VisualStudio.Shell;
 using UEToVS.Core.Diagnostics;
 using UEToVS.Host.Diagnostics;
+using UEToVS.Core.Localization;
 using UEToVS.Host.Logic.Actions;
+using UEToVS.Host.Logic.Commands;
 using UEToVS.Host.Logic.Localization;
 using UEToVS.Host.Shell;
 using UEToVS.UI.Logic;
@@ -120,13 +122,18 @@ namespace UEToVS.Host.Integration
         {
             public void Present(ActionMatch m, RowData row)
             {
+                // Commands of the catalog show the menu's category and one-line description, so a row explains itself.
+                // The title stays the action's own (ActionRegistry matched against it, and the ranges index into it).
+                var info = CommandCatalog.ByActionId(m.Action.Id);
+                bool en = Loc.IsEnglish;
                 row.Primary = m.Action.Title;
                 var ranges = m.TitleMatch?.Ranges;
                 row.PrimaryRanges = ranges == null || ranges.Count == 0
                     ? null
                     : ranges.Select(r => new TextRange(r.Start, r.Length)).ToArray();
-                row.Right = Strings.CategoryName(m.Action.Category);
-                row.ToolTip = m.Action.Id;
+                row.Secondary = info?.Description(en);
+                row.Right = info != null ? CommandCatalog.GroupTitle(info.Group, en) : Strings.CategoryName(m.Action.Category);
+                row.ToolTip = info?.Description(en) ?? m.Action.Id;
                 row.AutomationName = m.Action.Title;
             }
         }

@@ -7,9 +7,9 @@ namespace UEToVS.Host.Logic.Localization
     {
         // ---- commands
         public static string CmdNewUeClass => Loc.T("新建 UE 类…", "New Unreal Class...");
-        public static string CmdNextBuildError => Loc.T("下一个编译错误", "Next Build Error");
+        public static string CmdNextBuildError => Loc.T("跳到下一个编译错误", "Go to Next Build Error");
         public static string CmdClearBuildErrors => Loc.T("清除编译错误标记", "Clear Build Error Marks");
-        public static string CmdGenerateProjectFiles => Loc.T("生成 Visual Studio 项目文件", "Generate Visual Studio Project Files");
+        public static string CmdGenerateProjectFiles => Loc.T("生成 VS 项目文件", "Generate Visual Studio Project Files");
 
         public static readonly string[] KwNewClass = { "new class", "新建类", "class", "类", "uclass", "actor", "component", "组件", "wizard", "向导", "add", "添加" };
         public static readonly string[] KwBuildErrors = { "build", "生成", "编译", "error", "错误", "warning", "警告", "compile", "ubt", "msvc", "squiggle", "波浪线" };

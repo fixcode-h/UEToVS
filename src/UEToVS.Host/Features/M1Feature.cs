@@ -10,7 +10,6 @@ using UEToVS.Core.Query;
 using UEToVS.Host.Bookmarks;
 using UEToVS.Host.Diagnostics;
 using UEToVS.Host.Input;
-using UEToVS.Host.Link;
 using UEToVS.Host.Logic.Actions;
 using UEToVS.Host.Logic.Localization;
 using UEToVS.Host.Logic.Settings;
@@ -50,9 +49,7 @@ namespace UEToVS.Host
         public const int SetBookmark0 = 0x0340; // ..0x0349
         public const int GoToBookmark0 = 0x0350; // ..0x0359
 
-        public const int LiveCoding = 0x0360;
         public const int GenerateProjectFiles = 0x0361;
-        public const int InstallEditorPlugin = 0x0362;
     }
 
     /// <summary>Stable action ids of the M1 features (Find Action, Search Everywhere's Actions tab, menus).</summary>
@@ -83,9 +80,7 @@ namespace UEToVS.Host
         public static string SetBookmark(int d) => "uetovs.bookmarks.set" + d;
         public static string GoToBookmark(int d) => "uetovs.bookmarks.goTo" + d;
 
-        public const string LiveCoding = "uetovs.unreal.liveCoding";
         public const string GenerateProjectFiles = "uetovs.unreal.generateProjectFiles";
-        public const string InstallEditorPlugin = "uetovs.unreal.installEditorPlugin";
 
         public static string ApplyKeymap(string presetId) => "uetovs.keymap.apply." + presetId;
         public const string RestoreKeymap = "uetovs.keymap.restore";
@@ -110,10 +105,8 @@ namespace UEToVS.Host
             ThreadHelper.ThrowIfNotOnUIThread();
             _package = package;
             SearchEverywhere.Initialize(package);
-            EditorLinkService.Initialize(package);
             RegisterActions(package, registry);
             if (mcs != null && router != null) router.RegisterMap(mcs, Commands);
-            LinkFeature.Initialize(package, registry, router, mcs); // ---- v0.4.5 UE editor link (log window, tests, Live Coding)
 
             DoubleShift.Triggered += (s, e) => Safe.Execute(L, "input.doubleShift", () =>
             {
@@ -161,7 +154,6 @@ namespace UEToVS.Host
             NavigationService.Instance.Close();
             BookmarkService.Close();
             SearchEverywhere.Instance?.Dismiss();
-            LinkFeature.OnSolutionClosing();
         }
 
         public static void Dispose()
@@ -170,7 +162,6 @@ namespace UEToVS.Host
             {
                 _input?.Dispose();
                 _input = null;
-                LinkFeature.Dispose();
             }
             catch (Exception)
             {
@@ -217,9 +208,7 @@ namespace UEToVS.Host
                 (M1CommandIds.AddModuleDependency, M1ActionIds.AddModuleDependency, () => FeatureStrings.CmdAddModuleDependency),
                 (M1CommandIds.ToggleBookmark, M1ActionIds.ToggleBookmark, () => FeatureStrings.CmdToggleBookmark),
                 (M1CommandIds.ShowBookmarks, M1ActionIds.ShowBookmarks, () => FeatureStrings.CmdShowBookmarks),
-                (M1CommandIds.LiveCoding, M1ActionIds.LiveCoding, () => FeatureStrings.CmdLiveCoding),
                 (M1CommandIds.GenerateProjectFiles, M1ActionIds.GenerateProjectFiles, () => FeatureStrings.CmdGenerateProjectFiles),
-                (M1CommandIds.InstallEditorPlugin, M1ActionIds.InstallEditorPlugin, () => FeatureStrings.CmdInstallEditorPlugin),
             };
             for (int d = 0; d <= 9; d++)
             {
@@ -275,10 +264,8 @@ namespace UEToVS.Host
                 Add(M1ActionIds.GoToBookmark(d), FeatureStrings.CmdGoToBookmark(d), ActionCategory.Navigation, Ui(() => BookmarkService.GoToDigit(digit)), null, FeatureStrings.KwBookmark);
             }
 
-            Add(M1ActionIds.LiveCoding, FeatureStrings.CmdLiveCoding, ActionCategory.Unreal, ctx => EditorLinkService.Instance.LiveCodingAsync(), Unreal, FeatureStrings.KwUnreal);
             Add(M1ActionIds.GenerateProjectFiles, FeatureStrings.CmdGenerateProjectFiles, ActionCategory.Unreal, ctx => UnrealTools.GenerateProjectFilesAsync(p),
                 c => c.IsUnrealSolution && !UnrealTools.IsGeneratingProjectFiles, FeatureStrings.KwUnreal); // v0.4.5: disabled while UBT runs
-            Add(M1ActionIds.InstallEditorPlugin, FeatureStrings.CmdInstallEditorPlugin, ActionCategory.Unreal, ctx => UnrealTools.InstallEditorPluginAsync(p), Unreal, FeatureStrings.KwUnreal);
 
             // Optional full Rider layouts through DTE bindings (backed up; restorable).
             foreach (var preset in Core.Keymap.KeymapPresets.All)

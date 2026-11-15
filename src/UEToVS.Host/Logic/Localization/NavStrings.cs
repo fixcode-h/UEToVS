@@ -9,13 +9,18 @@ namespace UEToVS.Host.Logic.Localization
     /// </summary>
     public static class NavStrings
     {
+        // ---- Go to Related on a log category (Navigation/LogCategoryNavigator.cs) ----
+        public static string LogCategoryDeclaration => Loc.T("声明", "Declaration");
+        public static string LogCategoryDefinition => Loc.T("定义", "Definition");
+        public static string LogCategoryUsage => Loc.T("使用", "Usage");
+
         // ---- commands (menu text; the VSCT holds the English default) ----
         public static string CmdGoToDefinition => Loc.T("转到定义 / 声明", "Go to Definition / Declaration");
         public static string CmdGoToImplementation => Loc.T("转到实现", "Go to Implementation");
-        public static string CmdFindReferences => Loc.T("查找引用", "Find References");
+        public static string CmdFindReferences => Loc.T("查找所有引用", "Find All References");
         public static string CmdTypeHierarchy => Loc.T("类型层次", "Type Hierarchy");
-        public static string CmdListMembersInFile => Loc.T("文件成员列表", "List Members in File");
-        public static string CmdListTypeMembers => Loc.T("类型成员（含继承）", "Type Members (with Inherited)");
+        public static string CmdListMembersInFile => Loc.T("当前文件的成员…", "Members of This File...");
+        public static string CmdListTypeMembers => Loc.T("类的成员（含继承）…", "Class Members (incl. Inherited)...");
 
         public static readonly string[] KwGoToDefinition = { "go to definition", "declaration", "goto", "jump", "alt+g", "f12", "转到", "定义", "声明", "跳转" };
         public static readonly string[] KwGoToImplementation = { "implementation", "override", "derived", "_implementation", "实现", "重写", "派生" };

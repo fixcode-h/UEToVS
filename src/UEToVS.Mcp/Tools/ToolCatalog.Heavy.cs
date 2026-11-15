@@ -43,7 +43,7 @@ namespace UEToVS.Mcp.Tools
             };
             var r = await _index.ProjectInspectionAsync(req, ct).ConfigureAwait(false);
             if (r.State == HeavyJobState.Disabled)
-                throw new ToolException("feature_disabled", "Project inspection is switched off: enable it in Visual Studio, UEToVS 设置 > 检查 > 全项目检查 (it may use a lot of CPU/memory).");
+                throw new ToolException("feature_disabled", "Project inspection is switched off: enable it in Visual Studio, UEToVS 设置 > Unreal Engine > 全项目检查 (it may use a lot of CPU/memory).");
             if (r.State == HeavyJobState.Failed && r.Error == "index-not-ready")
                 throw new ToolException("index_not_ready", "The index is still being built; start the inspection once index_status reports ready.");
             var payload = new JsonObject

@@ -19,9 +19,9 @@ namespace UEToVS.Host.Logic.Localization
     public static class EditorFeatureStrings
     {
         // ---- commands
-        public static string CmdSurroundWith => Loc.T("Surround With…", "Surround With...");
-        public static string CmdToggleInlayHints => Loc.T("显示 / 隐藏内嵌提示", "Toggle Inlay Hints");
-        public static string CmdShowHashtags => Loc.T("#tag 书签", "#tag Bookmarks");
+        public static string CmdSurroundWith => Loc.T("用代码块包围…", "Surround With...");
+        public static string CmdToggleInlayHints => Loc.T("显示 / 隐藏内嵌提示", "Show / Hide Inlay Hints");
+        public static string CmdShowHashtags => Loc.T("#tag 注释列表…", "#tag Comments...");
         public static string CmdPasteFromHistory => Loc.T("从剪贴板历史粘贴…", "Paste from Clipboard History...");
 
         public static readonly string[] KwSurround = { "surround", "wrap", "包裹", "包围", "if", "#if", "region", "IsValid", "SCOPE_CYCLE_COUNTER" };
@@ -37,7 +37,7 @@ namespace UEToVS.Host.Logic.Localization
         // ---- inlay hints
         public static string InlayOn => Loc.T("内嵌提示：已显示", "Inlay hints: shown");
         public static string InlayOff => Loc.T("内嵌提示：已隐藏（再按一次显示）", "Inlay hints: hidden (press again to show)");
-        public static string InlayAllOff => Loc.T("内嵌提示在设置中都已关闭（设置 > 代码感知 > 内嵌提示）", "Inlay hints are off in the settings (Settings > IntelliSense > Inlay hints)");
+        public static string InlayAllOff => Loc.T("内嵌提示在设置中都已关闭（设置 > 补全与提示 > 内嵌提示）", "Inlay hints are off in the settings (Settings > Completion & Hints > Inlay hints)");
 
         // ---- deprecated API (UE0011)
         public static string Deprecated(string symbol, string version, string message)

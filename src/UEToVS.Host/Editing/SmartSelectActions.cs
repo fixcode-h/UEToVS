@@ -28,7 +28,7 @@ namespace UEToVS.Host.Editing
 
         public static void Register(ActionRegistry registry)
         {
-            registry.Register(new DelegateAction(ActionIds.ExpandSelection, Loc.T("扩大选区", "Extend Selection"), ActionCategory.Navigation,
+            registry.Register(new DelegateAction(ActionIds.ExpandSelection, Loc.T("扩大选区", "Expand Selection"), ActionCategory.Navigation,
                 ctx => RunAsync(true), ctx => ctx.ActiveDocumentPath != null, null, "select", "selection", "选区", "扩选", "smart select"));
             registry.Register(new DelegateAction(ActionIds.ShrinkSelection, Loc.T("缩小选区", "Shrink Selection"), ActionCategory.Navigation,
                 ctx => RunAsync(false), ctx => ctx.ActiveDocumentPath != null, null, "select", "selection", "选区", "缩选", "smart select"));

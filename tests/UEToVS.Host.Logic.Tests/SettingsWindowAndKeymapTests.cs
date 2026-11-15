@@ -44,14 +44,13 @@ namespace UEToVS.Host.Logic.Tests
                 // M1 / M2 fields
                 DoubleShiftEnabled = false, DoubleShiftIntervalMs = 450, DoubleShiftLeftOnly = true, SearchMaxResultsPerCategory = 80,
                 MouseButtonsNavigate = false, NavigationLineThreshold = 30, NavigationHistoryCapacity = 200, CheckIncludesOnSave = false,
-                EditorLinkPort = 4567, CtrlClickNavigation = false, ReferenceHighlighting = false, ReferenceHighlightReadColor = "#336699",
+                CtrlClickNavigation = false, ReferenceHighlighting = false, ReferenceHighlightReadColor = "#336699",
                 ReferenceHighlightWriteColor = "#80FF0000", NavigationBar = false, SyncSolutionExplorer = false, EnableMcpServer = false,
             };
             var back = HostSettingsSchema.Codec.FromValues(HostSettingsSchema.Codec.ToValues(s), Schema, new HostSettings());
             Assert.Equal(HostSettingsSchema.Codec.ToValues(s), HostSettingsSchema.Codec.ToValues(back));
             Assert.Equal("findReferences,performance", back.HiddenToolbarButtons);
             Assert.Equal(450, back.DoubleShiftIntervalMs);
-            Assert.Equal(4567, back.EditorLinkPort);
             Assert.Equal("#80FF0000", back.ReferenceHighlightWriteColor);
             Assert.False(back.NavigationBar);
             Assert.False(back.SyncSolutionExplorer);
@@ -295,6 +294,56 @@ namespace UEToVS.Host.Logic.Tests
             foreach (var t in ToolbarButtons.All) Assert.True(buttons.ContainsKey(t.CommandId), t.Key);
         }
 
+        /// <summary>Commands that are only buttons in the settings window / Find Action entries (no menu parent on purpose).</summary>
+        private static readonly HashSet<string> NoMenu = new HashSet<string>
+        {
+            "UEToVS.RestartEngine", "UEToVS.ToggleIntelliSense", "UEToVS.OpenLogFolder", "UEToVS.OpenCurrentLog",
+            "UEToVS.CreateDiagnosticsPackage", "UEToVS.ShowComponentGallery", "UEToVS.WriteMcpConfig",
+        };
+
+        [Fact]
+        public void MenuTextsAndPlacesFollowTheCatalog()
+        {
+            var doc = Load();
+            var sym = Symbols(doc);
+            var buttons = doc.Descendants(Ns + "Button").ToDictionary(b => sym[(string)b.Attribute("id")]);
+            // parent group → its menu, to check each command sits in the submenu of its catalog group
+            var groupMenu = doc.Descendants(Ns + "Group").ToDictionary(g => (string)g.Attribute("id"), g => (string)g.Element(Ns + "Parent").Attribute("id"));
+            var menuOfGroup = new Dictionary<string, string>
+            {
+                ["search"] = "menuSearch", ["navigation"] = "menuNavigation", ["history"] = "menuHistory", ["bookmarks"] = "menuM1Bookmarks",
+                ["refactor"] = "menuRefactor", ["generate"] = "menuGenerate", ["editing"] = "menuEditing", ["unreal"] = "menuUnreal", ["build"] = "menuBuild",
+            };
+            foreach (var c in CommandCatalog.All)
+            {
+                var b = buttons[c.Id];
+                Assert.Equal(c.TitleEn, (string)b.Element(Ns + "Strings").Element(Ns + "ButtonText"));
+                Assert.Contains(c.Group, CommandCatalog.Groups);
+                Assert.False(string.IsNullOrWhiteSpace(c.DescriptionZh), c.Name);
+                Assert.False(string.IsNullOrWhiteSpace(c.DescriptionEn), c.Name);
+                Assert.NotEqual(c.TitleZh, c.DescriptionZh);
+                string parent = (string)b.Element(Ns + "Parent")?.Attribute("id");
+                if (NoMenu.Contains(c.Name)) { Assert.Null(parent); continue; }
+                Assert.NotNull(parent);
+                string menu = groupMenu[parent];
+                bool top = c.Id == CommandCatalog.FindAction || c.Id == CommandCatalog.SearchEverywhere; // on top of Extensions > UEToVS
+                if (!top && menuOfGroup.TryGetValue(c.Group, out var expected)) Assert.True(expected == menu, $"{c.Name}: in {menu}, group {c.Group}");
+                else Assert.Equal("menuUEToVS", menu); // search top items, performance panel, settings
+            }
+        }
+
+        [Fact]
+        public void GroupsHaveTitlesInBothLanguages()
+        {
+            foreach (var g in CommandCatalog.Groups)
+            {
+                Assert.False(string.IsNullOrEmpty(CommandCatalog.GroupTitle(g, true)));
+                Assert.False(string.IsNullOrEmpty(CommandCatalog.GroupTitle(g, false)));
+            }
+            Assert.Null(CommandCatalog.ByActionId("uetovs.intellisense.takeOver")); // the toggle keeps the two actions' own titles
+            Assert.Equal(CommandCatalog.FindReferences, CommandCatalog.ByActionId(CommandCatalog.ActionIds.FindReferences).Id);
+        }
+
         [Fact]
         public void KeyBindingsMatchVisualAssistPreset()
         {
@@ -362,6 +411,53 @@ namespace UEToVS.Host.Logic.Tests
             Assert.Empty(o["UEToVS.Search"]);
             Assert.Equal(new[] { "Text Editor::Alt+Right Arrow" }, o["edit.completeword"]);
             Assert.Empty(KeymapPlanner.Originals(null));
+        }
+
+        [Fact]
+        public void PageLayoutPlacesEveryRowOnAKnownPage()
+        {
+            var schema = HostSettingsSchema.Build(8);
+            var listed = HostSettingsPages.Cards.SelectMany(c => c.Keys).ToList();
+            Assert.Equal(listed.Count, listed.Distinct().Count());                              // each row listed once
+            Assert.All(listed, k => Assert.Contains(schema, d => d.Key == k));                  // no stale keys
+            var pages = HostSettingsSchema.Categories.Select(c => c.Id).ToHashSet();
+            Assert.All(HostSettingsPages.Cards, c => Assert.Contains(c.Category, pages));
+            // every generated row is in the table, except 外观 > 字体 (FontSettingsSchema lays out its own cards)
+            var unlisted = schema.Where(d => d.Category != HostSettingsSchema.Appearance && !listed.Contains(d.Key)).Select(d => d.Key).ToList();
+            Assert.Empty(unlisted);
+            Assert.All(schema, d => Assert.Contains(d.Category, pages));
+            // every page except the custom ones has rows, a nav title and a description in both languages
+            foreach (var c in HostSettingsSchema.Categories)
+            {
+                Assert.False(string.IsNullOrEmpty(c.TitleZh));
+                Assert.False(string.IsNullOrEmpty(c.TitleEn));
+                if (c.Id != HostSettingsSchema.Keymap && c.Id != HostSettingsSchema.Appearance)
+                    Assert.Contains(schema, d => d.Category == c.Id);
+            }
+            // rows of one card stay together (a card title appears once per page)
+            foreach (var page in schema.GroupBy(d => d.Category))
+            {
+                var groups = new List<string>();
+                foreach (var d in page)
+                    if (groups.Count == 0 || groups[groups.Count - 1] != d.GroupZh) groups.Add(d.GroupZh);
+                Assert.Equal(groups.Count, groups.Distinct().Count());
+            }
+        }
+
+        [Fact]
+        public void PageDescriptionsExistInBothLanguages()
+        {
+            foreach (var c in HostSettingsSchema.Categories)
+            {
+                UEToVS.Core.Localization.Loc.InitializeFromLcid(2052);
+                string zh = UEToVS.Host.Logic.Localization.SettingsText.PageDescription(c.Id);
+                UEToVS.Core.Localization.Loc.InitializeFromLcid(1033);
+                string en = UEToVS.Host.Logic.Localization.SettingsText.PageDescription(c.Id);
+                UEToVS.Core.Localization.Loc.InitializeFromLcid(2052);
+                Assert.False(string.IsNullOrEmpty(zh), c.Id);
+                Assert.False(string.IsNullOrEmpty(en), c.Id);
+                Assert.NotEqual(zh, en);
+            }
         }
 
         [Fact]

@@ -140,41 +140,10 @@ namespace UEToVS.Host.Logic.Settings
         public bool CheckIncludesOnSave { get; set; } = true;
 
         /// <summary>
-        /// UELink push-stream TCP port; 0 = read the card &lt;Project&gt;/Saved/UELink/instances/&lt;PID&gt;.json (old
-        /// UEToVSLink: &lt;Project&gt;/Saved/UEToVSLink/port.txt).
-        /// </summary>
-        public int EditorLinkPort { get; set; } = 0;
-
-        /// <summary>
-        /// Where to look for UELink updates: empty = latest release of fixcode-h/UELink on GitHub; an http(s) URL = a
-        /// mirror's manifest.json (or the folder holding it); a local folder holding manifest.json and the zip (offline).
-        /// </summary>
-        public string UELinkSource { get; set; } = "";
-
-        // ---- v0.4.5 UE editor link (log window, test runner, Live Coding errors)
-        /// <summary>UE log window ring buffer size (lines); older lines are dropped.</summary>
-        public int LinkLogMaxLines { get; set; } = 20000;
-
-        /// <summary>Keep receiving editor log lines after the log window is closed (it was opened once this session).</summary>
-        public bool LinkLogKeepReceiving { get; set; } = true;
-
-        /// <summary>
-        /// v0.5.1: UEToVS's Live Coding features (the Live Coding command, error mapping). Off by default: a Live Coding
-        /// compile starts UE's LiveCodingConsole, which can hold several GB of memory.
-        /// </summary>
-        public bool LinkLiveCodingEnabled { get; set; } = false;
-
-        /// <summary>
         /// v0.5.11: set the UE project's Live Coding startup to "Manual" (EditorPerProjectUserSettings.ini, backed up) so the
         /// editor no longer starts LiveCodingConsole at launch; it starts on the first Live Coding compile instead.
         /// </summary>
         public bool UeLiveCodingManualStartup { get; set; } = true;
-
-        /// <summary>Collect Live Coding compiler output from the editor and report its errors in VS (only with <see cref="LinkLiveCodingEnabled"/>).</summary>
-        public bool LinkLiveCodingErrors { get; set; } = true;
-
-        /// <summary>Live Coding errors are collected: the feature is on and its error mapping too.</summary>
-        public bool LiveCodingErrorsActive => LinkLiveCodingEnabled && LinkLiveCodingErrors;
 
         // ---- 导航（M2）----
         /// <summary>Ctrl+left-click on an identifier = go to definition (hover with Ctrl underlines it).</summary>
@@ -257,7 +226,7 @@ namespace UEToVS.Host.Logic.Settings
         /// <summary>Hover / Ctrl+K,I Quick Info (declaration, docs, UE reflection, macro expansion).</summary>
         public bool QuickInfoEnabled { get; set; } = true;
 
-        // ---- 注释翻译（代码感知 > 注释翻译；Logic/Translation/TranslationSettingsSchema）----
+        // ---- 注释翻译（设置 > 注释翻译；Logic/Translation/TranslationSettingsSchema）----
         /// <summary>Translate doc comments in Quick Info (async, cached; the original shows first).</summary>
         public bool CommentTranslation { get; set; } = true;
 

@@ -43,7 +43,7 @@ namespace UEToVS.Host.Logic.Tests
             Assert.Equal("Ctrl+Shift+Alt+U, Q", CommandCatalog.ById(CommandCatalog.NextBuildError).VaKeys);
             Assert.Equal("Ctrl+Shift+Alt+U, X", CommandCatalog.ById(CommandCatalog.ClearBuildErrors).VaKeys);
             Assert.All(mine, c => Assert.Equal(CommandOwner.Host, c.Owner));
-            Assert.Equal("生成 Visual Studio 项目文件", CommandCatalog.ById(CommandCatalog.GenerateProjectFiles).TitleZh);
+            Assert.Equal("生成 VS 项目文件", CommandCatalog.ById(CommandCatalog.GenerateProjectFiles).TitleZh);
         }
 
         [Fact]

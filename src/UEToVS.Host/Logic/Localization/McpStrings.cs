@@ -5,7 +5,7 @@ namespace UEToVS.Host.Logic.Localization
     /// <summary>User-visible strings of the MCP integration (kept apart from <see cref="Strings"/> to keep merges simple).</summary>
     public static class McpStrings
     {
-        public static string CmdWriteMcpConfig => Loc.T("写入 .mcp.json 到项目根目录", "Write .mcp.json to Project Root");
+        public static string CmdWriteMcpConfig => Loc.T("为 Agent 写入 .mcp.json", "Write .mcp.json for Agents");
 
         public static readonly string[] KwMcp = { "mcp", "agent", "ai", "copilot", "claude", "cursor", ".mcp.json", "智能体", "代理", "配置" };
 

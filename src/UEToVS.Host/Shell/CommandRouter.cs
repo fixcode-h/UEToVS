@@ -30,19 +30,16 @@ namespace UEToVS.Host.Shell
             _registry = registry;
         }
 
-        /// <summary>Localized text of the commands that already had one (others use the catalog titles).</summary>
-        private static readonly Dictionary<int, Func<string>> Texts = new Dictionary<int, Func<string>>
+        /// <summary>
+        /// Menu text: the <see cref="CommandCatalog"/> title for every catalog command, so the menu, Find Action and the keymap
+        /// page use the same name (the modules' own command texts are only the fallback for commands outside the catalog,
+        /// e.g. the bookmark digits and the semantic-colouring commands).
+        /// </summary>
+        private static Func<string> MenuText(int cmdId, Func<string> fallback)
         {
-            [CommandIds.OpenLogFolder] = () => Strings.CmdOpenLogFolder,
-            [CommandIds.OpenCurrentLog] = () => Strings.CmdOpenCurrentLog,
-            [CommandIds.CreateDiagnostics] = () => Strings.CmdCreateDiagnostics,
-            [CommandIds.ShowPerformancePanel] = () => Strings.CmdPerformancePanel,
-            [CommandIds.RestartEngine] = () => Strings.CmdRestartEngine,
-            [CommandIds.ShowComponentGallery] = () => Strings.CmdComponentGallery,
-            [CommandIds.Settings] = () => Strings.CmdSettings,
-            [CommandIds.FindAction] = () => Strings.CmdFindAction,
-            [CommandIds.WriteMcpConfig] = () => McpStrings.CmdWriteMcpConfig,
-        };
+            var info = cmdId == CommandIds.ToggleIntelliSense ? null : CommandCatalog.ById(cmdId);
+            return info != null ? () => Loc.T(info.TitleZh, info.TitleEn) : fallback;
+        }
 
         public void Register(OleMenuCommandService mcs)
         {
@@ -51,8 +48,7 @@ namespace UEToVS.Host.Shell
             {
                 if (c.Owner != CommandOwner.Host || c.Id == CommandIds.ToggleIntelliSense) continue;
                 var info = c;
-                Texts.TryGetValue(c.Id, out var text);
-                Bind(mcs, c.Id, () => info.ActionId, text ?? (() => Loc.T(info.TitleZh, info.TitleEn)));
+                Bind(mcs, c.Id, () => info.ActionId, MenuText(c.Id, null));
                 count++;
             }
 
@@ -66,7 +62,7 @@ namespace UEToVS.Host.Shell
             // M2 navigation commands (0x0200–0x02FF); M1 binds its own through RegisterMap.
             foreach (var (cmdId, actionId, text) in Navigation.NavigationActions.Map)
             {
-                Bind(mcs, cmdId, () => actionId, text);
+                Bind(mcs, cmdId, () => actionId, MenuText(cmdId, text));
                 count++;
             }
 
@@ -78,8 +74,34 @@ namespace UEToVS.Host.Shell
                                                     ToolbarButtons.ParseHidden(_package.Settings?.Effective.HiddenToolbarButtons)));
                 count++;
             }
-            L.Info("commands.registered", null, ("count", count));
+            foreach (var m in Submenus)
+            {
+                var menu = m;
+                var cmd = new OleMenuCommand((s, e) => { }, new CommandID(PackageGuids.CommandSet, menu.Id));
+                cmd.BeforeQueryStatus += (s, e) => Safe.Execute(L, "menu.queryStatus", () => ((OleMenuCommand)s).Text = menu.Text(), ("menu", menu.Id));
+                mcs.AddCommand(cmd);
+            }
+            L.Info("commands.registered", null, ("count", count), ("submenus", Submenus.Length));
         }
+
+        /// <summary>
+        /// Extensions &gt; UEToVS submenus (VSCT menuSearch … menuBuild, menuM1Bookmarks and its numbered-bookmark submenus).
+        /// They have TextChanges, so the shell asks for their text like for a command; titles are the catalog group names.
+        /// </summary>
+        private static readonly (int Id, Func<string> Text)[] Submenus =
+        {
+            (0x1200, () => CommandCatalog.GroupTitle("search", Loc.IsEnglish)),
+            (0x1201, () => CommandCatalog.GroupTitle("navigation", Loc.IsEnglish)),
+            (0x1202, () => CommandCatalog.GroupTitle("history", Loc.IsEnglish)),
+            (0x1100, () => CommandCatalog.GroupTitle("bookmarks", Loc.IsEnglish)),
+            (0x1203, () => CommandCatalog.GroupTitle("refactor", Loc.IsEnglish)),
+            (0x1204, () => CommandCatalog.GroupTitle("generate", Loc.IsEnglish)),
+            (0x1205, () => CommandCatalog.GroupTitle("editing", Loc.IsEnglish)),
+            (0x1206, () => CommandCatalog.GroupTitle("unreal", Loc.IsEnglish)),
+            (0x1207, () => CommandCatalog.GroupTitle("build", Loc.IsEnglish)),
+            (0x1208, () => Loc.T("设置编号书签", "Set Numbered Bookmark")),
+            (0x1209, () => Loc.T("跳到编号书签", "Go to Numbered Bookmark")),
+        };
 
         /// <summary>Taken over = UEToVS holds a backup of VS's C++ IntelliSense settings, i.e. it changed them and can restore.</summary>
         private bool IsIntelliSenseTakenOver() => _package.IntelliSense?.BackupExists == true;
@@ -102,7 +124,7 @@ namespace UEToVS.Host.Shell
         public void RegisterMap(OleMenuCommandService mcs, IReadOnlyList<(int CommandId, string ActionId, Func<string> Text)> map)
         {
             foreach (var (cmdId, actionId, text) in map)
-                Bind(mcs, cmdId, () => actionId, text);
+                Bind(mcs, cmdId, () => actionId, MenuText(cmdId, text));
             L.Info("commands.registered", null, ("count", map.Count), ("first", map.Count > 0 ? map[0].CommandId : 0));
         }
 

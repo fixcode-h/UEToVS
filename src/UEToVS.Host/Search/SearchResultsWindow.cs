@@ -5,7 +5,6 @@ using System.Runtime.InteropServices;
 using Microsoft.VisualStudio.Shell;
 using UEToVS.Core.Diagnostics;
 using UEToVS.Host.Diagnostics;
-using UEToVS.Host.Link;
 using UEToVS.Host.Logic.Localization;
 using UEToVS.Host.Logic.Search;
 using UEToVS.UI.Logic;
@@ -42,7 +41,7 @@ namespace UEToVS.Host.Search
             {
                 var row = e.Item;
                 if (row == null || !row.IsSelectable) return;
-                if (row.Kind == SearchRowKind.Asset) EditorLinkService.Instance?.OpenAsset(row.Asset);
+                if (row.Kind == SearchRowKind.Asset) AssetReveal.Reveal(row.Asset);
                 else SearchEverywhereSource.Open(row, e.Kind == InvokeKind.OpenInNewTab);
             });
             Content = _panel.Root;

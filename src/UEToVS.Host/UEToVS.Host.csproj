@@ -94,16 +94,6 @@
     </Content>
   </ItemGroup>
 
-  <ItemGroup>
-    <!-- UELink editor plugin source (shared with Agent Panel, vendored from fixcode-h/UELink, see ue/VENDORED.md), copied into <Project>/Plugins/UELink by the "install editor plugin" action (Link/LinkPluginManager.cs). -->
-    <Content Include="..\..\ue\UELink\**\*" Exclude="..\..\ue\UELink\Binaries\**;..\..\ue\UELink\Intermediate\**">
-      <Link>EditorPlugin\UELink\%(RecursiveDir)%(Filename)%(Extension)</Link>
-      <IncludeInVSIX>true</IncludeInVSIX>
-      <VSIXSubPath>EditorPlugin\UELink\%(RecursiveDir)</VSIXSubPath>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-  </ItemGroup>
-
   <!--
     Publish the engine next to the extension: <ext>\Engine\UEToVS.Engine.exe (framework-dependent, .NET 8).
     Guarded with Exists(): the host builds before src\UEToVS.Engine lands. Skip with /p:SkipEnginePublish=true.

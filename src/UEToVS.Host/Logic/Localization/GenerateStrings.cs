@@ -6,8 +6,8 @@ namespace UEToVS.Host.Logic.Localization
     public static class GenerateStrings
     {
         public static string CmdConstructor => Loc.T("生成构造函数", "Generate Constructor");
-        public static string CmdReplication => Loc.T("生成 GetLifetimeReplicatedProps", "Generate GetLifetimeReplicatedProps");
-        public static string CmdRpc => Loc.T("生成 RPC（_Implementation / _Validate）", "Generate RPC (Implementation / Validate)");
+        public static string CmdReplication => Loc.T("生成属性同步（GetLifetimeReplicatedProps）", "Generate Replication (GetLifetimeReplicatedProps)");
+        public static string CmdRpc => Loc.T("生成 RPC 函数体（_Implementation / _Validate）", "Generate RPC Bodies (_Implementation / _Validate)");
 
         public static readonly string[] Keywords = { "generate", "生成", "constructor", "构造", "replication", "复制", "DOREPLIFETIME", "rpc", "server", "_Implementation", "_Validate" };
 

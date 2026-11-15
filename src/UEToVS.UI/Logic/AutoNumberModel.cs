@@ -4,7 +4,7 @@ using System.Globalization;
 namespace UEToVS.UI.Logic
 {
     /// <summary>
-    /// "自动" + number editor for Int settings where a stored 0 means auto (thread counts, the UEToVSLink port).
+    /// "自动" + number editor for Int settings where a stored 0 means auto (thread counts).
     /// The window shows a check box "自动" and a number box that is disabled (showing what auto resolves to) while
     /// auto is on, so the old "自动 (8)" label next to a box containing 0 is gone. Stored semantics are unchanged: 0 = auto.
     /// </summary>

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using Newtonsoft.Json;
 
-namespace UEToVS.Host.Logic.Link
+namespace UEToVS.Host.Logic.Unreal
 {
     /// <summary>What <see cref="UeLiveCodingStartup.Apply"/> did to one project's ini.</summary>
     public enum LiveCodingStartupChange

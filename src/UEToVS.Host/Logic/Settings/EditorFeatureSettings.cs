@@ -6,7 +6,7 @@ using UEToVS.UI.Logic;
 namespace UEToVS.Host.Logic.Settings
 {
     /// <summary>
-    /// v0.4.5 编辑体验 settings rows (代码感知 page) and their HostSettings codec, kept out of HostSettingsSchema so the feature
+    /// v0.4.5 编辑体验 settings rows (编辑 page, HostSettingsPages) and their HostSettings codec, kept out of HostSettingsSchema so the feature
     /// stays in one place: the schema calls <see cref="AddDescriptors"/>, <see cref="ToValues"/> and <see cref="TrySet"/>.
     /// The inlay hint rows (inlay.*) existed before and stay in HostSettingsSchema.
     /// </summary>
@@ -34,7 +34,7 @@ namespace UEToVS.Host.Logic.Settings
         public static void AddDescriptors(List<SettingDescriptor> list, string category)
         {
             const string gEdit = "编辑", gEditEn = "Editing";
-            list.Add(D(category, SurroundKey, SettingKind.Bool, "Surround With", "Surround With",
+            list.Add(D(category, SurroundKey, SettingKind.Bool, "用代码块包围（Surround With）", "Surround With",
                 "选中代码后按 Ctrl+Shift+Alt+U, 1（Rider 方案 Ctrl+Alt+J），选择 if (IsValid(X))、#if WITH_EDITOR、SCOPE_CYCLE_COUNTER 等模板把整行包起来。",
                 "Select code and press Ctrl+Shift+Alt+U, 1 (Rider keymap Ctrl+Alt+J) to wrap the lines in if (IsValid(X)), #if WITH_EDITOR, SCOPE_CYCLE_COUNTER and more.",
                 "true", gEdit, gEditEn, "surround with 包裹 模板 template if #if region"));
@@ -48,18 +48,18 @@ namespace UEToVS.Host.Logic.Settings
                 new SettingOption(nameof(RenameMode.Dialog), "弹窗", "Dialog"),
             };
             list.Add(mode);
-            list.Add(D(category, ClipboardKey, SettingKind.Bool, "多重剪贴板", "Clipboard history",
+            list.Add(D(category, ClipboardKey, SettingKind.Bool, "剪贴板历史", "Clipboard history",
                 "记住在编辑器里复制 / 剪切的文本，Ctrl+Shift+V 弹出列表选择粘贴。只存文本，单条最多 1 MB，只保存在内存中。",
                 "Remembers text copied / cut in editors; Ctrl+Shift+V lists it to paste. Text only, at most 1 MB per entry, kept in memory only.",
                 "true", gEdit, gEditEn, "clipboard paste history 剪贴板 粘贴 历史"));
-            var size = D(category, ClipboardSizeKey, SettingKind.Int, "剪贴板历史条数", "Clipboard history entries", null, null, "16", gEdit, gEditEn,
+            var size = D(category, ClipboardSizeKey, SettingKind.Int, "剪贴板历史条数", "Clipboard history entries", "最多记住多少条，超出时丢掉最早的。", "How many entries to keep; the oldest go first.", "16", gEdit, gEditEn,
                 "clipboard 剪贴板");
             size.Min = MinClipboard;
             size.Max = MaxClipboard;
             list.Add(size);
-            list.Add(D(category, HashtagsKey, SettingKind.Bool, "注释 #tag 书签", "Comment #tag bookmarks",
-                "注释里写的 #tag（例如 // #todo 修复）收进“#tag 书签”列表（Ctrl+Shift+Alt+U, 3），按 tag 分组。只扫描已打开的文件。",
-                "#tags written in comments (e.g. // #todo fix) are listed in \"#tag bookmarks\" (Ctrl+Shift+Alt+U, 3), grouped by tag. Only open files are scanned.",
+            list.Add(D(category, HashtagsKey, SettingKind.Bool, "#tag 注释列表", "#tag comment list",
+                "注释里写的 #tag（例如 // #todo 修复）收进“#tag 注释列表”（Ctrl+Shift+Alt+U, 3），按 tag 分组。只扫描已打开的文件。",
+                "#tags written in comments (e.g. // #todo fix) are listed in \"#tag Comments\" (Ctrl+Shift+Alt+U, 3), grouped by tag. Only open files are scanned.",
                 "true", gEdit, gEditEn, "hashtag tag bookmark 书签 todo"));
 
             const string gCheck = "代码检查", gCheckEn = "Code checks";

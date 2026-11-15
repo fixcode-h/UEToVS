@@ -6,11 +6,11 @@ using System.Threading;
 using System.Threading.Tasks;
 using UEToVS.Contracts;
 using UEToVS.Core.Diagnostics;
-using UEToVS.Host.Logic.Link;
+using UEToVS.Host.Logic.Navigation;
 using UEToVS.Host.Logic.Localization;
 using UEToVS.Host.Logic.Search;
 
-namespace UEToVS.Host.Link
+namespace UEToVS.Host.Navigation
 {
     /// <summary>
     /// Go to Related on a log category (LogFoo in DECLARE_LOG_CATEGORY_EXTERN / DEFINE_LOG_CATEGORY / UE_LOG): rows for its
@@ -18,7 +18,7 @@ namespace UEToVS.Host.Link
     /// </summary>
     internal static class LogCategoryNavigator
     {
-        private static readonly Logger L = Log.For("Link");
+        private static readonly Logger L = Log.For("Nav");
         private const int MaxUsages = 300;
 
         public static async Task<List<SearchRow>> RelatedRowsAsync(HostPackage package, string file, string word, string lineText, CancellationToken ct)
@@ -44,9 +44,9 @@ namespace UEToVS.Host.Link
                     Kind = SearchRowKind.Symbol,
                     Title = LogCategoryText.Title(s),
                     Detail = Path.GetFileName(s.Location.FilePath) + ":" + (s.Location.Line + 1),
-                    Right = s.Kind == LogSiteKind.Declaration ? LinkStrings.CategoryDeclaration
-                        : s.Kind == LogSiteKind.Usage ? LinkStrings.CategoryUsage
-                        : LinkStrings.CategoryDefinition,
+                    Right = s.Kind == LogSiteKind.Declaration ? NavStrings.LogCategoryDeclaration
+                        : s.Kind == LogSiteKind.Usage ? NavStrings.LogCategoryUsage
+                        : NavStrings.LogCategoryDefinition,
                     Glyph = UEToVS.UI.Logic.SymbolKind.Macro,
                     FilePath = s.Location.FilePath,
                     Line = s.Location.Line,

@@ -56,11 +56,11 @@ namespace UEToVS.Host.Logic.Tests
         public void LanguageFollowsVsLocale()
         {
             Loc.InitializeFromLcid(1033); // en-US
-            Assert.Equal("Restart Engine", Strings.CmdRestartEngine);
+            Assert.Equal("Restart UEToVS Code Engine", Strings.CmdRestartEngine);
             Loc.InitializeFromLcid(2052); // zh-CN
-            Assert.Equal("重启引擎", Strings.CmdRestartEngine);
+            Assert.Equal("重启 UEToVS 代码引擎", Strings.CmdRestartEngine);
             Loc.InitializeFromLcid(1041); // ja-JP → Chinese (user rule: anything but English)
-            Assert.Equal("重启引擎", Strings.CmdRestartEngine);
+            Assert.Equal("重启 UEToVS 代码引擎", Strings.CmdRestartEngine);
         }
 
         [Fact]
