@@ -129,10 +129,15 @@ namespace UEToVS.Engine.Rpc
         public Task NotifyFilesChangedAsync(List<FileChange> changes, CancellationToken ct) =>
             InvokeAsync("rpc.notifyFilesChanged", _ =>
             {
+                _host.Index.DropBuffers(changes); // saved: the disk is current again
                 _host.Changes.Enqueue(changes, "host");
                 _host.Lua.NotifyChanges(changes);
                 return Task.CompletedTask;
             }, ct, ("count", changes?.Count ?? 0));
+
+        public Task UpdateUnsavedBufferAsync(UnsavedBufferUpdate update, CancellationToken ct) =>
+            InvokeAsync("rpc.updateUnsavedBuffer", c => update == null ? Task.CompletedTask : _host.Index.ApplyBufferAsync(update.FilePath, update.Text, c),
+                ct, ("file", update?.FilePath), ("chars", update?.Text?.Length ?? -1));
 
         public Task SetLogLevelAsync(string level, CancellationToken ct) =>
             InvokeAsync("rpc.setLogLevel", _ =>

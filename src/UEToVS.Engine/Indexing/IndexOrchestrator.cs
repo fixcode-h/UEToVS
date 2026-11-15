@@ -89,6 +89,15 @@ namespace UEToVS.Engine.Indexing
         public ISymbolIndexBackend Backend => _backend;
         public IFileParser Parser => _parser;
         public IndexPhase Phase => _phase;
+
+        private long _revision;
+
+        /// <summary>
+        /// Changes whenever answers drawn from the index may change: a phase change, or an incremental update that re-parsed or
+        /// removed files (a save, unsaved editor text). Caches keyed by it (semantic colouring) recompute. Not bumped per file
+        /// during the initial bulk index.
+        /// </summary>
+        public long Revision => Interlocked.Read(ref _revision);
         public int FilesParsed => Volatile.Read(ref _filesParsed);
         public int FilesToParse => Volatile.Read(ref _filesToParse);
         public string LastError { get; private set; }
@@ -248,6 +257,7 @@ namespace UEToVS.Engine.Indexing
         private void SetPhase(IndexPhase p)
         {
             _phase = p;
+            Interlocked.Increment(ref _revision);
             L.Debug("index.phase", null, ("phase", p.ToString()));
             RaiseStatus();
         }
@@ -685,6 +695,7 @@ namespace UEToVS.Engine.Indexing
                     return new List<ListedFile>();
                 }, ct).ConfigureAwait(false);
             }
+            if (c.Parsed > 0 || c.Failed > 0) Interlocked.Increment(ref _revision);
             RaiseStatus();
         }
 
@@ -716,7 +727,8 @@ namespace UEToVS.Engine.Indexing
 
             IndexStateStore.FileState cached = null;
             _cachedState?.TryGetValue(f.Path, out cached);
-            if (!force && cached != null && cached.Size == f.Size && cached.Ticks == f.LastWriteUtcTicks && _backend.ContainsFile(f.Path))
+            bool fromBuffer = Buffers.TryGet(f.Path, out var buffer);
+            if (!force && !fromBuffer && cached != null && cached.Size == f.Size && cached.Ticks == f.LastWriteUtcTicks && _backend.ContainsFile(f.Path))
             {
                 entry.Hash = cached.Hash;
                 entry.HashKnown = true;
@@ -728,7 +740,8 @@ namespace UEToVS.Engine.Indexing
             ReadOnlyMemory<byte> content;
             try
             {
-                if (worker != null)
+                if (fromBuffer) content = buffer.Bytes;
+                else if (worker != null)
                 {
                     if (worker.ReadFile(f.Path, MaxParseBytes, out content) < 0)
                     {
@@ -747,7 +760,10 @@ namespace UEToVS.Engine.Indexing
             long t1 = Stopwatch.GetTimestamp();
             ulong hash = ContentHasher.Hash(content.Span);
             bool known = _backend.ContainsFile(f.Path);
-            if (known && ((cached != null && cached.Hash == hash) || (entry.HashKnown && entry.Hash == hash)))
+            // What the index holds: this session's parse when there was one, otherwise the state saved at the last start. (Comparing
+            // with the saved state after this session re-parsed the file kept an edit that was undone and saved, or an unsaved
+            // implementation that was deleted again, in the index.)
+            if (known && (entry.HashKnown ? entry.Hash == hash : cached != null && cached.Hash == hash))
             {
                 // Only the timestamp moved (branch switched back, touch): §9.4 skip.
                 entry.Hash = hash;
@@ -770,7 +786,7 @@ namespace UEToVS.Engine.Indexing
                 }
                 if (result != null)
                 {
-                    result.MtimeTicks = f.LastWriteUtcTicks;
+                    result.MtimeTicks = fromBuffer ? 0 : f.LastWriteUtcTicks; // unsaved text: never a cache hit for the file on disk
                     result.Length = content.Length;
                     result.ContentHash = hash;
                     if (sink != null) sink.Add(IsEngineSide(f.Origin), f.Path, result, content.Length);
@@ -807,6 +823,42 @@ namespace UEToVS.Engine.Indexing
 
 
         // ---------------------------------------------------------------- incremental updates
+
+        /// <summary>Unsaved editor text that replaces files on disk (v0.7.5, see <see cref="UnsavedBuffers"/>).</summary>
+        public UnsavedBuffers Buffers { get; } = new UnsavedBuffers();
+
+        /// <summary>
+        /// The host's unsaved text for an open file (null: the buffer was saved, reverted or closed, read the disk again).
+        /// The file is re-indexed right away when the text differs from what the index has.
+        /// </summary>
+        public async Task ApplyBufferAsync(string path, string text, CancellationToken ct)
+        {
+            if (string.IsNullOrEmpty(path)) return;
+            string full;
+            try { full = Path.GetFullPath(path); }
+            catch (Exception) { return; }
+            bool changed = text != null ? Buffers.Set(full, text) : Buffers.Remove(full);
+            if (!changed) return;
+            if (!await _listed.Task.WaitAsync(ct).ConfigureAwait(false)) return;
+            if (!Files.TryGet(full, out var entry) || entry.File == null || !entry.File.IsCpp) return;
+            var sw = Stopwatch.StartNew();
+            var c = new Counters();
+            await ProcessChunkAsync(new List<ListedFile> { entry.File }, "index.buffer", WorkPriority.Interactive, c, force: true, ct).ConfigureAwait(false);
+            L.Debug("index.buffer", null, ("path", full), ("unsaved", text != null), ("parsed", c.Parsed), ("unchanged", c.Unchanged), ("symbols", c.Symbols),
+                ("ms", Math.Round(sw.Elapsed.TotalMilliseconds, 1)));
+        }
+
+        /// <summary>Files saved / changed on disk according to the host: their unsaved text (if any) is no longer current.</summary>
+        public void DropBuffers(IEnumerable<FileChange> changes)
+        {
+            if (changes == null || Buffers.Count == 0) return;
+            foreach (var c in changes)
+            {
+                if (string.IsNullOrEmpty(c?.FilePath)) continue;
+                try { Buffers.Remove(Path.GetFullPath(c.FilePath)); }
+                catch (Exception) { } // not a valid path: nothing was stored for it
+            }
+        }
 
         /// <summary>Applies coalesced file changes (watcher or host). Waits for the initial listing first.</summary>
         public async Task ApplyChangesAsync(ChangeBatch batch, CancellationToken ct)
@@ -908,6 +960,7 @@ namespace UEToVS.Engine.Indexing
                 ("changes", batch.Changes.Count), ("updated", updates.Count), ("parsed", c.Parsed), ("unchanged", c.Unchanged),
                 ("failed", c.Failed), ("removed", removed), ("assets", assetsChanged), ("batch", batch.IsBatch), ("source", batch.Source),
             });
+            if (removed > 0) Interlocked.Increment(ref _revision);
             if (updates.Count > 0 || removed > 0) RaiseStatus();
         }
 
@@ -1177,7 +1230,8 @@ namespace UEToVS.Engine.Indexing
             var sw = Stopwatch.StartNew();
             string key = CacheKey;
             _backend.Save(_indexDir, key);
-            var files = Files.Snapshot().Where(e => e.HashKnown).Select(e => new IndexStateStore.FileState
+            // a file indexed from unsaved editor text must not look current on disk at the next start
+            var files = Files.Snapshot().Where(e => e.HashKnown && !Buffers.TryGet(e.File.Path, out _)).Select(e => new IndexStateStore.FileState
             {
                 Path = e.File.Path,
                 Size = e.File.Size,

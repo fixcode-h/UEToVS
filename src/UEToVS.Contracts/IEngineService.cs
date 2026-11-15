@@ -24,6 +24,13 @@ namespace UEToVS.Contracts
 
         Task NotifyFilesChangedAsync(List<FileChange> changes, CancellationToken ct);
 
+        /// <summary>
+        /// v0.7.5: the unsaved text of an open editor (<see cref="UnsavedBufferUpdate.Text"/> null = saved, reverted or closed:
+        /// use the file on disk again). The engine indexes and parses this text instead of the file, so other files see an
+        /// unsaved declaration or a deleted implementation.
+        /// </summary>
+        Task UpdateUnsavedBufferAsync(UnsavedBufferUpdate update, CancellationToken ct);
+
         /// <summary>Change the engine's log level at runtime (Error/Warn/Info/Debug/Trace).</summary>
         Task SetLogLevelAsync(string level, CancellationToken ct);
 

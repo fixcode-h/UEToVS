@@ -35,6 +35,7 @@ namespace UEToVS.Host.Navigation
             void Changed(object s, TextContentChangedEventArgs e)
             {
                 if (!view.HasAggregateFocus || e.Changes.Count == 0) return;
+                UEToVS.Host.Editing.AutoSaveFeature.NoteEdit(); // v0.7.5: idle auto-save counts from the last edit
                 Guard("nav.track.edit", () =>
                 {
                     int pos = Math.Min(e.Changes[0].NewPosition, e.After.Length);
@@ -48,6 +49,7 @@ namespace UEToVS.Host.Navigation
                 if ((e.FileActionType & FileActionTypes.ContentSavedToDisk) != 0) Guard("nav.track.saved", () => nav.OnSaved(e.FilePath));
             }
 
+            Guard("editor.gitTabs.opened", UEToVS.Host.Editing.GitTabMarkers.OnDocumentOpened);
             view.Caret.PositionChanged += Caret;
             view.GotAggregateFocus += Focus;
             view.TextBuffer.Changed += Changed;

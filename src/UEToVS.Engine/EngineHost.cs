@@ -48,8 +48,9 @@ namespace UEToVS.Engine
             L.Info("index.settings.initial", null, ("settings", config.ToString()), ("cores", Environment.ProcessorCount));
             Search = new SearchService(Index);
             Navigation = new Navigation.NavigationService(Index.Backend, Index.Files, () => Index.Phase == IndexPhase.Ready);
+            Navigation.Documents.Buffers = Index.Buffers; // v0.7.5: unsaved editor text of other open files
             IntelliSense = new IntelliSense.IntelliSenseService(Index.Backend, Index.Files, () => Index.Phase == IndexPhase.Ready, Navigation.Documents,
-                assets: Index.Assets, indexStamp: () => (long)Index.Phase); // phase change: drop colouring decided against the incomplete index
+                assets: Index.Assets, indexStamp: () => Index.Revision); // phase change / re-indexed file: drop colouring decided against the older index
             UeCode = new UeCode.UeCodeService(Index); // v0.4.5 editor link: tests / log sites, scanned on demand
             Refactoring = new Refactoring.RefactoringService(Index.Backend, Index.Files, Navigation.Documents, () => Index.Phase == IndexPhase.Ready)
             {
