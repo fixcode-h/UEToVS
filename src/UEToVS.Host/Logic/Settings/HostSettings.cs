@@ -301,6 +301,15 @@ namespace UEToVS.Host.Logic.Settings
         /// <summary>#tag bookmarks: collect #tags written in comments of the open files.</summary>
         public bool HashtagsEnabled { get; set; } = true;
 
+        /// <summary>v0.7.5 auto-save (like IDEA): save modified files when VS loses focus and after <see cref="AutoSaveIdleSeconds"/> without edits.</summary>
+        public bool AutoSaveEnabled { get; set; } = true;
+
+        /// <summary>Seconds without an edit before modified files are saved; 0 = only when VS loses focus.</summary>
+        public int AutoSaveIdleSeconds { get; set; } = 15;
+
+        /// <summary>v0.7.5: document tabs of files that differ from Git (modified, added, untracked) get a ● after the name, like IDEA's tab colors.</summary>
+        public bool GitTabMarker { get; set; } = true;
+
         // ---- 字体（设置 > 外观 > 字体；值见 UEToVS.UI.Logic.FontChoice，VS 类别见 Logic/Fonts/VsFontCategories）----
         /// <summary>英文字体: Latin part of the UEToVS UI font ("bundled:IBM Plex Sans", "vs" or an installed family).</summary>
         public string UiLatinFont { get; set; } = UEToVS.UI.Logic.FontSettings.DefaultUiLatin.ToString();

@@ -49,7 +49,8 @@ namespace UEToVS.Host.Logic.Editing
             }
             foreach (var h in items ?? Enumerable.Empty<InlayHint>())
             {
-                if (h == null || !range.Contains(h.Line) || string.IsNullOrEmpty(h.Text)) continue;
+                // Code Vision rows (v0.7.3) carry counts, not text
+                if (h == null || !range.Contains(h.Line) || (string.IsNullOrEmpty(h.Text) && h.Kind != InlayHintKind.Usages)) continue;
                 if (!_byLine.TryGetValue(h.Line, out var list)) _byLine[h.Line] = list = new List<InlayHint>();
                 list.Add(h);
                 Count++;

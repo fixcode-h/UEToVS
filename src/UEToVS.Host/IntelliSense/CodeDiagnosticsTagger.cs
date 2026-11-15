@@ -41,11 +41,23 @@ namespace UEToVS.Host.IntelliSense
     /// <summary>
     /// Open C++ documents of this session (per buffer, ref-counted by view): the unsaved ones are sent with every diagnostics
     /// request (the engine only sees their saved text), and saving one re-checks the other editors (a member added to a header).
-    /// UI thread only.
+    /// v0.7.5: the unsaved text itself is pushed to the engine after an edit pause (<see cref="IEngineService.UpdateUnsavedBufferAsync"/>),
+    /// so navigation, Quick Info and the light bulb in other files see it (a declaration added to an unsaved header, an
+    /// implementation deleted from an unsaved .cpp); saving, reloading or closing the document tells the engine to read the disk
+    /// again. Pushes go out one after another, in order. UI thread only.
     /// </summary>
     internal static class OpenCppDocuments
     {
+        private static readonly Logger L = Log.For("IntelliSense");
+        private static readonly TimeSpan PushDelay = TimeSpan.FromMilliseconds(400);
+        private const int MaxPushChars = 4 * 1024 * 1024;
+
         private static readonly Dictionary<ITextDocument, int> Docs = new Dictionary<ITextDocument, int>();
+        private static readonly HashSet<ITextDocument> Pending = new HashSet<ITextDocument>();
+        private static readonly HashSet<string> Pushed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        private static DispatcherTimer _timer;
+        private static Task _chain = Task.CompletedTask;
+        private static bool _engineHooked;
 
         /// <summary>Raised on the UI thread with the path of a document that was saved.</summary>
         public static event EventHandler<string> Saved;
@@ -55,7 +67,15 @@ namespace UEToVS.Host.IntelliSense
             if (doc == null) return;
             Docs.TryGetValue(doc, out int n);
             Docs[doc] = n + 1;
-            if (n == 0) doc.FileActionOccurred += OnFileAction;
+            if (n > 0) return;
+            doc.FileActionOccurred += OnFileAction;
+            doc.TextBuffer.Changed += OnBufferChanged;
+            if (!_engineHooked)
+            {
+                _engineHooked = true;
+                IntelliSenseContext.EngineReady += OnEngineReady;
+            }
+            if (doc.IsDirty) Schedule(doc); // opened with unsaved changes (restored session)
         }
 
         public static void Untrack(ITextDocument doc)
@@ -67,7 +87,11 @@ namespace UEToVS.Host.IntelliSense
                 return;
             }
             Docs.Remove(doc);
+            Pending.Remove(doc);
             doc.FileActionOccurred -= OnFileAction;
+            doc.TextBuffer.Changed -= OnBufferChanged;
+            // closed without saving: the engine must forget the unsaved text
+            if (!string.IsNullOrEmpty(doc.FilePath) && Pushed.Remove(doc.FilePath)) Send(doc.FilePath, null);
         }
 
         public static List<string> UnsavedExcept(string path)
@@ -83,7 +107,83 @@ namespace UEToVS.Host.IntelliSense
 
         private static void OnFileAction(object sender, TextDocumentFileActionEventArgs e)
         {
+            if ((e.FileActionType & (FileActionTypes.ContentSavedToDisk | FileActionTypes.ContentLoadedFromDisk)) != 0 && Pushed.Remove(e.FilePath))
+                Send(e.FilePath, null);
             if (e.FileActionType == FileActionTypes.ContentSavedToDisk) Saved?.Invoke(null, e.FilePath);
+        }
+
+        private static void OnBufferChanged(object sender, TextContentChangedEventArgs e)
+        {
+            foreach (var d in Docs.Keys)
+            {
+                if (d.TextBuffer != sender) continue;
+                Schedule(d);
+                return;
+            }
+        }
+
+        /// <summary>The engine (re)connected or its index changed phase: it may have lost or not yet seen the unsaved text.</summary>
+        private static void OnEngineReady(object sender, string reason)
+        {
+            Pushed.Clear();
+            foreach (var d in Docs.Keys)
+                if (d.IsDirty) Schedule(d);
+        }
+
+        private static void Schedule(ITextDocument doc)
+        {
+            Pending.Add(doc);
+            if (_timer == null)
+            {
+                _timer = new DispatcherTimer(DispatcherPriority.Background) { Interval = PushDelay };
+                _timer.Tick += (s, e) => Safe.Execute(L, "is.unsaved.push", Flush);
+            }
+            _timer.Stop();
+            _timer.Start();
+        }
+
+        private static void Flush()
+        {
+            _timer.Stop();
+            if (Pending.Count == 0) return;
+            var docs = new List<ITextDocument>(Pending);
+            Pending.Clear();
+            foreach (var d in docs)
+            {
+                string path = d.FilePath;
+                if (string.IsNullOrEmpty(path) || !Docs.ContainsKey(d)) continue;
+                var snapshot = d.TextBuffer.CurrentSnapshot;
+                if (d.IsDirty && snapshot.Length <= MaxPushChars)
+                {
+                    Pushed.Add(path);
+                    Send(path, snapshot.GetText());
+                }
+                else if (Pushed.Remove(path))
+                {
+                    Send(path, null); // undone back to the saved text, or too large to send
+                }
+            }
+        }
+
+        /// <summary>Queues one update behind the previous ones so the engine applies them in order.</summary>
+        private static void Send(string path, string text)
+        {
+            var engine = IntelliSenseContext.Engine;
+            if (engine == null || !engine.IsConnected) return; // re-sent on EngineReady
+            var update = new UnsavedBufferUpdate { FilePath = path, Text = text };
+            var previous = _chain;
+            _chain = Task.Run(async () =>
+            {
+                // previous 是上一条更新的后台任务（同样由这里 Task.Run 起），只为保证顺序，不需要 UI 线程
+#pragma warning disable VSTHRD003
+                try { await previous.ConfigureAwait(false); } catch (Exception) { }
+#pragma warning restore VSTHRD003
+                await engine.TryInvokeAsync("updateUnsavedBuffer", async (svc, ct) =>
+                {
+                    await svc.UpdateUnsavedBufferAsync(update, ct).ConfigureAwait(false);
+                    return true;
+                }, CancellationToken.None).ConfigureAwait(false);
+            });
         }
     }
 

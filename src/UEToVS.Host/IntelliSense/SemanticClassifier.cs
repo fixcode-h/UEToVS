@@ -93,6 +93,7 @@ namespace UEToVS.Host.IntelliSense
             NavigationContext.SettingsChanged += OnSettingsChanged;
             IntelliSenseContext.ColoringToggled += OnColoringToggled;
             IntelliSenseContext.EngineReady += OnEngineReady;
+            OpenCppDocuments.Saved += OnDocumentSaved;
             Safe.Execute(L, "is.colors.init", ApplyColors);
             Schedule(ScrollDelay);
         }
@@ -278,6 +279,14 @@ namespace UEToVS.Host.IntelliSense
             Schedule(ScrollDelay);
         });
 
+        /// <summary>v0.7.5: a saved header can declare what this file calls: ask again (the engine recomputes after re-indexing).</summary>
+        private void OnDocumentSaved(object sender, string path) => Safe.Execute(L, "is.classify.otherSaved", () =>
+        {
+            if (_view.IsClosed || !Enabled) return;
+            _replan = true;
+            Schedule(EditDelay);
+        });
+
         private void Refresh()
         {
             if (Enabled) Schedule(ScrollDelay);
@@ -297,6 +306,7 @@ namespace UEToVS.Host.IntelliSense
             NavigationContext.SettingsChanged -= OnSettingsChanged;
             IntelliSenseContext.ColoringToggled -= OnColoringToggled;
             IntelliSenseContext.EngineReady -= OnEngineReady;
+            OpenCppDocuments.Saved -= OnDocumentSaved;
         }
     }
 }

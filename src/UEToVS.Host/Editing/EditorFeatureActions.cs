@@ -32,6 +32,8 @@ namespace UEToVS.Host.Editing
             registry.Register(new DelegateAction(EditorFeatureIds.PasteFromHistory, EditorFeatureStrings.CmdPasteFromHistory, ActionCategory.Refactoring,
                 ctx => ClipboardHistoryFeature.PasteAsync(), ctx => ctx.ActiveDocumentPath != null, null, EditorFeatureStrings.KwClipboard));
             UEToVS.Host.Diagnostics.Safe.Execute(L, "editor.clipboard.init", ClipboardHistoryFeature.Initialize);
+            UEToVS.Host.Diagnostics.Safe.Execute(L, "editor.autoSave.init", AutoSaveFeature.Initialize); // v0.7.5
+            UEToVS.Host.Diagnostics.Safe.Execute(L, "editor.gitTabs.init", GitTabMarkers.Initialize);
             // Alt+Enter fixes (offered by EditorFixProvider from the squiggles under the caret)
             registry.Register(new DelegateAction(EditorFeatureIds.ReplaceDeprecated, EditorFeatureStrings.GroupFix, ActionCategory.Fix,
                 ReplaceDeprecatedAsync, ctx => ctx.Get<DiagnosticFix>(RefactorKeys.Argument) != null, null));

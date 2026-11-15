@@ -247,6 +247,13 @@ namespace UEToVS.Contracts
         public FileChangeKind Kind { get; set; }
     }
 
+    /// <summary>v0.7.5: unsaved text of an open editor; Text null = the file on disk is current again.</summary>
+    public sealed class UnsavedBufferUpdate
+    {
+        public string FilePath { get; set; }
+        public string Text { get; set; }
+    }
+
     public enum FileChangeKind : byte
     {
         Changed = 0,

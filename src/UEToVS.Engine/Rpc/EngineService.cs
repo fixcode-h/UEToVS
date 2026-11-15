@@ -129,10 +129,15 @@ namespace UEToVS.Engine.Rpc
         public Task NotifyFilesChangedAsync(List<FileChange> changes, CancellationToken ct) =>
             InvokeAsync("rpc.notifyFilesChanged", _ =>
             {
+                _host.Index.DropBuffers(changes); // saved: the disk is current again
                 _host.Changes.Enqueue(changes, "host");
                 _host.Lua.NotifyChanges(changes);
                 return Task.CompletedTask;
             }, ct, ("count", changes?.Count ?? 0));
+
+        public Task UpdateUnsavedBufferAsync(UnsavedBufferUpdate update, CancellationToken ct) =>
+            InvokeAsync("rpc.updateUnsavedBuffer", c => update == null ? Task.CompletedTask : _host.Index.ApplyBufferAsync(update.FilePath, update.Text, c),
+                ct, ("file", update?.FilePath), ("chars", update?.Text?.Length ?? -1));
 
         public Task SetLogLevelAsync(string level, CancellationToken ct) =>
             InvokeAsync("rpc.setLogLevel", _ =>
@@ -289,12 +294,15 @@ namespace UEToVS.Engine.Rpc
                 foreach (var s in _host.Index.Backend.GetFileSymbols(request.Document.FilePath))
                 {
                     ct.ThrowIfCancellationRequested();
-                    int line = s.Location?.Line ?? -1;
+                    int symbolLine = s.Location?.Line ?? -1;
+                    if (symbolLine < 0) continue;
+                    // Rider style: the hint goes on its own row above the declaration, i.e. above its UCLASS / UFUNCTION... macro
+                    int line = CodeVisionAnchor(lines, symbolLine);
                     if (line < request.StartLine || line > request.EndLine) continue;
                     var hint = CodeVisionHint(s);
                     if (hint == null) continue;
                     hint.Line = line;
-                    hint.Column = lines != null && line < lines.Length ? lines[line].TrimEnd('\r').Length : 0;
+                    hint.Column = lines != null && line < lines.Length ? Indent(lines[line]) : 0;
                     resp.Items.Add(hint);
                 }
             }
@@ -303,6 +311,33 @@ namespace UEToVS.Engine.Rpc
                 L.Warn("rpc.getInlayHints.codeVision.failed", "Code Vision failed; the other hints are still returned", ex);
             }
             return resp;
+        }
+
+        private static readonly string[] ReflectionMacros = { "UCLASS", "USTRUCT", "UINTERFACE", "UFUNCTION", "UPROPERTY" };
+
+        /// <summary>
+        /// v0.7.3: the line a Code Vision row is drawn above: the declaration's reflection macro when it is on one of the few
+        /// lines just above (a multi-line macro included), otherwise the declaration line itself.
+        /// </summary>
+        internal static int CodeVisionAnchor(string[] lines, int declLine)
+        {
+            if (lines == null || declLine <= 0 || declLine >= lines.Length) return declLine;
+            for (int j = declLine - 1; j >= 0 && j >= declLine - 8; j--)
+            {
+                string t = lines[j].Trim();
+                foreach (var m in ReflectionMacros)
+                    if (t.StartsWith(m, StringComparison.Ordinal) && t.Substring(m.Length).TrimStart().StartsWith("(", StringComparison.Ordinal)) return j;
+                if (t.Length == 0 || t.EndsWith(";", StringComparison.Ordinal) || t.EndsWith("{", StringComparison.Ordinal) || t.EndsWith("}", StringComparison.Ordinal) ||
+                    t.StartsWith("//", StringComparison.Ordinal) || t.EndsWith("*/", StringComparison.Ordinal) || t.StartsWith("#", StringComparison.Ordinal)) break;
+            }
+            return declLine;
+        }
+
+        private static int Indent(string line)
+        {
+            int i = 0;
+            while (i < line.Length && (line[i] == ' ' || line[i] == '\t')) i++;
+            return i;
         }
 
         private string DocumentText(string path)

@@ -4,6 +4,7 @@ using System.IO;
 using System.Text;
 using System.Threading;
 using UEToVS.Core.Diagnostics;
+using UEToVS.Engine.Indexing;
 
 namespace UEToVS.Engine.Navigation
 {
@@ -41,6 +42,9 @@ namespace UEToVS.Engine.Navigation
             get { lock (_gate) return _bytes; }
         }
 
+        /// <summary>Unsaved editor text that replaces the file on disk (set by the engine host; null in tests / offline tools).</summary>
+        public UnsavedBuffers Buffers { get; set; }
+
         public long Hits => Interlocked.Read(ref _hits);
         public long Misses => Interlocked.Read(ref _misses);
 
@@ -63,9 +67,11 @@ namespace UEToVS.Engine.Navigation
             return GetFile(path);
         }
 
-        /// <summary>Document for a file on disk, re-parsed when its mtime or length changes.</summary>
+        /// <summary>Document for a file on disk, re-parsed when its mtime or length changes; the unsaved editor text instead while there is one.</summary>
         public DocumentModel GetFile(string path)
         {
+            if (Buffers != null && Buffers.TryGet(path, out var buffer))
+                return GetOrAdd(path, "u:" + buffer.Version, () => DocumentModel.Parse(path, buffer.Version, buffer.Bytes));
             FileInfo fi;
             try
             {
