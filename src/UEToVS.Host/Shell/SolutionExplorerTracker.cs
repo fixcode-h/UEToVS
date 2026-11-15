@@ -34,6 +34,9 @@ namespace UEToVS.Host.Shell
         private uint _cookie;
         private DispatcherTimer _timer;
         private IVsWindowFrame _pending;
+        private DispatcherTimer _startupTimer;
+        private int _startupAttempt;
+        private int _documentSwitches;
 
         public async Task AdviseAsync(AsyncPackage package)
         {
@@ -52,7 +55,7 @@ namespace UEToVS.Host.Shell
                 _timer.Stop();
                 var frame = _pending;
                 _pending = null;
-                if (frame != null) Safe.Execute(L, "solutionExplorer.reveal", () => Reveal(frame));
+                if (frame != null) Safe.Execute(L, "solutionExplorer.reveal", () => { Reveal(frame); });
             };
         }
 
@@ -61,6 +64,7 @@ namespace UEToVS.Host.Shell
             if (elementid != (uint)VSConstants.VSSELELEMID.SEID_DocumentFrame || _timer == null) return VSConstants.S_OK;
             Safe.Execute(L, "solutionExplorer.documentChanged", () =>
             {
+                _documentSwitches++; // a newer document wins over the startup reveal
                 // Cheap filter first: nothing is queued unless the feature is on in a UE solution.
                 var s = NavigationContext.Settings;
                 if (!s.SyncSolutionExplorer || !NavigationContext.IsUnrealSolution || !(varValueNew is IVsWindowFrame frame))
@@ -75,23 +79,68 @@ namespace UEToVS.Host.Shell
             return VSConstants.S_OK;
         }
 
-        private void Reveal(IVsWindowFrame frame)
+        /// <summary>
+        /// The document VS restores when it opens a solution became active before the UE solution was detected (the switch
+        /// was filtered out above) and before its project and Solution Explorer's tree were loaded. Called once the UE solution
+        /// is known: reveals the current document, retrying while the tree is still loading (<see cref="SolutionExplorerSync.RevealRetryDelays"/>).
+        /// A document switch by the user in the meantime cancels it (the normal path handles that one).
+        /// </summary>
+        public void RevealActiveAfterSolutionOpened()
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+            if (_monitor == null || _timer == null) return;
+            _startupTimer?.Stop();
+            _startupAttempt = 0;
+            int switches = _documentSwitches;
+            _startupTimer = new DispatcherTimer(DispatcherPriority.Background) { Interval = SolutionExplorerSync.RevealRetryDelays[0] };
+            _startupTimer.Tick += (s, e) => Safe.Execute(L, "solutionExplorer.startupReveal", () =>
+            {
+                var timer = (DispatcherTimer)s;
+                timer.Stop();
+                if (!ReferenceEquals(timer, _startupTimer)) return;
+                var settings = NavigationContext.Settings;
+                if (switches != _documentSwitches || !settings.SyncSolutionExplorer || !NavigationContext.IsUnrealSolution) return;
+                int attempt = ++_startupAttempt;
+                RevealResult result = RevealResult.NothingToDo;
+                if (ErrorHandler.Succeeded(_monitor.GetCurrentElementValue((uint)VSConstants.VSSELELEMID.SEID_DocumentFrame, out object value)) &&
+                    value is IVsWindowFrame frame)
+                    result = Reveal(frame);
+                bool retry = result == RevealResult.NotReady && attempt < SolutionExplorerSync.RevealRetryDelays.Length;
+                L.Info("solutionExplorer.startupReveal", null, ("attempt", attempt), ("result", result.ToString()), ("retry", retry));
+                if (!retry) return;
+                timer.Interval = SolutionExplorerSync.RevealRetryDelays[attempt];
+                timer.Start();
+            });
+            _startupTimer.Start();
+        }
+
+        private enum RevealResult
+        {
+            /// <summary>Selected in Solution Explorer.</summary>
+            Revealed,
+            /// <summary>Not a C++ document of a UE solution, or the feature is off.</summary>
+            NothingToDo,
+            /// <summary>Project, tree or Solution Explorer not available yet (or the file is not in any project).</summary>
+            NotReady,
+        }
+
+        private RevealResult Reveal(IVsWindowFrame frame)
         {
             ThreadHelper.ThrowIfNotOnUIThread();
             var s = NavigationContext.Settings;
-            if (ErrorHandler.Failed(frame.GetProperty((int)__VSFPROPID.VSFPROPID_pszMkDocument, out object doc))) return;
+            if (ErrorHandler.Failed(frame.GetProperty((int)__VSFPROPID.VSFPROPID_pszMkDocument, out object doc))) return RevealResult.NotReady;
             string path = doc as string;
-            if (!SolutionExplorerSync.ShouldReveal(s.SyncSolutionExplorer, NavigationContext.IsUnrealSolution, path)) return;
+            if (!SolutionExplorerSync.ShouldReveal(s.SyncSolutionExplorer, NavigationContext.IsUnrealSolution, path)) return RevealResult.NothingToDo;
 
-            if (ErrorHandler.Failed(frame.GetProperty((int)__VSFPROPID.VSFPROPID_Hierarchy, out object h)) || !(h is IVsUIHierarchy hierarchy)) return;
-            if (ErrorHandler.Failed(frame.GetProperty((int)__VSFPROPID.VSFPROPID_ItemID, out object id))) return;
+            if (ErrorHandler.Failed(frame.GetProperty((int)__VSFPROPID.VSFPROPID_Hierarchy, out object h)) || !(h is IVsUIHierarchy hierarchy)) return RevealResult.NotReady;
+            if (ErrorHandler.Failed(frame.GetProperty((int)__VSFPROPID.VSFPROPID_ItemID, out object id))) return RevealResult.NotReady;
             uint itemId = id is int i ? unchecked((uint)i) : id is uint u ? u : VSConstants.VSITEMID_NIL;
-            if (itemId == VSConstants.VSITEMID_NIL || itemId == VSConstants.VSITEMID_ROOT) return;
+            if (itemId == VSConstants.VSITEMID_NIL || itemId == VSConstants.VSITEMID_ROOT) return RevealResult.NotReady;
 
             // Only an existing, open Solution Explorer (FTW_fFindFirst never creates it).
-            if (ErrorHandler.Failed(_shell.FindToolWindow((uint)__VSFINDTOOLWIN.FTW_fFindFirst, ref _solutionExplorer, out IVsWindowFrame seFrame)) || seFrame == null) return;
-            if (seFrame.IsVisible() != VSConstants.S_OK) return;
-            if (ErrorHandler.Failed(seFrame.GetProperty((int)__VSFPROPID.VSFPROPID_DocView, out object view)) || !(view is IVsUIHierarchyWindow window)) return;
+            if (ErrorHandler.Failed(_shell.FindToolWindow((uint)__VSFINDTOOLWIN.FTW_fFindFirst, ref _solutionExplorer, out IVsWindowFrame seFrame)) || seFrame == null) return RevealResult.NotReady;
+            if (seFrame.IsVisible() != VSConstants.S_OK) return RevealResult.NotReady;
+            if (ErrorHandler.Failed(seFrame.GetProperty((int)__VSFPROPID.VSFPROPID_DocView, out object view)) || !(view is IVsUIHierarchyWindow window)) return RevealResult.NotReady;
 
             var sw = Stopwatch.StartNew();
             int hr = window.ExpandItem(hierarchy, itemId, EXPANDFLAGS.EXPF_SelectItem);
@@ -109,6 +158,7 @@ namespace UEToVS.Host.Shell
                 };
                 once.Start();
             }
+            return ErrorHandler.Succeeded(hr) ? RevealResult.Revealed : RevealResult.NotReady;
         }
 
         /// <summary>
@@ -197,6 +247,7 @@ namespace UEToVS.Host.Shell
             try
             {
                 _timer?.Stop();
+                _startupTimer?.Stop();
                 if (_monitor != null && _cookie != 0 && ThreadHelper.CheckAccess()) _monitor.UnadviseSelectionEvents(_cookie);
             }
             catch (Exception)

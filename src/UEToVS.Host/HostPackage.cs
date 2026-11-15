@@ -347,6 +347,8 @@ namespace UEToVS.Host
             await SetUnrealContextAsync(true);
             await JoinableTaskFactory.SwitchToMainThreadAsync(DisposalToken);
             Safe.Execute(L, "m1.solutionOpened", () => M1Feature.OnUnrealSolutionOpened(dir));
+            // The document VS restored with the solution became active before the solution was known to be UE: reveal it now.
+            Safe.Execute(L, "solutionExplorer.solutionOpened", () => _solutionExplorer?.RevealActiveAfterSolutionOpened());
             await TaskScheduler.Default;
 
             Safe.Execute(L, "horde.solutionOpened", Horde.HordeFeature.OnUnrealSolutionOpened);
@@ -486,11 +488,18 @@ namespace UEToVS.Host
                 // A (re)connected engine must learn about a build that is already running.
                 if (engine.State == EngineState.Connected && _build?.IsBuilding == true)
                     _ = Safe.RunInBackgroundAsync(L, "engine.build.resync", () => engine.SetBuildInProgressAsync(true));
+                // Editors VS restored at startup asked before the engine was up: let them ask again.
+                if (engine.State == EngineState.Connected) RefreshOpenEditors(engine, "engineConnected");
             };
+            IndexPhase? lastPhase = null;
             engine.StatusChanged += (sender, status) =>
             {
                 var d = EngineStatusText.For(status);
                 VsStatusBar.SetProgress(d.Text, d.Done, d.Total);
+                // Cache loaded / index complete: answers get better, so the open editors re-colour their visible lines.
+                var previous = lastPhase;
+                lastPhase = status.Phase;
+                if (UEToVS.Host.Logic.IntelliSense.EditorRefreshPolicy.OnPhaseChanged(previous, status.Phase)) RefreshOpenEditors(engine, "index" + status.Phase);
             };
             engine.GaveUp += (sender, message) => Banners.Show("engine.unavailable", message, BannerKind.Error,
                 (Strings.RestartEngine, () => ExecuteAction(ActionIds.RestartEngine)),
@@ -498,6 +507,17 @@ namespace UEToVS.Host
             _engine = engine;
             VsStatusBar.SetText(Strings.StatusEngineStarting);
             await engine.StartAsync();
+        }
+
+        /// <summary>Tells the open editors (semantic colouring, inlay hints, diagnostics) to ask the engine again, on the UI thread.</summary>
+        private void RefreshOpenEditors(EngineClient engine, string reason)
+        {
+            _ = Safe.RunAsync(L, "editors.refresh", async () =>
+            {
+                await JoinableTaskFactory.SwitchToMainThreadAsync(DisposalToken);
+                if (!ReferenceEquals(engine, _engine) || !engine.IsConnected) return; // replaced / gone meanwhile
+                UEToVS.Host.IntelliSense.IntelliSenseContext.RaiseEngineReady(reason);
+            }, ("reason", reason));
         }
 
         private void PushIndexingSettings(EngineClient engine, string reason)

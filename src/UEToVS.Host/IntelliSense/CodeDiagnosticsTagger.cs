@@ -128,6 +128,7 @@ namespace UEToVS.Host.IntelliSense
             NavigationContext.SettingsChanged += OnSettingsChanged;
             OpenCppDocuments.Track(_document);
             OpenCppDocuments.Saved += OnOtherSaved;
+            IntelliSenseContext.EngineReady += OnEngineReady;
             Schedule(ScrollDelay);
         }
 
@@ -213,6 +214,12 @@ namespace UEToVS.Host.IntelliSense
             if (!Enabled || _view.IsClosed) return;
             if (string.Equals(path, _document?.FilePath, StringComparison.OrdinalIgnoreCase)) return;
             Schedule(EditDelay);
+        }
+
+        // Documents restored at VS startup asked before the engine was up (dropped), or got answers from a partial index.
+        private void OnEngineReady(object sender, string reason)
+        {
+            if (Enabled && !_view.IsClosed) Schedule(ScrollDelay);
         }
 
         private void Schedule(TimeSpan delay)
@@ -386,6 +393,7 @@ namespace UEToVS.Host.IntelliSense
             _view.Closed -= OnClosed;
             NavigationContext.SettingsChanged -= OnSettingsChanged;
             OpenCppDocuments.Saved -= OnOtherSaved;
+            IntelliSenseContext.EngineReady -= OnEngineReady;
             OpenCppDocuments.Untrack(_document);
         }
     }

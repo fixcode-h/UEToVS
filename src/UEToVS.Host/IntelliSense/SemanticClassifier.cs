@@ -72,6 +72,7 @@ namespace UEToVS.Host.IntelliSense
         private LineRange? _inFlight;
         private long _inFlightVersion = -1;
         private int _requests;
+        private bool _replan; // engine became ready: ask again even for lines the store already covers
 
         public SemanticClassificationTagger(IWpfTextView view, IClassificationTypeRegistryService registry, IClassificationFormatMap formatMap)
         {
@@ -91,6 +92,7 @@ namespace UEToVS.Host.IntelliSense
             _view.Closed += OnClosed;
             NavigationContext.SettingsChanged += OnSettingsChanged;
             IntelliSenseContext.ColoringToggled += OnColoringToggled;
+            IntelliSenseContext.EngineReady += OnEngineReady;
             Safe.Execute(L, "is.colors.init", ApplyColors);
             Schedule(ScrollDelay);
         }
@@ -180,11 +182,15 @@ namespace UEToVS.Host.IntelliSense
             int last = _view.TextViewLines.LastVisibleLine.End.TranslateTo(snapshot, PointTrackingMode.Positive).GetContainingLine().LineNumber;
             long version = snapshot.Version.VersionNumber;
             int margin = Math.Max(0, IntelliSenseContext.Settings.SemanticColoringMarginLines);
-            var plan = VisibleRangePlanner.Plan(first, last, snapshot.LineCount, version, _storeSnapshot == snapshot ? _store : null, margin);
+            // After an engine-ready refresh the stored answer may come from an incomplete index: plan as if nothing were stored
+            // (the old spans stay visible until the new answer replaces them, so nothing flickers).
+            var plan = VisibleRangePlanner.Plan(first, last, snapshot.LineCount, version, _storeSnapshot == snapshot && !_replan ? _store : null, margin);
             if (plan == null) return;
             var range = VisibleRangePlanner.Merge(_inFlight, _inFlightVersion, plan.Value, version);
             var capture = IntelliSenseEditor.CaptureAt(_view.TextBuffer, new SnapshotPoint(snapshot, 0));
             if (capture == null) return;
+            bool replan = _replan;
+            _replan = false;
             var (gen, ct) = _gate.Begin(NavigationContext.Disposal);
             _inFlight = range;
             _inFlightVersion = version;
@@ -204,7 +210,7 @@ namespace UEToVS.Host.IntelliSense
                     return;
                 }
                 Apply(snapshot, range, r.Value);
-                if (n == 1) L.Info("is.classify.first", null, ("file", doc?.FilePath), ("lines", range.ToString()), ("spans", r.Value.Spans?.Count ?? 0),
+                if (n == 1 || replan) L.Info(n == 1 ? "is.classify.first" : "is.classify.refreshed", null, ("file", doc?.FilePath), ("lines", range.ToString()), ("spans", r.Value.Spans?.Count ?? 0),
                                    ("engineMs", r.Value.ElapsedMs), ("roundTripMs", r.ElapsedMs));
             });
         }
@@ -265,6 +271,13 @@ namespace UEToVS.Host.IntelliSense
 
         private void OnColoringToggled(object sender, EventArgs e) => Safe.Execute(L, "is.colors.toggled", Refresh);
 
+        private void OnEngineReady(object sender, string reason) => Safe.Execute(L, "is.classify.engineReady", () =>
+        {
+            if (_view.IsClosed || !Enabled) return;
+            _replan = true;
+            Schedule(ScrollDelay);
+        });
+
         private void Refresh()
         {
             if (Enabled) Schedule(ScrollDelay);
@@ -283,6 +296,7 @@ namespace UEToVS.Host.IntelliSense
             _view.Closed -= OnClosed;
             NavigationContext.SettingsChanged -= OnSettingsChanged;
             IntelliSenseContext.ColoringToggled -= OnColoringToggled;
+            IntelliSenseContext.EngineReady -= OnEngineReady;
         }
     }
 }
