@@ -3,7 +3,8 @@ using System.ComponentModel.Composition;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
-using System.Windows.Threading;
+using System.Threading.Tasks;
+using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Editor;
 using Microsoft.VisualStudio.Text.Formatting;
@@ -109,13 +110,14 @@ namespace UEToVS.Host.Editor
         {
             if (_relayoutPending || _view.IsClosed) return;
             _relayoutPending = true;
-            _view.VisualElement.Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() => Safe.Execute(L, "editor.codeVision.relayout", () =>
+            Safe.RunAsync(L, "editor.codeVision.relayout", async () =>
             {
+                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync(alwaysYield: true);
                 _relayoutPending = false;
                 if (_view.IsClosed || _view.InLayout || _view.TextViewLines == null) return;
                 var first = _view.TextViewLines.FirstVisibleLine;
                 _view.DisplayTextLineContainingBufferPosition(first.Start, first.Top - _view.ViewportTop, ViewRelativePosition.Top);
-            })));
+            });
         }
 
         private void OnClosed(object sender, EventArgs e)
