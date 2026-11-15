@@ -292,15 +292,30 @@ namespace UEToVS.Engine.Tests
                 Document = new CaretRequest { FilePath = header }, StartLine = 0, EndLine = 20, ParameterNames = false, CodeVision = true,
             }, CancellationToken.None);
             var usages = hints.Items.Where(h => h.Kind == InlayHintKind.Usages).ToDictionary(h => h.Line);
-            Assert.Equal(1, usages[5].Blueprints);                 // class AMyCharacter: BP_Hero derives from it
-            Assert.Equal("AMyCharacter", usages[5].SymbolName);
-            Assert.Equal(File.ReadAllLines(header)[5].Length, usages[5].Column);
-            Assert.Equal(1, usages[10].Blueprints);                // Fire: used in BP_Hero
-            Assert.Equal("AMyCharacter::Fire", usages[10].SymbolName);
-            Assert.Equal(1, usages[13].Blueprints);                // Health: used in L_Main
+            // drawn on a row above the reflection macro (UCLASS line 4, UFUNCTION line 9, UPROPERTY line 12), at its indentation
+            Assert.Equal(1, usages[4].Blueprints);                 // class AMyCharacter: BP_Hero derives from it
+            Assert.Equal("AMyCharacter", usages[4].SymbolName);
+            Assert.Equal(0, usages[4].Column);
+            Assert.Equal(1, usages[9].Blueprints);                 // Fire: used in BP_Hero
+            Assert.Equal("AMyCharacter::Fire", usages[9].SymbolName);
+            Assert.Equal(1, usages[9].Column);
+            Assert.Equal(1, usages[12].Blueprints);                // Health: used in L_Main
             var off = await service.GetInlayHintsAsync(new InlayHintsRequest { Document = new CaretRequest { FilePath = header }, StartLine = 0, EndLine = 20 }, CancellationToken.None);
             Assert.DoesNotContain(off.Items, h => h.Kind == InlayHintKind.Usages);
             await host.StopAsync(TimeSpan.FromSeconds(5));
         }
+    }
+
+    public sealed class CodeVisionAnchorTests
+    {
+        [Theory]
+        [InlineData(new[] { "UCLASS()", "class A {" }, 1, 0)]
+        [InlineData(new[] { "UCLASS(Blueprintable,", "  meta=(X))", "class A {" }, 2, 0)]
+        [InlineData(new[] { "\tUFUNCTION(BlueprintCallable)", "\t// comment", "\tvoid F();" }, 2, 2)]
+        [InlineData(new[] { "\tUPROPERTY()", "\tint32 A;", "\tint32 B;" }, 2, 2)]
+        [InlineData(new[] { "class A {" }, 0, 0)]
+        [InlineData(new[] { "UCLASSX()", "class A {" }, 1, 1)]
+        public void AnchorsOnTheReflectionMacro(string[] lines, int decl, int expected) =>
+            Assert.Equal(expected, UEToVS.Engine.Rpc.EngineService.CodeVisionAnchor(lines, decl));
     }
 }

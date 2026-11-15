@@ -57,5 +57,15 @@ namespace UEToVS.Host.Logic.Tests
             Assert.Equal("bSweep:", InlayHintStore.Display(H(0, 0, "bSweep")));
             Assert.Equal(": FVector", InlayHintStore.Display(H(0, 0, "FVector", InlayHintKind.Type)));
         }
+
+        [Fact]
+        public void CodeVisionHintsWithoutTextAreKept()
+        {
+            var store = new InlayHintStore();
+            var vision = new InlayHint { Line = 4, Column = 0, Kind = InlayHintKind.Usages, SymbolName = "AActor", DerivedTypes = 3, Blueprints = 2 };
+            Assert.True(store.Add(1, new LineRange(0, 10), new[] { vision, H(5, 1, "") }));
+            Assert.Same(vision, Assert.Single(store.Between(0, 10)));
+            Assert.Contains("3", InlayHintStore.Display(vision));
+        }
     }
 }

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel.Composition;
 using System.Diagnostics;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -114,6 +115,7 @@ namespace UEToVS.Host.Editor
             var last = spans[spans.Count - 1].End.TranslateTo(source, PointTrackingMode.Positive).GetContainingLine().LineNumber;
             foreach (var h in _store.Between(first, last))
             {
+                if (h.Kind == InlayHintKind.Usages) continue; // Code Vision: own row above the line (CodeVisionLayout)
                 if (h.Line < 0 || h.Line >= source.LineCount) continue;
                 var line = source.GetLineFromLineNumber(h.Line);
                 if (h.Column < 0 || h.Column > line.Length) continue; // stale: skip, never throw
@@ -170,6 +172,54 @@ namespace UEToVS.Host.Editor
             var b = new SolidColorBrush(c);
             b.Freeze();
             return b;
+        }
+
+        // ---------------------------------------------------------------- Code Vision rows (v0.7.3, read by CodeVisionLayout)
+
+        private Dictionary<int, InlayHint> _visionLines;
+        private ITextSnapshot _visionFor;
+        private ITextSnapshot _visionSource;
+        private int _visionGeneration;
+        private int _visionBuiltAt = -1;
+
+        /// <summary>Raised when the Code Vision rows changed (the layout re-formats the visible lines).</summary>
+        public event EventHandler CodeVisionChanged;
+
+        private void RaiseCodeVisionChanged()
+        {
+            _visionGeneration++;
+            CodeVisionChanged?.Invoke(this, EventArgs.Empty);
+        }
+
+        private string CodeVisionSignature()
+        {
+            var sb = new System.Text.StringBuilder();
+            foreach (var h in _store.Between(0, int.MaxValue))
+                if (h.Kind == InlayHintKind.Usages) sb.Append(h.Line).Append(':').Append(h.DerivedTypes).Append('/').Append(h.Blueprints).Append(';');
+            return sb.ToString();
+        }
+
+        /// <summary>The Code Vision hint drawn above line <paramref name="lineNumber"/> of <paramref name="target"/>, or null.</summary>
+        public InlayHint CodeVisionAt(ITextSnapshot target, int lineNumber)
+        {
+            if (!Enabled || !CodeVision || target == null || _snapshot == null || target.TextBuffer != _snapshot.TextBuffer) return null;
+            if (_visionLines == null || _visionFor != target || _visionSource != _snapshot || _visionBuiltAt != _visionGeneration)
+            {
+                var map = new Dictionary<int, InlayHint>();
+                var source = _snapshot;
+                foreach (var h in _store.Between(0, int.MaxValue))
+                {
+                    if (h.Kind != InlayHintKind.Usages || h.Line < 0 || h.Line >= source.LineCount) continue;
+                    var start = source.GetLineFromLineNumber(h.Line).Start;
+                    int line = target == source ? h.Line : start.TranslateTo(target, PointTrackingMode.Negative).GetContainingLine().LineNumber;
+                    if (!map.ContainsKey(line)) map[line] = h;
+                }
+                _visionLines = map;
+                _visionFor = target;
+                _visionSource = source;
+                _visionBuiltAt = _visionGeneration;
+            }
+            return _visionLines.TryGetValue(lineNumber, out var hint) ? hint : null;
         }
 
         // ---------------------------------------------------------------- triggers
@@ -242,6 +292,7 @@ namespace UEToVS.Host.Editor
                     L.Debug("editor.inlayHints.stale", null, ("sent", version), ("answer", v.TextVersion), ("file", path));
                     return;
                 }
+                string visionBefore = CodeVisionSignature();
                 if (!_store.Add(version, new LineRange(v.StartLine, v.EndLine), v.Items)) return;
                 if (_snapshot != snapshot)
                 {
@@ -250,8 +301,10 @@ namespace UEToVS.Host.Editor
                 }
                 var current = _view.TextSnapshot;
                 TagsChanged?.Invoke(this, new SnapshotSpanEventArgs(new SnapshotSpan(current, 0, current.Length)));
+                string visionAfter = CodeVisionSignature();
+                if (visionAfter != visionBefore) RaiseCodeVisionChanged();
                 L.Info("editor.inlayHints", null, ("file", path), ("version", version), ("lines", v.StartLine + ".." + v.EndLine), ("items", v.Items?.Count ?? 0),
-                    ("cached", _store.Count), ("covered", _store.Covered.Count), ("parameterNames", names), ("autoTypes", autos), ("calls", v.Calls),
+                    ("cached", _store.Count), ("covered", _store.Covered.Count), ("parameterNames", names), ("autoTypes", autos), ("codeVision", vision ? v.Items?.Count(i => i.Kind == InlayHintKind.Usages) ?? 0 : -1), ("calls", v.Calls),
                     ("resolved", v.Resolved), ("autoVariables", v.AutoVariables), ("engineMs", v.ElapsedMs), ("roundTripMs", r.ElapsedMs),
                     ("totalMs", Math.Round(total.Elapsed.TotalMilliseconds, 2)));
             }, ("file", path));
@@ -261,6 +314,7 @@ namespace UEToVS.Host.Editor
         {
             _gate.Cancel();
             bool had = _store.Count > 0;
+            bool hadVision = CodeVisionSignature().Length > 0;
             _store.Clear();
             _elements.Clear();
             _snapshot = null;
@@ -269,6 +323,7 @@ namespace UEToVS.Host.Editor
                 var s = _view.TextSnapshot;
                 TagsChanged?.Invoke(this, new SnapshotSpanEventArgs(new SnapshotSpan(s, 0, s.Length)));
             }
+            if (hadVision) RaiseCodeVisionChanged();
         }
 
         private void Refresh()
