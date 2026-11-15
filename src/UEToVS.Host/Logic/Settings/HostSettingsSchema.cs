@@ -17,6 +17,9 @@ namespace UEToVS.Host.Logic.Settings
     public static class HostSettingsSchema
     {
         public const string General = "general";
+
+        /// <summary>Never a real setting (always "off"): rows gated on it stay greyed out, e.g. VS 18-only switches on VS 2022.</summary>
+        public const string Vs18OnlyGateKey = "vs.version18Only";
         public const string Appearance = "appearance";
         public const string Indexing = "indexing";
         public const string Keymap = "keymap";
@@ -105,8 +108,11 @@ namespace UEToVS.Host.Logic.Settings
             return d;
         }
 
-        /// <summary>The schema for a machine with <paramref name="logicalCores"/> cores (thread ranges and "auto" labels depend on it).</summary>
-        public static List<SettingDescriptor> Build(int logicalCores)
+        /// <summary>
+        /// The schema for a machine with <paramref name="logicalCores"/> cores (thread ranges and "auto" labels depend on it)
+        /// running VS of major version <paramref name="vsMajor"/> (0 = unknown; 17 = VS 2022 greys out the VS 18-only switches).
+        /// </summary>
+        public static List<SettingDescriptor> Build(int logicalCores, int vsMajor = 0)
         {
             int cores = Math.Max(1, logicalCores);
             int auto = DefaultIndexThreads(cores);
@@ -148,9 +154,21 @@ namespace UEToVS.Host.Logic.Settings
                 null, null, gCpp, gCppEn, SettingKind.Info));
             // v0.5.6: one switch per VS Unreal / C++ background feature; on = turned off while taken over (backed up, restored with scope Off)
             foreach (var f in UEToVS.Host.Logic.IntelliSense.VsUnrealFeatures.Features)
-                list.Add(D(General, f.SettingKey, SettingKind.Bool, f.TitleZh, f.TitleEn,
+            {
+                var row = D(General, f.SettingKey, SettingKind.Bool, f.TitleZh, f.TitleEn,
                     f.DescriptionZh + "（接管时生效，修改前备份；取消勾选或接管范围选“关闭”即恢复）",
-                    f.DescriptionEn + " (applies while taken over, backed up first; unticking it or scope “Off” restores it)", f.DefaultOn ? "true" : "false", gCpp, gCppEn));
+                    f.DescriptionEn + " (applies while taken over, backed up first; unticking it or scope “Off” restores it)", f.DefaultOn ? "true" : "false", gCpp, gCppEn);
+                if (UEToVS.Host.Logic.IntelliSense.VsUnrealFeatures.NotApplicable(f, vsMajor))
+                {
+                    // v0.7.3: only VS 18's settings.json has this switch; grey it out on VS 2022 instead of letting it look applied
+                    row.TitleZh += "（仅 VS 2026）";
+                    row.TitleEn += " (VS 2026 only)";
+                    row.HintZh = "VS 2022 没有这项设置，勾选与否都不会改动 VS。";
+                    row.HintEn = "VS 2022 has no such setting; ticking it changes nothing in VS.";
+                    row.EnabledWhenKey = Vs18OnlyGateKey;
+                }
+                list.Add(row);
+            }
             // ---- v0.4.5 navigation gaps: what VS loses after the takeover and the UEToVS replacement (table drawn by the settings window)
             list.Add(A(General, "intelliSense.featureMatrix", UEToVS.Host.Logic.IntelliSense.TakeoverFeatures.SettingsInfoId, "接管后 VS 自带功能", "VS features after the takeover",
                 "接管后 VS 的 C++ IntelliSense、浏览数据库、后台代码分析和蓝图扫描关闭（接管范围选“关闭”即恢复），依赖它们的 VS 功能会失效；下表列出 UEToVS 的替代命令和默认快捷键。",
