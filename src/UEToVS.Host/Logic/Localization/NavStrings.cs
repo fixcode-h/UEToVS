@@ -110,6 +110,17 @@ namespace UEToVS.Host.Logic.Localization
         public static string HierarchyDerived => Loc.T("派生类", "Derived types");
         public static string HierarchyUnresolved => Loc.T("未在索引中（模板参数或外部类型）", "Not in the index (template argument or external type)");
         public static string HierarchyTruncated => Loc.T("…（已截断）", "… (truncated)");
+
+        // ---- v0.7.3 offline Blueprint index
+        public static string KindBlueprint => Loc.T("蓝图", "Blueprint");
+        public static string BlueprintHit(string asset, bool map, bool derived) =>
+            derived ? Loc.T("蓝图 " + asset + " 继承自它", "Blueprint " + asset + " derives from it")
+            : map ? Loc.T("关卡 " + asset + " 中使用", "Used in level " + asset)
+            : Loc.T("蓝图 " + asset + " 中使用", "Used in Blueprint " + asset);
+        public static string BlueprintNode(string name) => Loc.T(name + "（蓝图）", name + " (Blueprint)");
+        public static string BlueprintTip(string objectPath) => Loc.T(
+            "蓝图资产（离线读取 .uasset，按名称匹配）\n回车：复制对象路径并在资源管理器中选中\n" + objectPath,
+            "Blueprint asset (read offline from the .uasset, matched by name)\nEnter: copy the object path and select it in Explorer\n" + objectPath);
         public static string HierarchySummary(int nodes, double ms) => Loc.F("{0:N0} 个类型 · {1:N0} ms", "{0:N0} types · {1:N0} ms", nodes, ms);
 
         // ---- navigation bar / member lists ----

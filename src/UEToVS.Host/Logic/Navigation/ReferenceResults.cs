@@ -94,7 +94,8 @@ namespace UEToVS.Host.Logic.Navigation
             foreach (var g in byFile.Values)
                 g.Hits.Sort((a, b) => a.Location.Line != b.Location.Line ? a.Location.Line.CompareTo(b.Location.Line) : a.Location.Column.CompareTo(b.Location.Column));
             view.Groups.AddRange(byFile.Values
-                .OrderBy(g => GeneratedFiles.Rank(g.FilePath))
+                .OrderBy(g => IsAssetPath(g.FilePath) ? 1 : 0) // v0.7.3: Blueprints after the code
+                .ThenBy(g => GeneratedFiles.Rank(g.FilePath))
                 .ThenBy(g => SymbolPresentation.IsNonProject(g.Origin) ? 1 : 0)
                 .ThenBy(g => g.FilePath, StringComparer.OrdinalIgnoreCase));
             return view;
@@ -119,6 +120,15 @@ namespace UEToVS.Host.Logic.Navigation
             matchStart = 0;
             matchLength = 0;
             if (h?.Location == null) return string.Empty;
+            if (IsBlueprint(h))
+            {
+                string name = SymbolPresentation.SafeFileName(h.Location.FilePath);
+                int dot = name.LastIndexOf('.');
+                if (dot > 0) name = name.Substring(0, dot);
+                bool map = h.Location.FilePath.EndsWith(".umap", StringComparison.OrdinalIgnoreCase);
+                bool derived = (h.Kind & ReferenceKind.TypeUse) != 0 && h.Confidence == ResolutionConfidence.Exact;
+                return NavStrings.BlueprintHit(name, map, derived);
+            }
             string prefix = (h.Location.Line + 1).ToString(System.Globalization.CultureInfo.InvariantCulture) + "  ";
             string text = h.LineText ?? string.Empty;
             int indent = 0;
@@ -135,8 +145,15 @@ namespace UEToVS.Host.Logic.Navigation
         }
 
         /// <summary>Most telling kind badge: Write &gt; Definition &gt; Declaration &gt; Call &gt; TypeUse &gt; Read.</summary>
+        /// <summary>v0.7.3: a hit in a Blueprint / level asset (offline Blueprint index), not in source code.</summary>
+        public static bool IsBlueprint(ReferenceHit h) => h != null && (h.Kind & ReferenceKind.Blueprint) != 0;
+
+        public static bool IsAssetPath(string path) =>
+            path != null && (path.EndsWith(".uasset", StringComparison.OrdinalIgnoreCase) || path.EndsWith(".umap", StringComparison.OrdinalIgnoreCase));
+
         public static string KindText(ReferenceKind k)
         {
+            if ((k & ReferenceKind.Blueprint) != 0) return NavStrings.KindBlueprint;
             if ((k & ReferenceKind.Write) != 0) return NavStrings.KindWrite;
             if ((k & ReferenceKind.Definition) != 0) return NavStrings.KindDefinition;
             if ((k & ReferenceKind.Declaration) != 0) return NavStrings.KindDeclaration;
