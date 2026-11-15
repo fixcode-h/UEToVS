@@ -84,6 +84,12 @@ namespace UEToVS.Engine.Cli
         public double TotalMs { get; set; }
         public List<BenchOpStats> Ops { get; } = new List<BenchOpStats>();
 
+        /// <summary>v0.7.3: go to definition scored against a golden file (null when bench ran without --golden).</summary>
+        public GoldenScore Accuracy { get; set; }
+
+        /// <summary>The golden file of <see cref="Accuracy"/>; runs are only compared on accuracy when they used the same file.</summary>
+        public string Golden { get; set; }
+
         public string ToJsonLine()
         {
             var ops = new JsonObject();
@@ -106,6 +112,12 @@ namespace UEToVS.Engine.Cli
                 ["ops"] = ops,
                 ["totalMs"] = Math.Round(TotalMs, 1),
             };
+            if (Accuracy != null)
+            {
+                var acc = Accuracy.ToJson();
+                acc["golden"] = Golden;
+                o2["accuracy"] = acc;
+            }
             return o2.ToJsonString(new JsonSerializerOptions { WriteIndented = false });
         }
 
@@ -134,6 +146,8 @@ namespace UEToVS.Engine.Cli
                     PeakPrivateMb = (double?)n["memory"]?["peakPrivateMB"] ?? 0,
                     ManagedHeapMb = (double?)n["memory"]?["managedHeapMB"] ?? 0,
                     TotalMs = (double?)n["totalMs"] ?? 0,
+                    Accuracy = GoldenScore.FromJson(n["accuracy"]),
+                    Golden = (string)n["accuracy"]?["golden"],
                 };
                 if (n["ops"] is JsonObject ops)
                     foreach (var kv in ops)
@@ -186,6 +200,14 @@ namespace UEToVS.Engine.Cli
                     P(o.P50) + Delta(p?.P50, o.P50), P(o.P95) + Delta(p?.P95, o.P95), P(o.P99) + Delta(p?.P99, o.P99),
                     (o.EmptyRatio * 100).ToString("0.0", CultureInfo.InvariantCulture) + "%" + RatioDelta(p?.EmptyRatio, o.EmptyRatio)));
             }
+            if (Accuracy != null)
+            {
+                sb.AppendLine();
+                sb.Append(Accuracy.Format());
+                var pa = previous?.Accuracy != null && GoldenSet.SamePath(previous.Golden, Golden) ? previous.Accuracy : null;
+                if (pa != null) sb.Append("   top-1" + RatioDelta(pa.Top1Ratio, Accuracy.Top1Ratio, higherIsBetter: true));
+                sb.AppendLine();
+            }
             return sb.ToString();
         }
 
@@ -198,12 +220,13 @@ namespace UEToVS.Engine.Cli
             return " (" + s + (pct > 10 ? "!" : string.Empty) + ")";
         }
 
-        private static string RatioDelta(double? before, double now)
+        private static string RatioDelta(double? before, double now, bool higherIsBetter = false)
         {
             if (before == null) return string.Empty;
             double pts = (now - before.Value) * 100;
             if (Math.Abs(pts) < 0.05) return " (=)";
-            return " (" + (pts >= 0 ? "+" : "") + pts.ToString("0.0", CultureInfo.InvariantCulture) + "pt" + (pts > 1 ? "!" : string.Empty) + ")";
+            bool worse = higherIsBetter ? pts < -1 : pts > 1;
+            return " (" + (pts >= 0 ? "+" : "") + pts.ToString("0.0", CultureInfo.InvariantCulture) + "pt" + (worse ? "!" : string.Empty) + ")";
         }
     }
 }
