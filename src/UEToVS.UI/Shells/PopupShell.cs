@@ -95,6 +95,12 @@ namespace UEToVS.UI.Shells
 
         public IPopupStateStore StateStore { get; set; }
 
+        /// <summary>
+        /// false: the content sets <see cref="ChromeWindow.VisibleSize"/> itself before every show (e.g. a menu sized to
+        /// its entries), so the remembered size must not override it. Other state is still stored.
+        /// </summary>
+        public bool PersistSize { get; set; } = true;
+
         private IPopupStateStore Store => StateStore ?? DefaultStateStore;
 
         public bool CloseOnDeactivate { get; set; } = true;
@@ -318,7 +324,7 @@ namespace UEToVS.UI.Shells
                 if (Store.TryGet(Id, out var s) && s != null)
                 {
                     State = s;
-                    if (s.Width > 50 && s.Height > 50) VisibleSize = new Size(s.Width, s.Height);
+                    if (PersistSize && s.Width > 50 && s.Height > 50) VisibleSize = new Size(s.Width, s.Height);
                     return;
                 }
             }
@@ -327,7 +333,7 @@ namespace UEToVS.UI.Shells
                 Ui.Logger.Warn("ui.popup.restore_failed", "Popup state store threw", ex, ("id", Id));
             }
             State = new PopupState();
-            VisibleSize = DefaultSize;
+            if (PersistSize) VisibleSize = DefaultSize;
         }
 
         private void SaveState()

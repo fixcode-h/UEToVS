@@ -53,6 +53,13 @@ namespace UEToVS.Host.Logic.Commands
         public string VaKeys { get; set; }
         public string RiderKeys { get; set; }
         public string VsKeys { get; set; }
+
+        /// <summary>
+        /// Earlier <see cref="VaKeys"/> defaults. A command still bound to exactly one of these was given it by UEToVS, not
+        /// chosen by the user, so the first-run step moves it to the new default (<see cref="DefaultKeymapPlanner"/>).
+        /// </summary>
+        public string[] FormerVaKeys { get; set; }
+
         public CommandOwner Owner { get; set; }
 
         public string Title(bool english) => english ? TitleEn : TitleZh;
@@ -257,6 +264,13 @@ namespace UEToVS.Host.Logic.Commands
                 VaKeys = va, RiderKeys = rider, VsKeys = vs, DescriptionZh = descZh, DescriptionEn = descEn,
             };
 
+        /// <summary>Marks the earlier defaults of a command whose default changed (see <see cref="CommandInfo.FormerVaKeys"/>).</summary>
+        private static CommandInfo Former(CommandInfo c, params string[] keys)
+        {
+            c.FormerVaKeys = keys;
+            return c;
+        }
+
         private const CommandOwner H = CommandOwner.Host, M2 = CommandOwner.Navigation, M1 = CommandOwner.Features;
         private const CommandOwner M4 = CommandOwner.Refactoring;
         private const CommandScope Ed = CommandScope.TextEditor, Gl = CommandScope.Global;
@@ -326,9 +340,10 @@ namespace UEToVS.Host.Logic.Commands
             C(H, ShowHashtags, "ShowHashtags", "uetovs.edit.hashtags", "#tag 注释列表…", "#tag Comments...", "bookmarks", Gl, "Ctrl+Shift+Alt+U, 3", null, null,
               "按标签列出已打开文件注释里写的 #todo、#bug 等，选中即跳转", "List the #todo, #bug... tags written in comments of open files, grouped by tag"),
 
-            // ---- refactor (M4, text editor). Alt+Enter: UEToVS context actions (falls back to VS's quick actions when UEToVS IntelliSense is off).
-            C(M4, QuickActions, "QuickActions", ActionIds.QuickActions, "上下文操作…", "Context Actions...", "refactor", Ed, "Alt+Enter", "Alt+Enter", "Alt+Enter",
-              "列出光标处能做的修复、生成和重构", "List the fixes, generators and refactorings available at the caret"),
+            // ---- refactor (M4, text editor). Context actions (falls back to VS's quick actions when UEToVS IntelliSense is off).
+            // v0.7.7: Shift+Alt+Q (user request) instead of Alt+Enter; the Rider preset keeps Rider's own Alt+Enter.
+            Former(C(M4, QuickActions, "QuickActions", ActionIds.QuickActions, "上下文操作…", "Context Actions...", "refactor", Ed, "Shift+Alt+Q", "Alt+Enter", null,
+              "列出光标处能做的修复、生成和重构", "List the fixes, generators and refactorings available at the caret"), "Alt+Enter"),
             C(M4, Rename, "Rename", ActionIds.Rename, "重命名…", "Rename...", "refactor", Ed, "Ctrl+R, Ctrl+R", "Shift+F6", "Ctrl+R, Ctrl+R",
               "重命名光标处的符号，并改掉所有引用", "Rename the symbol at the caret and update every reference"),
             // Ctrl+R chords; UEToVS wins over VS's own Refactor.* bindings and falls back to them outside UE C++

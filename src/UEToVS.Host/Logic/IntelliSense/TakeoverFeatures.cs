@@ -112,7 +112,7 @@ namespace UEToVS.Host.Logic.IntelliSense
             F("重命名（C++ 重构）", "Rename (C++ refactoring)", "Refactor.Rename", "Ctrl+R, Ctrl+R", Off, new[] { CommandCatalog.Rename }),
             F("提取函数（C++ 重构）", "Extract Function (C++ refactoring)", "Refactor.ExtractFunction", "Ctrl+R, Ctrl+M", Off, new[] { CommandCatalog.ExtractMethod }),
             F("创建声明 / 定义（快速操作）", "Create Declaration / Definition (quick actions)", "View.QuickActions", "Ctrl+.", Off, new[] { CommandCatalog.QuickActions },
-                "Alt+Enter：生成实现 / 声明、重写虚函数、添加 #include", "Alt+Enter: generate implementation / declaration, override, add #include"),
+                "Shift+Alt+Q：生成实现 / 声明、重写虚函数、添加 #include", "Shift+Alt+Q: generate implementation / declaration, override, add #include"),
             F("代码段（插入代码段）", "Code Snippets (Insert Snippet)", "Edit.InsertSnippet", "Ctrl+K, Ctrl+X", TakeoverFeatureState.Unknown, new int[0],
                 "UEToVS 另有 UE 代码模板和 Postfix 模板", "UEToVS also has UE live templates and postfix templates"),
             F("切换头文件 / 源文件", "Toggle Header / Code File", "EditorContextMenus.CodeWindow.ToggleHeaderCodeFile", "Ctrl+K, Ctrl+O", TakeoverFeatureState.Unknown,

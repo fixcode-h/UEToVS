@@ -258,7 +258,8 @@ namespace UEToVS.Host.Logic.Commands
                 if (ours == null || !ours.TryGetValue(c.Name, out var existing) || existing == null) { d.Outcome = DefaultBindingOutcome.CommandMissing; continue; }
                 d.Existing = existing;
                 string scope = c.DteScope, keys = Shortcut.Normalize(c.VaKeys);
-                if (existing.Length > 0)
+                // Still on a former UEToVS default (never the user's choice): moved to the new default like an unbound command.
+                if (existing.Length > 0 && !OnlyFormerDefaults(c, existing))
                 {
                     d.Outcome = DefaultBindingOutcome.AlreadyBound;
                     if (otherList != null && d.NeedsConflictScan) AddOverlaps(d.Overrides, otherList, scope, keys);
@@ -281,6 +282,14 @@ namespace UEToVS.Host.Logic.Commands
                 planned.Add((c.Name, scope, keys));
             }
             return result;
+        }
+
+        private static bool OnlyFormerDefaults(CommandInfo c, string[] existing)
+        {
+            if (c.FormerVaKeys == null || c.FormerVaKeys.Length == 0) return false;
+            var former = new HashSet<string>(c.FormerVaKeys.Where(k => Shortcut.Normalize(k) != null).Select(k => Shortcut.Binding(c.DteScope, k)),
+                                             StringComparer.OrdinalIgnoreCase);
+            return existing.All(b => former.Contains(b));
         }
 
         private static void AddOverlaps(List<KeyValuePair<string, string>> into, IEnumerable<KeyValuePair<string, string[]>> all, string scope, string keys)

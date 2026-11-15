@@ -84,12 +84,12 @@ namespace UEToVS.Host.Logic.Settings
 
             const string gCheck = "代码检查", gCheckEn = "Code checks";
             list.Add(D(category, DeprecationKey, SettingKind.Bool, "弃用 API 提示", "Deprecated API hints",
-                "当前文件里用到 UE_DEPRECATED / [[deprecated]] 的符号时画删除线和警告波浪线（带弃用版本和说明），Quick Info 显示说明；说明里写了“Use X instead”时 Alt+Enter 可一键替换。只检查可见区域，不扫描全工程。",
-                "Uses of UE_DEPRECATED / [[deprecated]] symbols in the current file get a strikethrough and a warning squiggle (version and message), Quick Info shows the message; Alt+Enter replaces it when the message says \"Use X instead\". Visible lines only, no project-wide scan.",
+                "当前文件里用到 UE_DEPRECATED / [[deprecated]] 的符号时画删除线和警告波浪线（带弃用版本和说明），Quick Info 显示说明；说明里写了“Use X instead”时 Shift+Alt+Q 可一键替换。只检查可见区域，不扫描全工程。",
+                "Uses of UE_DEPRECATED / [[deprecated]] symbols in the current file get a strikethrough and a warning squiggle (version and message), Quick Info shows the message; Shift+Alt+Q replaces it when the message says \"Use X instead\". Visible lines only, no project-wide scan.",
                 "true", gCheck, gCheckEn, "deprecated deprecation 弃用 UE_DEPRECATED"));
             list.Add(D(category, NamingKey, SettingKind.Bool, "UE 命名规范检查", "UE naming conventions",
-                "检查当前文件声明的类型和 bool 成员的前缀（A / U / F / E / T / I / b），以“建议”提示，Alt+Enter 一键改名。只检查项目代码。",
-                "Checks the prefixes (A / U / F / E / T / I / b) of types and bool members declared in the current file and suggests a fix; Alt+Enter renames. Project code only.",
+                "检查当前文件声明的类型和 bool 成员的前缀（A / U / F / E / T / I / b），以“建议”提示，Shift+Alt+Q 一键改名。只检查项目代码。",
+                "Checks the prefixes (A / U / F / E / T / I / b) of types and bool members declared in the current file and suggests a fix; Shift+Alt+Q renames. Project code only.",
                 "false", gCheck, gCheckEn, "naming convention prefix 命名 规范 前缀"));
 
             const string gDebug = "调试", gDebugEn = "Debugging";

@@ -24,7 +24,7 @@ namespace UEToVS.Host.Logic.Localization
 
         public static string FixApplied(string title) => Loc.F("已修复：{0}", "Fixed: {0}", title);
         public static string NoSourceForRepNotify(string function) =>
-            Loc.F("已添加 {0} 的声明；没找到对应的 .cpp，实现请用 Alt+Enter“生成实现”", "Declared {0}; no matching .cpp was found, use Alt+Enter > Create implementation", function);
+            Loc.F("已添加 {0} 的声明；没找到对应的 .cpp，实现请用 Shift+Alt+Q“生成实现”", "Declared {0}; no matching .cpp was found, use Shift+Alt+Q > Create implementation", function);
 
         public static string FixProblem(string problem)
         {
