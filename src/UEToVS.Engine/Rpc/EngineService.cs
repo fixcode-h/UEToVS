@@ -178,7 +178,7 @@ namespace UEToVS.Engine.Rpc
             InvokeAsync("rpc.findReferences", c =>
             {
                 if (request == null || (request.Caret == null && request.Symbol == null)) throw Error(RpcErrorCodes.InvalidArgument, "FindReferences needs a caret or a symbol");
-                return _host.Scheduler.RunAsync(WorkPriority.Visible, "rpc.findReferences", t => _host.Navigation.FindReferences(request, t), c);
+                return _host.Scheduler.RunAsync(WorkPriority.Visible, "rpc.findReferences", t => WithBlueprints(_host.Navigation.FindReferences(request, t), request), c);
             }, ct, ("file", request?.Caret?.FilePath), ("line", request?.Caret?.Line), ("symbol", request?.Symbol?.Name), ("nonProject", request?.IncludeNonProject),
                 ("max", request?.MaxResults));
 
@@ -187,8 +187,56 @@ namespace UEToVS.Engine.Rpc
             {
                 if (request == null || (request.Caret == null && string.IsNullOrEmpty(request.TypeName)))
                     throw Error(RpcErrorCodes.InvalidArgument, "GetTypeHierarchy needs a caret or a type name");
-                return _host.Scheduler.RunAsync(WorkPriority.Visible, "rpc.getTypeHierarchy", t => _host.Navigation.GetTypeHierarchy(request, t), c);
+                return _host.Scheduler.RunAsync(WorkPriority.Visible, "rpc.getTypeHierarchy", t => WithBlueprints(_host.Navigation.GetTypeHierarchy(request, t), request), c);
             }, ct, ("type", request?.TypeName), ("file", request?.Caret?.FilePath), ("direction", request?.Direction.ToString()));
+
+        /// <summary>v0.7.3: Blueprint / level assets using the symbol (or deriving from the class), appended after the code hits.</summary>
+        internal ReferencesResponse WithBlueprints(ReferencesResponse resp, ReferencesRequest request)
+        {
+            if (resp?.Symbol == null) return resp;
+            try
+            {
+                var s = resp.Symbol;
+                bool isType = s.Kind == SymbolKind.Class || s.Kind == SymbolKind.Struct || s.Kind == SymbolKind.Enum;
+                var owners = new List<string> { isType ? s.Name : s.Container };
+                if (string.IsNullOrEmpty(owners[0])) return resp;
+                int room = Math.Max(0, (request?.MaxResults ?? 5000) - resp.Hits.Count);
+                var hits = _host.Blueprints.ReferenceHits(s, owners, Math.Min(500, room));
+                resp.Hits.AddRange(hits);
+                if (hits.Count > 0) L.Debug("rpc.findReferences.blueprints", null, ("symbol", s.Name), ("hits", hits.Count));
+            }
+            catch (Exception ex) when (!(ex is OperationCanceledException))
+            {
+                L.Warn("rpc.findReferences.blueprints.failed", "Blueprint usages failed; code references are still returned", ex);
+            }
+            return resp;
+        }
+
+        /// <summary>v0.7.3: Blueprints deriving from the root and from each C++ derived type (derived direction only).</summary>
+        internal TypeHierarchyResponse WithBlueprints(TypeHierarchyResponse resp, TypeHierarchyRequest request)
+        {
+            if (resp?.Root == null || request?.Direction == HierarchyDirection.Bases) return resp;
+            try
+            {
+                int added = 0;
+                void Attach(List<TypeHierarchyNode> list, string typeName)
+                {
+                    var bps = _host.Blueprints.HierarchyNodes(new[] { typeName });
+                    foreach (var n in list.ToList())
+                        if (n.Symbol != null) Attach(n.Children, n.Symbol.Name);
+                    list.AddRange(bps);
+                    added += bps.Count;
+                }
+                Attach(resp.Derived, resp.Root.Name);
+                resp.NodeCount += added;
+                if (added > 0) L.Debug("rpc.getTypeHierarchy.blueprints", null, ("type", resp.Root.Name), ("blueprints", added));
+            }
+            catch (Exception ex) when (!(ex is OperationCanceledException))
+            {
+                L.Warn("rpc.getTypeHierarchy.blueprints.failed", "Derived Blueprints failed; the C++ hierarchy is still returned", ex);
+            }
+            return resp;
+        }
 
         public Task<HighlightResponse> GetHighlightsAsync(CaretRequest caret, CancellationToken ct) =>
             InvokeAsync("rpc.getHighlights", c => caret == null

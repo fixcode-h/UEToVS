@@ -124,6 +124,9 @@ namespace UEToVS.Engine.Indexing
 
         public int Count => _assets.Count;
 
+        /// <summary>Bumped on every change (Blueprint index refresh check).</summary>
+        public int Version => Volatile.Read(ref _version);
+
         /// <summary>Distinct package folders (interned strings) — for memory diagnostics.</summary>
         public int PackageDirCount => _dirs.Count;
 

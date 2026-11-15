@@ -68,8 +68,12 @@ namespace UEToVS.Engine
                 ShouldPause = () => Scheduler.IsUserPaused || (Scheduler.IsBuildInProgress && Scheduler.BuildPolicy == BuildPolicy.Pause),
             };
             Upgrade = new Deprecation.DeprecationScanService(Index.Backend, Index.Files, () => Index.Phase == IndexPhase.Ready);
+            Blueprints = new BlueprintIndexService(Index, Paths.Root, _shutdown.Token);
             ApplyHeavyFeatureSettings(options.InitialIndexingSettings());
         }
+
+        /// <summary>v0.7.3 offline Blueprint index (derived Blueprints, Blueprint usages) read from the project's .uasset files.</summary>
+        public BlueprintIndexService Blueprints { get; }
 
         /// <summary>v0.4.5 whole-project UE rule inspection.</summary>
         public Inspection.ProjectInspectionService Inspection { get; }
@@ -385,6 +389,7 @@ namespace UEToVS.Engine
             try { _shutdown.Cancel(); } catch { }
             Inspection.Dispose();
             Upgrade.Dispose();
+            Blueprints.Dispose();
             lock (_gate) _watchTracker?.Dispose();
             Lua.Dispose();
             Changes.Dispose();
