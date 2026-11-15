@@ -62,7 +62,8 @@ namespace UEToVS.Engine.IntelliSense
             Classify(s, startLine, endLine, 0, out computedLines, out cachedLines);
 
         /// <summary>
-        /// <paramref name="indexStamp"/> identifies the state of the index the answers come from (the index phase). When it
+        /// <paramref name="indexStamp"/> identifies the state of the index the answers come from (its revision: phase changes and
+        /// re-indexed files, e.g. a header saved with a new function). When it
         /// changes, the cached lines and the name → kind memo of every document are dropped: they were decided against an
         /// incomplete index (a file restored at startup is classified while the index is still loading, and its library calls,
         /// types and macros came back unresolved). Without this the editor's refresh on "index ready" got the same stale

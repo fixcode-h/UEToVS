@@ -347,6 +347,7 @@ namespace UEToVS.Host
             await SetUnrealContextAsync(true);
             await JoinableTaskFactory.SwitchToMainThreadAsync(DisposalToken);
             Safe.Execute(L, "m1.solutionOpened", () => M1Feature.OnUnrealSolutionOpened(dir));
+            Safe.Execute(L, "editor.gitTabs.solutionOpened", () => Editing.GitTabMarkers.OnSolutionOpened(dir));
             // The document VS restored with the solution became active before the solution was known to be UE: reveal it now.
             Safe.Execute(L, "solutionExplorer.solutionOpened", () => _solutionExplorer?.RevealActiveAfterSolutionOpened());
             await TaskScheduler.Default;
@@ -361,6 +362,7 @@ namespace UEToVS.Host
         private void OnSolutionClosing()
         {
             Safe.Execute(L, "m1.solutionClosing", M1Feature.OnSolutionClosing);
+            Safe.Execute(L, "editor.gitTabs.solutionClosing", Editing.GitTabMarkers.OnSolutionClosing);
             if (!_unreal.IsUnreal) return;
             L.Info("solution.closing", null, ("solution", _solutionFile));
             // UE may have written its own copy of the ini while it ran: set it again for the next editor start.
