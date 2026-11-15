@@ -70,6 +70,12 @@ namespace UEToVS.Host.Logic.Settings
             }
         }
 
+        /// <summary>
+        /// v0.7.3 hybrid takeover: keep VS's IntelliSense engine for its real compiler errors (error list + squiggles) while
+        /// UEToVS provides completion, navigation and colouring. Costs VS's IntelliSense memory; off by default.
+        /// </summary>
+        public bool KeepVsErrorChecking { get; set; }
+
         /// <summary>VS's C++ browse database (.vc.db) is switched off with the takeover (follows the scope since v0.5.1).</summary>
         public bool DisableDatabase => IntelliSenseTakeover;
 

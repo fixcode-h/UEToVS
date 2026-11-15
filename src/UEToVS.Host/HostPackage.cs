@@ -447,6 +447,7 @@ namespace UEToVS.Host
                     ["vsBlueprintBackupExists"] = _intelliSense.VsBlueprintBackupExists,
                     ["settingsJson"] = _intelliSense.SettingsJsonPath,
                     ["turnOffVsFeatures"] = s.TurnOffVsFeatures().OrderBy(x => x).ToList(),
+                    ["keepVsErrorChecking"] = s.KeepVsErrorChecking,
                 }),
                 ("devenvPrivateMBAtLoad", Math.Round(Performance.PrivateBytesAtLoad / 1048576.0, 1)),
                 ("logFile", HostLog.CurrentFile),

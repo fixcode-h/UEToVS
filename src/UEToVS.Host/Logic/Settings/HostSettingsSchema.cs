@@ -148,6 +148,13 @@ namespace UEToVS.Host.Logic.Settings
                 new SettingOption(nameof(IntelliSenseTakeoverMode.Off), "关闭", "Off"),
             };
             list.Add(mode);
+            // v0.7.3 hybrid takeover
+            list.Add(D(General, "intelliSense.keepVsErrors", SettingKind.Bool, "保留 VS 的实时错误检查（混合接管）", "Keep VS's live error checking (hybrid)",
+                "接管时仍让 VS 的 C++ IntelliSense 引擎运行，用它的错误列表和红色波浪线报真实的编译错误；补全、导航、着色、悬停提示仍由 UEToVS 提供，浏览数据库和下面勾选的后台功能照样关闭。" +
+                "代价是多占 VS 的 IntelliSense 内存（大项目常见 2–6 GB）。需要 UHT 实时分析时，再取消勾选下面的“关闭 VS 的 UHT 代码分析”。",
+                "While taken over, VS's C++ IntelliSense engine keeps running so its error list and squiggles report real compiler errors; completion, navigation, colouring and hover stay with UEToVS, and the browse database and the background features ticked below stay off. " +
+                "Costs the memory of VS's IntelliSense (often 2–6 GB on large projects). For live UHT analysis, also untick “Turn off VS's UHT code analysis” below.",
+                "false", gCpp, gCppEn));
             list.Add(A(General, "intelliSense.toggle", WindowActions.ToggleIntelliSense, "立即接管 / 恢复", "Take over / restore now",
                 "根据当前状态接管或恢复 VS 自带的 C++ IntelliSense。", "Takes over or restores VS's own C++ IntelliSense, depending on the current state.", gCpp, gCppEn));
             list.Add(A(General, "vs.unrealIntegration", WindowActions.VsUnrealIntegration, "VS 自带的 Unreal Engine 集成", "VS's built-in Unreal Engine integration",
@@ -528,6 +535,7 @@ namespace UEToVS.Host.Logic.Settings
                     ["engine.unrealEngineRoot"] = s.UnrealEngineRootOverride ?? "",
                     ["engine.requestTimeoutSeconds"] = I(s.EngineRequestTimeoutSeconds),
                     ["intelliSense.mode"] = s.IntelliSenseTakeoverMode.ToString(),
+                    ["intelliSense.keepVsErrors"] = B(s.KeepVsErrorChecking),
                     ["vsFeatures.semanticIndex"] = B(s.TurnOffVsSemanticIndex),
                     ["vsFeatures.blueprints"] = B(s.TurnOffVsBlueprints),
                     ["vsFeatures.uhtAnalysis"] = B(s.TurnOffVsUhtAnalysis),
@@ -652,6 +660,7 @@ namespace UEToVS.Host.Logic.Settings
                         case "engine.unrealEngineRoot": s.UnrealEngineRootOverride = v; break;
                         case "engine.requestTimeoutSeconds": s.EngineRequestTimeoutSeconds = PI(v, 30); break;
                         case "intelliSense.mode": s.IntelliSenseTakeoverMode = PE(v, IntelliSenseTakeoverMode.UnrealSolutionOnly); break;
+                        case "intelliSense.keepVsErrors": s.KeepVsErrorChecking = PB(v); break;
                         case "vsFeatures.semanticIndex": s.TurnOffVsSemanticIndex = PB(v); break;
                         case "vsFeatures.blueprints": s.TurnOffVsBlueprints = PB(v); break;
                         case "vsFeatures.uhtAnalysis": s.TurnOffVsUhtAnalysis = PB(v); break;

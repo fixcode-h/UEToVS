@@ -63,6 +63,12 @@ namespace UEToVS.Host.Logic.IntelliSense
 
         /// <summary>v0.5.6: a VS Unreal / C++ background feature with its own switch (<see cref="CppSettingDefinition.Feature"/>), default off with the takeover.</summary>
         VsFeature = 2,
+
+        /// <summary>
+        /// v0.7.3: VS's compiler-grade error checking (EDG front end, error list entries, squiggles). Part of the takeover
+        /// unless the hybrid option keeps it (<see cref="TakeoverOptions.KeepVsErrorChecking"/>).
+        /// </summary>
+        VsErrorChecking = 3,
     }
 
     /// <summary>
@@ -98,7 +104,7 @@ namespace UEToVS.Host.Logic.IntelliSense
 
         public static IReadOnlyList<CppSettingDefinition> All { get; } = new List<CppSettingDefinition>
         {
-            new CppSettingDefinition(KeyIntelliSense, "Disable IntelliSense (turns off the EDG front end)", CppSettingGate.Always,
+            new CppSettingDefinition(KeyIntelliSense, "Disable IntelliSense (turns off the EDG front end)", CppSettingGate.VsErrorChecking,
                 S("DisableIntelliSense", true), S("IntelliSenseDisabled", true), S("DisableIntellisense", true)),
             new CppSettingDefinition(KeyAutoQuickInfo, "Disable Auto Quick Info", CppSettingGate.Always,
                 S("DisableAutoQuickInfo", true), S("AutoQuickInfo", false), S("EnableAutoQuickInfo", false),
@@ -106,9 +112,9 @@ namespace UEToVS.Host.Logic.IntelliSense
                 S("EnableQuickInfoToolTips", false)),
             new CppSettingDefinition(KeyMemberList, "Disable member list auto popup", CppSettingGate.Always,
                 S("DisableMemberList", true), S("DisableAutoMemberList", true), S("DisableMemberListAutoPopup", true)),
-            new CppSettingDefinition(KeyErrorReporting, "Disable Error Reporting", CppSettingGate.Always,
+            new CppSettingDefinition(KeyErrorReporting, "Disable Error Reporting", CppSettingGate.VsErrorChecking,
                 S("DisableErrorReporting", true), S("DisableIntelliSenseErrorReporting", true), S("EnableErrorReporting", false)),
-            new CppSettingDefinition(KeySquiggles, "Disable Squiggles", CppSettingGate.Always,
+            new CppSettingDefinition(KeySquiggles, "Disable Squiggles", CppSettingGate.VsErrorChecking,
                 S("DisableSquiggles", true), S("DisableErrorSquiggles", true), S("EnableSquiggles", false)),
             new CppSettingDefinition(KeySemanticColorization, "Disable Semantic Colorization", CppSettingGate.Always,
                 S("DisableSemanticColorization", true), S("EnableSemanticColorization", false), S("SemanticColorization", false),

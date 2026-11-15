@@ -50,6 +50,12 @@ namespace UEToVS.Host.Logic.IntelliSense
 
         /// <summary>v0.5.6: ids of the VS features (<see cref="VsUnrealFeatures"/>) to turn off; null = all of them.</summary>
         public ISet<string> TurnOffVsFeatures { get; set; }
+
+        /// <summary>
+        /// v0.7.3 hybrid takeover: VS's IntelliSense engine keeps running for its error list entries and squiggles; only
+        /// its pop-ups, colouring, browse database and the background features are turned off.
+        /// </summary>
+        public bool KeepVsErrorChecking { get; set; }
     }
 
     public sealed class TakeoverReport
@@ -291,6 +297,7 @@ namespace UEToVS.Host.Logic.IntelliSense
             {
                 case CppSettingGate.DisableDatabaseOption: return options.DisableDatabase;
                 case CppSettingGate.VsFeature: return options.TurnOffVsFeatures == null || options.TurnOffVsFeatures.Contains(def.Feature ?? "");
+                case CppSettingGate.VsErrorChecking: return !options.KeepVsErrorChecking;
                 default: return true;
             }
         }
