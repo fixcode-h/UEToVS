@@ -80,6 +80,17 @@ namespace UEToVS.UI.Patterns
             set => _shell.OwnerHandle = value;
         }
 
+        /// <summary>
+        /// v0.7.7: when above 0, each show sizes the popup to its content (widest row, row count) up to this width instead
+        /// of the remembered size, so paths are shown whole (Code Vision Blueprint list). Resizing still works while open.
+        /// </summary>
+        public double FitToContentMaxWidth { get; set; }
+
+        public double FitToContentMinWidth { get; set; } = 320;
+
+        /// <summary>Rows measured for <see cref="FitToContentMaxWidth"/> (the rest are assumed no wider).</summary>
+        public int FitToContentSampleRows { get; set; } = 300;
+
         /// <summary>The highlighted item (default when none) — for extra keys such as Delete in a bookmark list.</summary>
         public T SelectedItem => _list.HasSelection ? _list.SelectedItem : default;
 
@@ -99,15 +110,34 @@ namespace UEToVS.UI.Patterns
             _search.Visibility = filterText != null ? Visibility.Visible : Visibility.Collapsed;
             _search.Text = string.Empty;
             ApplyFilter();
-            // Fit the height to the content (up to the remembered/default height).
-            double rows = Math.Min(Math.Max(_all.Count, 1), 14);
-            var size = _shell.VisibleSize;
             double chromeH = (filterText != null ? 44 : 0) + (string.IsNullOrEmpty(title) ? 0 : 26) + 10;
-            _shell.ShowAt(anchor);
-            _shell.VisibleSize = new Size(size.Width, Math.Min(size.Height, rows * ThemeManager.Instance.RowHeight + chromeH));
+            bool fit = FitToContentMaxWidth > 0;
+            _shell.PersistSize = !fit;
+            if (fit)
+            {
+                // sized before placing, so the placement (flip above, keep on screen) uses the real size
+                _shell.VisibleSize = new Size(ChooserFit.Width(_list.MeasureNaturalWidth(FitToContentSampleRows), TitleWidth(), FitToContentMinWidth, FitToContentMaxWidth),
+                                              ChooserFit.Height(_all.Count, ThemeManager.Instance.RowHeight, chromeH));
+                _shell.ShowAt(anchor);
+            }
+            else
+            {
+                // Fit the height to the content (up to the remembered/default height).
+                double rows = Math.Min(Math.Max(_all.Count, 1), ChooserFit.MaxRows);
+                var size = _shell.VisibleSize;
+                _shell.ShowAt(anchor);
+                _shell.VisibleSize = new Size(size.Width, Math.Min(size.Height, rows * ThemeManager.Instance.RowHeight + chromeH));
+            }
             if (filterText != null) _search.FocusInput();
             else _list.Focus();
             return _tcs.Task;
+        }
+
+        private double TitleWidth()
+        {
+            if (_title.Visibility != Visibility.Visible) return 0;
+            _title.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            return _title.DesiredSize.Width + _title.Margin.Left + _title.Margin.Right;
         }
 
         private void ApplyFilter()

@@ -51,6 +51,7 @@ namespace UEToVS.Host.IntelliSense
             try
             {
                 if (!IntelliSenseContext.QuickInfoActive) return null;
+                if (Editor.CodeVisionLayout.IsPointerOver(session.TextView)) return null; // v0.7.7: hovering a Code Vision count
                 var engine = IntelliSenseContext.Engine;
                 if (engine == null || !engine.IsConnected) return null;
                 var point = session.GetTriggerPoint(_buffer.CurrentSnapshot);

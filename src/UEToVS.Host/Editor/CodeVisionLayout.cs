@@ -121,15 +121,24 @@ namespace UEToVS.Host.Editor
             Foreground = Foreground,
         };
 
+        private static readonly object HoverKey = new object();
+
+        /// <summary>
+        /// v0.7.7: the pointer is on a Code Vision count. The row lives in the space above the declaration line, so VS maps
+        /// the hover to that line and Quick Info opened a big card for "UCLASS" behind the Blueprint list; Quick Info asks
+        /// this first and stays quiet.
+        /// </summary>
+        public static bool IsPointerOver(ITextView view) =>
+            view != null && view.Properties.TryGetProperty(HoverKey, out bool over) && over;
+
         private FrameworkElement Clickable(InlayHint hint, CodeVisionPart part, FontFamily font, double size)
         {
             var block = Text(part.Text, font, size);
             // transparent background: the whole text box takes the click, not only the glyphs
             block.Background = Brushes.Transparent;
             block.Cursor = Cursors.Hand;
-            block.ToolTip = Logic.Localization.NavStrings.CodeVisionTip(hint.SymbolName);
-            block.MouseEnter += (s, e) => { block.TextDecorations = TextDecorations.Underline; block.Foreground = Hover; };
-            block.MouseLeave += (s, e) => { block.TextDecorations = null; block.Foreground = Foreground; };
+            block.MouseEnter += (s, e) => { block.TextDecorations = TextDecorations.Underline; block.Foreground = Hover; _view.Properties[HoverKey] = true; };
+            block.MouseLeave += (s, e) => { block.TextDecorations = null; block.Foreground = Foreground; _view.Properties[HoverKey] = false; };
             // handled on mouse down: the click must not move the caret to the line below the row
             block.MouseLeftButtonDown += (s, e) =>
             {

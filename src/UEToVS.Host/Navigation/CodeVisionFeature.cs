@@ -24,6 +24,9 @@ namespace UEToVS.Host.Navigation
         private const string PopupId = "uetovs.codeVision";
         private const int FilterFrom = 8;
 
+        /// <summary>The list is as wide as its widest row (whole object paths, Rider) but no wider than this (DIPs).</summary>
+        private const double MaxWidth = 960;
+
         private static readonly Logger L = Log.For("Navigation");
         private static readonly LatestRequestGate Gate = new LatestRequestGate();
 
@@ -64,7 +67,7 @@ namespace UEToVS.Host.Navigation
                 return;
             }
             var pick = await RowPopups.ShowAtAsync(PopupId, CodeVisionModel.Title(segment, hint.SymbolName, count), rows, anchor,
-                                                   count > FilterFrom ? CodeVisionModel.FilterText : null, new Size(560, 360));
+                                                   count > FilterFrom ? CodeVisionModel.FilterText : null, new Size(560, 360), MaxWidth);
             if (!pick.Chosen || pick.Item == null) return;
             if (pick.Item.Asset != null) AssetReveal.Reveal(pick.Item.Asset);
             else if (!string.IsNullOrEmpty(pick.Item.FilePath))
