@@ -267,6 +267,9 @@ namespace UEToVS.Host.Logic.Settings
         /// <summary>Inlay hints: deduced type after <c>auto</c> variables.</summary>
         public bool InlayAutoTypes { get; set; }
 
+        /// <summary>v0.7.3 Code Vision: derived types / Blueprints at the end of reflected declaration lines.</summary>
+        public bool InlayCodeVision { get; set; } = true;
+
         // ---- v0.4.5 编辑体验（rows: Logic/Settings/EditorFeatureSettings.cs）----
         /// <summary>Surround With (Ctrl+Shift+Alt+U, 1 / Rider Ctrl+Alt+J).</summary>
         public bool SurroundWithEnabled { get; set; } = true;

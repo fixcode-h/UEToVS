@@ -12,6 +12,12 @@ namespace UEToVS.Contracts
 
         /// <summary>": FVector" after the name of an auto variable.</summary>
         Type = 1,
+
+        /// <summary>
+        /// v0.7.3 Code Vision: at the end of a UCLASS / USTRUCT / UFUNCTION / UPROPERTY declaration line, how many C++ types and
+        /// Blueprints derive from it or use it (<see cref="InlayHint.DerivedTypes"/>, <see cref="InlayHint.Blueprints"/>). Text is empty: the host words it.
+        /// </summary>
+        Usages = 2,
     }
 
     public sealed class InlayHintsRequest
@@ -25,6 +31,9 @@ namespace UEToVS.Contracts
 
         public bool ParameterNames { get; set; } = true;
         public bool AutoTypes { get; set; }
+
+        /// <summary>v0.7.3: also <see cref="InlayHintKind.Usages"/> hints (derived types, Blueprints).</summary>
+        public bool CodeVision { get; set; }
     }
 
     public sealed class InlayHint
@@ -39,6 +48,15 @@ namespace UEToVS.Contracts
 
         /// <summary>Full parameter declaration or deduced type (tooltip), may be null.</summary>
         public string Detail { get; set; }
+
+        /// <summary>Usages hint: the symbol it is about (for "click = find references / type hierarchy").</summary>
+        public string SymbolName { get; set; }
+
+        /// <summary>Usages hint: C++ types deriving from the class (direct).</summary>
+        public int DerivedTypes { get; set; }
+
+        /// <summary>Usages hint: Blueprints deriving from the class, or Blueprints / levels using the member (offline Blueprint index).</summary>
+        public int Blueprints { get; set; }
     }
 
     public sealed class InlayHintsResponse

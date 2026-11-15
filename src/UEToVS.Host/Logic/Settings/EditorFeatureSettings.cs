@@ -123,6 +123,7 @@ namespace UEToVS.Host.Logic.Settings
             d["debugStepFilter"] = s.DebugStepFilter;
             d["inlayParameterNames"] = s.InlayParameterNames;
             d["inlayAutoTypes"] = s.InlayAutoTypes;
+            d["inlayCodeVision"] = s.InlayCodeVision;
         }
 
         private static string B(bool v) => v ? "true" : "false";

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using StreamJsonRpc;
 using UEToVS.Contracts;
 using UEToVS.Core.Diagnostics;
+using UEToVS.Engine.Indexing;
 using UEToVS.Engine.Scheduling;
 
 namespace UEToVS.Engine.Rpc
@@ -238,6 +239,60 @@ namespace UEToVS.Engine.Rpc
             return resp;
         }
 
+        /// <summary>
+        /// v0.7.3 Code Vision: one <see cref="InlayHintKind.Usages"/> hint at the end of each reflected declaration line in the
+        /// range (UCLASS / USTRUCT / UINTERFACE: derived C++ types and Blueprints; UFUNCTION / UPROPERTY: Blueprints using it).
+        /// Uses the saved file's symbols; nothing is shown when every count is 0.
+        /// </summary>
+        internal InlayHintsResponse WithCodeVision(InlayHintsResponse resp, InlayHintsRequest request, CancellationToken ct)
+        {
+            if (resp == null || request?.CodeVision != true || string.IsNullOrEmpty(request.Document?.FilePath)) return resp;
+            try
+            {
+                var text = request.Document.Text ?? DocumentText(request.Document.FilePath);
+                string[] lines = text?.Split('\n');
+                foreach (var s in _host.Index.Backend.GetFileSymbols(request.Document.FilePath))
+                {
+                    ct.ThrowIfCancellationRequested();
+                    int line = s.Location?.Line ?? -1;
+                    if (line < request.StartLine || line > request.EndLine) continue;
+                    var hint = CodeVisionHint(s);
+                    if (hint == null) continue;
+                    hint.Line = line;
+                    hint.Column = lines != null && line < lines.Length ? lines[line].TrimEnd('\r').Length : 0;
+                    resp.Items.Add(hint);
+                }
+            }
+            catch (Exception ex) when (!(ex is OperationCanceledException))
+            {
+                L.Warn("rpc.getInlayHints.codeVision.failed", "Code Vision failed; the other hints are still returned", ex);
+            }
+            return resp;
+        }
+
+        private string DocumentText(string path)
+        {
+            var bytes = _host.Navigation.Documents.GetFile(path)?.Text;
+            return bytes == null ? null : System.Text.Encoding.UTF8.GetString(bytes);
+        }
+
+        private InlayHint CodeVisionHint(SymbolInfo s)
+        {
+            const UeFlags types = UeFlags.UClass | UeFlags.UStruct | UeFlags.UInterface;
+            if ((s.Ue & types) != 0 && (s.Kind == SymbolKind.Class || s.Kind == SymbolKind.Struct))
+            {
+                int derived = _host.Index.Backend.FindDerivedTypes(s.Name).Count;
+                int bps = BlueprintIndexService.Flatten(_host.Blueprints.Index.Derived(new[] { BlueprintIndex.UeClassName(s.Name) })).Count();
+                return derived + bps == 0 ? null : new InlayHint { Kind = InlayHintKind.Usages, SymbolName = s.Name, DerivedTypes = derived, Blueprints = bps };
+            }
+            if ((s.Ue & (UeFlags.UFunction | UeFlags.UProperty)) != 0 && !string.IsNullOrEmpty(s.Container))
+            {
+                int bps = _host.Blueprints.Index.Usages(s.Name, new[] { BlueprintIndex.UeClassName(s.Container) }, 999).Count;
+                return bps == 0 ? null : new InlayHint { Kind = InlayHintKind.Usages, SymbolName = s.Container + "::" + s.Name, Blueprints = bps };
+            }
+            return null;
+        }
+
         public Task<HighlightResponse> GetHighlightsAsync(CaretRequest caret, CancellationToken ct) =>
             InvokeAsync("rpc.getHighlights", c => caret == null
                     ? Task.FromResult(new HighlightResponse { Word = string.Empty })
@@ -346,7 +401,7 @@ namespace UEToVS.Engine.Rpc
         public Task<InlayHintsResponse> GetInlayHintsAsync(InlayHintsRequest request, CancellationToken ct) =>
             InvokeAsync("rpc.getInlayHints", c => request?.Document == null
                     ? Task.FromResult(new InlayHintsResponse { TextVersion = request?.Document?.TextVersion ?? 0 })
-                    : _host.Scheduler.RunAsync(WorkPriority.Visible, "rpc.getInlayHints", t => _host.IntelliSense.GetInlayHints(request, t), c),
+                    : _host.Scheduler.RunAsync(WorkPriority.Visible, "rpc.getInlayHints", t => WithCodeVision(_host.IntelliSense.GetInlayHints(request, t), request, t), c),
                 ct, ("file", request?.Document?.FilePath), ("from", request?.StartLine), ("to", request?.EndLine), ("version", request?.Document?.TextVersion));
         // ---- v0.4.5 UE editor link (UeCodeService): the user is waiting (test runner, double-clicked log line) ----
 

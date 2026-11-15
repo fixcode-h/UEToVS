@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -285,6 +285,21 @@ namespace UEToVS.Engine.Tests
             var node = Assert.Single(hierarchy.Derived, n => n.Asset != null);
             Assert.Equal("BP_Hero", node.DisplayName);
             Assert.Equal("/Game/Characters/BP_Hero.BP_Hero", node.Asset.ObjectPath);
+
+            // Code Vision: counts at the end of the reflected declaration lines
+            var hints = await service.GetInlayHintsAsync(new InlayHintsRequest
+            {
+                Document = new CaretRequest { FilePath = header }, StartLine = 0, EndLine = 20, ParameterNames = false, CodeVision = true,
+            }, CancellationToken.None);
+            var usages = hints.Items.Where(h => h.Kind == InlayHintKind.Usages).ToDictionary(h => h.Line);
+            Assert.Equal(1, usages[5].Blueprints);                 // class AMyCharacter: BP_Hero derives from it
+            Assert.Equal("AMyCharacter", usages[5].SymbolName);
+            Assert.Equal(File.ReadAllLines(header)[5].Length, usages[5].Column);
+            Assert.Equal(1, usages[10].Blueprints);                // Fire: used in BP_Hero
+            Assert.Equal("AMyCharacter::Fire", usages[10].SymbolName);
+            Assert.Equal(1, usages[13].Blueprints);                // Health: used in L_Main
+            var off = await service.GetInlayHintsAsync(new InlayHintsRequest { Document = new CaretRequest { FilePath = header }, StartLine = 0, EndLine = 20 }, CancellationToken.None);
+            Assert.DoesNotContain(off.Items, h => h.Kind == InlayHintKind.Usages);
             await host.StopAsync(TimeSpan.FromSeconds(5));
         }
     }

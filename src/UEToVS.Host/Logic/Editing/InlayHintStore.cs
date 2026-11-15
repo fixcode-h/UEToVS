@@ -97,7 +97,17 @@ namespace UEToVS.Host.Logic.Editing
         public static string Display(InlayHint h)
         {
             if (h == null) return string.Empty;
+            if (h.Kind == InlayHintKind.Usages) return UsagesText(h);
             return h.Kind == InlayHintKind.Type ? ": " + h.Text : h.Text + ":";
+        }
+
+        /// <summary>v0.7.3 Code Vision: "2 个派生类 · 3 个蓝图" / "2 derived types · 3 Blueprints".</summary>
+        public static string UsagesText(InlayHint h)
+        {
+            var parts = new System.Collections.Generic.List<string>(2);
+            if (h.DerivedTypes > 0) parts.Add(UEToVS.Host.Logic.Localization.NavStrings.CodeVisionDerived(h.DerivedTypes));
+            if (h.Blueprints > 0) parts.Add(UEToVS.Host.Logic.Localization.NavStrings.CodeVisionBlueprints(h.Blueprints));
+            return string.Join(" · ", parts);
         }
     }
 }

@@ -117,6 +117,11 @@ namespace UEToVS.Host.Logic.Localization
             derived ? Loc.T("蓝图 " + asset + " 继承自它", "Blueprint " + asset + " derives from it")
             : map ? Loc.T("关卡 " + asset + " 中使用", "Used in level " + asset)
             : Loc.T("蓝图 " + asset + " 中使用", "Used in Blueprint " + asset);
+        public static string CodeVisionDerived(int n) => Loc.T(n + " 个派生类", n == 1 ? "1 derived type" : n + " derived types");
+        public static string CodeVisionBlueprints(int n) => Loc.T(n + " 个蓝图", n == 1 ? "1 Blueprint" : n + " Blueprints");
+        public static string CodeVisionTip(string symbol) => Loc.T(
+            symbol + "\n查找引用（Shift+Alt+F）列出用到它的蓝图，类型层次列出派生类和派生蓝图",
+            symbol + "\nFind References (Shift+Alt+F) lists the Blueprints using it; the type hierarchy lists derived types and Blueprints");
         public static string BlueprintNode(string name) => Loc.T(name + "（蓝图）", name + " (Blueprint)");
         public static string BlueprintTip(string objectPath) => Loc.T(
             "蓝图资产（离线读取 .uasset，按名称匹配）\n回车：复制对象路径并在资源管理器中选中\n" + objectPath,

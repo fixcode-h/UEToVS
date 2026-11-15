@@ -393,6 +393,10 @@ namespace UEToVS.Host.Logic.Settings
                 "true", gInlay, gInlayEn));
             list.Add(D(IntelliSense, "inlay.autoTypes", SettingKind.Bool, "auto 推导类型", "Deduced auto types",
                 "在 auto 变量名后显示推导出的类型（推导不出时不显示）。", "Shows the deduced type after auto variable names (nothing when it cannot be deduced).", "false", gInlay, gInlayEn));
+            list.Add(D(IntelliSense, "inlay.codeVision", SettingKind.Bool, "派生类和蓝图数量（Code Vision）", "Derived types and Blueprints (Code Vision)",
+                "在 UCLASS / USTRUCT 声明行末显示有几个 C++ 派生类、几个派生蓝图，在 UFUNCTION / UPROPERTY 行末显示有几个蓝图或关卡用到它（蓝图来自离线读取的 .uasset，按名称匹配）。数量为 0 时不显示。",
+                "Shows at the end of UCLASS / USTRUCT lines how many C++ types and Blueprints derive from it, and at the end of UFUNCTION / UPROPERTY lines how many Blueprints or levels use it (Blueprints read offline from the .uasset files, matched by name). Nothing is shown for 0.",
+                "true", gInlay, gInlayEn));
             // ---- v0.4.5 编辑体验
             EditorFeatureSettings.AddDescriptors(list, IntelliSense);
 
@@ -572,6 +576,7 @@ namespace UEToVS.Host.Logic.Settings
                     ["postfix.enabled"] = B(s.PostfixTemplatesEnabled),
                     ["inlay.parameterNames"] = B(s.InlayParameterNames),
                     ["inlay.autoTypes"] = B(s.InlayAutoTypes),
+                    ["inlay.codeVision"] = B(s.InlayCodeVision),
                     // ---- v0.4.5 构建结果 / 错误列表
                     ["build.squiggles"] = B(s.BuildErrorSquiggles),
                     ["errorList.enabled"] = B(s.ErrorListEnabled),
@@ -695,6 +700,7 @@ namespace UEToVS.Host.Logic.Settings
                         case "postfix.enabled": s.PostfixTemplatesEnabled = PB(v); break;
                         case "inlay.parameterNames": s.InlayParameterNames = PB(v); break;
                         case "inlay.autoTypes": s.InlayAutoTypes = PB(v); break;
+                        case "inlay.codeVision": s.InlayCodeVision = PB(v); break;
                         // ---- v0.4.5 构建结果 / 错误列表
                         case "build.squiggles": s.BuildErrorSquiggles = PB(v); break;
                         case "errorList.enabled": s.ErrorListEnabled = PB(v); break;
