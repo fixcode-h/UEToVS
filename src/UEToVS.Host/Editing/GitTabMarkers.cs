@@ -163,13 +163,20 @@ namespace UEToVS.Host.Editing
                             L.Debug("editor.gitTabs.timeout", null, ("root", root));
                             return null;
                         }
+                        // 进程已退出；无参 WaitForExit 再等输出管道读完，下面取 Result 不会再阻塞。
+                        // 这段跑在后台线程，不碰 UI 线程，VSTHRD002 说的死锁不会发生
+                        p.WaitForExit();
+#pragma warning disable VSTHRD002
+                        var stdout = output.Result;
+                        var stderr = error.Result;
+#pragma warning restore VSTHRD002
                         if (p.ExitCode != 0)
                         {
-                            L.Debug("editor.gitTabs.failed", error.Result, ("exit", p.ExitCode));
+                            L.Debug("editor.gitTabs.failed", stderr, ("exit", p.ExitCode));
                             return null;
                         }
                         _git = git;
-                        var set = GitStatusParser.Parse(output.Result, root);
+                        var set = GitStatusParser.Parse(stdout, root);
                         L.Debug("editor.gitTabs.status", null, ("changed", set.Count));
                         return set;
                     }

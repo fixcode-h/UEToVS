@@ -174,7 +174,10 @@ namespace UEToVS.Host.IntelliSense
             var previous = _chain;
             _chain = Task.Run(async () =>
             {
+                // previous 是上一条更新的后台任务（同样由这里 Task.Run 起），只为保证顺序，不需要 UI 线程
+#pragma warning disable VSTHRD003
                 try { await previous.ConfigureAwait(false); } catch (Exception) { }
+#pragma warning restore VSTHRD003
                 await engine.TryInvokeAsync("updateUnsavedBuffer", async (svc, ct) =>
                 {
                     await svc.UpdateUnsavedBufferAsync(update, ct).ConfigureAwait(false);
