@@ -23,6 +23,7 @@ namespace UEToVS.Engine.IntelliSense
         {
             public long Version = long.MinValue;
             public DocumentModel Doc;
+            public long IndexStamp = long.MinValue;
             public readonly Dictionary<int, List<SemanticSpan>> Lines = new Dictionary<int, List<SemanticSpan>>();
             public Dictionary<string, (SemanticKind Kind, SemanticModifiers Mods)> Memo = new Dictionary<string, (SemanticKind, SemanticModifiers)>(StringComparer.Ordinal);
             public long MemoSince = Stopwatch.GetTimestamp();
@@ -57,7 +58,17 @@ namespace UEToVS.Engine.IntelliSense
             }
         }
 
-        public ClassifyResponse Classify(IsSession s, int startLine, int endLine, out int computedLines, out int cachedLines)
+        public ClassifyResponse Classify(IsSession s, int startLine, int endLine, out int computedLines, out int cachedLines) =>
+            Classify(s, startLine, endLine, 0, out computedLines, out cachedLines);
+
+        /// <summary>
+        /// <paramref name="indexStamp"/> identifies the state of the index the answers come from (the index phase). When it
+        /// changes, the cached lines and the name → kind memo of every document are dropped: they were decided against an
+        /// incomplete index (a file restored at startup is classified while the index is still loading, and its library calls,
+        /// types and macros came back unresolved). Without this the editor's refresh on "index ready" got the same stale
+        /// answer back for as long as the document was not edited.
+        /// </summary>
+        public ClassifyResponse Classify(IsSession s, int startLine, int endLine, long indexStamp, out int computedLines, out int cachedLines)
         {
             computedLines = cachedLines = 0;
             var doc = s.Doc;
@@ -69,6 +80,13 @@ namespace UEToVS.Engine.IntelliSense
             var st = StateFor(NavContext.NormalizePath(doc.Path), doc);
             lock (st)
             {
+                if (st.IndexStamp != indexStamp)
+                {
+                    st.IndexStamp = indexStamp;
+                    st.Doc = null; // forces the line cache below to be rebuilt
+                    st.Memo = new Dictionary<string, (SemanticKind, SemanticModifiers)>(StringComparer.Ordinal);
+                    st.MemoSince = Stopwatch.GetTimestamp();
+                }
                 if (!ReferenceEquals(st.Doc, doc))
                 {
                     st.Doc = doc;

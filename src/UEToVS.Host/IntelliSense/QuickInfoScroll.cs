@@ -72,6 +72,18 @@ namespace UEToVS.Host.IntelliSense
             else e.SetResourceReference(System.Windows.Documents.TextElement.ForegroundProperty, Microsoft.VisualStudio.PlatformUI.EnvironmentColors.ToolTipTextBrushKey);
         }
 
+        /// <summary>
+        /// 提示里的 <c>UiText</c>（标题、步骤名、“复制”链接）：它们的颜色来自 UEToVS 自己窗口的主题资源，VS 的悬停提示里没有这些
+        /// 资源，解析不到就成了 WPF 默认的黑色（深色主题下“宏展开”、“1 展开一层”、“复制”看不清）。普通文字跟随工具提示文字色，
+        /// 链接跟随 VS 主题的链接色。
+        /// </summary>
+        public static void ApplyTooltipText(FrameworkElement e, Brush foreground, bool link = false)
+        {
+            if (e == null) return;
+            if (link) e.SetResourceReference(System.Windows.Documents.TextElement.ForegroundProperty, Microsoft.VisualStudio.PlatformUI.EnvironmentColors.ControlLinkTextBrushKey);
+            else ApplyForeground(e, foreground);
+        }
+
         /// <summary>工作区高度（DIP）；拿不到时返回 0，由 <see cref="QuickInfoLayout"/> 按 1080p 估算。</summary>
         public static double WorkAreaHeight()
         {
