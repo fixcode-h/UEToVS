@@ -8,6 +8,7 @@ using StreamJsonRpc;
 using UEToVS.Contracts;
 using UEToVS.Core.Diagnostics;
 using UEToVS.Engine.Indexing;
+using UEToVS.Engine.IntelliSense;
 using UEToVS.Engine.Scheduling;
 
 namespace UEToVS.Engine.Rpc
@@ -179,7 +180,7 @@ namespace UEToVS.Engine.Rpc
             InvokeAsync("rpc.findReferences", c =>
             {
                 if (request == null || (request.Caret == null && request.Symbol == null)) throw Error(RpcErrorCodes.InvalidArgument, "FindReferences needs a caret or a symbol");
-                return _host.Scheduler.RunAsync(WorkPriority.Visible, "rpc.findReferences", t => WithBlueprints(_host.Navigation.FindReferences(request, t), request), c);
+                return _host.Scheduler.RunAsync(WorkPriority.Visible, "rpc.findReferences", t => WithIni(WithBlueprints(_host.Navigation.FindReferences(request, t), request), request), c);
             }, ct, ("file", request?.Caret?.FilePath), ("line", request?.Caret?.Line), ("symbol", request?.Symbol?.Name), ("nonProject", request?.IncludeNonProject),
                 ("max", request?.MaxResults));
 
@@ -209,6 +210,40 @@ namespace UEToVS.Engine.Rpc
             catch (Exception ex) when (!(ex is OperationCanceledException))
             {
                 L.Warn("rpc.findReferences.blueprints.failed", "Blueprint usages failed; code references are still returned", ex);
+            }
+            return resp;
+        }
+
+        /// <summary>v0.7.3: ini lines setting a UPROPERTY(Config) member, under the owner's section or a subclass's.</summary>
+        internal ReferencesResponse WithIni(ReferencesResponse resp, ReferencesRequest request)
+        {
+            var s = resp?.Symbol;
+            if (s == null || string.IsNullOrEmpty(s.Container) || !IniReferences.IsConfigProperty(s.Specifiers)) return resp;
+            if (s.Kind != SymbolKind.Field && s.Kind != SymbolKind.Variable) return resp;
+            try
+            {
+                var src = _host.IntelliSense.StringSources;
+                if (src?.Config == null || src.Files == null) return resp;
+                var classes = new List<string>();
+                var seen = new HashSet<string>(StringComparer.Ordinal);
+                var queue = new Queue<string>();
+                queue.Enqueue(s.Container);
+                while (queue.Count > 0 && seen.Count < 200)
+                {
+                    string cls = queue.Dequeue();
+                    if (!seen.Add(cls)) continue;
+                    classes.Add(BlueprintIndex.UeClassName(cls));
+                    foreach (var d in _host.Index.Backend.FindDerivedTypes(cls))
+                        if (d.Symbol?.Name != null) queue.Enqueue(d.Symbol.Name);
+                }
+                int room = Math.Max(0, (request?.MaxResults ?? 5000) - resp.Hits.Count);
+                var hits = IniReferences.Find(src.Config.Files(src.Files), classes, s.Name, Math.Min(500, room));
+                resp.Hits.AddRange(hits);
+                if (hits.Count > 0) L.Debug("rpc.findReferences.ini", null, ("symbol", s.Name), ("hits", hits.Count));
+            }
+            catch (Exception ex) when (!(ex is OperationCanceledException))
+            {
+                L.Warn("rpc.findReferences.ini.failed", "Config ini usages failed; code references are still returned", ex);
             }
             return resp;
         }
