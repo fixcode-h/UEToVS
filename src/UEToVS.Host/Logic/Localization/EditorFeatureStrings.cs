@@ -37,7 +37,7 @@ namespace UEToVS.Host.Logic.Localization
         // ---- inlay hints
         public static string InlayOn => Loc.T("内嵌提示：已显示", "Inlay hints: shown");
         public static string InlayOff => Loc.T("内嵌提示：已隐藏（再按一次显示）", "Inlay hints: hidden (press again to show)");
-        public static string InlayAllOff => Loc.T("内嵌提示在设置中都已关闭（设置 > 代码感知 > 内嵌提示）", "Inlay hints are off in the settings (Settings > IntelliSense > Inlay hints)");
+        public static string InlayAllOff => Loc.T("内嵌提示在设置中都已关闭（设置 > 补全与提示 > 内嵌提示）", "Inlay hints are off in the settings (Settings > Completion & Hints > Inlay hints)");
 
         // ---- deprecated API (UE0011)
         public static string Deprecated(string symbol, string version, string message)

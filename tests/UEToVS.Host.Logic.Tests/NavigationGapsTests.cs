@@ -157,8 +157,8 @@ namespace UEToVS.Host.Logic.Tests
         {
             var d = HostSettingsSchema.Build(8).Single(x => x.ActionId == TakeoverFeatures.SettingsInfoId);
             Assert.Equal(UEToVS.UI.Logic.SettingKind.Info, d.Kind);
-            Assert.Equal(HostSettingsSchema.General, d.Category);
-            Assert.Equal("C++ IntelliSense", d.GroupEn);
+            Assert.Equal(HostSettingsSchema.Takeover, d.Category);
+            Assert.Equal("VS features after the takeover", d.GroupEn);
         }
     }
 

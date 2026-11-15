@@ -20,8 +20,8 @@ namespace UEToVS.Host.Logic.Localization
         public static readonly string[] KwCancel = { "cancel", "取消", "stop", "停止", "inspection", "检查", "upgrade", "升级" };
 
         // ---- switches off / not ready ----
-        public static string InspectionDisabled => Loc.T("全项目检查已在 UEToVS 设置 > 检查 中关闭", "Project inspection is switched off in UEToVS Settings > Inspections");
-        public static string UpgradeDisabled => Loc.T("引擎升级助手已在 UEToVS 设置 > 检查 中关闭", "The engine upgrade assistant is switched off in UEToVS Settings > Inspections");
+        public static string InspectionDisabled => Loc.T("全项目检查已在 UEToVS 设置 > Unreal Engine 中关闭", "Project inspection is switched off in UEToVS Settings > Unreal Engine");
+        public static string UpgradeDisabled => Loc.T("引擎升级助手已在 UEToVS 设置 > Unreal Engine 中关闭", "The engine upgrade assistant is switched off in UEToVS Settings > Unreal Engine");
         public static string IndexNotReady => Loc.T("索引还没建好，完成后再运行", "The index is still being built; run it once indexing has finished");
         public static string EngineUnavailable => Loc.T("UEToVS 引擎未连接", "The UEToVS engine is not connected");
         public static string NothingRunning => Loc.T("没有正在运行的全项目检查或升级扫描", "No project inspection or upgrade scan is running");

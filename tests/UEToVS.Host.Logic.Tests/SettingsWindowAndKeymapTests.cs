@@ -414,6 +414,53 @@ namespace UEToVS.Host.Logic.Tests
         }
 
         [Fact]
+        public void PageLayoutPlacesEveryRowOnAKnownPage()
+        {
+            var schema = HostSettingsSchema.Build(8);
+            var listed = HostSettingsPages.Cards.SelectMany(c => c.Keys).ToList();
+            Assert.Equal(listed.Count, listed.Distinct().Count());                              // each row listed once
+            Assert.All(listed, k => Assert.Contains(schema, d => d.Key == k));                  // no stale keys
+            var pages = HostSettingsSchema.Categories.Select(c => c.Id).ToHashSet();
+            Assert.All(HostSettingsPages.Cards, c => Assert.Contains(c.Category, pages));
+            // every generated row is in the table, except 外观 > 字体 (FontSettingsSchema lays out its own cards)
+            var unlisted = schema.Where(d => d.Category != HostSettingsSchema.Appearance && !listed.Contains(d.Key)).Select(d => d.Key).ToList();
+            Assert.Empty(unlisted);
+            Assert.All(schema, d => Assert.Contains(d.Category, pages));
+            // every page except the custom ones has rows, a nav title and a description in both languages
+            foreach (var c in HostSettingsSchema.Categories)
+            {
+                Assert.False(string.IsNullOrEmpty(c.TitleZh));
+                Assert.False(string.IsNullOrEmpty(c.TitleEn));
+                if (c.Id != HostSettingsSchema.Keymap && c.Id != HostSettingsSchema.Appearance)
+                    Assert.Contains(schema, d => d.Category == c.Id);
+            }
+            // rows of one card stay together (a card title appears once per page)
+            foreach (var page in schema.GroupBy(d => d.Category))
+            {
+                var groups = new List<string>();
+                foreach (var d in page)
+                    if (groups.Count == 0 || groups[groups.Count - 1] != d.GroupZh) groups.Add(d.GroupZh);
+                Assert.Equal(groups.Count, groups.Distinct().Count());
+            }
+        }
+
+        [Fact]
+        public void PageDescriptionsExistInBothLanguages()
+        {
+            foreach (var c in HostSettingsSchema.Categories)
+            {
+                UEToVS.Core.Localization.Loc.InitializeFromLcid(2052);
+                string zh = UEToVS.Host.Logic.Localization.SettingsText.PageDescription(c.Id);
+                UEToVS.Core.Localization.Loc.InitializeFromLcid(1033);
+                string en = UEToVS.Host.Logic.Localization.SettingsText.PageDescription(c.Id);
+                UEToVS.Core.Localization.Loc.InitializeFromLcid(2052);
+                Assert.False(string.IsNullOrEmpty(zh), c.Id);
+                Assert.False(string.IsNullOrEmpty(en), c.Id);
+                Assert.NotEqual(zh, en);
+            }
+        }
+
+        [Fact]
         public void RestoreVsActionIsOnTheGeneralPage()
         {
             var d = HostSettingsSchema.Build(8).Single(x => x.Key == "vs.restoreAll");

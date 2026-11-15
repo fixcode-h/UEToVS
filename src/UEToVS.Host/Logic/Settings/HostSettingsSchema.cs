@@ -24,10 +24,17 @@ namespace UEToVS.Host.Logic.Settings
         public const string IntelliSense = "intellisense";
         /// <summary>Custom page: APIs + models for VS chat (Settings/AgentApiPage).</summary>
         public const string Agent = "agent";
+        /// <summary>诊断: the UEToVS engine process, logs, the performance panel (v0.7.1: the old 性能 page is merged in).</summary>
         public const string Logging = "logging";
-        public const string Performance = "performance";
-        // ---- v0.4.5 heavy features: whole-project inspection / upgrade assistant page
-        public const string Inspection = "inspection";
+        // ---- v0.7.1 pages (HostSettingsPages decides which rows they show)
+        /// <summary>接管 VS: C++ IntelliSense takeover and every VS feature UEToVS turns off.</summary>
+        public const string Takeover = "takeover";
+        /// <summary>着色与检查: semantic coloring, reference highlighting, squiggles, build errors.</summary>
+        public const string Highlighting = "highlighting";
+        public const string Editing = "editing";
+        public const string Translation = "translation";
+        /// <summary>Unreal Engine: engine root, module dependencies, Live Coding, debugging, whole-project inspection / upgrade assistant.</summary>
+        public const string Unreal = "unreal";
         /// <summary>v0.5.1: "检查更新" has a page of its own, the last one.</summary>
         public const string Updates = "updates";
 
@@ -55,19 +62,23 @@ namespace UEToVS.Host.Logic.Settings
 
         public static IReadOnlyList<SettingCategory> Categories { get; } = new[]
         {
+            // v0.7.1: ordered by what the user is doing — UEToVS itself, taking over VS, writing / reading code, the UE
+            // project, the machine. Which rows each page shows: HostSettingsPages.
             new SettingCategory(General, "常规", "General"),
             new SettingCategory(Appearance, "外观", "Appearance"),
-            new SettingCategory(Indexing, "索引", "Indexing"),
-            new SettingCategory(Keymap, "快捷键", "Keyboard"),
+            new SettingCategory(Keymap, "快捷键", "Keyboard Shortcuts"),
+            new SettingCategory(Takeover, "接管 VS", "VS Takeover"),
+            new SettingCategory(IntelliSense, "补全与提示", "Completion & Hints"),
+            new SettingCategory(Highlighting, "着色与检查", "Coloring & Checks"),
+            new SettingCategory(Editing, "编辑", "Editing"),
             new SettingCategory(Navigation, "导航", "Navigation"),
-            new SettingCategory(IntelliSense, "代码感知", "IntelliSense"),
-            // ---- v0.4.5 heavy features
-            new SettingCategory(Inspection, "检查", "Inspections"),
+            new SettingCategory(Translation, "注释翻译", "Comment Translation"),
+            new SettingCategory(Indexing, "索引", "Indexing"),
+            new SettingCategory(Unreal, "Unreal Engine", "Unreal Engine"),
             // ---- v0.5.4 联合编译（Horde / UBA）
-            new SettingCategory(UEToVS.Host.Logic.Horde.HordeSettingsSchema.Category, "联合编译", "Distributed builds"),
+            new SettingCategory(UEToVS.Host.Logic.Horde.HordeSettingsSchema.Category, "联合编译", "Distributed Builds"),
             new SettingCategory(Agent, "Agent / API", "Agent / API"),
-            new SettingCategory(Logging, "日志与诊断", "Logs & Diagnostics"),
-            new SettingCategory(Performance, "性能", "Performance"),
+            new SettingCategory(Logging, "诊断", "Diagnostics"),
             new SettingCategory(Updates, "检查更新", "Updates"),
         };
 
@@ -103,16 +114,16 @@ namespace UEToVS.Host.Logic.Settings
 
             // ================= 常规
             const string gEngine = "引擎", gEngineEn = "Engine";
-            list.Add(D(General, "engine.path", SettingKind.Path, "引擎程序路径", "Engine executable",
+            list.Add(D(General, "engine.path", SettingKind.Path, "代码引擎程序", "Code engine executable",
                 "UEToVS.Engine.exe 或其所在文件夹；留空使用扩展自带的引擎。", "UEToVS.Engine.exe or its folder; empty = the bundled engine.", "", gEngine, gEngineEn));
             list.Add(D(General, "engine.unrealEngineRoot", SettingKind.Path, "Unreal Engine 根目录", "Unreal Engine root",
                 "留空则按 .uproject 的 EngineAssociation 自动查找。", "Empty = found from the .uproject EngineAssociation.", "", gEngine, gEngineEn));
-            var timeout = D(General, "engine.requestTimeoutSeconds", SettingKind.Int, "请求超时（秒）", "Request timeout (s)",
-                "单个引擎请求的最长等待时间。", "Longest wait for one engine request.", "30", gEngine, gEngineEn);
+            var timeout = D(General, "engine.requestTimeoutSeconds", SettingKind.Int, "单次请求超时（秒）", "Request timeout (s)",
+                "补全、跳转等向代码引擎发出的单个请求最长等多久。", "Longest wait for one request (completion, navigation…) to the code engine.", "30", gEngine, gEngineEn);
             timeout.Min = 1; timeout.Max = 600;
             list.Add(timeout);
-            list.Add(A(General, "engine.restart", "uetovs.engine.restart", "重启引擎", "Restart engine",
-                "重新启动 UEToVS 引擎进程（重置崩溃计数）。", "Restarts the UEToVS engine process (resets the crash budget).", gEngine, gEngineEn));
+            list.Add(A(General, "engine.restart", "uetovs.engine.restart", "重启代码引擎", "Restart code engine",
+                "补全或跳转卡住时用：重新启动 UEToVS 的后台代码分析进程（重置崩溃计数）。", "When completion or navigation hangs: restarts UEToVS's background code-analysis process (resets the crash budget).", gEngine, gEngineEn));
 
             const string gCpp = "C++ IntelliSense", gCppEn = "C++ IntelliSense";
             list.Add(A(General, "intelliSense.status", WindowActions.IntelliSenseStatus, "当前状态", "Current state", null, null, gCpp, gCppEn, SettingKind.Info));
@@ -166,13 +177,14 @@ namespace UEToVS.Host.Logic.Settings
             foreach (var b in ToolbarButtons.All)
             {
                 if (b.Key == "settings") continue;
-                list.Add(D(General, "toolbar.button." + b.Key, SettingKind.Bool, "按钮：" + b.TitleZh, "Button: " + b.TitleEn, null, null, "true", gTb, gTbEn));
+                list.Add(D(General, "toolbar.button." + b.Key, SettingKind.Bool, "按钮：" + b.TitleZh, "Button: " + b.TitleEn,
+                    "在 UEToVS 工具栏上显示这个按钮。", "Show this button on the UEToVS toolbar.", "true", gTb, gTbEn));
             }
 
             const string gKb = "键盘", gKbEn = "Keyboard";
-            list.Add(D(General, "keyboard.doubleShift", SettingKind.Bool, "双击 Shift 打开 Search Everywhere", "Double Shift opens Search Everywhere",
-                "像 Rider 一样快速按两次 Shift。", "Press Shift twice quickly, like Rider.", "true", gKb, gKbEn));
-            var interval = D(General, "keyboard.doubleShiftIntervalMs", SettingKind.Int, "双击 Shift 最大间隔（毫秒）", "Double Shift max interval (ms)",
+            list.Add(D(General, "keyboard.doubleShift", SettingKind.Bool, "连按两次 Shift 打开全局搜索", "Press Shift twice for Search Everywhere",
+                "和 Rider 一样，快速按两次 Shift 打开全局搜索（Search Everywhere）。", "Press Shift twice quickly, like Rider.", "true", gKb, gKbEn));
+            var interval = D(General, "keyboard.doubleShiftIntervalMs", SettingKind.Int, "两次 Shift 的最大间隔（毫秒）", "Max interval between the two presses (ms)",
                 "两次 Shift 之间允许的最长时间。", "Longest time allowed between the two Shift presses.", "300", gKb, gKbEn);
             interval.Min = 150; interval.Max = 1000;
             list.Add(interval);
@@ -180,11 +192,11 @@ namespace UEToVS.Host.Logic.Settings
                 "只有左侧 Shift 键的双击才会触发。", "Only a double press of the left Shift key triggers it.", "false", gKb, gKbEn));
 
             const string gMcp = "MCP（AI Agent）", gMcpEn = "MCP (AI agents)";
-            list.Add(D(Agent, "mcp.enable", SettingKind.Bool, "启用 MCP 服务（给 AI Agent 用）", "Enable MCP server (for AI agents)",
+            list.Add(D(Agent, "mcp.enable", SettingKind.Bool, "启用 MCP 服务", "Enable the MCP server",
                 "打开 UE 解决方案时在 .vs\\mcp.json 注册 uetovs MCP 服务器，VS Copilot Agent 模式自动发现；关闭则移除该注册。",
                 "Registers the uetovs MCP server in .vs\\mcp.json when a UE solution opens (Copilot agent mode discovers it); off removes the registration.",
                 "true", gMcp, gMcpEn));
-            list.Add(A(Agent, "mcp.writeConfig", "uetovs.mcp.writeConfig", "写入 .mcp.json 到项目根目录", "Write .mcp.json to the project root",
+            list.Add(A(Agent, "mcp.writeConfig", "uetovs.mcp.writeConfig", "写入 .mcp.json（给 Claude Code 等用）", "Write .mcp.json (for Claude Code and others)",
                 "给 Claude Code 用：有版本管理（Git / SVN / Perforce 等）时写到版本库根目录，否则写到 UE 项目根目录；已有文件会合并，不覆盖其他服务器。",
                 "For Claude Code: written to the version-control root (Git / SVN / Perforce, ...) if there is one, else to the UE project root; an existing file is merged, other servers are kept.", gMcp, gMcpEn));
 
@@ -310,7 +322,7 @@ namespace UEToVS.Host.Logic.Settings
             maxItems.Min = 50; maxItems.Max = 5000;
             list.Add(maxItems);
             const string gQi = "Quick Info 与参数信息", gQiEn = "Quick Info & parameter info";
-            list.Add(D(IntelliSense, "quickInfo.enabled", SettingKind.Bool, "悬停显示 Quick Info", "Quick Info on hover",
+            list.Add(D(IntelliSense, "quickInfo.enabled", SettingKind.Bool, "鼠标悬停显示信息（Quick Info）", "Quick Info on hover",
                 "声明、文档注释、UE 反射摘要与宏展开（也可 Ctrl+K,I）。", "Declaration, docs, UE reflection summary and macro expansion (also Ctrl+K,I).", "true", gQi, gQiEn));
             list.Add(D(IntelliSense, "signatureHelp.enabled", SettingKind.Bool, "参数信息", "Parameter info",
                 "输入 ( 或 , 时显示（也可 Ctrl+Shift+Space）。", "Shown on ( and , (also Ctrl+Shift+Space).", "true", gQi, gQiEn));
@@ -330,7 +342,7 @@ namespace UEToVS.Host.Logic.Settings
             list.Add(A(IntelliSense, "coloring.reset", "uetovs.intellisense.resetSemanticColors", "恢复默认语义配色", "Reset semantic colors",
                 null, null, gCol, gColEn));
             const string gSquiggle = "波浪线", gSquiggleEn = "Squiggles";
-            list.Add(D(IntelliSense, "diagnostics.enabled", SettingKind.Bool, "高置信度错误波浪线", "High-confidence error squiggles",
+            list.Add(D(IntelliSense, "diagnostics.enabled", SettingKind.Bool, "代码错误波浪线（只报确定的）", "Error squiggles (certain problems only)",
                 "接管 VS IntelliSense 后提供：未知成员、缺少 GENERATED_BODY()、#include 的模块不在 Build.cs 依赖中。只报确定的问题，不因 .generated.h 缺失报错。",
                 "Shown once VS IntelliSense is taken over: unknown members, missing GENERATED_BODY(), #include of a module missing from Build.cs. Only certain problems; a missing .generated.h is never reported.",
                 "true", gSquiggle, gSquiggleEn));
@@ -368,7 +380,7 @@ namespace UEToVS.Host.Logic.Settings
 
             // ---- v0.4.5 heavy features: generic template instantiation (IntelliSense page)
             const string gTi = "模板实例化", gTiEn = "Template instantiation";
-            list.Add(D(IntelliSense, "templates.enabled", SettingKind.Bool, "通用模板实例化", "Generic template instantiation",
+            list.Add(D(IntelliSense, "templates.enabled", SettingKind.Bool, "推导模板成员的类型", "Deduce template member types",
                 "把模板实参代入成员的返回 / 字段类型（TOptional、TSharedPtr、TWeakObjectPtr、自定义类模板、typedef / using 别名、Cast<T> 等），补全更准。可能占用较多 CPU/内存；关闭后回到内置的 UE 模板规则。",
                 "Substitutes template arguments into member return / field types (TOptional, TSharedPtr, TWeakObjectPtr, your class templates, typedef / using aliases, Cast<T>…) for more exact completion. May use more CPU/memory; off = the built-in UE template rules only.",
                 "true", gTi, gTiEn));
@@ -381,21 +393,21 @@ namespace UEToVS.Host.Logic.Settings
 
             // ================= v0.4.5 检查（全项目检查 / 引擎升级助手）
             const string gInsp = "全项目检查", gInspEn = "Whole-project inspection";
-            list.Add(D(Inspection, "inspection.enabled", SettingKind.Bool, "启用全项目检查", "Enable whole-project inspection",
+            list.Add(D(Unreal, "inspection.enabled", SettingKind.Bool, "启用全项目检查", "Enable whole-project inspection",
                 "按需（命令 / 本页按钮 / MCP run_project_inspection）用波浪线的 UE 规则检查整个项目源码，结果写到 .vs\\UEToVS\\inspections。可能占用较多 CPU/内存；关闭后不允许运行。",
                 "On demand (command / this page / MCP run_project_inspection) runs the squiggle UE rules over all project sources; results go to .vs\\UEToVS\\inspections. May use a lot of CPU/memory; when off it cannot run.",
                 "true", gInsp, gInspEn));
-            list.Add(D(Inspection, "inspection.includePlugins", SettingKind.Bool, "包含项目插件", "Include project plugins",
+            list.Add(D(Unreal, "inspection.includePlugins", SettingKind.Bool, "包含项目插件", "Include project plugins",
                 "同时检查项目 Plugins 目录下的源码（文件更多，耗时更长）。", "Also inspects sources under the project's Plugins folder (more files, takes longer).", "true", gInsp, gInspEn));
-            list.Add(A(Inspection, "inspection.run", "uetovs.inspection.run", "运行全项目检查", "Run whole-project inspection",
+            list.Add(A(Unreal, "inspection.run", "uetovs.inspection.run", "运行全项目检查", "Run whole-project inspection",
                 "在后台低优先级线程上运行（线程数同 C++ 索引），可随时取消。", "Runs on low-priority background threads (as many as C++ indexing), cancellable at any time.", gInsp, gInspEn));
-            list.Add(A(Inspection, "inspection.results", "uetovs.inspection.show", "查看结果", "Show results", null, null, gInsp, gInspEn));
+            list.Add(A(Unreal, "inspection.results", "uetovs.inspection.show", "查看检查结果", "Show inspection results", null, null, gInsp, gInspEn));
             const string gUpg = "引擎升级助手", gUpgEn = "Engine upgrade assistant";
-            list.Add(D(Inspection, "upgrade.enabled", SettingKind.Bool, "启用引擎升级助手", "Enable the engine upgrade assistant",
+            list.Add(D(Unreal, "upgrade.enabled", SettingKind.Bool, "启用引擎升级助手", "Enable the engine upgrade assistant",
                 "按需查找项目对 UE_DEPRECATED / [[deprecated]] API 的引用，按弃用版本分组，签名兼容时可批量替换（一次撤销）。可能占用较多 CPU/内存；关闭后不允许运行。",
                 "On demand, finds project references to UE_DEPRECATED / [[deprecated]] APIs grouped by deprecation version, with batch replacement (one undo) when the replacement is signature-compatible. May use a lot of CPU/memory; when off it cannot run.",
                 "true", gUpg, gUpgEn));
-            list.Add(A(Inspection, "upgrade.run", "uetovs.upgrade.run", "查找弃用 API", "Find deprecated APIs", null, null, gUpg, gUpgEn));
+            list.Add(A(Unreal, "upgrade.run", "uetovs.upgrade.run", "扫描弃用 API", "Scan for deprecated APIs", null, null, gUpg, gUpgEn));
 
             // ================= v0.5.4 联合编译（Horde / UBA）
             UEToVS.Host.Logic.Horde.HordeSettingsSchema.AddDescriptors(list, cores);
@@ -413,10 +425,10 @@ namespace UEToVS.Host.Logic.Settings
                 new SettingOption(nameof(LogLevel.Error), "Error", "Error"),
             };
             list.Add(level);
-            var days = D(Logging, "log.retentionDays", SettingKind.Int, "保留天数", "Keep logs for (days)", null, null, "7", gLog, gLogEn);
+            var days = D(Logging, "log.retentionDays", SettingKind.Int, "保留天数", "Keep logs for (days)", "超过天数的日志文件自动删除。", "Log files older than this are deleted.", "7", gLog, gLogEn);
             days.Min = 1; days.Max = 365;
             list.Add(days);
-            var mb = D(Logging, "log.maxTotalMB", SettingKind.Int, "日志总大小上限（MB）", "Total log size limit (MB)", null, null, "200", gLog, gLogEn);
+            var mb = D(Logging, "log.maxTotalMB", SettingKind.Int, "日志总大小上限（MB）", "Total log size limit (MB)", "所有日志加起来超过上限时，先删最旧的。", "When all logs together exceed this, the oldest go first.", "200", gLog, gLogEn);
             mb.Min = 10; mb.Max = 10000;
             list.Add(mb);
             list.Add(A(Logging, "log.directory", WindowActions.LogDirectory, "日志目录", "Log folder", null, null, gLog, gLogEn, SettingKind.Info));
@@ -425,19 +437,22 @@ namespace UEToVS.Host.Logic.Settings
             const string gDiag = "诊断", gDiagEn = "Diagnostics";
             list.Add(A(Logging, "diagnostics.createPackage", "uetovs.diagnostics.createPackage", "生成诊断包", "Create diagnostics package",
                 "打包日志、脱敏设置、索引清单与环境信息，便于反馈问题。", "Zips logs, sanitized settings, index manifest and environment info for bug reports.", gDiag, gDiagEn));
-            list.Add(A(Logging, "diagnostics.componentGallery", "uetovs.ui.componentGallery", "组件画廊", "Component gallery",
+            list.Add(A(Logging, "diagnostics.componentGallery", "uetovs.ui.componentGallery", "界面组件预览", "UI component gallery",
                 "查看 UEToVS 界面组件（开发与截图用）。", "Shows UEToVS UI components (development / screenshots).", gDiag, gDiagEn));
 
             // ================= 性能
             const string gPerf = "性能面板", gPerfEn = "Performance panel";
-            var sample = D(Performance, "perf.sampleSeconds", SettingKind.Int, "采样间隔（秒）", "Sampling interval (s)",
+            var sample = D(Logging, "perf.sampleSeconds", SettingKind.Int, "采样间隔（秒）", "Sampling interval (s)",
                 "性能面板打开时的刷新间隔；面板关闭时不采样。", "Refresh interval while the performance panel is open; no sampling when closed.", "1", gPerf, gPerfEn);
             sample.Min = 1; sample.Max = 10;
             list.Add(sample);
-            list.Add(A(Performance, "perf.open", "uetovs.diagnostics.performancePanel", "打开性能面板", "Open performance panel", null, null, gPerf, gPerfEn));
+            list.Add(A(Logging, "perf.open", "uetovs.diagnostics.performancePanel", "打开性能面板", "Open performance panel", null, null, gPerf, gPerfEn));
 
             // ================= 外观 > 字体（the rest of the page is the custom appearance panel）
             UEToVS.Host.Logic.Fonts.FontSettingsSchema.AddDescriptors(list, Appearance);
+
+            // v0.7.1: page and card of every row (one table, HostSettingsPages); unknown keys there fail the unit tests.
+            HostSettingsPages.Apply(list);
 
             // Short button verbs (the card already shows the full title on the left).
             foreach (var d in list)

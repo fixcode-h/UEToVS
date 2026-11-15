@@ -7,7 +7,7 @@ using UEToVS.UI.Logic;
 namespace UEToVS.Host.Logic.Translation
 {
     /// <summary>
-    /// Settings window rows of 代码感知 > 注释翻译 and their HostSettings codec. Kept out of HostSettingsSchema (like the
+    /// Settings window rows of 注释翻译 page and their HostSettings codec. Kept out of HostSettingsSchema (like the
     /// font rows) so the translation feature stays in one place; the schema calls <see cref="AddDescriptors"/>,
     /// <see cref="ToValues"/> and <see cref="TrySet"/>.
     /// </summary>
@@ -27,7 +27,7 @@ namespace UEToVS.Host.Logic.Translation
 
         public static void AddDescriptors(List<SettingDescriptor> list, string category)
         {
-            list.Add(Row(category, EnabledKey, SettingKind.Bool, "翻译 Quick Info 里的注释", "Translate comments in Quick Info",
+            list.Add(Row(category, EnabledKey, SettingKind.Bool, "翻译悬停信息里的注释", "Translate comments in Quick Info",
                 "悬停提示里的英文注释在后台翻译，先显示原文，译文到了再补上，不阻塞悬停；翻译过的内容缓存在本机（%LocalAppData%\\UEToVS\\Translation），下次直接显示。注释原文会发给下面选的翻译服务。",
                 "English comments in Quick Info are translated in the background: the original shows at once and the translation is added when it arrives. Results are cached locally (%LocalAppData%\\UEToVS\\Translation). The comment text is sent to the service selected below.",
                 "true"));

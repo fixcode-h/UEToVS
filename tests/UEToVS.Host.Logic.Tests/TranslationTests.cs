@@ -265,7 +265,7 @@ namespace UEToVS.Host.Logic.Tests
             var schema = HostSettingsSchema.Build(8);
             var rows = schema.Where(d => d.Key.StartsWith("translate.", StringComparison.Ordinal)).ToList();
             Assert.Equal(6, rows.Count);
-            Assert.All(rows, d => Assert.Equal(HostSettingsSchema.IntelliSense, d.Category));
+            Assert.All(rows, d => Assert.Equal(HostSettingsSchema.Translation, d.Category));
 
             var values = HostSettingsSchema.Codec.ToValues(new HostSettings());
             foreach (var d in rows.Where(r => r.HasValue)) Assert.Equal(d.Default, values[d.Key]);

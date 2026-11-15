@@ -42,7 +42,7 @@ namespace UEToVS.Host.Editor
     /// IntraTextAdornment tags. Only the visible lines (± <see cref="InlayHintStore.MarginLines"/>) are requested, after a
     /// scroll (debounced 150 ms) or an edit pause (600 ms); answers are cached per text version (<see cref="InlayHintStore"/>),
     /// so scrolling back costs nothing; until a new version is answered the old hints are translated through the edits.
-    /// Settings: 代码感知 > 内嵌提示; Ctrl+Shift+Alt+U, 2 hides / shows them for the session (<see cref="Hidden"/>). Log: editor.inlayHints.
+    /// Settings: 补全与提示 > 内嵌提示; Ctrl+Shift+Alt+U, 2 hides / shows them for the session (<see cref="Hidden"/>). Log: editor.inlayHints.
     /// </summary>
     internal sealed class InlayHintsTagger : ITagger<IntraTextAdornmentTag>
     {

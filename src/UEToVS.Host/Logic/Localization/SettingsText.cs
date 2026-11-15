@@ -18,15 +18,20 @@ namespace UEToVS.Host.Logic.Localization
         /// <summary>One-line description under each settings page title.</summary>
         public static string PageDescription(string categoryId) => categoryId switch
         {
-            "general" => Loc.T("引擎、IntelliSense 接管、工具栏和快捷操作。", "Engine, IntelliSense takeover, toolbar and shortcuts."),
+            "general" => Loc.T("工具栏、双击 Shift，以及禁用或卸载前把 VS 恢复原样。", "Toolbar, double Shift, and restoring Visual Studio before disabling or uninstalling."),
             "appearance" => Loc.T("颜色、圆角、密度和字体。修改即时预览，点击“应用”后保存。", "Colors, corners, density and fonts. Changes preview live and are saved on Apply."),
-            "indexing" => Loc.T("C++、蓝图和 Lua 索引的范围、线程数和存放位置。", "Scope, threads and location of the C++, Blueprint and Lua indexes."),
-            "keymap" => Loc.T("UEToVS 命令的快捷键；和 VS 冲突时 UEToVS 优先（原绑定已备份）。", "Shortcuts of UEToVS commands; UEToVS wins conflicts with VS (originals backed up)."),
-            "navigation" => Loc.T("跳转、搜索和引用高亮。", "Go to, search and reference highlighting."),
-            "intellisense" => Loc.T("补全、悬停信息和语义着色。", "Completion, Quick Info and semantic coloring."),
+            "keymap" => Loc.T("UEToVS 命令的快捷键，分组和菜单一致；和 VS 冲突时 UEToVS 优先（原绑定已备份）。", "Shortcuts of UEToVS commands, grouped like the menu; UEToVS wins conflicts with VS (originals backed up)."),
+            "takeover" => Loc.T("UEToVS 接管 C++ IntelliSense 时关掉或改掉的 VS 自带功能，都在这里开关和恢复。", "Every Visual Studio feature UEToVS turns off or changes when it takes over C++ IntelliSense, and how to bring it back."),
+            "intellisense" => Loc.T("写代码时弹出的内容：补全列表、悬停信息、参数信息、内嵌提示和代码模板。", "What pops up while you type: completion, Quick Info, parameter info, inlay hints and templates."),
+            "highlighting" => Loc.T("画在代码上的内容：语义着色、引用高亮、错误波浪线和编译错误。", "What is drawn on the code: semantic coloring, reference highlighting, squiggles and build errors."),
+            "editing" => Loc.T("重命名、用代码块包围、剪贴板历史和 #tag 注释。", "Rename, Surround With, clipboard history and #tag comments."),
+            "navigation" => Loc.T("Ctrl+点击跳转、导航栏、后退 / 前进历史和全局搜索。", "Ctrl+Click, the navigation bar, back / forward history and Search Everywhere."),
+            "translation" => Loc.T("把悬停信息里的注释翻译成中文（或英文），以及右键“翻译选中内容”的显示方式。", "Translate comments in Quick Info, and how “Translate Selection” shows its result."),
+            "indexing" => Loc.T("C++、蓝图和 Lua 索引的范围、线程数和存放位置，以及重建索引。", "Scope, threads and location of the C++, Blueprint and Lua indexes, and rebuilding them."),
+            "unreal" => Loc.T("和 UE 项目相关的：引擎位置、模块依赖、Live Coding、调试，以及全项目检查和引擎升级助手。", "Things about the UE project: engine location, module dependencies, Live Coding, debugging, whole-project inspection and the upgrade assistant."),
+            "horde" => Loc.T("用 Horde / UBA 借其他机器一起编译，以及本机给别人用的核心数。", "Build with other machines through Horde / UBA, and how much of this machine others may use."),
             "agent" => Loc.T("配置 OpenAI 兼容（Chat Completions）的 API 和密钥，从接口获取模型；勾选的模型会出现在 VS 自带的 Copilot 聊天里。另有给 AI Agent 用的 MCP 服务。", "OpenAI-compatible (Chat Completions) APIs and keys; enabled models show up in Visual Studio's Copilot Chat. Also the MCP server for AI agents."),
-            "logging" => Loc.T("日志级别、保留时间和位置（JSON 行格式，方便分析问题）。", "Log level, retention and location (JSON lines, easy to analyse)."),
-            "performance" => Loc.T("性能面板和采样。", "Performance panel and sampling."),
+            "logging" => Loc.T("UEToVS 代码引擎、日志（JSON 行格式）、性能面板和诊断包，排查问题时用。", "The UEToVS code engine, logs (JSON lines), the performance panel and the diagnostics package, for troubleshooting."),
             "updates" => Loc.T("查看当前版本，检查并安装 GitHub 上的新版本。", "Current version; check for and install new releases from GitHub."),
             _ => null,
         };
@@ -133,7 +138,7 @@ namespace UEToVS.Host.Logic.Localization
             Loc.F("{0}：{1} 也绑定在 {2}", "{0}: {1} is also bound to {2}", ours, keys, other);
         public static string KeymapApplied(int n, string backup) => Loc.F("已修改 {0} 个命令（备份：{1}）", "Changed {0} commands (backup: {1})", n, backup);
         public static string KeymapNoBackup => Loc.T("没有可还原的备份", "No backup to restore");
-        public static string KeymapDoubleShift => Loc.T("Search Everywhere 还可以双击 Shift 打开（见“常规 > 键盘”）。", "Search Everywhere also opens with a double Shift (see General > Keyboard).");
+        public static string KeymapDoubleShift => Loc.T("Search Everywhere 还可以双击 Shift 打开（见“常规 > 双击 Shift”）。", "Search Everywhere also opens with a double Shift (see General > Double Shift).");
         public static string KeymapInvalid => Loc.T("无效的快捷键", "Invalid shortcut");
 
         // ---- windows

@@ -226,7 +226,7 @@ namespace UEToVS.Host.Logic.Settings
         /// <summary>Hover / Ctrl+K,I Quick Info (declaration, docs, UE reflection, macro expansion).</summary>
         public bool QuickInfoEnabled { get; set; } = true;
 
-        // ---- 注释翻译（代码感知 > 注释翻译；Logic/Translation/TranslationSettingsSchema）----
+        // ---- 注释翻译（设置 > 注释翻译；Logic/Translation/TranslationSettingsSchema）----
         /// <summary>Translate doc comments in Quick Info (async, cached; the original shows first).</summary>
         public bool CommentTranslation { get; set; } = true;
 
