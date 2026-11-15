@@ -2,6 +2,7 @@ using System;
 using System.ComponentModel.Composition;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.Shell;
@@ -9,9 +10,11 @@ using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Editor;
 using Microsoft.VisualStudio.Text.Formatting;
 using Microsoft.VisualStudio.Utilities;
+using UEToVS.Contracts;
 using UEToVS.Core.Diagnostics;
 using UEToVS.Host.Diagnostics;
 using UEToVS.Host.Logic.Editing;
+using UEToVS.Host.Logic.Navigation;
 
 namespace UEToVS.Host.Editor
 {
@@ -41,12 +44,16 @@ namespace UEToVS.Host.Editor
     /// v0.7.3 Code Vision, Rider style: "3 个派生类 · 2 个蓝图" on a row of its own above the declaration's UCLASS /
     /// UFUNCTION / UPROPERTY line (the engine anchors the hint there, at the line's indentation). The row is space added
     /// above the line by a line transform; the text is drawn in that space on an adornment layer. The hints come from the
-    /// view's <see cref="InlayHintsTagger"/> (same request, same cache).
+    /// view's <see cref="InlayHintsTagger"/> (same request, same cache). v0.7.6: each count is clickable and opens the list
+    /// behind it right below (<see cref="Navigation.CodeVisionFeature"/>).
     /// </summary>
     internal sealed class CodeVisionLayout : ILineTransformSource
     {
         private static readonly Logger L = Log.For("Editing");
         private static readonly Brush Foreground = Frozen(Color.FromArgb(0xFF, 0x8C, 0x8C, 0x8C));
+
+        /// <summary>Hovered count: the UEToVS accent (Claude Code orange), like a link.</summary>
+        private static readonly Brush Hover = Frozen(Color.FromArgb(0xFF, 0xD9, 0x77, 0x57));
 
         private readonly IWpfTextView _view;
         private readonly InlayHintsTagger _hints;
@@ -85,24 +92,51 @@ namespace UEToVS.Host.Editor
             if (!line.IsFirstTextViewLineForSnapshotLine) return;
             var hint = _hints.CodeVisionAt(line.Snapshot, line.Start.GetContainingLine().LineNumber);
             if (hint == null) return;
-            string text = InlayHintStore.UsagesText(hint);
-            if (string.IsNullOrEmpty(text)) return;
+            var parts = CodeVisionModel.Parts(hint);
+            if (parts.Count == 0) return;
             int column = Math.Max(0, Math.Min(hint.Column, line.Length));
             double left = line.GetCharacterBounds(line.Start + column).Left;
             var props = _view.FormattedLineSource?.DefaultTextProperties;
-            var block = new TextBlock
+            var font = props?.Typeface?.FontFamily ?? new FontFamily("Consolas");
+            double size = Math.Max(7.0, (props?.FontRenderingEmSize ?? 13.0) * 0.8);
+            // v0.7.6: each count is its own clickable piece (Rider): "2 个派生类" lists the C++ subclasses, "3 个蓝图" the Blueprints
+            var row = new StackPanel { Orientation = Orientation.Horizontal };
+            for (int i = 0; i < parts.Count; i++)
             {
-                Text = text,
-                FontFamily = props?.Typeface?.FontFamily ?? new FontFamily("Consolas"),
-                FontSize = Math.Max(7.0, (props?.FontRenderingEmSize ?? 13.0) * 0.8),
-                Foreground = Foreground,
-                ToolTip = Logic.Localization.NavStrings.CodeVisionTip(hint.SymbolName),
+                if (i > 0) row.Children.Add(Text(CodeVisionModel.Separator, font, size));
+                row.Children.Add(Clickable(hint, parts[i], font, size));
+            }
+            double top = Math.Max(1.0, line.TextTop - line.Top);
+            row.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            Canvas.SetLeft(row, left);
+            Canvas.SetTop(row, line.Top + Math.Max(0, (top - row.DesiredSize.Height) / 2));
+            _layer.AddAdornment(AdornmentPositioningBehavior.TextRelative, line.Extent, hint, row, null);
+        }
+
+        private static TextBlock Text(string text, FontFamily font, double size) => new TextBlock
+        {
+            Text = text,
+            FontFamily = font,
+            FontSize = size,
+            Foreground = Foreground,
+        };
+
+        private FrameworkElement Clickable(InlayHint hint, CodeVisionPart part, FontFamily font, double size)
+        {
+            var block = Text(part.Text, font, size);
+            // transparent background: the whole text box takes the click, not only the glyphs
+            block.Background = Brushes.Transparent;
+            block.Cursor = Cursors.Hand;
+            block.ToolTip = Logic.Localization.NavStrings.CodeVisionTip(hint.SymbolName);
+            block.MouseEnter += (s, e) => { block.TextDecorations = TextDecorations.Underline; block.Foreground = Hover; };
+            block.MouseLeave += (s, e) => { block.TextDecorations = null; block.Foreground = Foreground; };
+            // handled on mouse down: the click must not move the caret to the line below the row
+            block.MouseLeftButtonDown += (s, e) =>
+            {
+                e.Handled = true;
+                Safe.RunAsync(L, "editor.codeVision.click", () => Navigation.CodeVisionFeature.ShowAsync(hint, part.Segment, block));
             };
-            double row = Math.Max(1.0, line.TextTop - line.Top);
-            block.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-            Canvas.SetLeft(block, left);
-            Canvas.SetTop(block, line.Top + Math.Max(0, (row - block.DesiredSize.Height) / 2));
-            _layer.AddAdornment(AdornmentPositioningBehavior.TextRelative, line.Extent, hint, block, null);
+            return block;
         }
 
         /// <summary>New / removed rows change line heights: re-format the visible lines (deferred out of a layout pass).</summary>

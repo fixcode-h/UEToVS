@@ -77,4 +77,47 @@ namespace UEToVS.Contracts
 
         public double ElapsedMs { get; set; }
     }
+
+    // ---- v0.7.6 Code Vision click (Rider): the items behind a Usages hint's counts ----
+
+    public sealed class CodeVisionItemsRequest
+    {
+        /// <summary><see cref="InlayHint.SymbolName"/> of the clicked hint: "AMyActor" (class) or "AMyActor::Fire" (member).</summary>
+        public string SymbolName { get; set; }
+
+        /// <summary>Upper bound for each list (the counts above it are reported in the response's totals).</summary>
+        public int MaxItems { get; set; } = 500;
+    }
+
+    /// <summary>A Blueprint (or level) behind a Code Vision count.</summary>
+    public sealed class CodeVisionBlueprint
+    {
+        public AssetItem Asset { get; set; }
+
+        /// <summary>Parent class name as the asset stores it (e.g. "MyCharacter", "BP_Hero"); null for member usages.</summary>
+        public string ParentClass { get; set; }
+
+        /// <summary>0 = derives from the C++ class directly; 1+ = a Blueprint child of another Blueprint in the list.</summary>
+        public int Depth { get; set; }
+
+        /// <summary>A .umap (level Blueprint) using the member.</summary>
+        public bool IsLevel { get; set; }
+    }
+
+    public sealed class CodeVisionItemsResponse
+    {
+        /// <summary>Direct C++ subclasses (same rule as <see cref="InlayHint.DerivedTypes"/>), by name.</summary>
+        public List<SymbolInfo> DerivedTypes { get; set; } = new List<SymbolInfo>();
+
+        /// <summary>Same set as <see cref="InlayHint.Blueprints"/>: derived Blueprints in tree order (parent before its children), or Blueprints / levels using the member.</summary>
+        public List<CodeVisionBlueprint> Blueprints { get; set; } = new List<CodeVisionBlueprint>();
+
+        /// <summary>A list was cut at <see cref="CodeVisionItemsRequest.MaxItems"/>.</summary>
+        public bool Truncated { get; set; }
+
+        /// <summary>False while the offline Blueprint index is still loading (Blueprints may be missing).</summary>
+        public bool BlueprintIndexReady { get; set; }
+
+        public double ElapsedMs { get; set; }
+    }
 }

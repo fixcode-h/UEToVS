@@ -14,5 +14,11 @@ namespace UEToVS.Host.Engine
         /// <summary>Inlay hints for a line range. The tagger logs editor.inlayHints with the merged result; rpc.inlayHints.slow comes from CallAsync.</summary>
         public Task<EngineCallResult<InlayHintsResponse>> GetInlayHintsAsync(InlayHintsRequest request, CancellationToken ct) =>
             CallAsync("inlayHints", (s, c) => s.GetInlayHintsAsync(request, c), ct, InlayHintsTimeout, 100);
+
+        private static readonly TimeSpan CodeVisionItemsTimeout = TimeSpan.FromSeconds(10);
+
+        /// <summary>v0.7.6: the derived types / Blueprints behind a clicked Code Vision count (the editor logs editor.codeVision.click).</summary>
+        public Task<EngineCallResult<CodeVisionItemsResponse>> GetCodeVisionItemsAsync(CodeVisionItemsRequest request, CancellationToken ct) =>
+            CallAsync("codeVisionItems", (s, c) => s.GetCodeVisionItemsAsync(request, c), ct, CodeVisionItemsTimeout, 200);
     }
 }

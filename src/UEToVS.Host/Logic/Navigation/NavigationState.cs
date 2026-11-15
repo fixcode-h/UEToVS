@@ -17,6 +17,7 @@ namespace UEToVS.Host.Logic.Navigation
         public const string BuildCs = "buildCs";
         public const string Definition = "definition";
         public const string References = "references";
+        public const string CodeVision = "codeVision";
         public const string Other = "other";
     }
 

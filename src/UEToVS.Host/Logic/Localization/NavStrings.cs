@@ -120,8 +120,17 @@ namespace UEToVS.Host.Logic.Localization
         public static string CodeVisionDerived(int n) => Loc.T(n + " 个派生类", n == 1 ? "1 derived type" : n + " derived types");
         public static string CodeVisionBlueprints(int n) => Loc.T(n + " 个蓝图", n == 1 ? "1 Blueprint" : n + " Blueprints");
         public static string CodeVisionTip(string symbol) => Loc.T(
-            symbol + "\n查找引用（Shift+Alt+F）列出用到它的蓝图，类型层次列出派生类和派生蓝图",
-            symbol + "\nFind References (Shift+Alt+F) lists the Blueprints using it; the type hierarchy lists derived types and Blueprints");
+            symbol + "\n点击数量列出派生类 / 蓝图；查找引用（Shift+Alt+F）和类型层次也能看到",
+            symbol + "\nClick a count to list the derived types / Blueprints; Find References (Shift+Alt+F) and the type hierarchy show them too");
+        // v0.7.6 Code Vision click (Rider): the list behind a count
+        public static string KindLevel => Loc.T("关卡", "Level");
+        public static string CodeVisionDerivedTitle(string type, int n) => Loc.F("{0} 的派生类（{1}）", "Types derived from {0} ({1})", type, n);
+        public static string CodeVisionBlueprintsTitle(string type, int n) => Loc.F("继承 {0} 的蓝图（{1}）", "Blueprints derived from {0} ({1})", type, n);
+        public static string CodeVisionUsersTitle(string member, int n) => Loc.F("使用 {0} 的蓝图和关卡（{1}）", "Blueprints and levels using {0} ({1})", member, n);
+        public static string CodeVisionNothing => Loc.T("没有找到（索引可能已更新，数量稍后刷新）", "Nothing found (the index may have changed; the count refreshes shortly)");
+        public static string CodeVisionIndexLoading => Loc.T("蓝图索引还在加载，稍后再试", "The Blueprint index is still loading; try again shortly");
+        public static string CodeVisionTruncated(int shown) => Loc.F("…只显示前 {0} 个", "… only the first {0} are shown", shown);
+        public static string CodeVisionLoading => Loc.T("正在查找…", "Looking up…");
         public static string BlueprintNode(string name) => Loc.T(name + "（蓝图）", name + " (Blueprint)");
         public static string BlueprintTip(string objectPath) => Loc.T(
             "蓝图资产（离线读取 .uasset，按名称匹配）\n回车：复制对象路径并在资源管理器中选中\n" + objectPath,
