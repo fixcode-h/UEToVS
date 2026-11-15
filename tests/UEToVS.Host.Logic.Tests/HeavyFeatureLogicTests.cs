@@ -184,7 +184,7 @@ namespace UEToVS.Host.Logic.Tests
             Assert.False(InspectionView.IsFinished(HeavyJobState.Running));
             Assert.Equal(500, InspectionView.PollDelayMs(TimeSpan.FromSeconds(1)));
             Assert.Equal(2000, InspectionView.PollDelayMs(TimeSpan.FromMinutes(5)));
-            foreach (var code in new[] { "UE0001", "UE0002", "UE0003", "UE0004", "UE0005", "UE0006", "UE0007", "UE0008", "UE0009", "UE0010" })
+            foreach (var code in new[] { "UE0001", "UE0002", "UE0003", "UE0004", "UE0005", "UE0006", "UE0007", "UE0008", "UE0009", "UE0010", "UE0013", "UE0014", "UE0015", "UE0016" })
                 Assert.NotEqual(code, HeavyFeatureStrings.RuleName(code));
         }
     }

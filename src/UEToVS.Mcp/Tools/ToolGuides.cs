@@ -192,7 +192,7 @@ namespace UEToVS.Mcp.Tools
             },
             ["run_project_inspection"] = new Guide
             {
-                What = "Whole-project run of the UEToVS UE rules (UE0001-UE0010, same as get_diagnostics) over every project source file.",
+                What = "Whole-project run of the UEToVS UE rules (UE0001-UE0010, UE0013-UE0016, same as get_diagnostics) over every project source file.",
                 UseWhen = "the user asks to check the whole project. Asynchronous: action 'start' returns at once; poll 'status' until Completed, then page 'results' (filter by rule / file); 'cancel' stops.",
                 InsteadOf = "calling get_diagnostics file by file or a full rebuild.",
                 NotFor = "checking a few edited files (use get_diagnostics). Heavy on large projects; refuses when switched off in the UEToVS settings.",

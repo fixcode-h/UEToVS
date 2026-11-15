@@ -18,6 +18,9 @@ namespace UEToVS.Engine.IntelliSense
     /// <item>UE0008 "/Game/..." asset path neither in the asset table nor on disk (warning).</item>
     /// <item>UE0009 UPROPERTY of TSharedPtr / std:: / pointer to struct or builtin.</item>
     /// <item>UE0010 UFUNCTION parameter of those types; int8/int16/uint16/uint32/uint64 in BlueprintCallable / BlueprintPure.</item>
+    /// <item>v0.7.3 UE0013 Server / Client / NetMulticast without Reliable / Unreliable; UE0014 BlueprintPure returning void
+    /// without reference parameters; UE0015 private BlueprintReadWrite / BlueprintReadOnly property without AllowPrivateAccess;
+    /// UE0016 UFUNCTION in a USTRUCT.</item>
     /// </list>
     /// </summary>
     public sealed partial class DiagnosticsProvider
@@ -58,13 +61,18 @@ namespace UEToVS.Engine.IntelliSense
                     if (TypeText.IsCallableKind(d.Kind))
                     {
                         if (d.IsDefinition && !d.Body.IsNone) GeneratedFunctionBody(i, result);
-                        if ((d.Ue & UeFlags.UFunction) != 0) ParameterTypes(i, result);
+                        if ((d.Ue & UeFlags.UFunction) != 0)
+                        {
+                            ParameterTypes(i, result);
+                            FunctionSpecifiers(i, result);
+                        }
                         if (d.IsDefinition && !d.Body.IsNone && d.Name == "GetLifetimeReplicatedProps") Registrations(i, result);
                     }
                     else if (d.Kind == SymbolKind.Field && (d.Ue & UeFlags.UProperty) != 0)
                     {
                         PropertyType(i, result);
                         RepNotify(i, result);
+                        PrivateBlueprintProperty(i, result);
                     }
                 }
                 StringLiterals(start, end, result);
@@ -142,6 +150,52 @@ namespace UEToVS.Engine.IntelliSense
                 string cls = inClass ? _doc.Decls[d.Parent].Name : TypeText.LastSegment(d.Container);
                 Report(result, Make(d.Offset, NameLength(d), CodeDiagnosticSeverity.Error, CodeDiagnosticCodes.GeneratedFunctionBody,
                     $"'{d.Name}' is a {spec} UFUNCTION: UHT generates its body, implement '{d.Name}_Implementation' instead", d.Name, spec, cls));
+            }
+
+            // ============================================================ UE0013 / UE0014 / UE0016 (v0.7.3)
+
+            private void FunctionSpecifiers(int i, List<CodeDiagnostic> result)
+            {
+                var d = _doc.Decls[i];
+                if (d.Parent < 0 || !TypeText.IsRecordKind(_doc.Decls[d.Parent].Kind)) return; // the declaration carries the UFUNCTION
+                var parent = _doc.Decls[d.Parent];
+                var specs = UhtRules.Specifiers(d.Specifiers);
+                _stats.Checked++;
+                if (Uncertain(_doc, d) || Editing(d)) { _stats.Skip("ue0013:conditional-or-typing"); return; }
+
+                if ((parent.Ue & UeFlags.UStruct) != 0 && (parent.Ue & (UeFlags.UClass | UeFlags.UInterface)) == 0)
+                {
+                    Report(result, Make(d.Offset, NameLength(d), CodeDiagnosticSeverity.Error, CodeDiagnosticCodes.UFunctionInStruct,
+                        $"USTRUCT '{parent.Name}' cannot contain UFUNCTION '{d.Name}' (UHT error)", d.Name, parent.Name));
+                    return;
+                }
+
+                string rpc = UhtRules.RpcSpecifier(specs);
+                if (rpc != null && !UhtRules.HasKey(specs, "Reliable") && !UhtRules.HasKey(specs, "Unreliable"))
+                    Report(result, Make(d.Offset, NameLength(d), CodeDiagnosticSeverity.Error, CodeDiagnosticCodes.RpcMissingReliability,
+                        $"{rpc} UFUNCTION '{d.Name}' must be marked Reliable or Unreliable (UHT error)", d.Name, rpc));
+
+                if (UhtRules.IsTrueFlag(specs, "BlueprintPure") && UhtRules.Normalize(d.Type ?? string.Empty) == "void" &&
+                    !UhtRules.Parameters(d.Parameters).Any(p => (p.Type ?? string.Empty).IndexOf('&') >= 0))
+                    Report(result, Make(d.Offset, NameLength(d), CodeDiagnosticSeverity.Error, CodeDiagnosticCodes.PureWithoutResult,
+                        $"BlueprintPure UFUNCTION '{d.Name}' has no return value and no output parameter (UHT error)", d.Name));
+            }
+
+            // ============================================================ UE0015 (v0.7.3)
+
+            private void PrivateBlueprintProperty(int i, List<CodeDiagnostic> result)
+            {
+                var d = _doc.Decls[i];
+                if (d.Access != AccessLevel.Private || d.Parent < 0 || !TypeText.IsRecordKind(_doc.Decls[d.Parent].Kind)) return;
+                var specs = UhtRules.Specifiers(d.Specifiers);
+                string spec = UhtRules.HasKey(specs, "BlueprintReadWrite") ? "BlueprintReadWrite"
+                            : UhtRules.HasKey(specs, "BlueprintReadOnly") ? "BlueprintReadOnly" : null;
+                if (spec == null) return;
+                _stats.Checked++;
+                if ((d.Specifiers ?? string.Empty).IndexOf("AllowPrivateAccess", StringComparison.OrdinalIgnoreCase) >= 0) return;
+                if (Uncertain(_doc, d) || Editing(d)) { _stats.Skip("ue0015:conditional-or-typing"); return; }
+                Report(result, Make(d.Offset, NameLength(d), CodeDiagnosticSeverity.Error, CodeDiagnosticCodes.PrivateBlueprintProperty,
+                    $"{spec} should not be used on private member '{d.Name}' without meta=(AllowPrivateAccess=\"true\") (UHT error)", d.Name, spec));
             }
 
             // ============================================================ UE0010

@@ -53,6 +53,20 @@ namespace UEToVS.Contracts
 
         /// <summary>UE naming convention (A / U / F / E / T / I / S prefixes, b for bool members) of a type or bool member declared in this file, info (suggestion). Args: name, expected name, rule letter, "type" | "enum" | "bool".</summary>
         public const string NamingConvention = "UE0012";
+
+        // ---- v0.7.3 more UHT rules (always on, like UE0003…UE0010)
+
+        /// <summary>Server / Client / NetMulticast UFUNCTION without Reliable or Unreliable (UHT error). Args: function, specifier.</summary>
+        public const string RpcMissingReliability = "UE0013";
+
+        /// <summary>BlueprintPure UFUNCTION returning void with no output (reference) parameter (UHT error). Args: function.</summary>
+        public const string PureWithoutResult = "UE0014";
+
+        /// <summary>Private UPROPERTY with BlueprintReadWrite / BlueprintReadOnly and no meta AllowPrivateAccess (UHT error). Args: property, specifier.</summary>
+        public const string PrivateBlueprintProperty = "UE0015";
+
+        /// <summary>UFUNCTION declared in a USTRUCT (UHT error). Args: function, struct.</summary>
+        public const string UFunctionInStruct = "UE0016";
     }
 
     public sealed class CodeDiagnosticsRequest

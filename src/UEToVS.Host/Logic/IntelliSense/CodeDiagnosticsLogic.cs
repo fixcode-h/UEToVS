@@ -47,6 +47,16 @@ namespace UEToVS.Host.Logic.IntelliSense
                     return A(3) == "blueprint"
                         ? Loc.F("参数 “{0}” 的类型 {1} 不能用于蓝图函数 {2}（UHT 会报错）", "Parameter '{0}' of type {1} is not supported by Blueprint in {2} (UHT will fail)", A(0), A(1), A(2))
                         : Loc.F("参数 “{0}” 的类型 {1} 不能用于 UFUNCTION {2}（UHT 会报错）", "Parameter '{0}' of type {1} cannot be used in UFUNCTION {2} (UHT will fail)", A(0), A(1), A(2));
+                // ---- v0.7.3
+                case CodeDiagnosticCodes.RpcMissingReliability:
+                    return Loc.F("{1} UFUNCTION “{0}” 必须标 Reliable 或 Unreliable（UHT 会报错）", "{1} UFUNCTION '{0}' must be marked Reliable or Unreliable (UHT will fail)", A(0), A(1));
+                case CodeDiagnosticCodes.PureWithoutResult:
+                    return Loc.F("BlueprintPure 函数 “{0}” 没有返回值也没有输出参数（UHT 会报错）", "BlueprintPure function '{0}' has no return value and no output parameter (UHT will fail)", A(0));
+                case CodeDiagnosticCodes.PrivateBlueprintProperty:
+                    return Loc.F("私有成员 “{0}” 不能用 {1}，除非加 meta=(AllowPrivateAccess=\"true\")（UHT 会报错）",
+                                 "{1} cannot be used on private member '{0}' without meta=(AllowPrivateAccess=\"true\") (UHT will fail)", A(0), A(1));
+                case CodeDiagnosticCodes.UFunctionInStruct:
+                    return Loc.F("USTRUCT “{1}” 里不能声明 UFUNCTION “{0}”（UHT 会报错）", "USTRUCT '{1}' cannot contain UFUNCTION '{0}' (UHT will fail)", A(0), A(1));
                 // ---- v0.4.5 编辑体验
                 case CodeDiagnosticCodes.DeprecatedApi:
                     return UEToVS.Host.Logic.Localization.EditorFeatureStrings.Deprecated(A(0), Arg(d, 1), Arg(d, 2));

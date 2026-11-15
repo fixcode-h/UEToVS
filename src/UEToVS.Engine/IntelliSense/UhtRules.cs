@@ -73,6 +73,22 @@ namespace UEToVS.Engine.IntelliSense
             return null;
         }
 
+        /// <summary>v0.7.3: Server / Client / NetMulticast (the RPC kinds that need Reliable or Unreliable), or null.</summary>
+        public static string RpcSpecifier(List<KeyValuePair<string, string>> specs)
+        {
+            foreach (var s in new[] { "Server", "Client", "NetMulticast" })
+                if (HasKey(specs, s)) return s;
+            return null;
+        }
+
+        /// <summary>v0.7.3: a flag specifier that is present and not "=false" (<c>BlueprintPure</c>, <c>BlueprintPure=true</c>).</summary>
+        public static bool IsTrueFlag(List<KeyValuePair<string, string>> specs, string key)
+        {
+            if (!HasKey(specs, key)) return false;
+            string v = Value(specs, key);
+            return v == null || !v.Trim().Trim('"').Equals("false", StringComparison.OrdinalIgnoreCase);
+        }
+
         /// <summary>The specifier that makes UHT generate the function body, or null.</summary>
         public static string GeneratedBodySpecifier(List<KeyValuePair<string, string>> specs)
         {

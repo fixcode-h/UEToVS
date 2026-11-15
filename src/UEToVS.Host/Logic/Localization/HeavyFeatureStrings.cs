@@ -100,6 +100,10 @@ namespace UEToVS.Host.Logic.Localization
                 case "UE0008": return Loc.T("未知资产路径", "Unknown asset path");
                 case "UE0009": return Loc.T("UHT 不支持的属性类型", "Property type UHT rejects");
                 case "UE0010": return Loc.T("UHT 不支持的参数类型", "Parameter type UHT rejects");
+                case "UE0013": return Loc.T("RPC 未标 Reliable / Unreliable", "RPC without Reliable / Unreliable");
+                case "UE0014": return Loc.T("BlueprintPure 没有输出", "BlueprintPure without output");
+                case "UE0015": return Loc.T("私有成员用了 BlueprintReadWrite / ReadOnly", "Private Blueprint-visible property");
+                case "UE0016": return Loc.T("USTRUCT 里的 UFUNCTION", "UFUNCTION in a USTRUCT");
                 default: return code ?? string.Empty;
             }
         }

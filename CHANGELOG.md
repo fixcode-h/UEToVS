@@ -18,6 +18,8 @@
 
 - **查找引用列出 ini 里的配置** — 对 `UPROPERTY(Config)` / `GlobalConfig` 成员“查找所有引用”时，结果里会列出项目 Config/*.ini 中设置它的行（所属类及其子类的 `[/Script/模块.类]` 节下的 `Key=`、`+Key=`、`-Key=`、`Key[0]=` 等），和已有的 ini → C++ 跳转（F12）配成双向
 
+- **新增 4 条 UHT 规则** — 和已有的 UE0003–UE0010 一样实时显示波浪线、也参与全项目检查：UE0013 `Server` / `Client` / `NetMulticast` 没标 `Reliable` 或 `Unreliable`；UE0014 `BlueprintPure` 函数返回 void 又没有输出参数；UE0015 私有成员用了 `BlueprintReadWrite` / `BlueprintReadOnly` 却没有 `meta=(AllowPrivateAccess="true")`；UE0016 USTRUCT 里声明了 UFUNCTION。条件编译、模板和正在输入的行不报
+
 ### 改进
 - **VS 2022 上灰掉只对 VS 2026 有效的开关** — “接管 VS”页里只在 VS 2026 生效的项在 VS 2022 上显示“（仅 VS 2026）”并不可改
 - **接管说明与实际一致** — “接管 VS”页的对照表里，“提取函数”原来写“暂无替代”，现在显示 UEToVS 的“提取为函数…”；“关闭 VS 的蓝图支持”的说明原来写“蓝图查找用 UEToVS 的蓝图索引”，实际 UEToVS 只能按名字搜蓝图资产、查不到哪些蓝图用了某个函数或属性，现在说明里写清楚，需要蓝图引用提示的可以保留这项
