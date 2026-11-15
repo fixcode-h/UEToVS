@@ -60,6 +60,7 @@ namespace UEToVS.Mcp.Tools
             Register(MembersTool());
             Register(IndexStatusTool());
             RegisterLuaTools();
+            Register(BlueprintUsagesTool());
             RegisterUeTools();
             RegisterBuildTools(); // ---- v0.4.5 get_build_errors / get_diagnostics / rename_symbol
             // ---- v0.4.5 heavy features

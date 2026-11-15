@@ -54,7 +54,7 @@ namespace UEToVS.Host.Logic.Settings
             new Card(General, "禁用或卸载前", "Before disabling or uninstalling", "vs.restoreAll"),
 
             // ---- 接管 VS：UEToVS 关掉 / 改掉的 VS 自带功能，都在这一页
-            new Card(Takeover, "C++ IntelliSense", "C++ IntelliSense", "intelliSense.status", "intelliSense.mode", "intelliSense.toggle"),
+            new Card(Takeover, "C++ IntelliSense", "C++ IntelliSense", "intelliSense.status", "intelliSense.mode", "intelliSense.keepVsErrors", "intelliSense.toggle"),
             new Card(Takeover, "VS 自带的 Unreal Engine 功能", "VS's own Unreal Engine features", "vs.unrealIntegration",
                      "vsFeatures.semanticIndex", "vsFeatures.blueprints", "vsFeatures.uhtAnalysis", "vsFeatures.codeLens"),
             new Card(Takeover, "调试器", "Debugger", "vsFeatures.adjacentSymbols"),
@@ -64,7 +64,7 @@ namespace UEToVS.Host.Logic.Settings
             new Card(Completion, "代码补全", "Completion", "completion.enabled", "completion.scope", "completion.onIdentifier",
                      "completion.accessorFix", "completion.maxResults"),
             new Card(Completion, "悬停信息与参数信息", "Quick Info & parameter info", "quickInfo.enabled", "signatureHelp.enabled"),
-            new Card(Completion, "内嵌提示", "Inlay hints", "inlay.parameterNames", "inlay.autoTypes"),
+            new Card(Completion, "内嵌提示", "Inlay hints", "inlay.parameterNames", "inlay.autoTypes", "inlay.codeVision"),
             new Card(Completion, "代码模板", "Templates", "snippets.enabled", "postfix.enabled"),
             new Card(Completion, "模板类型推导", "Template type deduction", "templates.enabled", "templates.cacheCapacity"),
 

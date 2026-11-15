@@ -36,7 +36,7 @@ namespace UEToVS.Host.Options
         public SettingsService(GeneralOptionsPage general, LoggingOptionsPage logging)
         {
             _general = general;
-            Schema = HostSettingsSchema.Build(Environment.ProcessorCount);
+            Schema = HostSettingsSchema.Build(Environment.ProcessorCount, VsMajorVersion());
             _store = new SettingsStore(Schema, () =>
             {
                 var legacy = new HostSettings();
@@ -45,6 +45,21 @@ namespace UEToVS.Host.Options
                 return legacy;
             });
             _current = SettingsMerger.Merge(UserSettings(), null);
+        }
+
+        /// <summary>Major version of the running devenv (17 = VS 2022, 18 = VS 2026); 0 when it cannot be read.</summary>
+        private static int VsMajorVersion()
+        {
+            try
+            {
+                using (var p = System.Diagnostics.Process.GetCurrentProcess())
+                    return p.MainModule?.FileVersionInfo.FileMajorPart ?? 0;
+            }
+            catch (Exception ex)
+            {
+                L.Debug("settings.vsVersion", "VS version unknown", ("error", ex.Message));
+                return 0;
+            }
         }
 
         public GeneralOptionsPage General => _general;

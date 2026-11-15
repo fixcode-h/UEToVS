@@ -219,7 +219,7 @@ namespace UEToVS.Engine.Unreal
                         LastWriteUtcTicks = fi.LastWriteTimeUtc.Ticks,
                     });
                 }
-                catch (Exception) { }
+                catch (Exception) { } // file vanished or is unreadable while listing: skip it
             }
 
             // Deterministic order (parallel walk is not): by path.

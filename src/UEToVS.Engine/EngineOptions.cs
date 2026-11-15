@@ -24,6 +24,7 @@ Benchmark (see docs/基准测试.md): index (or reuse the index), time completio
 N random code positions, append the result to <solution>/.vs/UEToVS/bench/bench.jsonl and compare with the previous run
   UEToVS.Engine bench --project <x.uproject> [--samples 1000] [--seed 1] [--ops completion,definition,references]
                 [--reindex] [--all] [--details] [--out <dir>] [--no-compare]
+                [--emit-samples <golden.jsonl>] [--golden <golden.jsonl>]   accuracy against clangd answers
 
 Options:
   --pipe <name>          serve IEngineService (MessagePack JSON-RPC) on this named pipe
@@ -103,6 +104,12 @@ Options:
         public string BenchOut { get; set; }
         public bool BenchCompare { get; set; } = true;
 
+        /// <summary>v0.7.3: golden file (Cli/GoldenSet.cs): bench runs on its positions and scores go to definition.</summary>
+        public string BenchGolden { get; set; }
+
+        /// <summary>v0.7.3: write the sampled positions as a golden file with empty answers (input of scripts/golden_clangd.py).</summary>
+        public string BenchEmitSamples { get; set; }
+
         public bool IsCli => Query != null || Status || Bench;
 
         /// <summary>Parses arguments; returns null and an error message on invalid input.</summary>
@@ -181,6 +188,8 @@ Options:
                         case "--details": o.BenchDetails = true; break;
                         case "--out": o.BenchOut = Next(); break;
                         case "--no-compare": o.BenchCompare = false; break;
+                        case "--golden": o.BenchGolden = Next(); break;
+                        case "--emit-samples": o.BenchEmitSamples = Next(); break;
                         case "--help":
                         case "-h":
                         case "/?": o.Help = true; break;

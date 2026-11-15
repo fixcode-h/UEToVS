@@ -100,6 +100,9 @@ namespace UEToVS.Contracts
         TypeUse = 8,
         Declaration = 16,
         Definition = 32,
+
+        /// <summary>v0.7.3: a Blueprint / level asset (offline, name based); Location is the .uasset / .umap, line 0.</summary>
+        Blueprint = 64,
     }
 
     public sealed class ReferencesRequest
@@ -180,6 +183,9 @@ namespace UEToVS.Contracts
 
         /// <summary>More children exist but were cut by MaxDepth / MaxNodes.</summary>
         public bool Truncated { get; set; }
+
+        /// <summary>v0.7.3: a Blueprint deriving from the type (Symbol is null); from the offline Blueprint index.</summary>
+        public AssetItem Asset { get; set; }
     }
 
     public sealed class TypeHierarchyResponse

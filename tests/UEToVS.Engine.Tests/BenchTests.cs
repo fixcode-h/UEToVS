@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -119,6 +119,100 @@ namespace UEToVS.Engine.Tests
             Assert.True(r2.IndexReused);
             Assert.False(r1.IndexReused);
             Assert.Equal(definition.Empty, r2.Ops.Single().Empty); // same sampled positions → same empty results
+        }
+    
+
+        [Fact]
+        public void GoldenLinesRoundTripAndScore()
+        {
+            var e = GoldenSet.Parse("{\"file\":\"C:\\\\G\\\\A.cpp\",\"line\":3,\"col\":5,\"word\":\"Foo\",\"expected\":[{\"file\":\"c:/g/A.h\",\"line\":10},{\"file\":\"C:\\\\G\\\\A.h\",\"line\":10}]}");
+            Assert.NotNull(e);
+            Assert.Equal(2, e.Sample.Line);    // 0-based inside
+            Assert.Equal(4, e.Sample.Column);
+            Assert.Single(e.Expected);         // same path in another spelling is one answer
+            var back = GoldenSet.Parse(GoldenSet.ToJsonLine(e));
+            Assert.Equal(3, back.Sample.Line + 1);
+            Assert.Equal(new GoldenLocation("C:/G/A.h", 10), back.Expected.Single());
+            Assert.Null(GoldenSet.Parse("{\"file\":\"x\",\"line\":0,\"col\":1}"));
+            Assert.Null(GoldenSet.Parse("not json"));
+
+            var unanswered = GoldenSet.Parse("{\"file\":\"B.cpp\",\"line\":1,\"col\":1,\"expected\":[]}");
+            var entries = new List<GoldenEntry> { e, e, e, unanswered };
+            var a = new GoldenLocation("c:/g/a.h", 10);
+            var other = new GoldenLocation("c:/g/b.h", 1);
+            var score = GoldenSet.Score(entries, new List<IReadOnlyList<GoldenLocation>>
+            {
+                new[] { a }, new[] { other, a }, Array.Empty<GoldenLocation>(), new[] { a },
+            });
+            Assert.Equal(3, score.Scored);
+            Assert.Equal(1, score.Top1);
+            Assert.Equal(2, score.AnyHit);
+            Assert.Equal(1, score.Empty);
+            Assert.Equal(0, score.Wrong);
+            Assert.Contains("top-1 33.3%", score.Format());
+        }
+
+        [Fact]
+        public async System.Threading.Tasks.Task ScoresGoToDefinitionAgainstAGoldenFile()
+        {
+            using var tree = new SyntheticUeTree(engineFiles: 30, projectFiles: 20, seed: 7);
+            string projectRoot = tree.ProjectRoot;
+            string goldenFile = Path.Combine(projectRoot, "golden.jsonl");
+            string Run(params string[] extra)
+            {
+                var args = new List<string> { "bench", "--solution-dir", projectRoot, "--project", tree.ProjectFile, "--no-watch", "--samples", "30", "--seed", "5", "--ops", "definition" };
+                args.AddRange(extra);
+                var options = EngineOptions.Parse(args, out var error);
+                Assert.Null(error);
+                using var host = new EngineHost(options);
+                var output = new StringWriter();
+                int code = BenchRunner.RunAsync(host, options, output).GetAwaiter().GetResult();
+                host.StopAsync(TimeSpan.FromSeconds(5)).GetAwaiter().GetResult();
+                _out.WriteLine(output.ToString());
+                Assert.Equal(ExitCodes.Ok, code);
+                return output.ToString();
+            }
+
+            Run("--emit-samples", goldenFile);
+            var entries = GoldenSet.Load(goldenFile);
+            Assert.Equal(30, entries.Count);
+            Assert.All(entries, x => Assert.Empty(x.Expected));
+
+            // stand-in for clangd: the engine's own answers, so the score must be 100 %
+            {
+                var options = EngineOptions.Parse(new[] { "--status", "--solution-dir", projectRoot, "--project", tree.ProjectFile, "--no-watch" }, out var error);
+                Assert.Null(error);
+                using var host = new EngineHost(options);
+                _ = host.StartIndexing();
+                Assert.True(await host.Index.WaitForReadyAsync(CancellationToken.None));
+                foreach (var x in entries) x.Expected.AddRange(BenchRunner.DefinitionTargets(host, x.Sample, CancellationToken.None));
+                await host.StopAsync(TimeSpan.FromSeconds(5));
+            }
+            entries[0].Expected.Clear();
+            entries[0].Expected.Add(new GoldenLocation("/nowhere/Missing.h", 1)); // one deliberately wrong answer
+            GoldenSet.Save(goldenFile, entries);
+            int answered = entries.Count(x => x.Expected.Count > 0);
+            Assert.True(answered > 1, "go to definition found nothing on the synthetic tree");
+
+            string text = Run("--golden", goldenFile);
+            Assert.Contains("accuracy: definition top-1", text);
+            string file = Path.Combine(projectRoot, ".vs", "UEToVS", "bench", BenchReport.FileName);
+            var r = BenchReport.Parse(File.ReadAllLines(file).Last());
+            Assert.NotNull(r.Accuracy);
+            Assert.Equal(answered, r.Accuracy.Scored);
+            Assert.Equal(answered - 1, r.Accuracy.AnyHit);
+            Assert.Equal(answered - 1, r.Accuracy.Top1);
+            Assert.True(GoldenSet.SamePath(goldenFile, r.Golden));
+            Assert.Equal(30, r.Samples);
+        }
+
+        [Fact]
+        public void ParsesGoldenOptions()
+        {
+            var o = EngineOptions.Parse(new[] { "bench", "--golden", "g.jsonl", "--emit-samples", "s.jsonl" }, out var error);
+            Assert.Null(error);
+            Assert.Equal("g.jsonl", o.BenchGolden);
+            Assert.Equal("s.jsonl", o.BenchEmitSamples);
         }
     }
 }

@@ -25,6 +25,7 @@ namespace UEToVS.Mcp.Tools
             ["search_lua"] = "搜索 Lua 符号",
             ["search_lua_files"] = "搜索 Lua 文件",
             ["get_lua_outline"] = "Lua 文件大纲",
+            ["find_blueprint_usages"] = "查找蓝图用法和派生蓝图",
             ["get_reflection_info"] = "UE 反射信息",
             ["get_module_info"] = "UE 模块信息",
             ["suggest_include"] = "建议 #include 和模块依赖",

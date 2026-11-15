@@ -118,6 +118,11 @@ namespace UEToVS.Host.Navigation
             if (kind != null) row.AddBadge(kind, ReferenceResults.IsWrite(h) ? BadgeKind.UProperty : BadgeKind.Neutral, ReferenceResults.IsWrite(h));
             bool uncertain = ReferenceResults.IsUncertain(h);
             row.IsDimmed = uncertain;
+            if (ReferenceResults.IsBlueprint(h))
+            {
+                row.ToolTip = NavStrings.BlueprintTip(h.Context ?? h.Location.FilePath);
+                return;
+            }
             row.ToolTip = SymbolPresentation.ConfidenceText(h.Confidence) + (uncertain ? "\n" + NavStrings.ReferencesUncertainTip : string.Empty) +
                           (string.IsNullOrEmpty(h.Context) ? string.Empty : "\n" + h.Context);
         }, r => true);
@@ -139,6 +144,11 @@ namespace UEToVS.Host.Navigation
                 row.Right = SymbolPresentation.ShortLocation(s.Location);
                 AddUeBadge(row, s.Ue);
                 row.ToolTip = Tooltip(s);
+            }
+            else if (r.Node?.Asset != null)
+            {
+                row.Secondary = r.Node.Asset.ObjectPath;
+                row.ToolTip = NavStrings.BlueprintTip(r.Node.Asset.ObjectPath ?? r.Node.Asset.FilePath);
             }
             else
             {

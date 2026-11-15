@@ -64,7 +64,19 @@ namespace UEToVS.Engine.Cli
             }
 
             var ops = options.BenchOps?.Count > 0 ? options.BenchOps : AllOps.ToList();
-            var samples = PickSamples(host.Index.Files, host.Navigation.Documents, options.BenchSamples, options.BenchSeed, options.QueryAll, host.ShutdownToken);
+            List<GoldenEntry> golden = null;
+            if (!string.IsNullOrEmpty(options.BenchGolden))
+            {
+                if (!File.Exists(options.BenchGolden))
+                {
+                    output.WriteLine("golden file not found: " + options.BenchGolden);
+                    return ExitCodes.Fatal;
+                }
+                golden = GoldenSet.Load(options.BenchGolden);
+            }
+            var samples = golden != null
+                ? golden.Select(g => g.Sample).ToList()
+                : PickSamples(host.Index.Files, host.Navigation.Documents, options.BenchSamples, options.BenchSeed, options.QueryAll, host.ShutdownToken);
             if (samples.Count == 0)
             {
                 output.WriteLine("no project source files with identifiers to sample (use --all to include engine files)");
@@ -117,6 +129,41 @@ namespace UEToVS.Engine.Cli
                 report.Ops.Add(stats);
                 L.Info("bench.op", null, ("op", op), ("count", stats.Count), ("p50", stats.P50), ("p95", stats.P95), ("p99", stats.P99),
                     ("emptyRatio", stats.EmptyRatio), ("errors", errors));
+            }
+
+            if (golden != null)
+            {
+                var actual = new List<IReadOnlyList<GoldenLocation>>(golden.Count);
+                foreach (var g in golden)
+                {
+                    host.ShutdownToken.ThrowIfCancellationRequested();
+                    IReadOnlyList<GoldenLocation> got;
+                    try { got = DefinitionTargets(host, g.Sample, host.ShutdownToken); }
+                    catch (OperationCanceledException) when (host.ShutdownToken.IsCancellationRequested) { throw; }
+                    catch (Exception ex)
+                    {
+                        got = Array.Empty<GoldenLocation>();
+                        L.Warn("bench.golden.failed", ex.Message, ("file", g.Sample.File), ("line", g.Sample.Line));
+                    }
+                    actual.Add(got);
+                    if (details != null)
+                        details.Add(new JsonObject
+                        {
+                            ["op"] = "accuracy", ["file"] = g.Sample.File, ["line"] = g.Sample.Line + 1, ["col"] = g.Sample.Column + 1, ["word"] = g.Sample.Word,
+                            ["expected"] = new JsonArray(g.Expected.Select(x => (JsonNode)JsonValue.Create(x.ToString())).ToArray()),
+                            ["actual"] = new JsonArray(got.Select(x => (JsonNode)JsonValue.Create(x.ToString())).ToArray()),
+                            ["hit"] = got.Any(x => g.Expected.Contains(x)),
+                        }.ToJsonString());
+                }
+                report.Accuracy = GoldenSet.Score(golden, actual);
+                report.Golden = Path.GetFullPath(options.BenchGolden);
+                L.Info("bench.accuracy", null, ("golden", report.Golden), ("scored", report.Accuracy.Scored), ("top1", report.Accuracy.Top1Ratio),
+                    ("anyHit", report.Accuracy.AnyHitRatio), ("empty", report.Accuracy.Empty));
+            }
+            if (!string.IsNullOrEmpty(options.BenchEmitSamples))
+            {
+                GoldenSet.Save(options.BenchEmitSamples, samples.Select(s => new GoldenEntry { Sample = s }));
+                output.WriteLine("positions: " + Path.GetFullPath(options.BenchEmitSamples) + " (fill with scripts/golden_clangd.py, then run bench --golden)");
             }
 
             memory.Sample();
@@ -176,6 +223,16 @@ namespace UEToVS.Engine.Cli
                 default:
                     throw new ArgumentException("unknown op " + op);
             }
+        }
+
+        /// <summary>Go to definition targets at a sample, as 1-based golden locations.</summary>
+        public static IReadOnlyList<GoldenLocation> DefinitionTargets(EngineHost host, BenchSample s, CancellationToken ct)
+        {
+            var caret = new CaretRequest { FilePath = s.File, Line = s.Line, Column = s.Column + 1 };
+            return host.Navigation.Navigate(new NavigationRequest { Caret = caret, Kind = NavigationKind.Definition }, ct).Targets
+                .Where(t => t.Symbol?.Location?.FilePath != null)
+                .Select(t => new GoldenLocation(t.Symbol.Location.FilePath, t.Symbol.Location.Line + 1))
+                .ToList();
         }
 
         /// <summary>

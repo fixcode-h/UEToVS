@@ -459,6 +459,58 @@ public:
             Assert.Contains(resp.Items, x => x.Code == "UE0010" && x.Args[3] == "unsupported");
         }
 
+        // ================================================================== UE0013…UE0016 (v0.7.3)
+
+        [Fact]
+        public void MoreUhtRules_Reported()
+        {
+            Expect("Game/MoreRules.h", @"#pragma once
+#include ""Actor.h""
+UCLASS()
+class AMoreRules : public AActor
+{
+	GENERATED_BODY()
+public:
+	UFUNCTION(Server)
+	void /*@UE0013*/ServerNoReliability();
+	UFUNCTION(Client, Category = ""Reliable"")
+	void /*@UE0013*/ClientCategoryIsNotAFlag();
+	UFUNCTION(NetMulticast, Unreliable)
+	void MulticastFine();
+	UFUNCTION(Server, Reliable, WithValidation)
+	void ServerFine();
+	UFUNCTION(BlueprintPure)
+	void /*@UE0014*/PureNothing() const;
+	UFUNCTION(BlueprintPure)
+	void PureOut(FVector& Out) const;
+	UFUNCTION(BlueprintPure = false)
+	void NotPure();
+	UFUNCTION(BlueprintPure)
+	int32 PureValue() const;
+private:
+	UPROPERTY(BlueprintReadWrite)
+	int32 /*@UE0015*/PrivateRW;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = ""true""))
+	int32 PrivateAllowed;
+	UPROPERTY(VisibleAnywhere)
+	int32 PrivateNotBlueprint;
+protected:
+	UPROPERTY(BlueprintReadOnly)
+	int32 ProtectedFine;
+};
+
+USTRUCT()
+struct FMoreRulesData
+{
+	GENERATED_BODY()
+	UFUNCTION()
+	void /*@UE0016*/NotAllowed();
+	UPROPERTY(BlueprintReadWrite)
+	int32 Value;
+};
+", "UE0013", "UE0014", "UE0015", "UE0016");
+        }
+
         [Fact]
         public void UeRules_Logged()
         {

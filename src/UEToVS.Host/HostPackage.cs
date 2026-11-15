@@ -229,7 +229,7 @@ namespace UEToVS.Host
                     ErrorHandler.Succeeded(locale.GetUILocale(out uint uiLcid)))
                     lcid = (int)uiLcid;
             }
-            catch (Exception) { }
+            catch (Exception) { } // locale service unavailable: lcid 0 = follow the OS language
             try
             {
                 if (await GetServiceAsync(typeof(DTE)) is DTE dte)
@@ -447,6 +447,7 @@ namespace UEToVS.Host
                     ["vsBlueprintBackupExists"] = _intelliSense.VsBlueprintBackupExists,
                     ["settingsJson"] = _intelliSense.SettingsJsonPath,
                     ["turnOffVsFeatures"] = s.TurnOffVsFeatures().OrderBy(x => x).ToList(),
+                    ["keepVsErrorChecking"] = s.KeepVsErrorChecking,
                 }),
                 ("devenvPrivateMBAtLoad", Math.Round(Performance.PrivateBytesAtLoad / 1048576.0, 1)),
                 ("logFile", HostLog.CurrentFile),

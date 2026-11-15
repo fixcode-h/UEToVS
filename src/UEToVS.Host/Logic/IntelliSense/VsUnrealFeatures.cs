@@ -30,6 +30,12 @@ namespace UEToVS.Host.Logic.IntelliSense
 
         /// <summary>Default of the switch: true = the VS feature is turned off unless the user unticks it.</summary>
         public bool DefaultOn { get; set; } = true;
+
+        /// <summary>
+        /// v0.7.3: the switch lives only in VS 18's settings.json, so on VS 2022 (17.x) it has no effect; the settings window
+        /// greys it out there instead of letting it look applied.
+        /// </summary>
+        public bool Vs18Only { get; set; } = true;
     }
 
     /// <summary>
@@ -65,12 +71,12 @@ namespace UEToVS.Host.Logic.IntelliSense
                 "VS 18 新增的 C++ 语义索引，给 CodeLens 的引用计数和查找引用用。每次编译后它会用几十个线程把整个 UE 代码库重新索引一遍，" +
                 "实测 devenv 内存涨 10 GB 以上、持续十几分钟。关掉后 CodeLens 不再显示 C++ 引用数，查找引用用 UEToVS 的（Shift+Alt+F）。",
                 "VS 18's new C++ semantic index, used for CodeLens reference counts and Find All References. After every build it re-indexes the whole UE " +
-                "codebase with dozens of threads; devenv was measured at +10 GB for over ten minutes. When off, CodeLens shows no C++ reference counts; use UEToVS's Find References (Shift+Alt+F)."),
+                "codebase with dozens of threads; devenv was measured at +10 GB for over ten minutes. When off, CodeLens shows no C++ reference counts; use UEToVS's Find References (Shift+Alt+F).") { Vs18Only = false },
             new VsUnrealFeature(Blueprints, "vsFeatures.blueprints", "关闭 VS 的蓝图支持", "Turn off VS's Blueprint support",
                 "VS 自带的 Unreal Engine 集成（启用增强的 Blueprint 支持）：每次打开解决方案都扫描 .uproject 里的全部蓝图，给 CodeLens 显示蓝图引用。" +
-                "大项目要扫几分钟、占几百 MB。关掉后蓝图查找用 UEToVS 的蓝图索引。下次启动 VS 生效。",
+                "大项目要扫几分钟、占几百 MB。关掉后 CodeLens 不再显示蓝图引用；UEToVS 只能按名字搜索蓝图资产（Shift+Alt+B），暂时查不到哪些蓝图用了某个函数或属性。下次启动 VS 生效。",
                 "VS's own Unreal Engine integration (enhanced Blueprint support): scans every Blueprint of the .uproject on each solution load to show Blueprint references in CodeLens. " +
-                "On a big project that takes minutes and hundreds of MB. When off, Blueprint lookups come from the UEToVS Blueprint index. Takes effect from the next VS start."),
+                "On a big project that takes minutes and hundreds of MB. When off, CodeLens shows no Blueprint references; UEToVS can only search Blueprint assets by name (Shift+Alt+B) and cannot yet tell which Blueprints use a function or property. Takes effect from the next VS start."),
             new VsUnrealFeature(UhtAnalysis, "vsFeatures.uhtAnalysis", "关闭 VS 的 UHT 代码分析", "Turn off VS's UHT code analysis",
                 "VS 自带的 Unreal Header Tool 代码分析：打开或保存头文件时在后台跑 UHT 检查 UCLASS / UPROPERTY 等宏，每次都要启动 UHT 进程。" +
                 "关掉后反射宏检查由 UEToVS 的项目检查提供。",
@@ -125,6 +131,9 @@ namespace UEToVS.Host.Logic.IntelliSense
             [JsonCodeLens] = true,
             [JsonAdjacentSymbols] = true,
         };
+
+        /// <summary>True when <paramref name="f"/> cannot take effect in VS of major version <paramref name="vsMajor"/> (0 = unknown: assume it can).</summary>
+        public static bool NotApplicable(VsUnrealFeature f, int vsMajor) => f != null && f.Vs18Only && vsMajor > 0 && vsMajor < 18;
 
         public static VsUnrealFeature ById(string id) => Features.FirstOrDefault(f => string.Equals(f.Id, id, StringComparison.Ordinal));
     }

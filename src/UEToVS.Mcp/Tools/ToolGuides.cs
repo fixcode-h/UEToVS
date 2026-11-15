@@ -121,6 +121,15 @@ namespace UEToVS.Mcp.Tools
                 NotFor = "C++ files (use get_file_outline); locating which script (search_lua / search_lua_files).",
             },
 
+            ["find_blueprint_usages"] = new Guide
+            {
+                What = "Blueprints and levels that use a C++ function or property, or Blueprints deriving from a C++ class (with their Blueprint children), read offline from the project's .uasset/.umap headers (parent class tags and name tables).",
+                UseWhen = "before changing or removing a UFUNCTION/UPROPERTY/UCLASS: who uses it from Blueprints. 'class' = the C++ class (AMyCharacter or MyCharacter); add 'member' for a function or property of it. Without 'member' you get derived Blueprints plus other Blueprints that mention the class.",
+                InsteadOf = "grep: .uasset files are binary; find_references only covers C++ (it also appends these Blueprint hits when VS is running).",
+                NotFor = "where inside the graph it is used (open the Blueprint in the editor), engine content, or cooked packages. Member matches are by name (member + class name in the same asset), so a same-named member of another class can show up.",
+                Results = "derived: name, objectPath, file, parent, children. usages: name, objectPath, file, kind (blueprint/level).",
+            },
+
             // ------------------------------------------------------------------ Unreal specifics
             ["get_reflection_info"] = new Guide
             {
@@ -183,7 +192,7 @@ namespace UEToVS.Mcp.Tools
             },
             ["run_project_inspection"] = new Guide
             {
-                What = "Whole-project run of the UEToVS UE rules (UE0001-UE0010, same as get_diagnostics) over every project source file.",
+                What = "Whole-project run of the UEToVS UE rules (UE0001-UE0010, UE0013-UE0016, same as get_diagnostics) over every project source file.",
                 UseWhen = "the user asks to check the whole project. Asynchronous: action 'start' returns at once; poll 'status' until Completed, then page 'results' (filter by rule / file); 'cancel' stops.",
                 InsteadOf = "calling get_diagnostics file by file or a full rebuild.",
                 NotFor = "checking a few edited files (use get_diagnostics). Heavy on large projects; refuses when switched off in the UEToVS settings.",

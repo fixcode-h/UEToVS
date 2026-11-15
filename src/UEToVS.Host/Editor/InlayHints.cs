@@ -94,9 +94,10 @@ namespace UEToVS.Host.Editor
 
         private static bool ParameterNames => IntelliSenseContext.Settings?.InlayParameterNames == true;
         private static bool AutoTypes => IntelliSenseContext.Settings?.InlayAutoTypes == true;
+        private static bool CodeVision => IntelliSenseContext.Settings?.InlayCodeVision == true;
 
         /// <summary>Some inlay hint kind is on in the settings (whether hidden or not).</summary>
-        public static bool AnyEnabledInSettings => ParameterNames || AutoTypes;
+        public static bool AnyEnabledInSettings => ParameterNames || AutoTypes || CodeVision;
 
         private static bool Enabled => IntelliSenseContext.IsUnrealSolution && AnyEnabledInSettings && !_hidden;
 
@@ -117,8 +118,9 @@ namespace UEToVS.Host.Editor
                 var line = source.GetLineFromLineNumber(h.Line);
                 if (h.Column < 0 || h.Column > line.Length) continue; // stale: skip, never throw
                 var point = new SnapshotPoint(source, line.Start.Position + h.Column);
-                var affinity = h.Kind == InlayHintKind.Type ? PositionAffinity.Predecessor : PositionAffinity.Successor;
-                if (target != source) point = point.TranslateTo(target, h.Kind == InlayHintKind.Type ? PointTrackingMode.Negative : PointTrackingMode.Positive);
+                bool after = h.Kind != InlayHintKind.ParameterName; // types and Code Vision hang off the text before them
+                var affinity = after ? PositionAffinity.Predecessor : PositionAffinity.Successor;
+                if (target != source) point = point.TranslateTo(target, after ? PointTrackingMode.Negative : PointTrackingMode.Positive);
                 var span = new SnapshotSpan(point, 0);
                 if (!Intersects(spans, point)) continue;
                 yield return new TagSpan<IntraTextAdornmentTag>(span, new IntraTextAdornmentTag(Element(h), null, affinity));
@@ -151,10 +153,10 @@ namespace UEToVS.Host.Editor
                 Background = HintBackground,
                 CornerRadius = new CornerRadius(3),
                 Padding = new Thickness(3, 0, 3, 0),
-                Margin = h.Kind == InlayHintKind.Type ? new Thickness(1, 1, 2, 1) : new Thickness(0, 1, 3, 1),
+                Margin = h.Kind == InlayHintKind.Usages ? new Thickness(12, 1, 2, 1) : h.Kind == InlayHintKind.Type ? new Thickness(1, 1, 2, 1) : new Thickness(0, 1, 3, 1),
                 VerticalAlignment = VerticalAlignment.Center,
-                ToolTip = string.IsNullOrEmpty(h.Detail) ? null : h.Detail,
-                IsHitTestVisible = !string.IsNullOrEmpty(h.Detail),
+                ToolTip = h.Kind == InlayHintKind.Usages ? Logic.Localization.NavStrings.CodeVisionTip(h.SymbolName) : string.IsNullOrEmpty(h.Detail) ? null : h.Detail,
+                IsHitTestVisible = h.Kind == InlayHintKind.Usages || !string.IsNullOrEmpty(h.Detail),
             };
             _elements[h] = border;
             return border;
@@ -223,14 +225,14 @@ namespace UEToVS.Host.Editor
             if (range.IsEmpty) return; // cached for this version
             var capture = IntelliSenseEditor.CaptureAt(_view.TextBuffer, new SnapshotPoint(snapshot, 0));
             if (capture == null) return;
-            bool names = ParameterNames, autos = AutoTypes;
+            bool names = ParameterNames, autos = AutoTypes, vision = CodeVision;
             string path = _document?.FilePath;
             var (gen, ct) = _gate.Begin(NavigationContext.Disposal);
             Safe.RunAsync(L, "editor.inlayHints.request", async () =>
             {
                 var total = Stopwatch.StartNew();
                 var doc = await Task.Run(capture, ct).ConfigureAwait(false);
-                var r = await engine.GetInlayHintsAsync(new InlayHintsRequest { Document = doc, StartLine = range.Start, EndLine = range.End, ParameterNames = names, AutoTypes = autos }, ct)
+                var r = await engine.GetInlayHintsAsync(new InlayHintsRequest { Document = doc, StartLine = range.Start, EndLine = range.End, ParameterNames = names, AutoTypes = autos, CodeVision = vision }, ct)
                     .ConfigureAwait(false);
                 await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
                 if (!_gate.IsCurrent(gen) || _view.IsClosed || !r.Ok) return;
@@ -283,7 +285,8 @@ namespace UEToVS.Host.Editor
 
         private void OnSettingsChanged(object sender, Options.SettingsChangedEventArgs e) => Safe.Execute(L, "editor.inlayHints.settings", () =>
         {
-            if (e.Old.InlayParameterNames == e.New.InlayParameterNames && e.Old.InlayAutoTypes == e.New.InlayAutoTypes) return;
+            if (e.Old.InlayParameterNames == e.New.InlayParameterNames && e.Old.InlayAutoTypes == e.New.InlayAutoTypes &&
+                e.Old.InlayCodeVision == e.New.InlayCodeVision) return;
             Refresh();
         });
 

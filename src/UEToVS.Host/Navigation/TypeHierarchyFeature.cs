@@ -76,6 +76,11 @@ namespace UEToVS.Host.Navigation
                 _popup = new TabbedTreePopup<HierarchyRow>("uetovs.typeHierarchy", NavigationPresenters.Hierarchy, tabs, new System.Windows.Size(600, 480));
                 _popup.ItemInvoked += (s, e) => Diagnostics.Safe.Execute(L, "nav.hierarchy.open", () =>
                 {
+                    if (e.Item.Node?.Asset != null)
+                    {
+                        Search.AssetReveal.Reveal(e.Item.Node.Asset);
+                        return;
+                    }
                     var loc = NavigationPresenters.ToLocation(e.Item.Symbol?.Location);
                     if (loc != null) NavigationService.Instance.JumpTo(loc, "hierarchy");
                     else VsStatusBar.SetText(NavStrings.HierarchyUnresolved);
@@ -107,7 +112,11 @@ namespace UEToVS.Host.Navigation
             foreach (var c in n.Children ?? new List<TypeHierarchyNode>())
                 if (c != null) kids.Add(Convert(c, depth + 1));
             if (n.Truncated) kids.Add(new TreeNode<HierarchyRow>(new HierarchyRow { IsTruncatedMarker = true }));
-            var row = new HierarchyRow { Node = n, Symbol = n.Symbol, Display = n.Symbol == null ? n.DisplayName : null };
+            var row = new HierarchyRow
+            {
+                Node = n, Symbol = n.Symbol,
+                Display = n.Symbol != null ? null : n.Asset != null ? NavStrings.BlueprintNode(n.DisplayName) : n.DisplayName,
+            };
             return new TreeNode<HierarchyRow>(row, kids, depth < ExpandDepth);
         }
 

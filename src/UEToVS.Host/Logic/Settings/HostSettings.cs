@@ -70,6 +70,12 @@ namespace UEToVS.Host.Logic.Settings
             }
         }
 
+        /// <summary>
+        /// v0.7.3 hybrid takeover: keep VS's IntelliSense engine for its real compiler errors (error list + squiggles) while
+        /// UEToVS provides completion, navigation and colouring. Costs VS's IntelliSense memory; off by default.
+        /// </summary>
+        public bool KeepVsErrorChecking { get; set; }
+
         /// <summary>VS's C++ browse database (.vc.db) is switched off with the takeover (follows the scope since v0.5.1).</summary>
         public bool DisableDatabase => IntelliSenseTakeover;
 
@@ -266,6 +272,9 @@ namespace UEToVS.Host.Logic.Settings
 
         /// <summary>Inlay hints: deduced type after <c>auto</c> variables.</summary>
         public bool InlayAutoTypes { get; set; }
+
+        /// <summary>v0.7.3 Code Vision: derived types / Blueprints at the end of reflected declaration lines.</summary>
+        public bool InlayCodeVision { get; set; } = true;
 
         // ---- v0.4.5 编辑体验（rows: Logic/Settings/EditorFeatureSettings.cs）----
         /// <summary>Surround With (Ctrl+Shift+Alt+U, 1 / Rider Ctrl+Alt+J).</summary>

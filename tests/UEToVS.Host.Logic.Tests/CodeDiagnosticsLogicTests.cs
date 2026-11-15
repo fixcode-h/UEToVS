@@ -50,6 +50,10 @@ namespace UEToVS.Host.Logic.Tests
             Assert.Contains("TSharedPtr<F>", CodeDiagnosticText.Message(D(CodeDiagnosticCodes.UnsupportedPropertyType, "P", "TSharedPtr<F>")));
             Assert.Contains("Blueprint", CodeDiagnosticText.Message(D(CodeDiagnosticCodes.UnsupportedParameterType, "B", "uint32", "Call", "blueprint")));
             Assert.Contains("?", CodeDiagnosticText.Message(D(CodeDiagnosticCodes.UnsupportedParameterType)));
+            Assert.Contains("ServerFire", CodeDiagnosticText.Message(D(CodeDiagnosticCodes.RpcMissingReliability, "ServerFire", "Server")));
+            Assert.Contains("BlueprintPure", CodeDiagnosticText.Message(D(CodeDiagnosticCodes.PureWithoutResult, "Get")));
+            Assert.Contains("AllowPrivateAccess", CodeDiagnosticText.Message(D(CodeDiagnosticCodes.PrivateBlueprintProperty, "Hp", "BlueprintReadWrite")));
+            Assert.Contains("FData", CodeDiagnosticText.Message(D(CodeDiagnosticCodes.UFunctionInStruct, "Run", "FData")));
             Loc.Language = UiLanguage.Chinese;
             Assert.Contains("_Implementation", CodeDiagnosticText.Message(D(CodeDiagnosticCodes.GeneratedFunctionBody, "ServerFire", "Server", "AW")));
             Assert.Contains("DOREPLIFETIME", CodeDiagnosticText.Message(D(CodeDiagnosticCodes.UnregisteredReplicatedProperty, "Heat", "AW")));

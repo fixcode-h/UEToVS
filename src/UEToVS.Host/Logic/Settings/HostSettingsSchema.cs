@@ -17,6 +17,9 @@ namespace UEToVS.Host.Logic.Settings
     public static class HostSettingsSchema
     {
         public const string General = "general";
+
+        /// <summary>Never a real setting (always "off"): rows gated on it stay greyed out, e.g. VS 18-only switches on VS 2022.</summary>
+        public const string Vs18OnlyGateKey = "vs.version18Only";
         public const string Appearance = "appearance";
         public const string Indexing = "indexing";
         public const string Keymap = "keymap";
@@ -105,8 +108,11 @@ namespace UEToVS.Host.Logic.Settings
             return d;
         }
 
-        /// <summary>The schema for a machine with <paramref name="logicalCores"/> cores (thread ranges and "auto" labels depend on it).</summary>
-        public static List<SettingDescriptor> Build(int logicalCores)
+        /// <summary>
+        /// The schema for a machine with <paramref name="logicalCores"/> cores (thread ranges and "auto" labels depend on it)
+        /// running VS of major version <paramref name="vsMajor"/> (0 = unknown; 17 = VS 2022 greys out the VS 18-only switches).
+        /// </summary>
+        public static List<SettingDescriptor> Build(int logicalCores, int vsMajor = 0)
         {
             int cores = Math.Max(1, logicalCores);
             int auto = DefaultIndexThreads(cores);
@@ -142,15 +148,34 @@ namespace UEToVS.Host.Logic.Settings
                 new SettingOption(nameof(IntelliSenseTakeoverMode.Off), "关闭", "Off"),
             };
             list.Add(mode);
+            // v0.7.3 hybrid takeover
+            list.Add(D(General, "intelliSense.keepVsErrors", SettingKind.Bool, "保留 VS 的实时错误检查（混合接管）", "Keep VS's live error checking (hybrid)",
+                "接管时仍让 VS 的 C++ IntelliSense 引擎运行，用它的错误列表和红色波浪线报真实的编译错误；补全、导航、着色、悬停提示仍由 UEToVS 提供，浏览数据库和下面勾选的后台功能照样关闭。" +
+                "代价是多占 VS 的 IntelliSense 内存（大项目常见 2–6 GB）。需要 UHT 实时分析时，再取消勾选下面的“关闭 VS 的 UHT 代码分析”。",
+                "While taken over, VS's C++ IntelliSense engine keeps running so its error list and squiggles report real compiler errors; completion, navigation, colouring and hover stay with UEToVS, and the browse database and the background features ticked below stay off. " +
+                "Costs the memory of VS's IntelliSense (often 2–6 GB on large projects). For live UHT analysis, also untick “Turn off VS's UHT code analysis” below.",
+                "false", gCpp, gCppEn));
             list.Add(A(General, "intelliSense.toggle", WindowActions.ToggleIntelliSense, "立即接管 / 恢复", "Take over / restore now",
                 "根据当前状态接管或恢复 VS 自带的 C++ IntelliSense。", "Takes over or restores VS's own C++ IntelliSense, depending on the current state.", gCpp, gCppEn));
             list.Add(A(General, "vs.unrealIntegration", WindowActions.VsUnrealIntegration, "VS 自带的 Unreal Engine 集成", "VS's built-in Unreal Engine integration",
                 null, null, gCpp, gCppEn, SettingKind.Info));
             // v0.5.6: one switch per VS Unreal / C++ background feature; on = turned off while taken over (backed up, restored with scope Off)
             foreach (var f in UEToVS.Host.Logic.IntelliSense.VsUnrealFeatures.Features)
-                list.Add(D(General, f.SettingKey, SettingKind.Bool, f.TitleZh, f.TitleEn,
+            {
+                var row = D(General, f.SettingKey, SettingKind.Bool, f.TitleZh, f.TitleEn,
                     f.DescriptionZh + "（接管时生效，修改前备份；取消勾选或接管范围选“关闭”即恢复）",
-                    f.DescriptionEn + " (applies while taken over, backed up first; unticking it or scope “Off” restores it)", f.DefaultOn ? "true" : "false", gCpp, gCppEn));
+                    f.DescriptionEn + " (applies while taken over, backed up first; unticking it or scope “Off” restores it)", f.DefaultOn ? "true" : "false", gCpp, gCppEn);
+                if (UEToVS.Host.Logic.IntelliSense.VsUnrealFeatures.NotApplicable(f, vsMajor))
+                {
+                    // v0.7.3: only VS 18's settings.json has this switch; grey it out on VS 2022 instead of letting it look applied
+                    row.TitleZh += "（仅 VS 2026）";
+                    row.TitleEn += " (VS 2026 only)";
+                    row.HintZh = "VS 2022 没有这项设置，勾选与否都不会改动 VS。";
+                    row.HintEn = "VS 2022 has no such setting; ticking it changes nothing in VS.";
+                    row.EnabledWhenKey = Vs18OnlyGateKey;
+                }
+                list.Add(row);
+            }
             // ---- v0.4.5 navigation gaps: what VS loses after the takeover and the UEToVS replacement (table drawn by the settings window)
             list.Add(A(General, "intelliSense.featureMatrix", UEToVS.Host.Logic.IntelliSense.TakeoverFeatures.SettingsInfoId, "接管后 VS 自带功能", "VS features after the takeover",
                 "接管后 VS 的 C++ IntelliSense、浏览数据库、后台代码分析和蓝图扫描关闭（接管范围选“关闭”即恢复），依赖它们的 VS 功能会失效；下表列出 UEToVS 的替代命令和默认快捷键。",
@@ -375,6 +400,10 @@ namespace UEToVS.Host.Logic.Settings
                 "true", gInlay, gInlayEn));
             list.Add(D(IntelliSense, "inlay.autoTypes", SettingKind.Bool, "auto 推导类型", "Deduced auto types",
                 "在 auto 变量名后显示推导出的类型（推导不出时不显示）。", "Shows the deduced type after auto variable names (nothing when it cannot be deduced).", "false", gInlay, gInlayEn));
+            list.Add(D(IntelliSense, "inlay.codeVision", SettingKind.Bool, "派生类和蓝图数量（Code Vision）", "Derived types and Blueprints (Code Vision)",
+                "在 UCLASS / USTRUCT 声明行末显示有几个 C++ 派生类、几个派生蓝图，在 UFUNCTION / UPROPERTY 行末显示有几个蓝图或关卡用到它（蓝图来自离线读取的 .uasset，按名称匹配）。数量为 0 时不显示。",
+                "Shows at the end of UCLASS / USTRUCT lines how many C++ types and Blueprints derive from it, and at the end of UFUNCTION / UPROPERTY lines how many Blueprints or levels use it (Blueprints read offline from the .uasset files, matched by name). Nothing is shown for 0.",
+                "true", gInlay, gInlayEn));
             // ---- v0.4.5 编辑体验
             EditorFeatureSettings.AddDescriptors(list, IntelliSense);
 
@@ -506,6 +535,7 @@ namespace UEToVS.Host.Logic.Settings
                     ["engine.unrealEngineRoot"] = s.UnrealEngineRootOverride ?? "",
                     ["engine.requestTimeoutSeconds"] = I(s.EngineRequestTimeoutSeconds),
                     ["intelliSense.mode"] = s.IntelliSenseTakeoverMode.ToString(),
+                    ["intelliSense.keepVsErrors"] = B(s.KeepVsErrorChecking),
                     ["vsFeatures.semanticIndex"] = B(s.TurnOffVsSemanticIndex),
                     ["vsFeatures.blueprints"] = B(s.TurnOffVsBlueprints),
                     ["vsFeatures.uhtAnalysis"] = B(s.TurnOffVsUhtAnalysis),
@@ -554,6 +584,7 @@ namespace UEToVS.Host.Logic.Settings
                     ["postfix.enabled"] = B(s.PostfixTemplatesEnabled),
                     ["inlay.parameterNames"] = B(s.InlayParameterNames),
                     ["inlay.autoTypes"] = B(s.InlayAutoTypes),
+                    ["inlay.codeVision"] = B(s.InlayCodeVision),
                     // ---- v0.4.5 构建结果 / 错误列表
                     ["build.squiggles"] = B(s.BuildErrorSquiggles),
                     ["errorList.enabled"] = B(s.ErrorListEnabled),
@@ -629,6 +660,7 @@ namespace UEToVS.Host.Logic.Settings
                         case "engine.unrealEngineRoot": s.UnrealEngineRootOverride = v; break;
                         case "engine.requestTimeoutSeconds": s.EngineRequestTimeoutSeconds = PI(v, 30); break;
                         case "intelliSense.mode": s.IntelliSenseTakeoverMode = PE(v, IntelliSenseTakeoverMode.UnrealSolutionOnly); break;
+                        case "intelliSense.keepVsErrors": s.KeepVsErrorChecking = PB(v); break;
                         case "vsFeatures.semanticIndex": s.TurnOffVsSemanticIndex = PB(v); break;
                         case "vsFeatures.blueprints": s.TurnOffVsBlueprints = PB(v); break;
                         case "vsFeatures.uhtAnalysis": s.TurnOffVsUhtAnalysis = PB(v); break;
@@ -677,6 +709,7 @@ namespace UEToVS.Host.Logic.Settings
                         case "postfix.enabled": s.PostfixTemplatesEnabled = PB(v); break;
                         case "inlay.parameterNames": s.InlayParameterNames = PB(v); break;
                         case "inlay.autoTypes": s.InlayAutoTypes = PB(v); break;
+                        case "inlay.codeVision": s.InlayCodeVision = PB(v); break;
                         // ---- v0.4.5 构建结果 / 错误列表
                         case "build.squiggles": s.BuildErrorSquiggles = PB(v); break;
                         case "errorList.enabled": s.ErrorListEnabled = PB(v); break;

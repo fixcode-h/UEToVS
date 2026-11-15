@@ -88,6 +88,7 @@ UEToVS.Mcp.exe（每个 Agent 会话一个进程，.NET 8，ModelContextProtocol
 | `get_module_info` | 文件属于哪个模块、模块类型（Runtime/Editor/Developer…）、所在插件、Build.cs 的 Public/Private 依赖；带 `header` 时回答“这个头文件在哪个模块、我的模块依赖了没有” | `path` 或 `module`，可选 `header` |
 | `suggest_include` | 类型的 `#include` 写法（UE 风格，相对模块 Public/Classes）和要加进 Build.cs 的模块；带 `from` 时检查是否已依赖、该放 Public 还是 Private | `type`、`from` |
 | `search_config` | 搜配置：ini 键值（项目和项目插件的 Config；`scope: all` 加引擎 Config）、UPROPERTY(config) 对应的 ini 文件/节/键、项目代码里的 CVar、GameplayTag | `query`、`kinds`（ini/config_property/cvar/tag）、`scope` |
+| `find_blueprint_usages` | 蓝图用法（v0.7.3）：读引擎写的离线蓝图索引（`.vs/UEToVS/Blueprints/`，只含项目和项目插件的资产），列出继承某个类的蓝图，或用到某个函数 / 属性的蓝图和关卡；按名字匹配，结果是 .uasset 路径和对象路径 | `class`（必填，也可写 `Class::Member`）、`member`、分页参数 |
 | `find_delegate_bindings` | 一个函数被绑到哪些委托 / 输入 / 定时器（`AddDynamic`、`BindUObject`、`CreateUObject`、`BindUFunction`、`BindAction`、`SetTimer`…） | `function`（`UMyClass::OnClicked` 只保留指明该类的绑定）、`scope` |
 
 `find_references` 的结果带 `lua`、`get_reflection_info` 的 UFUNCTION 带同名 Lua 函数：Lua 里同名的函数 / 方法定义（按名字关联，不看调用点）。

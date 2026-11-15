@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -7,6 +7,8 @@ using System.Threading.Tasks;
 using StreamJsonRpc;
 using UEToVS.Contracts;
 using UEToVS.Core.Diagnostics;
+using UEToVS.Engine.Indexing;
+using UEToVS.Engine.IntelliSense;
 using UEToVS.Engine.Scheduling;
 
 namespace UEToVS.Engine.Rpc
@@ -178,7 +180,7 @@ namespace UEToVS.Engine.Rpc
             InvokeAsync("rpc.findReferences", c =>
             {
                 if (request == null || (request.Caret == null && request.Symbol == null)) throw Error(RpcErrorCodes.InvalidArgument, "FindReferences needs a caret or a symbol");
-                return _host.Scheduler.RunAsync(WorkPriority.Visible, "rpc.findReferences", t => _host.Navigation.FindReferences(request, t), c);
+                return _host.Scheduler.RunAsync(WorkPriority.Visible, "rpc.findReferences", t => WithIni(WithBlueprints(_host.Navigation.FindReferences(request, t), request), request), c);
             }, ct, ("file", request?.Caret?.FilePath), ("line", request?.Caret?.Line), ("symbol", request?.Symbol?.Name), ("nonProject", request?.IncludeNonProject),
                 ("max", request?.MaxResults));
 
@@ -187,8 +189,144 @@ namespace UEToVS.Engine.Rpc
             {
                 if (request == null || (request.Caret == null && string.IsNullOrEmpty(request.TypeName)))
                     throw Error(RpcErrorCodes.InvalidArgument, "GetTypeHierarchy needs a caret or a type name");
-                return _host.Scheduler.RunAsync(WorkPriority.Visible, "rpc.getTypeHierarchy", t => _host.Navigation.GetTypeHierarchy(request, t), c);
+                return _host.Scheduler.RunAsync(WorkPriority.Visible, "rpc.getTypeHierarchy", t => WithBlueprints(_host.Navigation.GetTypeHierarchy(request, t), request), c);
             }, ct, ("type", request?.TypeName), ("file", request?.Caret?.FilePath), ("direction", request?.Direction.ToString()));
+
+        /// <summary>v0.7.3: Blueprint / level assets using the symbol (or deriving from the class), appended after the code hits.</summary>
+        internal ReferencesResponse WithBlueprints(ReferencesResponse resp, ReferencesRequest request)
+        {
+            if (resp?.Symbol == null) return resp;
+            try
+            {
+                var s = resp.Symbol;
+                bool isType = s.Kind == SymbolKind.Class || s.Kind == SymbolKind.Struct || s.Kind == SymbolKind.Enum;
+                var owners = new List<string> { isType ? s.Name : s.Container };
+                if (string.IsNullOrEmpty(owners[0])) return resp;
+                int room = Math.Max(0, (request?.MaxResults ?? 5000) - resp.Hits.Count);
+                var hits = _host.Blueprints.ReferenceHits(s, owners, Math.Min(500, room));
+                resp.Hits.AddRange(hits);
+                if (hits.Count > 0) L.Debug("rpc.findReferences.blueprints", null, ("symbol", s.Name), ("hits", hits.Count));
+            }
+            catch (Exception ex) when (!(ex is OperationCanceledException))
+            {
+                L.Warn("rpc.findReferences.blueprints.failed", "Blueprint usages failed; code references are still returned", ex);
+            }
+            return resp;
+        }
+
+        /// <summary>v0.7.3: ini lines setting a UPROPERTY(Config) member, under the owner's section or a subclass's.</summary>
+        internal ReferencesResponse WithIni(ReferencesResponse resp, ReferencesRequest request)
+        {
+            var s = resp?.Symbol;
+            if (s == null || string.IsNullOrEmpty(s.Container) || !IniReferences.IsConfigProperty(s.Specifiers)) return resp;
+            if (s.Kind != SymbolKind.Field && s.Kind != SymbolKind.Variable) return resp;
+            try
+            {
+                var src = _host.IntelliSense.StringSources;
+                if (src?.Config == null || src.Files == null) return resp;
+                var classes = new List<string>();
+                var seen = new HashSet<string>(StringComparer.Ordinal);
+                var queue = new Queue<string>();
+                queue.Enqueue(s.Container);
+                while (queue.Count > 0 && seen.Count < 200)
+                {
+                    string cls = queue.Dequeue();
+                    if (!seen.Add(cls)) continue;
+                    classes.Add(BlueprintIndex.UeClassName(cls));
+                    foreach (var d in _host.Index.Backend.FindDerivedTypes(cls))
+                        if (d.Symbol?.Name != null) queue.Enqueue(d.Symbol.Name);
+                }
+                int room = Math.Max(0, (request?.MaxResults ?? 5000) - resp.Hits.Count);
+                var hits = IniReferences.Find(src.Config.Files(src.Files), classes, s.Name, Math.Min(500, room));
+                resp.Hits.AddRange(hits);
+                if (hits.Count > 0) L.Debug("rpc.findReferences.ini", null, ("symbol", s.Name), ("hits", hits.Count));
+            }
+            catch (Exception ex) when (!(ex is OperationCanceledException))
+            {
+                L.Warn("rpc.findReferences.ini.failed", "Config ini usages failed; code references are still returned", ex);
+            }
+            return resp;
+        }
+
+        /// <summary>v0.7.3: Blueprints deriving from the root and from each C++ derived type (derived direction only).</summary>
+        internal TypeHierarchyResponse WithBlueprints(TypeHierarchyResponse resp, TypeHierarchyRequest request)
+        {
+            if (resp?.Root == null || request?.Direction == HierarchyDirection.Bases) return resp;
+            try
+            {
+                int added = 0;
+                void Attach(List<TypeHierarchyNode> list, string typeName)
+                {
+                    var bps = _host.Blueprints.HierarchyNodes(new[] { typeName });
+                    foreach (var n in list.ToList())
+                        if (n.Symbol != null) Attach(n.Children, n.Symbol.Name);
+                    list.AddRange(bps);
+                    added += bps.Count;
+                }
+                Attach(resp.Derived, resp.Root.Name);
+                resp.NodeCount += added;
+                if (added > 0) L.Debug("rpc.getTypeHierarchy.blueprints", null, ("type", resp.Root.Name), ("blueprints", added));
+            }
+            catch (Exception ex) when (!(ex is OperationCanceledException))
+            {
+                L.Warn("rpc.getTypeHierarchy.blueprints.failed", "Derived Blueprints failed; the C++ hierarchy is still returned", ex);
+            }
+            return resp;
+        }
+
+        /// <summary>
+        /// v0.7.3 Code Vision: one <see cref="InlayHintKind.Usages"/> hint at the end of each reflected declaration line in the
+        /// range (UCLASS / USTRUCT / UINTERFACE: derived C++ types and Blueprints; UFUNCTION / UPROPERTY: Blueprints using it).
+        /// Uses the saved file's symbols; nothing is shown when every count is 0.
+        /// </summary>
+        internal InlayHintsResponse WithCodeVision(InlayHintsResponse resp, InlayHintsRequest request, CancellationToken ct)
+        {
+            if (resp == null || request?.CodeVision != true || string.IsNullOrEmpty(request.Document?.FilePath)) return resp;
+            try
+            {
+                var text = request.Document.Text ?? DocumentText(request.Document.FilePath);
+                string[] lines = text?.Split('\n');
+                foreach (var s in _host.Index.Backend.GetFileSymbols(request.Document.FilePath))
+                {
+                    ct.ThrowIfCancellationRequested();
+                    int line = s.Location?.Line ?? -1;
+                    if (line < request.StartLine || line > request.EndLine) continue;
+                    var hint = CodeVisionHint(s);
+                    if (hint == null) continue;
+                    hint.Line = line;
+                    hint.Column = lines != null && line < lines.Length ? lines[line].TrimEnd('\r').Length : 0;
+                    resp.Items.Add(hint);
+                }
+            }
+            catch (Exception ex) when (!(ex is OperationCanceledException))
+            {
+                L.Warn("rpc.getInlayHints.codeVision.failed", "Code Vision failed; the other hints are still returned", ex);
+            }
+            return resp;
+        }
+
+        private string DocumentText(string path)
+        {
+            var bytes = _host.Navigation.Documents.GetFile(path)?.Text;
+            return bytes == null ? null : System.Text.Encoding.UTF8.GetString(bytes);
+        }
+
+        private InlayHint CodeVisionHint(SymbolInfo s)
+        {
+            const UeFlags types = UeFlags.UClass | UeFlags.UStruct | UeFlags.UInterface;
+            if ((s.Ue & types) != 0 && (s.Kind == SymbolKind.Class || s.Kind == SymbolKind.Struct))
+            {
+                int derived = _host.Index.Backend.FindDerivedTypes(s.Name).Count;
+                int bps = BlueprintIndexService.Flatten(_host.Blueprints.Index.Derived(new[] { BlueprintIndex.UeClassName(s.Name) })).Count();
+                return derived + bps == 0 ? null : new InlayHint { Kind = InlayHintKind.Usages, SymbolName = s.Name, DerivedTypes = derived, Blueprints = bps };
+            }
+            if ((s.Ue & (UeFlags.UFunction | UeFlags.UProperty)) != 0 && !string.IsNullOrEmpty(s.Container))
+            {
+                int bps = _host.Blueprints.Index.Usages(s.Name, new[] { BlueprintIndex.UeClassName(s.Container) }, 999).Count;
+                return bps == 0 ? null : new InlayHint { Kind = InlayHintKind.Usages, SymbolName = s.Container + "::" + s.Name, Blueprints = bps };
+            }
+            return null;
+        }
 
         public Task<HighlightResponse> GetHighlightsAsync(CaretRequest caret, CancellationToken ct) =>
             InvokeAsync("rpc.getHighlights", c => caret == null
@@ -298,7 +436,7 @@ namespace UEToVS.Engine.Rpc
         public Task<InlayHintsResponse> GetInlayHintsAsync(InlayHintsRequest request, CancellationToken ct) =>
             InvokeAsync("rpc.getInlayHints", c => request?.Document == null
                     ? Task.FromResult(new InlayHintsResponse { TextVersion = request?.Document?.TextVersion ?? 0 })
-                    : _host.Scheduler.RunAsync(WorkPriority.Visible, "rpc.getInlayHints", t => _host.IntelliSense.GetInlayHints(request, t), c),
+                    : _host.Scheduler.RunAsync(WorkPriority.Visible, "rpc.getInlayHints", t => WithCodeVision(_host.IntelliSense.GetInlayHints(request, t), request, t), c),
                 ct, ("file", request?.Document?.FilePath), ("from", request?.StartLine), ("to", request?.EndLine), ("version", request?.Document?.TextVersion));
         // ---- v0.4.5 UE editor link (UeCodeService): the user is waiting (test runner, double-clicked log line) ----
 

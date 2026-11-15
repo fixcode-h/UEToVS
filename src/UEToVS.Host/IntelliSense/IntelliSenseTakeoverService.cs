@@ -70,7 +70,7 @@ namespace UEToVS.Host.IntelliSense
         public string VisualAssistEvidence { get; private set; }
 
         private static TakeoverOptions OptionsFrom(HostSettings s) =>
-            new TakeoverOptions { DisableDatabase = s.DisableDatabase, TurnOffVsFeatures = s.TurnOffVsFeatures() };
+            new TakeoverOptions { DisableDatabase = s.DisableDatabase, TurnOffVsFeatures = s.TurnOffVsFeatures(), KeepVsErrorChecking = s.KeepVsErrorChecking };
 
         // ---------------------------------------------------------------- lifecycle hooks (called by the package)
 
@@ -121,10 +121,11 @@ namespace UEToVS.Host.IntelliSense
             bool dbChanged = old.DisableDatabase != now.DisableDatabase;
             bool modeChanged = old.IntelliSenseTakeoverMode != now.IntelliSenseTakeoverMode;
             bool featuresChanged = !old.TurnOffVsFeatures().SetEquals(now.TurnOffVsFeatures());
-            if (!takeoverChanged && !dbChanged && !modeChanged && !featuresChanged) return;
+            bool hybridChanged = old.KeepVsErrorChecking != now.KeepVsErrorChecking;
+            if (!takeoverChanged && !dbChanged && !modeChanged && !featuresChanged && !hybridChanged) return;
             L.Info("intellisense.settings.changed", null, ("takeover", now.IntelliSenseTakeover), ("mode", now.IntelliSenseTakeoverMode.ToString()),
                    ("disableDatabase", now.DisableDatabase), ("turnOffVsFeatures", now.TurnOffVsFeatures().OrderBy(x => x).ToList()),
-                   ("ueSolutionOpen", unrealSolutionOpen));
+                   ("keepVsErrorChecking", now.KeepVsErrorChecking), ("ueSolutionOpen", unrealSolutionOpen));
             if (!now.IntelliSenseTakeover)
             {
                 if (BackupExists) await RestoreAsync("settingOff").ConfigureAwait(false);

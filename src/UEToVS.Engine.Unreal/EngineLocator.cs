@@ -100,7 +100,7 @@ namespace UEToVS.Engine.Unreal
                         return NormalizeEngineRoot(p);
                     }
                 }
-                catch (Exception) { }
+                catch (Exception) { } // bad path in EngineAssociation: try the next lookup
             }
 
             string r = FindRegisteredBuild(association);
@@ -134,7 +134,7 @@ namespace UEToVS.Engine.Unreal
                 if (key?.GetValue(association) is string value && !string.IsNullOrEmpty(value) && Directory.Exists(value))
                     return NormalizeEngineRoot(value);
             }
-            catch (Exception) { }
+            catch (Exception) { } // registry unreadable: try the next lookup
             return null;
         }
 
@@ -147,7 +147,7 @@ namespace UEToVS.Engine.Unreal
                 if (key?.GetValue("InstalledDirectory") is string dir && !string.IsNullOrEmpty(dir) && Directory.Exists(dir))
                     return NormalizeEngineRoot(dir);
             }
-            catch (Exception) { }
+            catch (Exception) { } // registry unreadable: try the next lookup
             return null;
         }
 
@@ -166,7 +166,7 @@ namespace UEToVS.Engine.Unreal
                         return NormalizeEngineRoot(loc);
                 }
             }
-            catch (Exception) { }
+            catch (Exception) { } // launcher manifest missing or malformed: engine not found this way
             return null;
         }
 

@@ -155,12 +155,24 @@ namespace UEToVS.Host.Navigation
             // CodePreviewRequest.Line is 1-based; contract lines are 0-based.
             _popup.Panel.PreviewProvider = r =>
             {
+                // v0.7.3: Blueprint assets are binary: no code preview
+                if (ReferenceResults.IsAssetPath(r.Hit?.Location?.FilePath ?? r.Group?.FilePath)) return null;
                 if (r.Hit?.Location != null)
                     return new CodePreviewRequest { FilePath = r.Hit.Location.FilePath, Line = r.Hit.Location.Line + 1, Column = r.Hit.Location.Column, Length = r.Hit.Length };
                 return r.Group == null ? null : new CodePreviewRequest { FilePath = r.Group.FilePath, Line = r.Group.Hits.Count > 0 ? r.Group.Hits[0].Location.Line + 1 : 1 };
             };
             _popup.ItemInvoked += (s, e) => Diagnostics.Safe.Execute(L, "nav.references.open", () =>
             {
+                if (ReferenceResults.IsBlueprint(e.Item.Hit))
+                {
+                    var h = e.Item.Hit;
+                    Search.AssetReveal.Reveal(new AssetItem
+                    {
+                        Name = System.IO.Path.GetFileNameWithoutExtension(h.Location.FilePath), FilePath = h.Location.FilePath, ObjectPath = h.Context,
+                        ClassName = "Blueprint",
+                    });
+                    return;
+                }
                 var loc = NavigationPresenters.ToLocation(e.Item.Hit?.Location);
                 if (loc != null) NavigationService.Instance.JumpTo(loc, "references");
             });
