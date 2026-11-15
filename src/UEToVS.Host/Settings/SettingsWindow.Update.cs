@@ -24,14 +24,13 @@ namespace UEToVS.Host.Settings
             public StackPanel Notes { get; } = new StackPanel();
         }
 
-        private bool _updateAutoChecked;
-
         /// <summary>
         /// The "检查更新" row: renders <see cref="UpdateService"/>'s process-wide state (current version when idle, the found
         /// version and size, live download progress, readable errors) and follows it while visible, so a check or download
         /// started before the window was reopened still shows its progress and result instead of a stale "正在检查更新…".
         /// The main button changes with the state (检查 → 下载并安装 → 取消 / 重试). The latest release's notes are shown
-        /// under the row (<see cref="UpdateRowEditor.Notes"/>); opening the page checks once when nothing was checked yet.
+        /// under the row (<see cref="UpdateRowEditor.Notes"/>). Nothing is checked until the user presses 检查 (v0.7.1: the
+        /// user does not want the page to reach GitHub on its own).
         /// "发布页" (open the GitHub release) only appears after a failure, for downloading by hand.
         /// </summary>
         private UIElement BuildUpdateRow(SettingDescriptor d)
@@ -90,13 +89,6 @@ namespace UEToVS.Host.Settings
                 UpdateService.Changed -= onChanged;
                 UpdateService.Changed += onChanged;
                 Render();
-                // First visit with nothing checked yet: check now so the notes below have something to show.
-                if (!_updateAutoChecked && UpdateService.State(installed).Phase == UpdatePhase.Idle)
-                {
-                    _updateAutoChecked = true;
-                    L.Info("settings.update.autoCheck", null);
-                    Safe.RunAsync(L, "settings.update.autoCheck", () => UpdateService.CheckAsync(installed));
-                }
             });
             panel.Unloaded += (s, e) => Safe.Execute(L, "settings.update.detach", () => UpdateService.Changed -= onChanged);
 
