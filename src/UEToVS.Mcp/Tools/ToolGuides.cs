@@ -204,6 +204,32 @@ namespace UEToVS.Mcp.Tools
                 InsteadOf = "giving up on the index and grepping the whole tree at the first empty answer.",
                 NotFor = "finding code (use the search tools). When it says indexing is unfinished or no Lua folder is set, grep the project's Source/Plugins/Config/Script folders for that question.",
             },
+
+            // ------------------------------------------------------------------ v0.8.0 VS debug control (needs VS open with this solution)
+            ["debug_session"] = new Guide
+            {
+                What = "Drives Visual Studio's debugger on the UE project: start (F5, optional map / -game / extra args for this launch), stop, restart, attach to a running UnrealEditor, build, pause, continue, step over/into/out/to line, and wait until it stops.",
+                UseWhen = "you need to see C++ run: reproduce a bug under the debugger, stop at a breakpoint (set with debug_breakpoints) and step; a crash, check() or ensure() to catch; or rebuild and relaunch after a code change. Typical: start or attach -> debug_breakpoints add -> trigger the code -> wait -> debug_inspect -> step / continue.",
+                InsteadOf = "adding UE_LOG lines and rebuilding to guess values: breakpoints show the real state without code changes.",
+                NotFor = "Lua or Blueprint logic (C++ only). stop/restart end the UE process and lose unsaved editor work: ask the user first. While UE is stopped it is frozen, nothing else can talk to it until continue.",
+                Results = "mode (design/run/break), location, lastReason, stack, buildErrors; wait: event = break / exited / buildDone / buildFailed / timeout / idle.",
+            },
+            ["debug_breakpoints"] = new Guide
+            {
+                What = "Lists, adds, removes, enables and clears Visual Studio breakpoints: file+line, function name, condition, hit count, tracepoints (log and continue) and data breakpoints (stop when a value changes).",
+                UseWhen = "you want UE to stop where a suspect C++ line runs, only under a condition (Health <= 0), log values without stopping (message 'HP={Health}', read with debug_inspect output), or find who changes a value (data=this->Health while stopped).",
+                InsteadOf = "editing code to add logs or asserts.",
+                NotFor = "Lua / Blueprint. clear removes only breakpoints set by these tools unless scope=all; the user's own breakpoints are listed too, leave them alone.",
+                Results = "items with number i (for remove/enable), file, line, condition, hits, bound (0 while debugging = symbols not loaded).",
+            },
+            ["debug_inspect"] = new Guide
+            {
+                What = "Reads the stopped UE process in Visual Studio: call stack, threads, locals and arguments, any C++ expression (natvis formats FString, TArray, UObject*), the Debug output (UE_LOG goes there when debugging) and a minidump.",
+                UseWhen = "debug_session reports mode=break (breakpoint, step, crash, check/ensure): see where it is, read variables and members (this->Health, depth 1-3), evaluate expressions, switch frames or threads; output any time.",
+                InsteadOf = "guessing values from code or logs.",
+                NotFor = "a running process (pause or wait first). eval can call functions with side effects: prefer reading members.",
+                Results = "value nodes {n,t,v,c} with budgets; output returns next for the following call.",
+            },
         };
 
         public static Guide Get(string name) => name != null && All.TryGetValue(name, out var g) ? g : null;

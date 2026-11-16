@@ -26,6 +26,9 @@ namespace UEToVS.Mcp.Tools
 
         // ---- v0.4.5 MCP: rename_symbol (apply=true) writes files; every other tool is read-only.
         public bool ReadOnly { get; set; } = true;
+
+        // ---- v0.8.0 VS debug control: debug_session can end the debugged UE process (stop / restart).
+        public bool Destructive { get; set; }
     }
 
     /// <summary>Handler result: the JSON payload plus what the log needs.</summary>
@@ -65,6 +68,7 @@ namespace UEToVS.Mcp.Tools
             RegisterBuildTools(); // ---- v0.4.5 get_build_errors / get_diagnostics / rename_symbol
             // ---- v0.4.5 heavy features
             RegisterHeavyTools();
+            RegisterDebugTools(); // ---- v0.8.0 VS debug control (debug_session / debug_breakpoints / debug_inspect)
         }
 
         public IReadOnlyList<ToolDefinition> All => _tools.Values.ToList();

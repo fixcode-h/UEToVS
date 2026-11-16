@@ -20,6 +20,7 @@ namespace UEToVS.Mcp.Tests
     {
         private static readonly string[] ExpectedTools =
         {
+            "debug_breakpoints", "debug_inspect", "debug_session",
             "find_blueprint_usages", "find_delegate_bindings", "find_references", "get_build_errors", "get_diagnostics", "get_file_outline", "get_lua_outline", "get_members",
             "get_module_info", "get_reflection_info", "get_type_hierarchy", "go_to_definition", "index_status", "rename_symbol", "run_project_inspection",
             "search_assets", "search_config", "search_files", "search_lua", "search_lua_files", "search_symbols", "suggest_include",
@@ -84,8 +85,9 @@ namespace UEToVS.Mcp.Tests
                 var schema = t.ProtocolTool.InputSchema;
                 Assert.Equal("object", schema.GetProperty("type").GetString());
                 Assert.False(schema.GetProperty("additionalProperties").GetBoolean());
-                // rename_symbol (apply=true) is the only tool that writes files
-                Assert.Equal(t.Name != "rename_symbol", t.ProtocolTool.Annotations.ReadOnlyHint);
+                // rename_symbol (apply=true) writes files; the debug_* tools drive VS's debugger (v0.8.0). Everything else only reads.
+                Assert.Equal(t.Name != "rename_symbol" && !t.Name.StartsWith("debug_"), t.ProtocolTool.Annotations.ReadOnlyHint);
+                Assert.Equal(t.Name == "debug_session", t.ProtocolTool.Annotations.DestructiveHint);
                 Assert.False(string.IsNullOrWhiteSpace(t.Description));
                 Assert.True(t.Description.Length < 1200, t.Name + " description is long: " + t.Description.Length);
                 // Agents choose between these tools and Grep/Glob from the description alone: every tool must say when to use it,

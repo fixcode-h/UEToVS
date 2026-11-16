@@ -35,6 +35,9 @@ namespace UEToVS.Mcp.Tools
             ["get_diagnostics"] = "UE 规则诊断",
             ["rename_symbol"] = "重命名 C++ 符号",
             ["run_project_inspection"] = "全项目检查",
+            ["debug_session"] = "VS 调试：启停与单步",
+            ["debug_breakpoints"] = "VS 断点",
+            ["debug_inspect"] = "VS 调试：栈和变量",
         };
 
         /// <summary>Chinese display name of a tool; null when it has none.</summary>

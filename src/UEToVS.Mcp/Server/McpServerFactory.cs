@@ -118,7 +118,7 @@ namespace UEToVS.Mcp.Server
             Title = t.Title,
             Description = t.Description,
             InputSchema = t.InputSchema,
-            Annotations = new ToolAnnotations { Title = t.Title, ReadOnlyHint = t.ReadOnly, IdempotentHint = t.ReadOnly, DestructiveHint = false, OpenWorldHint = false },
+            Annotations = new ToolAnnotations { Title = t.Title, ReadOnlyHint = t.ReadOnly, IdempotentHint = t.ReadOnly, DestructiveHint = t.Destructive, OpenWorldHint = false },
             // Display names per language (ToolTitles): the client picks the one for its own UI language.
             Meta = new JsonObject { ["titles"] = new JsonObject { ["zh"] = ToolTitles.Chinese(t.Name) ?? t.Title, ["en"] = t.Title } },
         };
