@@ -179,6 +179,12 @@ namespace UEToVS.Host.Logic.Settings
         /// </summary>
         public bool EnableMcpServer { get; set; } = true;
 
+        /// <summary>
+        /// v0.8.0 VS 调试控制：打开 UE 解决方案时开一个只给本机当前用户的管道（.vs\UEToVS\Debug\endpoint.json），
+        /// 让 Agent（UEToVS 的 MCP、Agent 面板的 UE 插件）通过 VS 自带调试器启停 UE、下断点、单步、读变量。docs/design/VS-调试控制.md。
+        /// </summary>
+        public bool EnableDebugControl { get; set; } = true;
+
         // ---- 索引（设置窗口；0 = 默认 = max(1, 逻辑核心数 / 4)）----
         public int CppIndexThreads { get; set; } = 0;
 

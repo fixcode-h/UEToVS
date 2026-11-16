@@ -221,6 +221,10 @@ namespace UEToVS.Host.Logic.Settings
                 "打开 UE 解决方案时在 .vs\\mcp.json 注册 uetovs MCP 服务器，VS Copilot Agent 模式自动发现；关闭则移除该注册。",
                 "Registers the uetovs MCP server in .vs\\mcp.json when a UE solution opens (Copilot agent mode discovers it); off removes the registration.",
                 "true", gMcp, gMcpEn));
+            list.Add(D(Agent, "mcp.debugControl", SettingKind.Bool, "允许 Agent 通过 VS 调试 UE", "Let agents debug UE through VS",
+                "打开 UE 解决方案时开放 VS 调试控制（只给本机当前用户，带令牌）：Agent 可以启动、停止、重启、附加，下断点、单步、看调用栈和变量、求表达式。关闭后 debug_* 工具和 Agent 面板的 ue_vs_* 工具不可用。",
+                "When a UE solution opens, exposes VS debug control (current Windows user only, token-protected): agents can start, stop, restart and attach, set breakpoints, step, read the call stack and variables and evaluate expressions. Off disables the debug_* tools and the Agent panel's ue_vs_* tools.",
+                "true", gMcp, gMcpEn));
             list.Add(A(Agent, "mcp.writeConfig", "uetovs.mcp.writeConfig", "写入 .mcp.json（给 Claude Code 等用）", "Write .mcp.json (for Claude Code and others)",
                 "给 Claude Code 用：有版本管理（Git / SVN / Perforce 等）时写到版本库根目录，否则写到 UE 项目根目录；已有文件会合并，不覆盖其他服务器。",
                 "For Claude Code: written to the version-control root (Git / SVN / Perforce, ...) if there is one, else to the UE project root; an existing file is merged, other servers are kept.", gMcp, gMcpEn));
@@ -547,6 +551,7 @@ namespace UEToVS.Host.Logic.Settings
                     ["keyboard.doubleShiftLeftOnly"] = B(s.DoubleShiftLeftOnly),
                     ["unreal.checkIncludesOnSave"] = B(s.CheckIncludesOnSave),
                     ["mcp.enable"] = B(s.EnableMcpServer),
+                    ["mcp.debugControl"] = B(s.EnableDebugControl),
                     ["link.ueLiveCodingManual"] = B(s.UeLiveCodingManualStartup),
                     ["indexing.cppThreads"] = I(s.CppIndexThreads),
                     ["indexing.blueprintThreads"] = I(s.BlueprintIndexThreads),
@@ -672,6 +677,7 @@ namespace UEToVS.Host.Logic.Settings
                         case "keyboard.doubleShiftLeftOnly": s.DoubleShiftLeftOnly = PB(v); break;
                         case "unreal.checkIncludesOnSave": s.CheckIncludesOnSave = PB(v); break;
                         case "mcp.enable": s.EnableMcpServer = PB(v); break;
+                        case "mcp.debugControl": s.EnableDebugControl = PB(v); break;
                         case "link.ueLiveCodingManual": s.UeLiveCodingManualStartup = PB(v); break;
                         case "indexing.cppThreads": s.CppIndexThreads = PI(v, 0); break;
                         case "indexing.blueprintThreads": s.BlueprintIndexThreads = PI(v, 0); break;

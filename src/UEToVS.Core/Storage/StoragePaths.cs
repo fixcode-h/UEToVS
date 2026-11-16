@@ -19,6 +19,7 @@ namespace UEToVS.Core.Storage
             Logs = Path.Combine(root, "Logs");
             Cache = Path.Combine(root, "Cache");
             Lua = Path.Combine(root, "Lua");
+            Debug = Path.Combine(root, "Debug");
             LocalSettings = Path.Combine(root, "settings.local.json");
         }
 
@@ -30,6 +31,15 @@ namespace UEToVS.Core.Storage
         /// <summary>Lua script index (lua-index.json), written by the engine and read by the MCP server.</summary>
         public string Lua { get; }
         public string LocalSettings { get; }
+
+        /// <summary>
+        /// VS debug control (v0.8.0): endpoint.json written by the VS host while a UE solution is open, so the MCP server and
+        /// the Agent panel can find the pipe that drives VS's debugger. Removed when the solution closes.
+        /// </summary>
+        public string Debug { get; }
+
+        /// <summary>The debug control endpoint file (<see cref="Debug"/>\endpoint.json).</summary>
+        public string DebugEndpoint => Path.Combine(Debug, "endpoint.json");
 
         /// <summary>Paths for a solution directory (the folder holding the .sln).</summary>
         public static StoragePaths ForSolution(string solutionDir)

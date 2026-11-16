@@ -54,6 +54,9 @@ namespace UEToVS.Mcp.Tools
             return value;
         }
 
+        /// <summary>The raw JSON value (null when absent), for arguments passed through unchanged.</summary>
+        public JsonElement? Element(string name) => Has(name) ? _args[name] : (JsonElement?)null;
+
         /// <summary>Optional integer; null when absent.</summary>
         public int? OptionalInt(string name, int min, int max) => Has(name) ? Int(name, 0, min, max) : (int?)null;
 

@@ -71,6 +71,7 @@ namespace UEToVS.Host
         private MemorySpikeProbe _spikeProbe;
         private CommandRouter _commands;
         private BuildMonitor _build;
+        private Debugging.DebugControlServer _debugControl; // v0.8.0 VS 调试控制（UE 解决方案打开时）
         private Integration.ModelessEditCommandRouter _editRouter;
         private SolutionExplorerTracker _solutionExplorer;
         private SettingsWindowService _settingsWindow;
@@ -357,6 +358,23 @@ namespace UEToVS.Host
             await _intelliSense.OnUnrealSolutionOpenedAsync();
             await StartEngineAsync();
             _ = Safe.RunInBackgroundAsync(L, "mcp.register", () => Mcp.McpRegistration.SyncAsync(dir, _settings.Effective)); // .vs\mcp.json for AI agents
+            await SyncDebugControlAsync(_settings.Effective.EnableDebugControl);
+        }
+
+        /// <summary>v0.8.0: VS debug control pipe on while a UE solution is open and the setting is on.</summary>
+        private async Task SyncDebugControlAsync(bool enabled)
+        {
+            if (enabled && _unreal.IsUnreal && _debugControl == null)
+                _debugControl = await Debugging.DebugControlServer.StartAsync(this, _solutionDir, _solutionFile, _unreal.ProjectFile, _vsVersion);
+            else if ((!enabled || !_unreal.IsUnreal) && _debugControl != null)
+                StopDebugControl();
+        }
+
+        private void StopDebugControl()
+        {
+            var server = _debugControl;
+            _debugControl = null;
+            if (server != null) Safe.Execute(L, "debug.control.stop", server.Dispose);
         }
 
         private void OnSolutionClosing()
@@ -365,6 +383,7 @@ namespace UEToVS.Host
             Safe.Execute(L, "editor.gitTabs.solutionClosing", Editing.GitTabMarkers.OnSolutionClosing);
             if (!_unreal.IsUnreal) return;
             L.Info("solution.closing", null, ("solution", _solutionFile));
+            StopDebugControl();
             // UE may have written its own copy of the ini while it ran: set it again for the next editor start.
             if (_settings.Effective.UeLiveCodingManualStartup)
                 _ = UEToVS.Host.Unreal.UeLiveCodingStartupService.ApplyAsync(LuaProjectDirectory, true, "solutionClosing");
@@ -609,6 +628,8 @@ namespace UEToVS.Host
             if (_fonts != null) await _fonts.OnSettingsChangedAsync(old, now);
             if (old.EnableMcpServer != now.EnableMcpServer && _unreal.IsUnreal)
                 await Mcp.McpRegistration.SyncAsync(_solutionDir, now);
+            if (old.EnableDebugControl != now.EnableDebugControl)
+                await SyncDebugControlAsync(now.EnableDebugControl);
         }
 
         /// <summary>Makes VS re-query command status (toolbar button visibility) right away.</summary>
@@ -683,6 +704,7 @@ namespace UEToVS.Host
                 try
                 {
                     L.Info("package.disposing", null);
+                    StopDebugControl();
                     _engine?.Dispose();
                     _engine = null;
                     Safe.Execute(L, "shell.editRouter.dispose", () => _editRouter?.Dispose());

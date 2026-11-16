@@ -115,7 +115,7 @@ namespace UEToVS.Host.Logic.Settings
                      "horde.rootDir", "horde.storeCapacityGb"),
 
             // ---- Agent / API（API 和模型是自定义页面，生成的行只有 MCP）
-            new Card(Agent, "MCP（给 AI Agent 用）", "MCP (for AI agents)", "mcp.enable", "mcp.writeConfig"),
+            new Card(Agent, "MCP（给 AI Agent 用）", "MCP (for AI agents)", "mcp.enable", "mcp.debugControl", "mcp.writeConfig"),
 
             // ---- 诊断：UEToVS 自己的进程、日志和性能
             new Card(Diagnostics, "UEToVS 代码引擎", "UEToVS code engine", "engine.path", "engine.requestTimeoutSeconds", "engine.restart"),

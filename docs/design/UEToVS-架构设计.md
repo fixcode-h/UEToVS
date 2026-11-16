@@ -63,7 +63,8 @@ VS 自带的 C++ IntelliSense（EDG 前端 + 浏览数据库）在 UE 工程上�
 | 编辑器内的代码体验 | 导航、搜索、补全、Quick Info、参数信息、着色、行内提示、波浪线、Alt+Enter、重构、代码生成、模板 |
 | UE 语义规则 | 反射、复制、RPC、委托、GameplayTag、config、弃用 API、命名规范、模块依赖 |
 | 给 VS 自带功能减负 | 关掉 VS 在 UE 大工程上代价过高的后台功能；没有等价替代的要在说明里写清楚 |
-| MCP | 以只读查询索引为主；唯一的写操作是已有的 `rename_symbol`（先预览、再 `apply=true`），不再新增写操作 |
+| MCP | 以只读查询索引为主；写操作只有已有的 `rename_symbol`（先预览、再 `apply=true`）和下面的 VS 调试控制，不再新增别的写操作 |
+| 驱动 VS 自带的调试器（v0.8.0，2026-11-16 用户定） | 让 Agent 通过 VS 的自动化接口启停、附加、编译、下断点、单步、读栈和变量、求表达式、读调试输出（`debug_*` MCP 工具，Agent 面板的 `ue_vs_*`）。只开放 VS 已有的能力，不做调试器本体，见 [VS-调试控制.md](VS-调试控制.md) |
 
 **边界外（不做）**
 
@@ -71,10 +72,10 @@ VS 自带的 C++ IntelliSense（EDG 前端 + 浏览数据库）在 UE 工程上�
 | --- | --- |
 | 连接 UE 编辑器（日志、PIE、Live Coding 触发、蓝图节点跳转、AssetRegistry 在线查询） | UE 编辑器本身、Agent 面板的 UELink（v0.7.0 起移除） |
 | 自动化测试运行器、UE 日志窗口 | VS 自带的 Unreal Engine 集成、UE 编辑器 |
-| 构建系统、调试器本体、调试可视化（natvis） | VS + UBT、引擎自带 natvis |
+| 构建系统、调试器本体、调试可视化（natvis）、自己的变量 / 调用栈窗口 | VS + UBT、引擎自带 natvis（UEToVS 只把 VS 调试器开放给 Agent，见上） |
 | 资产 / 蓝图编辑 | UE 编辑器 |
 | 代码格式化、拼写检查、模块 / 插件新建向导 | VS 自带 |
-| 新增 MCP 写操作（`rename_symbol` 之外） | Agent 自己的写文件能力 |
+| 新增 MCP 写操作（`rename_symbol` 和 VS 调试控制之外） | Agent 自己的写文件能力 |
 
 **边界边上、冻结不再扩展的模块**：字体管理、Agent / API 模型转发、注释翻译、UBA / Horde 联合编译配置。
 
