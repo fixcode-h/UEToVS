@@ -185,6 +185,12 @@ namespace UEToVS.Host.Logic.Settings
         /// </summary>
         public bool EnableDebugControl { get; set; } = true;
 
+        /// <summary>
+        /// v0.9.1 Agent 调试时不把 VS 拉到前台：VS 调试器一停下（断点、单步、暂停）就会跳到前台，Agent 控制的会话里把前台还给原来的窗口。
+        /// 关掉就是 VS 原样。用户自己按 F5 的会话不受影响。
+        /// </summary>
+        public bool DebugKeepFocus { get; set; } = true;
+
         // ---- 索引（设置窗口；0 = 默认 = max(1, 逻辑核心数 / 4)）----
         public int CppIndexThreads { get; set; } = 0;
 

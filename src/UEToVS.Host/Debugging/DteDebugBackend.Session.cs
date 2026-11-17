@@ -45,6 +45,7 @@ namespace UEToVS.Host.Debugging
             ThreadHelper.ThrowIfNotOnUIThread();
             if (CurrentMode == DebugMode.Design) return Start(new DebugArgs(null));
             Tracker.OnLaunchRequested();
+            _focus?.Policy.OnRestartRequested(); // restart passes through design mode: still the agent's session
             _dte.ExecuteCommand("Debug.Restart");
             var o = Snapshot(0);
             o["restarted"] = true;

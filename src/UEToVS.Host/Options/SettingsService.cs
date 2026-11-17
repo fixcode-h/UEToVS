@@ -160,6 +160,7 @@ namespace UEToVS.Host.Options
                 ["checkIncludesOnSave"] = s.CheckIncludesOnSave,
                 ["enableMcpServer"] = s.EnableMcpServer,
                 ["enableDebugControl"] = s.EnableDebugControl,
+                ["debugKeepFocus"] = s.DebugKeepFocus,
             };
             UEToVS.Host.Logic.Fonts.FontSettingsSchema.Describe(s, d);
             UEToVS.Host.Logic.Settings.EditorFeatureSettings.Describe(s, d); // v0.4.5 编辑体验
