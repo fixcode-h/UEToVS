@@ -46,6 +46,7 @@ namespace UEToVS.Host.Debugging
         private _dispBuildEvents_OnBuildBeginEventHandler _onBuildBegin;
         private _dispBuildEvents_OnBuildDoneEventHandler _onBuildDone;
         private DateTime _buildStartedUtc;
+        private ForegroundGuard _focus;
 
         private DteDebugBackend(HostPackage package, DTE2 dte, string solutionDir, string projectFile)
         {
@@ -71,20 +72,24 @@ namespace UEToVS.Host.Debugging
             ThreadHelper.ThrowIfNotOnUIThread();
             _debuggerEvents = _dte.Events.DebuggerEvents;
             _buildEvents = _dte.Events.BuildEvents;
+            _focus = new ForegroundGuard(() => _package.Settings?.Effective?.DebugKeepFocus ?? true);
             _onBreak = (dbgEventReason reason, ref dbgExecutionAction action) =>
             {
                 RemoveRunToBreakpoints();
+                _focus.OnBreak();
                 Tracker.OnBreak(DebugHelpers.ReasonText(reason.ToString()));
             };
             _onRun = reason =>
             {
                 RestoreLaunchArgs(); // the process has its command line now
+                _focus.Policy.OnRun();
                 Tracker.OnRun();
             };
             _onDesign = reason =>
             {
                 RemoveRunToBreakpoints();
                 RestoreLaunchArgs();
+                _focus.Policy.OnDesign();
                 Tracker.OnDesign(DebugHelpers.ReasonText(reason.ToString()));
             };
             _onBuildBegin = (scope, action) =>
@@ -116,6 +121,7 @@ namespace UEToVS.Host.Debugging
                 try
                 {
                     RestoreLaunchArgs();
+                    _focus?.Dispose();
                     if (_debuggerEvents != null)
                     {
                         _debuggerEvents.OnEnterBreakMode -= _onBreak;
@@ -137,6 +143,7 @@ namespace UEToVS.Host.Debugging
         public async Task<JObject> ExecuteAsync(string op, DebugArgs a, CancellationToken ct)
         {
             L.Info("debug.op", null, ("op", op));
+            if (DebugProtocol.IsAgentControl(op)) _focus?.Policy.OnAgentControl(); // this session is the agent's: VS stays in the back when it stops
             if (op == DebugProtocol.Wait) return await WaitAsync(a.Int("timeoutMs", 30000, 0, DebugProtocol.MaxWaitMs), ct);
 
             await _package.JoinableTaskFactory.SwitchToMainThreadAsync(ct);

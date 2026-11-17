@@ -109,6 +109,8 @@ UTF-8，一行一个 JSON 对象，`\n` 结尾。一个连接上可以连发多�
 
 ## 6. 限制
 
+- **VS 停下时不抢前台**（v0.9.1）：VS 调试器一进中断模式就会把自己拉到前台（VS 没有选项关掉，被调试的 UE 在前台时 Windows 也允许它抢）。Agent 控制过的会话（`start` / `restart` / `attach` / `pause` / `continue` / `step` / `wait` / `bp.add` 之后，到调试结束为止）里，VS 刚被拉起就把前台还给之前的窗口，原来最小化的再最小化回去（`Debugging/ForegroundGuard`，规则在 `Logic/Debugging/FocusPolicy`）。拦不住只能事后还，所以会闪一下；用户本来就在 VS 里时不动；用户自己 F5 的会话照常。设置「Agent / API > MCP > Agent 调试时不把 VS 拉到前台」，默认开。
+
 - UE 停在断点时整个进程冻住：面板的 `ue_*` 工具（走 UELink）都调不通，面板会提示先 `continue`。
 - 断点、单步、`eval` 只对 C++ 有效；Lua 调试用 IntelliJ IDEA EmmyLua 插件的 `lua_debug_*`。
 - `start` 的启动参数要求启动项目是 VC 工程（UE 生成的 .vcxproj 都是）；VS 在改回参数前崩掉的话，参数会留在启动项目的调试设置里，手动删掉即可。

@@ -205,7 +205,7 @@ namespace UEToVS.Mcp.Tools
                 What = "Drives Visual Studio's debugger on the UE project: start (F5, optional map / -game / extra args for this launch), stop, restart, attach to a running UnrealEditor, build, pause, continue, step over/into/out/to line, and wait until it stops.",
                 UseWhen = "you need to see C++ run: reproduce a bug under the debugger, stop at a breakpoint (set with debug_breakpoints) and step; a crash, check() or ensure() to catch; or rebuild and relaunch after a code change. Typical: start or attach -> debug_breakpoints add -> trigger the code -> wait -> debug_inspect -> step / continue.",
                 InsteadOf = "adding UE_LOG lines and rebuilding to guess values: breakpoints show the real state without code changes.",
-                NotFor = "Lua or Blueprint logic (C++ only). stop/restart end the UE process and lose unsaved editor work: ask the user first. While UE is stopped it is frozen, nothing else can talk to it until continue.",
+                NotFor = "Lua or Blueprint logic (C++ only). stop/restart end the UE process and lose unsaved editor work: ask the user first. While UE is stopped it is frozen, nothing else can talk to it until continue. To wait for the editor to finish loading use the panel's ue_editor action=wait_ready, not a long wait.",
                 Results = "mode (design/run/break), location, lastReason, stack, buildErrors; wait: event = break / exited / buildDone / buildFailed / timeout / idle.",
             },
             ["debug_breakpoints"] = new Guide

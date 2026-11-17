@@ -51,6 +51,14 @@ namespace UEToVS.Host.Logic.Debugging
         public static readonly IReadOnlyList<string> BreakModeOps = new[] { Stack, Locals, Eval, Step };
 
         public static bool IsKnown(string op) => op != null && Ops.Contains(op);
+
+        /// <summary>
+        /// 说明这次调试会话由 Agent 在控制的操作：之后 VS 停下时不抢前台（FocusPolicy）。只读的 status、栈、变量不算，
+        /// UE 页卡片的订阅、用户自己在看的会话不受影响。
+        /// </summary>
+        public static readonly IReadOnlyList<string> AgentControlOps = new[] { Start, Restart, Attach, Pause, Continue, Step, Wait, BpAdd };
+
+        public static bool IsAgentControl(string op) => op != null && AgentControlOps.Contains(op);
     }
 
     /// <summary>A request the backend refuses; the message goes to the caller as is.</summary>
