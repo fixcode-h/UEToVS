@@ -59,7 +59,7 @@ VS 自带的 C++ IntelliSense（EDG 前端 + 浏览数据库）在 UE 工程上�
 
 | 范围 | 说明 |
 | --- | --- |
-| 读磁盘上的工程文件 | `.uproject` / `.uplugin` / `*.Build.cs` / `*.Target.cs` / `.ini` / 源码 / `.usf` `.ush` / `.lua`，以及**只读**解析 `.uasset` `.umap` 的包头、名称表、导入表 |
+| 读磁盘上的工程文件 | `.uproject` / `.uplugin` / `*.Build.cs` / `*.Target.cs` / `.ini` / C++ 源码 / `.usf` `.ush`，以及**只读**解析 `.uasset` `.umap` 的包头、名称表、导入表 |
 | 编辑器内的代码体验 | 导航、搜索、补全、Quick Info、参数信息、着色、行内提示、波浪线、Alt+Enter、重构、代码生成、模板 |
 | UE 语义规则 | 反射、复制、RPC、委托、GameplayTag、config、弃用 API、命名规范、模块依赖 |
 | 给 VS 自带功能减负 | 关掉 VS 在 UE 大工程上代价过高的后台功能；没有等价替代的要在说明里写清楚 |
@@ -76,6 +76,7 @@ VS 自带的 C++ IntelliSense（EDG 前端 + 浏览数据库）在 UE 工程上�
 | 资产 / 蓝图编辑 | UE 编辑器 |
 | 代码格式化、拼写检查、模块 / 插件新建向导 | VS 自带 |
 | 新增 MCP 写操作（`rename_symbol` 和 VS 调试控制之外） | Agent 自己的写文件能力 |
+| Lua 的一切（索引、查找、补全、跳转、调试；v0.9.0 起移除，2026-11-17 用户定） | IntelliJ IDEA 的 IntelliJ-EmmyLua 插件：Lua 查找走 IDE 自带 MCP 服务器里的 `lua_code` 工具，调试走 `lua_debug_*`。UEToVS 不再生成 Lua 索引，旧工具名 `search_lua` / `search_lua_files` / `get_lua_outline` 保留一版，调用返回 `tool_removed` |
 
 **边界边上、冻结不再扩展的模块**：字体管理、Agent / API 模型转发、注释翻译、UBA / Horde 联合编译配置。
 

@@ -14,7 +14,7 @@ using UEToVS.UI.Theming;
 namespace UEToVS.UI.Controls
 {
     /// <summary>
-    /// Editable list of folders (warm-scheme mockup "Lua 脚本路径"): one 38px row per folder in a sunken rounded box —
+    /// Editable list of folders (warm-scheme mockup): one 38px row per folder in a sunken rounded box —
     /// folder icon, the path in the code font, a "相对 .uproject" / "绝对路径" tag, a warning when the folder is missing,
     /// then "⋯" (pick another folder) and ✕ (remove). Double-click a row (or F2) to edit it in place, Enter commits, Esc
     /// cancels. <see cref="AddButton"/> ("添加文件夹…") opens the folder picker; it is a separate element so a settings row

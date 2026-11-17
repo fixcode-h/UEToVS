@@ -5,8 +5,6 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using UEToVS.Core.Storage;
-using UEToVS.Engine.Indexing;
 using UEToVS.Engine.Tests;
 using UEToVS.Mcp.Data;
 using UEToVS.Mcp.Tools;
@@ -14,11 +12,9 @@ using Xunit;
 
 namespace UEToVS.Mcp.Tests
 {
-    /// <summary>The synthetic tree plus a replicated, configurable actor, ini files, a CVar, tags, delegate bindings and a Lua override.</summary>
+    /// <summary>The synthetic tree plus a replicated, configurable actor, ini files, a CVar, tags, delegate bindings and a Lua script (which UEToVS no longer indexes).</summary>
     public sealed class UeToolsFixture : IDisposable
     {
-        private readonly LuaIndexService _lua;
-
         public UeToolsFixture()
         {
             T = Tree.Create();
@@ -54,10 +50,6 @@ namespace UEToVS.Mcp.Tests
             host.Index.WaitForReadyAsync(CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(60)).GetAwaiter().GetResult();
             host.StopAsync(TimeSpan.FromSeconds(10)).GetAwaiter().GetResult();
 
-            _lua = new LuaIndexService(StoragePaths.ForSolution(T.ProjectRoot).Lua, T.ProjectRoot, watch: false, CancellationToken.None);
-            _lua.Configure(new[] { Path.Combine(T.ProjectRoot, "Content", "Script") }, "test");
-            _lua.ScanTask.WaitAsync(TimeSpan.FromSeconds(30)).GetAwaiter().GetResult();
-
             Index = new CodeIndex(T.ProjectRoot, DataSourceMode.Auto);
             Invoker = new ToolInvoker(new ToolCatalog(Index));
         }
@@ -76,7 +68,6 @@ namespace UEToVS.Mcp.Tests
 
         public void Dispose()
         {
-            _lua.Dispose();
             Index.Dispose();
             T.Dispose();
         }
@@ -92,7 +83,7 @@ namespace UEToVS.Mcp.Tests
             page.GetProperty("items").EnumerateArray().First(i => i.GetProperty("name").GetString() == name);
 
         [Fact]
-        public async Task ReflectionInfo_SplitsSpecifiers_Replication_Rpcs_AndLinksLua()
+        public async Task ReflectionInfo_SplitsSpecifiers_Replication_Rpcs()
         {
             var r = await _f.Call("get_reflection_info", new { type_name = "AMyNetActor" });
             Assert.Equal("AMyNetActor", r.GetProperty("type").GetProperty("name").GetString());
@@ -112,8 +103,7 @@ namespace UEToVS.Mcp.Tests
             Assert.Equal("Reliable", fire.GetProperty("reliability").GetString());
             Assert.True(fire.GetProperty("withValidation").GetBoolean());
             Assert.True(Item(r, "MaxPlayers").GetProperty("config").GetBoolean());
-            var lua = Item(r, "ReceiveHit").GetProperty("lua")[0];
-            Assert.EndsWith("NetActor.lua", lua.GetProperty("file").GetString());
+            Assert.False(Item(r, "ReceiveHit").TryGetProperty("lua", out _)); // v0.9.0：不再关联同名 Lua 函数
 
             var rw = await _f.Call("get_reflection_info", new { type_name = "AMyNetActor", specifiers = new[] { "blueprintreadwrite" } });
             Assert.Equal(new[] { "Health" }, rw.GetProperty("items").EnumerateArray().Select(i => i.GetProperty("name").GetString()));
@@ -225,14 +215,35 @@ namespace UEToVS.Mcp.Tests
         }
 
         [Fact]
-        public async Task FindReferences_ListsLuaOverridesOfAUFunction()
+        public async Task FindReferences_NoLongerLinksLua()
         {
+            // v0.9.0：Lua 归 IntelliJ IDEA 的 EmmyLua 插件，find_references 不再带 lua 字段，index_status 也不再有 Lua 索引状态。
             var r = await _f.Call("find_references", new { symbol = "AMyNetActor::ReceiveHit" });
-            var lua = r.GetProperty("lua");
-            Assert.Equal("lua-index", lua.GetProperty("source").GetString());
-            Assert.EndsWith("NetActor.lua", lua.GetProperty("definitions")[0].GetProperty("file").GetString());
-            var none = await _f.Call("find_references", new { symbol = "AMyNetActor::BindAll" });
-            Assert.False(none.TryGetProperty("lua", out _));
+            Assert.False(r.TryGetProperty("lua", out _));
+            var st = await _f.Call("index_status", new { });
+            Assert.False(st.TryGetProperty("lua", out _));
+        }
+
+        [Theory]
+        [InlineData("search_lua", "action=search")]
+        [InlineData("search_lua_files", "action=files")]
+        [InlineData("get_lua_outline", "action=outline")]
+        public async Task RemovedLuaTools_ReturnToolRemovedAndNameTheReplacement(string tool, string action)
+        {
+            // 旧工具名保留一版：仍在 tools/list 里，说明写明已移除；调用时不管带什么参数（包括旧参数）都返回「改用哪个」。
+            var def = _f.Invoker.Catalog.Get(tool);
+            Assert.NotNull(def);
+            Assert.StartsWith("REMOVED", def.Description);
+            Assert.Contains("lua_code", def.Description);
+            foreach (var args in new object[] { new { }, new { query = "MainPanel", kinds = new[] { "function" } }, new { path = "UI/MainPanel.lua" } })
+            {
+                var r = await _f.Call(tool, args, expectError: true);
+                Assert.Equal("tool_removed", r.GetProperty("error").GetString());
+                string message = r.GetProperty("message").GetString();
+                Assert.Contains("UEToVS 不再提供 Lua 功能", message);
+                Assert.Contains("EmmyLua", message);
+                Assert.Contains("lua_code " + action, message);
+            }
         }
 
         [Fact]

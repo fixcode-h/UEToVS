@@ -39,7 +39,6 @@ namespace UEToVS.Host.Logic.Tests
                 IntelliSenseTakeoverMode = IntelliSenseTakeoverMode.Off,
                 LogRetentionDays = 3, LogMaxTotalMB = 50, CppIndexThreads = 6, BlueprintIndexThreads = 2,
                 IndexDuringBuild = IndexDuringBuild.Pause, IndexEngineSource = false, ShareEngineIndex = true, EngineIndexPath = @"D:\Idx",
-                LuaScriptPaths = @"Content/Script;D:\Shared\Lua",
                 ShowToolbar = false, HiddenToolbarButtons = "findReferences,performance", PerformanceSampleSeconds = 5,
                 // M1 / M2 fields
                 DoubleShiftEnabled = false, DoubleShiftIntervalMs = 450, DoubleShiftLeftOnly = true, SearchMaxResultsPerCategory = 80,
@@ -54,54 +53,19 @@ namespace UEToVS.Host.Logic.Tests
             Assert.Equal("#80FF0000", back.ReferenceHighlightWriteColor);
             Assert.False(back.NavigationBar);
             Assert.False(back.SyncSolutionExplorer);
-            // Path lists are normalized on load (old "a; b" text → "a;b"); the folders themselves are unchanged.
-            Assert.Equal(@"Content/Script;D:\Shared\Lua", back.LuaScriptPaths);
-            Assert.Equal(HostSettingsSchema.Codec.SplitPaths(s.LuaScriptPaths), HostSettingsSchema.Codec.SplitPaths(back.LuaScriptPaths));
         }
 
         [Fact]
-        public void LuaScriptPaths_DefaultToContentScriptOnlyWhenItHasLua()
+        public void LuaSettingsAreGone_AndOldStoredValuesAreRetired()
         {
-            string project = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "uetovs-lua-" + System.Guid.NewGuid().ToString("N"));
-            string script = System.IO.Path.Combine(project, "Content", "Script");
-            try
-            {
-                // no folder / empty folder / no .lua: no Lua index
-                Assert.Empty(HostSettingsSchema.Codec.ToIndexing(new HostSettings(), project, _ => false).LuaScriptPaths);
-                System.IO.Directory.CreateDirectory(System.IO.Path.Combine(script, "UI"));
-                System.IO.File.WriteAllText(System.IO.Path.Combine(script, "readme.txt"), "x");
-                Assert.Empty(LuaScriptDefaults.Resolve("", project, out bool d0, dir => System.IO.Directory.EnumerateFiles(dir, "*.lua", System.IO.SearchOption.AllDirectories).Any()));
-                Assert.False(d0);
-                // a .lua in a sub folder: Content/Script is used
-                System.IO.File.WriteAllText(System.IO.Path.Combine(script, "UI", "Main.lua"), "return {}");
-                var paths = LuaScriptDefaults.Resolve(null, project, out bool d1, dir => System.IO.Directory.EnumerateFiles(dir, "*.lua", System.IO.SearchOption.AllDirectories).Any());
-                Assert.True(d1);
-                Assert.Equal(new[] { LuaScriptDefaults.DefaultFolder }, paths);
-                Assert.True(LuaScriptDefaults.ContainsLua(script));
-                // configured folders replace the default; no project: nothing to probe
-                Assert.Equal(new[] { @"D:\Lua" }, LuaScriptDefaults.Resolve(@"D:\Lua", project, out bool d2, _ => true));
-                Assert.False(d2);
-                Assert.Empty(LuaScriptDefaults.Resolve("", null, out _, _ => true));
-            }
-            finally
-            {
-                try { System.IO.Directory.Delete(project, true); } catch (System.IO.IOException) { }
-            }
-        }
-
-        [Fact]
-        public void LuaScriptPaths_SplitAndPushedToTheEngine()
-        {
-            Assert.Empty(HostSettingsSchema.Codec.SplitPaths("  "));
-            Assert.Equal(new[] { "Content/Script", @"D:\Lua, Shared", "x" },
-                HostSettingsSchema.Codec.SplitPaths(" Content/Script ;;\"D:\\Lua, Shared\";content/script\nx"));
-            var push = HostSettingsSchema.Codec.ToIndexing(new HostSettings { LuaScriptPaths = "Content/Script" });
-            Assert.Equal(new[] { "Content/Script" }, push.LuaScriptPaths);
-            Assert.Empty(HostSettingsSchema.Codec.ToIndexing(new HostSettings()).LuaScriptPaths);
-            var actions = Schema.Where(d => d.Category == HostSettingsSchema.Indexing).Select(d => d.ActionId).ToList();
-            Assert.Contains(HostSettingsSchema.WindowActions.IndexLua, actions);
-            Assert.Contains(HostSettingsSchema.WindowActions.LuaIndexStatus, actions);
-            Assert.Equal("索引", Schema.Single(d => d.Key == "indexing.indexLua").ActionLabelZh);
+            // v0.9.0：Lua 归 IntelliJ IDEA 的 EmmyLua 插件。设置窗口里不再有 Lua 的行，存着的旧值按退役设置删掉，旧配置不报错。
+            Assert.DoesNotContain(Schema, d => d.Key.IndexOf("lua", System.StringComparison.OrdinalIgnoreCase) >= 0);
+            Assert.Contains("indexing.luaScriptPaths", SettingsUpgrade.RetiredKeys);
+            var problems = new System.Collections.Generic.List<string>();
+            var old = new System.Collections.Generic.Dictionary<string, string> { ["indexing.luaScriptPaths"] = "Content/Script", ["indexing.cppThreads"] = "3" };
+            var s = HostSettingsSchema.Codec.FromValues(old, Schema, new HostSettings(), problems);
+            Assert.Empty(problems);
+            Assert.Equal(3, s.CppIndexThreads);
         }
 
         /// <summary>Every public settable HostSettings property is either in the settings window or deliberately left out.</summary>

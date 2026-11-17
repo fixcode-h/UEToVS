@@ -10,7 +10,7 @@ namespace UEToVS.Host.Logic.Settings
     /// </summary>
     public static class SettingsUpgrade
     {
-        public const string CurrentVersion = "3";
+        public const string CurrentVersion = "4";
 
         /// <summary>
         /// Defaults of an older schema that changed later, keyed by the version that still had them. v0.3.0 (schema 1)
@@ -24,10 +24,12 @@ namespace UEToVS.Host.Logic.Settings
         /// <summary>
         /// v0.5.1 (schema 3): settings that no longer exist. The takeover switch became the "Off" scope; the browse
         /// database / background code analysis / VS Blueprint scan switches follow the scope.
+        /// v0.9.0 (schema 4)：Lua 脚本路径随 Lua 支持一起移除（Lua 归 IntelliJ IDEA 的 EmmyLua 插件），存着的旧值直接删掉。
         /// </summary>
         public static readonly string[] RetiredKeys =
         {
             "intelliSense.takeover", "intelliSense.disableDatabase", "intelliSense.disableBackgroundCodeAnalysis", "vs.blueprintSupport",
+            "indexing.luaScriptPaths",
         };
 
         /// <summary>

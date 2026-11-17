@@ -68,7 +68,7 @@ namespace UEToVS.Mcp.Tests
             Assert.Contains("search_symbols", c.ServerInstructions);
             // The instructions are what makes agents pick these tools over grep: every search tool must be named, and they must fit
             // in the 2 KB some clients (Claude Code) keep.
-            foreach (var name in new[] { "search_files", "search_assets", "find_references", "search_lua", "search_lua_files", "get_lua_outline",
+            foreach (var name in new[] { "search_files", "search_assets", "find_references", "lua_code",
                                          "get_reflection_info", "get_module_info", "suggest_include", "search_config", "find_delegate_bindings",
                                          "get_diagnostics", "get_build_errors", "rename_symbol", "find_blueprint_usages" })
                 Assert.Contains(name, c.ServerInstructions);

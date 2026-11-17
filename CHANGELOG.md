@@ -6,6 +6,12 @@
 - 节内用 `### 新功能`、`### 改进`、`### Bug 修复`、`### 注意` 等小标题，条目写成 `- **短标题** — 说明`。
 - 改了 `src/` 的 PR 必须在最上面加一个新版本节（PR 检查会验证），这样每次合并都会出一个带更新日志的包。
 
+## v0.9.0
+
+### 注意
+- **移除 Lua 支持，改用 IntelliJ IDEA 的 EmmyLua 插件** — Lua 的查找、调试统一交给 IntelliJ IDEA 的 EmmyLua 插件（在 IDEA 的 设置 > 工具 > MCP 服务器 里打开 IDE 自带的 MCP 服务器，Agent 用其中的 `lua_code` 查 Lua、`lua_debug_*` 调试 Lua）。UEToVS 不再建 Lua 索引：设置 > 索引 里的“Lua 脚本”一栏（Lua 脚本路径、Lua 索引状态、“索引 Lua 脚本”按钮）去掉了，以前填过的路径升级后自动清掉，不会报错；旧版留在 `.vs\UEToVS\Lua\` 下的索引文件在打开解决方案时自动删除（只删这个目录，不碰你的 .lua 脚本）
+- **MCP 的 Lua 工具已停用** — `search_lua`、`search_lua_files`、`get_lua_outline` 这一版还在工具列表里，但调用时只返回错误 `tool_removed`，告诉 Agent 改用 EmmyLua 插件的 `lua_code`（`action=search` / `files` / `outline`）；下一个版本从列表里删掉。`find_references`、`get_reflection_info` 不再附带同名 Lua 函数，`index_status` 不再有 Lua 索引状态
+
 ## v0.8.0
 
 ### 新功能

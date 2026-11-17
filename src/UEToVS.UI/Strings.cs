@@ -20,7 +20,7 @@ namespace UEToVS.UI
         public static string CommonAuto => Loc.T("自动", "Auto");
         public static string CommonLoading => Loc.T("正在加载…", "Loading…");
         public static string CommonMore => Loc.T("更多", "More");
-        // ---- path list / path input (settings: Lua script folders, engine paths)
+        // ---- path list / path input (settings: folder lists, engine paths)
         public static string PathAddFolder => Loc.T("添加文件夹…", "Add folder…");
         public static string PathBrowse => Loc.T("浏览…", "Browse…");
         public static string PathBrowseRow => Loc.T("选择其他文件夹…", "Pick another folder…");

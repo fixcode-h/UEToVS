@@ -66,6 +66,35 @@ namespace UEToVS.Core.Tests
         }
 
         [Fact]
+        public void DeleteLegacyLuaIndex_RemovesOnlyTheOldLuaFolder()
+        {
+            // v0.9.0 起不再生成 Lua 索引：启动时删掉旧版留下的 .vs/UEToVS/Lua，同级的索引、日志和用户文件不动。
+            string dir = Path.Combine(Path.GetTempPath(), "uetovs-test-" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                var paths = StoragePaths.ForSolution(dir).EnsureCreated();
+                Assert.Equal(Path.Combine(Path.GetFullPath(dir), ".vs", "UEToVS", "Lua"), paths.LegacyLua);
+                Assert.False(paths.DeleteLegacyLuaIndex()); // 没有旧索引：什么都不做
+                Directory.CreateDirectory(paths.LegacyLua);
+                File.WriteAllText(Path.Combine(paths.LegacyLua, "lua-index.json"), "{}");
+                string keepIndex = Path.Combine(paths.Index, "keep.bin");
+                File.WriteAllText(keepIndex, "x");
+                string userScript = Path.Combine(dir, "Content", "Script", "Main.lua");
+                Directory.CreateDirectory(Path.GetDirectoryName(userScript));
+                File.WriteAllText(userScript, "return {}");
+
+                Assert.True(paths.DeleteLegacyLuaIndex());
+                Assert.False(Directory.Exists(paths.LegacyLua));
+                Assert.True(File.Exists(keepIndex));
+                Assert.True(File.Exists(userScript));
+            }
+            finally
+            {
+                try { Directory.Delete(dir, true); } catch { }
+            }
+        }
+
+        [Fact]
         public void LatencyStats_ComputesPercentiles()
         {
             var s = new LatencyStats();

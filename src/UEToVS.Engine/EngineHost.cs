@@ -59,8 +59,8 @@ namespace UEToVS.Engine
             Changes = new FileChangeTracker(batch => Index.ApplyChangesAsync(batch, _shutdown.Token));
             Watchdog = new Watchdog { Context = () => QueueContext() };
             Performance = new PerformanceMonitor();
-            Lua = new LuaIndexService(Paths.Lua, options.SolutionDir, watch: !options.NoWatch, _shutdown.Token);
-            if (options.LuaScriptPaths != null) Lua.Configure(options.LuaScriptPaths, "commandLine");
+            // v0.9.0：Lua 归 IntelliJ IDEA 的 EmmyLua 插件，UEToVS 不再建 Lua 索引；旧版留在 .vs/UEToVS/Lua 下的索引文件顺手删掉。
+            if (Paths.DeleteLegacyLuaIndex()) L.Info("lua.legacyIndex.deleted", "Removed the Lua index left by an older UEToVS", ("dir", Paths.LegacyLua));
             Index.WorkspaceDiscovered += OnWorkspaceDiscovered;
             // ---- v0.4.5 heavy features (on demand; switches from the settings window)
             Inspection = new Inspection.ProjectInspectionService(IntelliSense, plugins => UEToVS.Engine.Inspection.ProjectInspectionService.ProjectFiles(Index.Files, plugins),
@@ -96,8 +96,6 @@ namespace UEToVS.Engine
         public RequestScheduler Scheduler { get; }
         public IndexOrchestrator Index { get; }
 
-        /// <summary>Lua script index (separate from the C++ index; folders from the settings).</summary>
-        public LuaIndexService Lua { get; }
         public SearchService Search { get; }
         public Navigation.NavigationService Navigation { get; }
         public IntelliSense.IntelliSenseService IntelliSense { get; }
@@ -153,7 +151,6 @@ namespace UEToVS.Engine
         {
             var config = IndexingConfig.From(settings);
             Scheduler.BuildPolicy = config.DuringBuild;
-            Lua.Configure(settings.LuaScriptPaths, "settings");
             ApplyHeavyFeatureSettings(settings);
             bool restart = Index.ApplyConfig(config);
             if (restart && CurrentWorkspaceOptions != null)
@@ -166,8 +163,6 @@ namespace UEToVS.Engine
         /// <summary>Rebuild (project / engine / both C++ parts, assets, all). Returns at once; progress via status.</summary>
         public void RebuildIndex(RebuildScope scope)
         {
-            if (scope == RebuildScope.Lua || scope == RebuildScope.All) Lua.Rebuild();
-            if (scope == RebuildScope.Lua) return;
             if (Index.Options == null && CurrentWorkspaceOptions == null)
             {
                 L.Warn("index.rebuild.not_started", "Rebuild requested before indexing started", ("scope", scope.ToString()));
@@ -207,7 +202,6 @@ namespace UEToVS.Engine
 
         private void OnWorkspaceDiscovered(Workspace ws)
         {
-            Lua.SetProjectRoot(ws.ProjectRoot);
             if (Options.NoWatch) return;
             var dirs = IndexOrchestrator.WatchDirectories(ws, Options.WatchEngine && !Options.SkipEngine).ToList();
             ReplaceWatchers(dirs);
@@ -247,7 +241,6 @@ namespace UEToVS.Engine
                 Resources = PerformanceMonitor.Resources(IndexBytesOnDisk()),
                 LastError = Index.LastError,
             };
-            Lua.FillStatus(status);
             return status;
         }
 
@@ -289,9 +282,6 @@ namespace UEToVS.Engine
             snap.IndexParts.Add(new MemoryPart { Name = "file-table", ManagedBytes = fileTable });
             snap.IndexParts.Add(new MemoryPart { Name = "asset-table", ManagedBytes = Index.Assets.Count * 420L + Index.Assets.PackageDirCount * 120L });
             snap.IndexParts.Add(new MemoryPart { Name = "index-folder", DiskBytes = IndexBytesOnDisk() });
-            var lua = Lua.Data;
-            if (lua != null && lua.Files.Count > 0)
-                snap.IndexParts.Add(new MemoryPart { Name = "lua-index", ManagedBytes = lua.Files.Count * 320L + lua.SymbolCount * 140L });
 
             foreach (var s in Log.LatencySinceStart.Snapshot())
             {
@@ -392,7 +382,6 @@ namespace UEToVS.Engine
             Upgrade.Dispose();
             Blueprints.Dispose();
             lock (_gate) _watchTracker?.Dispose();
-            Lua.Dispose();
             Changes.Dispose();
             Watchdog.Dispose();
             Performance.Dispose();
