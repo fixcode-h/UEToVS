@@ -36,7 +36,7 @@ namespace UEToVS.Host.Debugging
             if (launchArgs != null) o["commandArguments"] = launchArgs;
             o["hint"] = noDebug
                 ? "已按 Ctrl+F5 启动（不挂调试器，断点不会停）"
-                : "已按 F5 启动：VS 先编译再启动 UE。用 wait 等它停在断点或退出；UE 编辑器启动要一会儿，status 看进程";
+                : "已按 F5 启动：VS 先编译再启动 UE。用 wait 等它停在断点或退出。要等 UE 编辑器能用（主窗口出来、资源加载完）别用 wait 干等：装了 Agent 面板时用 ue_editor action=wait_ready（看 UELink 2.7 名片里的 ready）";
             return o;
         }
 
@@ -48,7 +48,7 @@ namespace UEToVS.Host.Debugging
             _dte.ExecuteCommand("Debug.Restart");
             var o = Snapshot(0);
             o["restarted"] = true;
-            o["hint"] = "已重启（Ctrl+Shift+F5）：用 wait 等它停在断点或退出";
+            o["hint"] = "已重启（Ctrl+Shift+F5）：用 wait 等它停在断点或退出；等编辑器能用用 Agent 面板的 ue_editor action=wait_ready";
             return o;
         }
 
