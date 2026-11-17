@@ -29,6 +29,12 @@ namespace UEToVS.Mcp.Tools
 
         // ---- v0.8.0 VS debug control: debug_session can end the debugged UE process (stop / restart).
         public bool Destructive { get; set; }
+
+        /// <summary>
+        /// v0.9.0：非空表示这个工具已移除，只为旧名字保留一版。调用时（参数校验之前）返回 <c>tool_removed</c> 错误，消息就是它，
+        /// 写清楚改用哪个工具。
+        /// </summary>
+        public string RemovedMessage { get; set; }
     }
 
     /// <summary>Handler result: the JSON payload plus what the log needs.</summary>
@@ -62,7 +68,7 @@ namespace UEToVS.Mcp.Tools
             Register(TypeHierarchyTool());
             Register(MembersTool());
             Register(IndexStatusTool());
-            RegisterLuaTools();
+            RegisterRemovedLuaTools(); // ---- v0.9.0 Lua 归 IntelliJ IDEA 的 EmmyLua 插件；旧名字保留一版，调用报 tool_removed
             Register(BlueprintUsagesTool());
             RegisterUeTools();
             RegisterBuildTools(); // ---- v0.4.5 get_build_errors / get_diagnostics / rename_symbol
@@ -570,8 +576,6 @@ namespace UEToVS.Mcp.Tools
             if (more) payload["nextOffset"] = offset + page.Count;
             if (!string.IsNullOrEmpty(refs.Note)) payload["note"] = refs.Note;
             payload["files"] = files;
-            var lua = LuaLink(fallbackName, refs.Value.Symbol ?? req.Symbol);
-            if (lua != null) payload["lua"] = lua;
             return new ToolOutput { Payload = payload, ResultCount = page.Count, Source = refs.Source };
         }
 
@@ -749,7 +753,6 @@ namespace UEToVS.Mcp.Tools
                 if (info.Rejected.Count > 0) idx["rejected"] = new JsonArray(info.Rejected.Select(r => (JsonNode)r).ToArray());
                 payload["onDisk"] = idx;
             }
-            payload["lua"] = LuaStatus(s);
             payload["mcpVersion"] = EngineConnection.Version;
             payload["dataSource"] = _index.Mode.ToString();
             if (!string.IsNullOrEmpty(st.Note)) payload["note"] = st.Note;

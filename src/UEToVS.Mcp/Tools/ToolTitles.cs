@@ -22,9 +22,10 @@ namespace UEToVS.Mcp.Tools
             ["get_type_hierarchy"] = "类型继承关系",
             ["get_members"] = "类型成员",
             ["index_status"] = "索引状态",
-            ["search_lua"] = "搜索 Lua 符号",
-            ["search_lua_files"] = "搜索 Lua 文件",
-            ["get_lua_outline"] = "Lua 文件大纲",
+            // v0.9.0 已移除（旧名字保留一版，调用报 tool_removed）
+            ["search_lua"] = "搜索 Lua 符号（已移除）",
+            ["search_lua_files"] = "搜索 Lua 文件（已移除）",
+            ["get_lua_outline"] = "Lua 文件大纲（已移除）",
             ["find_blueprint_usages"] = "查找蓝图用法和派生蓝图",
             ["get_reflection_info"] = "UE 反射信息",
             ["get_module_info"] = "UE 模块信息",

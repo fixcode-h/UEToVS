@@ -80,33 +80,23 @@ UEToVS.Mcp.exe（每个 Agent 会话一个进程，.NET 8，ModelContextProtocol
 | `find_references` | 查引用/调用者，按文件分组并带行文本 | `symbol` 或位置、`include_declarations`、`scope` |
 | `get_type_hierarchy` | 基类链 / 派生类 | `type_name`、`direction`（bases/derived/both）、`max_depth`、`max_nodes`、`scope` |
 | `get_members` | 类型成员 | `type_name`、`include_inherited`、`kinds`、`ue` |
-| `index_status` | 索引是否就绪、数据源、文件数、Engine 状态、Lua 索引状态（`lua`） | 无 |
-| `search_lua` | 找 Lua 函数 / 方法 / 类 / 模块表 / 字段 / 文件级变量 | `query`（`M:Fire`、`UI.MainPanel.Show` 限定所属表）、`match`、`kinds`（function/method/class/table/field/variable）、`container`、`include_locals` |
-| `search_lua_files` | 按文件名或 require 路径找 Lua 脚本 | `query`（`MainPanel`、`UI.MainPanel`、`UI/MainPanel`） |
-| `get_lua_outline` | Lua 文件大纲 | `path`（绝对路径、相对 Lua 目录/项目的路径，或模块名） |
-| `get_reflection_info` | 一个 UCLASS/USTRUCT 的所有 UPROPERTY/UFUNCTION：说明符拆成 flags / key=value / meta，复制（Replicated、ReplicatedUsing）、RPC（Server/Client/NetMulticast、Reliable、WithValidation）、Config；UFUNCTION 附同名 Lua 函数（UnLua 覆写） | `type_name`、`kind`（all/property/function）、`specifiers`、`replicated_only`、`include_inherited`、`limit`、`offset` |
+| `index_status` | 索引是否就绪、数据源、文件数、Engine 状态 | 无 |
+| `search_lua` / `search_lua_files` / `get_lua_outline` | **v0.9.0 已移除**，旧名字保留一版：仍在工具列表里（说明以 `REMOVED` 开头），调用时不看参数，直接返回 `tool_removed`，消息写改用 IntelliJ IDEA EmmyLua 插件的 `lua_code`（`action=search` / `files` / `outline`）。下一个 minor 版本从列表里删掉 | — |
+| `get_reflection_info` | 一个 UCLASS/USTRUCT 的所有 UPROPERTY/UFUNCTION：说明符拆成 flags / key=value / meta，复制（Replicated、ReplicatedUsing）、RPC（Server/Client/NetMulticast、Reliable、WithValidation）、Config | `type_name`、`kind`（all/property/function）、`specifiers`、`replicated_only`、`include_inherited`、`limit`、`offset` |
 | `get_module_info` | 文件属于哪个模块、模块类型（Runtime/Editor/Developer…）、所在插件、Build.cs 的 Public/Private 依赖；带 `header` 时回答“这个头文件在哪个模块、我的模块依赖了没有” | `path` 或 `module`，可选 `header` |
 | `suggest_include` | 类型的 `#include` 写法（UE 风格，相对模块 Public/Classes）和要加进 Build.cs 的模块；带 `from` 时检查是否已依赖、该放 Public 还是 Private | `type`、`from` |
 | `search_config` | 搜配置：ini 键值（项目和项目插件的 Config；`scope: all` 加引擎 Config）、UPROPERTY(config) 对应的 ini 文件/节/键、项目代码里的 CVar、GameplayTag | `query`、`kinds`（ini/config_property/cvar/tag）、`scope` |
 | `find_blueprint_usages` | 蓝图用法（v0.7.3）：读引擎写的离线蓝图索引（`.vs/UEToVS/Blueprints/`，只含项目和项目插件的资产），列出继承某个类的蓝图，或用到某个函数 / 属性的蓝图和关卡；按名字匹配，结果是 .uasset 路径和对象路径 | `class`（必填，也可写 `Class::Member`）、`member`、分页参数 |
 | `find_delegate_bindings` | 一个函数被绑到哪些委托 / 输入 / 定时器（`AddDynamic`、`BindUObject`、`CreateUObject`、`BindUFunction`、`BindAction`、`SetTimer`…） | `function`（`UMyClass::OnClicked` 只保留指明该类的绑定）、`scope` |
 
-`find_references` 的结果带 `lua`、`get_reflection_info` 的 UFUNCTION 带同名 Lua 函数：Lua 里同名的函数 / 方法定义（按名字关联，不看调用点）。
-
-错误返回 `isError: true` 和 `{"error": "<code>", "message": "..."}`，`code` 有 `invalid_argument`、`unknown_tool`、`file_not_found`、`no_index`、`engine_unavailable`。
+错误返回 `isError: true` 和 `{"error": "<code>", "message": "..."}`，`code` 有 `invalid_argument`、`unknown_tool`、`tool_removed`（已移除、只为旧名字保留的工具，`message` 写改用哪个）、`file_not_found`、`no_index`、`engine_unavailable`。
 
 资源：`uetovs://index/status`（同 `index_status`）、`uetovs://guide`（给 Agent 的使用说明：什么时候用哪个工具，索引没就绪时怎么退回 grep / 文件搜索）。
 提示：`explain_ue_class`（讲解一个 UE 类：层次、成员、反射标记）。原来的 `find_blueprint_usage` 已删除：没有蓝图引用数据，只能按名字猜。
 
-### 3.1 Lua 脚本索引
+### 3.1 Lua（v0.9.0 起不在 UEToVS 里）
 
-UnLua / sluaunreal 等项目的 Lua 不在 C++ 索引里，单独建一份：
-
-- **配置**：UEToVS 设置 > 索引 > Lua 脚本 > Lua 脚本路径（`HostSettings.LuaScriptPaths`，`;` 分隔；相对路径先按 .uproject 所在目录、再按解决方案目录解析）。宿主通过 `IndexingSettings.LuaScriptPaths` 推给 Engine，改了立即重新扫描；留空则删除 Lua 索引。命令行：`UEToVS.Engine --lua-dir <dir>`（可重复）。
-- **解析**（`src/UEToVS.Engine.Index/Lua/LuaParser.cs`）：容错的词法扫描 + 嵌套跟踪，不是完整语法分析。识别 `function a.b:c()`、`local function f()`（任意深度）；文件级的 `[local] a.b = function/{...}/class(...)/值`；赋给具名表的表构造器字段（含嵌套表）；`---@class Name`。`self.x = …` 这类函数体内的赋值和块内 `local` 不收录，避免噪声。`class(...)`、`UnLua.Class()`、`Base:extend()` 等记为 class。
-- **增量**（`LuaIndexer` + `Engine/Indexing/LuaIndexService.cs`，与 C++ 索引同样的思路）：首次扫描复用已保存索引里大小和时间戳都没变的文件；时间戳变了但 xxHash64 相同只更新戳不重新解析；之后 Lua 目录上的 FileSystemWatcher（`.lua` 文件和文件夹事件，300 ms 防抖）和宿主的保存通知只更新涉及的文件，文件夹删除/重命名整体移除，监视器溢出时增量重扫。“索引 Lua 脚本”按钮（`RebuildScope.Lua`）丢弃缓存全部重新解析。所有工作在单独的后台通道，不占 RPC 线程。
-- **存储**：`<解决方案目录>\.vs\UEToVS\Lua\lua-index.json`（临时文件 + 替换，原子写入）。MCP 不经过 Engine，直接读这个文件（每秒最多检查一次时间戳，变了就重新加载），所以 VS 没开也能查；结果的 `source` 是 `lua-index`。状态在 `EngineStatus.Lua*` 和 `index_status.lua`。
-- **日志**：`lua.index.scan.start/done`（文件数、解析/复用/未变/删除数、耗时）、`lua.index.update`、`lua.index.rebuild.requested`、`lua.index.disabled`、`lua.fs.watching`、失败时 `lua.index.*.failed`；MCP 端 `mcp.lua.loaded`。
+Lua 全部归 IntelliJ IDEA 的 IntelliJ-EmmyLua 插件：查找用 IDE 自带 MCP 服务器里的 `lua_code` 工具，调试用 `lua_debug_*`。UEToVS 不再建 Lua 索引，`find_references` / `get_reflection_info` 不再附同名 Lua 函数，`index_status` 不再有 `lua` 字段，设置窗口里的 Lua 脚本路径也删了（存着的旧值按退役设置删掉）。旧版写在 `<解决方案目录>\.vs\UEToVS\Lua\` 下的 `lua-index.json` 由 Engine 启动时删除（日志 `lua.legacyIndex.deleted`），只删这个目录，不碰用户的脚本。
 
 ## 4. 各客户端配置示例
 
@@ -196,6 +186,5 @@ MCP 进程首次启动 + initialize + 打开索引共约 0.5 s，每个 Agent �
 - 离线索引是磁盘上的最近一次持久化结果。Engine 正常关闭时会把内存里的增量（编辑过的文件）写成一个额外的段，最多花 5 秒（日志 `index.shutdown.flush` / `index.delta.persisted`）；超时、进程被杀或崩溃时，这部分增量要等下次打开后重新索引。
 - `search_config` 的 CVar 只搜项目代码（最多读 600 个候选文件），不搜引擎源码（`scope: all` 也不含引擎 CVar）；ini 最多读 400 个文件。UPROPERTY(config) 的 ini 节按类自己的 `config=` 说明符推断，不沿基类继承。
 - `find_delegate_bindings` 先用索引里函数名的出现位置找候选文件，再逐行匹配绑定写法；宏包装的绑定、经变量间接传入的函数指针、蓝图里的绑定都找不到。
-- Lua ↔ C++ 只按名字关联定义，不扫描 Lua 调用点。
 - 只提供 stdio 传输，没有 HTTP；每个 Agent 会话一个进程。
 - Linux 上无法验证：VS 是否实际读取并显示 `.vs\mcp.json` 里的条目、18.7 信任弹窗行为、VSIX 打包路径、Windows 命名管道连接（测试在 Linux 上用 Unix 域套接字跑通同一套代码）。

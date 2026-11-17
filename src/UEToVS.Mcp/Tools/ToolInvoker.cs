@@ -53,6 +53,8 @@ namespace UEToVS.Mcp.Tools
             {
                 if (tool == null)
                     throw new ToolException("unknown_tool", $"Unknown tool '{name}'. Call tools/list for the available tools.");
+                if (tool.RemovedMessage != null) // 旧名字保留一版：不看参数，直接告诉 Agent 改用哪个
+                    throw new ToolException("tool_removed", tool.RemovedMessage);
                 var args = new ToolArgs(arguments, tool.Arguments);
                 argSummary = args.Summary();
                 var output = await tool.Handler(args, ct).ConfigureAwait(false);

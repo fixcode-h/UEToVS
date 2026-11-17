@@ -27,7 +27,7 @@ namespace UEToVS.Host.Logic.Localization
             "editing" => Loc.T("重命名、用代码块包围、剪贴板历史和 #tag 注释。", "Rename, Surround With, clipboard history and #tag comments."),
             "navigation" => Loc.T("Ctrl+点击跳转、导航栏、后退 / 前进历史和全局搜索。", "Ctrl+Click, the navigation bar, back / forward history and Search Everywhere."),
             "translation" => Loc.T("把悬停信息里的注释翻译成中文（或英文），以及右键“翻译选中内容”的显示方式。", "Translate comments in Quick Info, and how “Translate Selection” shows its result."),
-            "indexing" => Loc.T("C++、蓝图和 Lua 索引的范围、线程数和存放位置，以及重建索引。", "Scope, threads and location of the C++, Blueprint and Lua indexes, and rebuilding them."),
+            "indexing" => Loc.T("C++ 和蓝图索引的范围、线程数和存放位置，以及重建索引。", "Scope, threads and location of the C++ and Blueprint indexes, and rebuilding them."),
             "unreal" => Loc.T("和 UE 项目相关的：引擎位置、模块依赖、Live Coding、调试，以及全项目检查和引擎升级助手。", "Things about the UE project: engine location, module dependencies, Live Coding, debugging, whole-project inspection and the upgrade assistant."),
             "horde" => Loc.T("用 Horde / UBA 借其他机器一起编译，以及本机给别人用的核心数。", "Build with other machines through Horde / UBA, and how much of this machine others may use."),
             "agent" => Loc.T("配置 OpenAI 兼容（Chat Completions）的 API 和密钥，从接口获取模型；勾选的模型会出现在 VS 自带的 Copilot 聊天里。另有给 AI Agent 用的 MCP 服务。", "OpenAI-compatible (Chat Completions) APIs and keys; enabled models show up in Visual Studio's Copilot Chat. Also the MCP server for AI agents."),
@@ -61,17 +61,6 @@ namespace UEToVS.Host.Logic.Localization
         public static string IndexStatusNone => Loc.T("没有打开 UE 解决方案", "No UE solution open");
         public static string IndexStatus(string phase, int parsed, int toParse, int symbols, int assets) =>
             Loc.F("{0} · {1:N0}/{2:N0} 文件 · {3:N0} 符号 · {4:N0} 资产", "{0} · {1:N0}/{2:N0} files · {3:N0} symbols · {4:N0} assets", phase, parsed, toParse, symbols, assets);
-        public static string LuaIndexDisabled => Loc.T("未设置 Lua 脚本路径，Content/Script 下也没有 .lua 文件", "No Lua script folder set, and no .lua files under Content/Script");
-        public static string LuaDefaultFolderNote => Loc.T("（未设置路径，自动使用 Content/Script）", " (no folder set: Content/Script is used automatically)");
-        public static string LuaIndexStatus(string state, int files, int symbols, string roots) =>
-            Loc.F("{0} · {1:N0} 个 Lua 文件 · {2:N0} 符号 · {3}", "{0} · {1:N0} Lua files · {2:N0} symbols · {3}", state, files, symbols, roots);
-        public static string LuaStateName(int state) => state switch
-        {
-            1 => Loc.T("正在索引", "Indexing"),
-            2 => Loc.T("就绪", "Ready"),
-            3 => Loc.T("失败", "Failed"),
-            _ => Loc.T("未启用", "Off"),
-        };
         public static string IndexThreadsEffective(int cpp, int bp, int cores) =>
             Loc.F("当前生效：C++ {0} 线程，蓝图 {1} 线程（本机 {2} 个逻辑核心）", "In effect: C++ {0} threads, Blueprint {1} threads ({2} logical cores)", cpp, bp, cores);
         public static string IntelliSenseTakenOver => Loc.T("已接管（VS 自带 C++ IntelliSense 已关闭，原设置已备份）", "Taken over (VS C++ IntelliSense off; originals backed up)");

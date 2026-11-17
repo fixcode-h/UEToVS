@@ -61,7 +61,6 @@ namespace UEToVS.Mcp.Data
             Mode = mode;
             _engine = engine ?? new EngineConnection(solutionDir);
             _offline = offline ?? new OfflineIndex(solutionDir);
-            Lua = new LuaIndexReader(solutionDir);
             Blueprints = new BlueprintIndexReader(solutionDir);
         }
 
@@ -70,9 +69,6 @@ namespace UEToVS.Mcp.Data
         public EngineConnection Engine => _engine;
         public OfflineIndex Offline => _offline;
         public SourceTextCache Texts { get; } = new SourceTextCache();
-
-        /// <summary>Lua script index (lua-index.json written by the engine); always read from disk.</summary>
-        public LuaIndexReader Lua { get; }
 
         /// <summary>v0.7.3 offline Blueprint index (blueprints.jsonl.gz written by the engine); always read from disk.</summary>
         public BlueprintIndexReader Blueprints { get; }

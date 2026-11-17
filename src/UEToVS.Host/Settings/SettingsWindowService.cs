@@ -90,15 +90,6 @@ namespace UEToVS.Host.Settings
                     return await RebuildAsync(engine, RebuildScope.Assets);
                 case HostSettingsSchema.WindowActions.RebuildAllIndexes:
                     return await RebuildAsync(engine, RebuildScope.All);
-                case HostSettingsSchema.WindowActions.IndexLua:
-                {
-                    var indexing = HostSettingsSchema.Codec.ToIndexing(_package.Settings.Effective, _package.LuaProjectDirectory);
-                    if (indexing.LuaScriptPaths.Count == 0) return SettingsText.LuaIndexDisabled;
-                    // Make sure the engine has the folders the user sees (settings are pushed on save, asynchronously).
-                    if (engine != null && engine.IsConnected)
-                        await engine.SetIndexingSettingsAsync(indexing).ConfigureAwait(true);
-                    return await RebuildAsync(engine, RebuildScope.Lua);
-                }
                 case HostSettingsSchema.WindowActions.CheckForUpdates:
                     return await Update.UpdateService.RunPrimaryAsync(HostPackage.HostVersion).ConfigureAwait(true);
                 case HostSettingsSchema.WindowActions.ToggleIntelliSense:
@@ -146,17 +137,6 @@ namespace UEToVS.Host.Settings
                     if (engine == null) return SettingsText.IndexStatusNone + "\n" + threads;
                     if (st == null) return Strings.EngineStateName(engine.State.ToString()) + "\n" + threads;
                     return SettingsText.IndexStatus(Strings.PhaseName((int)st.Phase), st.FilesParsed, st.FilesToParse, st.SymbolCount, st.AssetCount) + "\n" + threads;
-                }
-                case HostSettingsSchema.WindowActions.LuaIndexStatus:
-                {
-                    var st = _package.Engine?.LastStatus;
-                    var configured = LuaScriptDefaults.Resolve(_package.Settings.Effective.LuaScriptPaths, _package.LuaProjectDirectory, out bool luaDefault);
-                    if (configured.Count == 0) return SettingsText.LuaIndexDisabled;
-                    if (st == null) return SettingsText.EngineNotConnected;
-                    string roots = st.LuaRoots == null || st.LuaRoots.Count == 0 ? string.Join("; ", configured) : string.Join("; ", st.LuaRoots);
-                    string text = SettingsText.LuaIndexStatus(SettingsText.LuaStateName((int)st.LuaState), st.LuaFileCount, st.LuaSymbolCount, roots);
-                    if (luaDefault) text += SettingsText.LuaDefaultFolderNote;
-                    return string.IsNullOrEmpty(st.LuaLastError) ? text : text + "\n" + st.LuaLastError;
                 }
                 case HostSettingsSchema.WindowActions.IntelliSenseStatus:
                     return _package.IntelliSense?.BackupExists == true ? SettingsText.IntelliSenseTakenOver : SettingsText.IntelliSenseNotTakenOver;

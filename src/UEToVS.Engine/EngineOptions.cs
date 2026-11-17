@@ -43,7 +43,6 @@ Options:
   --shared-engine-cache  keep the engine index in the shared per-engine folder (default: in the solution)
   --engine-cache-dir <d> root of the shared engine index (default: %LocalAppData%\UEToVS\EngineIndex)
   --exclude-dir <name>   folder name never indexed (repeatable; replaces Intermediate/Binaries/Saved/DerivedDataCache)
-  --lua-dir <dir>        Lua script folder to index (repeatable; relative = to the project folder); the settings window overrides it
   --query <text>         CLI: print search results
   --all                  CLI: include engine / non-project results
   --max <n>              CLI: results per category (default 20)
@@ -74,7 +73,6 @@ Options:
         public bool SharedEngineCache { get; set; }
         public string EngineCacheDirectory { get; set; }
         public List<string> ExcludedFolders { get; set; }
-        public List<string> LuaScriptPaths { get; set; }
 
         /// <summary>Initial indexing settings from the command line (the host's settings replace them at runtime).</summary>
         public IndexingSettings InitialIndexingSettings() => new IndexingSettings
@@ -86,7 +84,6 @@ Options:
             SharedEngineCache = SharedEngineCache,
             EngineCacheDirectory = EngineCacheDirectory,
             ExcludedFolders = ExcludedFolders,
-            LuaScriptPaths = LuaScriptPaths,
         };
         public string Query { get; set; }
         public bool QueryAll { get; set; }
@@ -163,7 +160,6 @@ Options:
                         case "--shared-engine-cache": o.SharedEngineCache = true; break;
                         case "--engine-cache-dir": o.EngineCacheDirectory = Next(); break;
                         case "--exclude-dir": (o.ExcludedFolders ??= new List<string>()).Add(Next()); break;
-                        case "--lua-dir": (o.LuaScriptPaths ??= new List<string>()).Add(Next()); break;
                         case "--query": o.Query = Next(); break;
                         case "--all": o.QueryAll = true; break;
                         case "--max":

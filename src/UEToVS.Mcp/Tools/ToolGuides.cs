@@ -8,7 +8,7 @@ namespace UEToVS.Mcp.Tools
     /// description alone whether this tool beats its generic ones (Grep/rg, Glob/find, reading files, reading the build log):
     /// <list type="bullet">
     /// <item><c>What</c>: what it answers, one sentence.</item>
-    /// <item><c>UseWhen</c>: the concrete situations to call it FIRST (C++ and Lua identifiers, GM / console commands, names copied
+    /// <item><c>UseWhen</c>: the concrete situations to call it FIRST (C++ identifiers, console commands, names copied
     /// from an error, log or screenshot...). Agents that see only tool names (deferred tool loading) skip tools whose purpose is
     /// not obvious, so this is the part that makes them pick it.</item>
     /// <item><c>InsteadOf</c>: which generic tool it replaces and why it is better (index, no directory walk, no comment/string noise).</item>
@@ -29,6 +29,20 @@ namespace UEToVS.Mcp.Tools
             public string Results { get; set; }
         }
 
+        /// <summary>v0.9.0：Lua 归 IntelliJ IDEA 的 EmmyLua 插件（IDE 自带 MCP 服务器里的 lua_code 工具），UEToVS 不再索引 Lua。</summary>
+        private const string LuaTool = "use the lua_code tool of the IntelliJ IDEA EmmyLua plugin";
+
+        private const string LuaElsewhere = "Lua (" + LuaTool + ")";
+
+        /// <summary>已移除的 Lua 工具：说明写明已移除、改用哪个；四段都要有（ProtocolTests 检查）。</summary>
+        private static Guide Removed(string replacement) => new Guide
+        {
+            What = "REMOVED in UEToVS 0.9.0: UEToVS no longer indexes Lua. Every call returns error tool_removed.",
+            UseWhen = "never. For Lua code use the IntelliJ IDEA EmmyLua plugin's tools in the IDE's built-in MCP server: " + replacement + ".",
+            InsteadOf = "nothing: kept one version only so old prompts get a clear error.",
+            NotFor = "anything; C++ stays here (search_symbols, search_files, get_file_outline).",
+        };
+
         private const string IndexMiss = "If it finds nothing although the name surely exists, call index_status (indexing may still run) before falling back to grep.";
 
         private static readonly Dictionary<string, Guide> All = new Dictionary<string, Guide>
@@ -39,7 +53,7 @@ namespace UEToVS.Mcp.Tools
                 What = "Finds Unreal C++ declarations by name in the UEToVS index (project, plugins, engine source with scope='all'): classes, structs, enums, functions, methods, fields, macros, delegates.",
                 UseWhen = "you have a C++ name or part of one — a class/function/variable/macro you want to locate, an identifier from a compile error, crash stack, log line or screenshot, an Exec/console function — and need its file:line. Fuzzy: prefix, substring, CamelHumps ('AMC' → AMyCharacter); 'Outer::Name' restricts the container; match='exact' lists every declaration and definition.",
                 InsteadOf = "grep/rg over Source and Engine: answers from the index in milliseconds, matches identifiers only (no hits in comments, strings or the engine's millions of lines) and ranks them, with UE markers.",
-                NotFor = "Lua (use search_lua), string literals, comments and log text (grep). " + IndexMiss,
+                NotFor = LuaElsewhere + ", string literals, comments and log text (grep). " + IndexMiss,
                 Results = "name, kind, container, file, line/col (1-based), sig, ue (UCLASS/UFUNCTION/UPROPERTY...), spec, module, def.",
             },
             ["go_to_definition"] = new Guide
@@ -47,7 +61,7 @@ namespace UEToVS.Mcp.Tools
                 What = "Resolves where a C++ symbol is defined or declared.",
                 UseWhen = "you know the name ('AMyCharacter', 'AMyCharacter::BeginPlay', 'UE_LOG') or a position (path + 1-based line/column) and want the definition — e.g. a call you are reading, a type in an error message.",
                 InsteadOf = "grepping for 'class X' / 'X::Foo' and opening each hit: understands C++ scopes, overloads and macros, ranks the definition first (kind='declaration' for the header).",
-                NotFor = "Lua (use search_lua); a fragment of a name (use search_symbols). " + IndexMiss,
+                NotFor = LuaElsewhere + "; a fragment of a name (use search_symbols). " + IndexMiss,
                 Results = "ranked targets with file, line, col, signature.",
             },
             ["find_references"] = new Guide
@@ -55,7 +69,7 @@ namespace UEToVS.Mcp.Tools
                 What = "Lists every use of a C++ symbol across the indexed code, grouped by file.",
                 UseWhen = "you ask who calls / reads / writes / uses a C++ function, property, class or enum value — impact of a change, callers of a handler, where a value is set.",
                 InsteadOf = "grep for usages: answers from the precomputed occurrence index without scanning files, matches the symbol itself (not same-named text in comments, strings or other classes), tags each hit read/write/call/type_use.",
-                NotFor = "Lua call sites and string-based lookups (FindFunction(\"X\"), config names) — not indexed, use grep there. Delegate/timer/input bindings: find_delegate_bindings also covers bindings by name string.",
+                NotFor = "Lua (" + LuaTool + "), string-based lookups (FindFunction(\"X\"), config names) — not indexed, use grep there. Delegate/timer/input bindings: find_delegate_bindings also covers bindings by name string.",
                 Results = "file, line/col (1-based), kind, source line.",
             },
             ["get_type_hierarchy"] = new Guide
@@ -63,7 +77,7 @@ namespace UEToVS.Mcp.Tools
                 What = "Base and/or derived classes of a C++ type as a tree (e.g. AMyCharacter → ACharacter → APawn → AActor → UObject).",
                 UseWhen = "you ask what X inherits from, which classes derive from X, or which override a virtual might reach. Pass type_name ('AMyCharacter', 'Ns::FFoo') or a position on the type.",
                 InsteadOf = "grepping for ': public X' (misses multi-line declarations, macros and indirect children): walks the whole indexed hierarchy.",
-                NotFor = "Blueprint children of a class (use search_assets with class filter) or Lua classes.",
+                NotFor = "Blueprint children of a class (use search_assets with class filter); " + LuaElsewhere + ".",
             },
             ["get_members"] = new Guide
             {
@@ -77,14 +91,14 @@ namespace UEToVS.Mcp.Tools
                 What = "Declarations of one C++ file in source order (types, members, functions, macros) with 1-based line/col, signature and UE markers.",
                 UseWhen = "before reading a large .h/.cpp: get its structure and the line numbers, then read only the range you need.",
                 InsteadOf = "reading the whole file or grepping it for 'void '/'class ': cheaper and complete.",
-                NotFor = "Lua scripts (use get_lua_outline); finding which file to open (use search_symbols / search_files).",
+                NotFor = LuaElsewhere + "; finding which file to open (use search_symbols / search_files).",
             },
             ["search_files"] = new Guide
             {
                 What = "Fuzzy file-name search over the indexed C++ source and headers (project, plugins; engine with scope='all').",
                 UseWhen = "you know (part of) a C++ file name: 'MyCharH' finds MyCharacter.h; also Build.cs / Target.cs files.",
                 InsteadOf = "Glob/find/dir: no directory walk over the engine tree, ranked by match quality.",
-                NotFor = "Lua scripts (use search_lua_files), assets (search_assets), finding a file by its content (search_symbols first, grep for text).",
+                NotFor = LuaElsewhere + "; assets (search_assets), finding a file by its content (search_symbols first, grep for text).",
                 Results = "name, path (absolute), module, origin.",
             },
             ["search_assets"] = new Guide
@@ -92,34 +106,14 @@ namespace UEToVS.Mcp.Tools
                 What = "Fuzzy search over the Unreal assets (.uasset/.umap under Content, plugin content; engine content with scope='all').",
                 UseWhen = "you look for a Blueprint, widget, map, material, texture, mesh or data table: 'BPHero' finds BP_Hero. Filter 'class' ('Blueprint', 'WidgetBlueprint', 'World', 'DataTable'...).",
                 InsteadOf = "grep/Glob: assets are binary, grep cannot read them; this lists object paths (/Game/...) and classes.",
-                NotFor = "what is inside an asset (graph, properties) or C++/Lua code.",
+                NotFor = "what is inside an asset (graph, properties) or C++ code (search_symbols).",
                 Results = "name, objectPath (/Game/...), file, class or classGuess.",
             },
 
-            // ------------------------------------------------------------------ Lua
-            ["search_lua"] = new Guide
-            {
-                What = "Finds where Lua code is declared in the UEToVS Lua index (UnLua / sluaunreal / plain Lua): functions, methods (M:Foo), classes, module tables, fields, file-level variables.",
-                UseWhen = "you have a Lua name or part of one — a function, method, class or module, a GM / cheat / debug command name, a handler name from a UI, an identifier from a Lua error, log or screenshot — and need its file:line. Fuzzy: prefix, substring, CamelHumps ('OBC' → OnButtonClicked); 'M:Fire' or 'UI.MainPanel.Show' restricts the container.",
-                InsteadOf = "grep/rg over the script folders: one indexed lookup instead of scanning thousands of .lua files, declarations only (not every line that mentions the name).",
-                NotFor = "Lua call sites (who calls a Lua function — not indexed, grep for the name then) and C++ (use search_symbols). An empty answer with a note means no Lua folder is configured: grep then.",
-                Results = "name, kind, container, file, line/col (1-based), sig, module (require name), local.",
-            },
-            ["search_lua_files"] = new Guide
-            {
-                What = "Finds indexed Lua script files by file name or require/module path.",
-                UseWhen = "you know (part of) a script name ('MainPan' → MainPanel.lua) or a require path ('UI.MainPanel', 'UI/MainPanel').",
-                InsteadOf = "Glob/find over Content/Script: no directory walk, understands require paths.",
-                NotFor = "finding code inside scripts (use search_lua); C++ files (search_files).",
-                Results = "name, path (absolute), module (require name), symbols (declaration count).",
-            },
-            ["get_lua_outline"] = new Guide
-            {
-                What = "Declarations of one Lua script in source order (classes, tables, functions, methods, fields, file-level variables) with 1-based line/col and signature.",
-                UseWhen = "before reading a large Lua script: get its structure and line numbers, then read only the range you need. Accepts an absolute path, a path relative to a Lua script folder or the project, or a module name ('UI.MainPanel').",
-                InsteadOf = "reading the whole script or grepping it for 'function '.",
-                NotFor = "C++ files (use get_file_outline); locating which script (search_lua / search_lua_files).",
-            },
+            // ------------------------------------------------------------------ v0.9.0 已移除的 Lua 工具（旧名字保留一版，调用报 tool_removed）
+            ["search_lua"] = Removed("lua_code action=search"),
+            ["search_lua_files"] = Removed("lua_code action=files"),
+            ["get_lua_outline"] = Removed("lua_code action=outline"),
 
             ["find_blueprint_usages"] = new Guide
             {
@@ -134,7 +128,7 @@ namespace UEToVS.Mcp.Tools
             ["get_reflection_info"] = new Guide
             {
                 What = "Every UPROPERTY and UFUNCTION of a UCLASS/USTRUCT with specifiers split out (flags, key=value, meta=(...)), replication (Replicated / ReplicatedUsing) and RPCs (Server/Client/NetMulticast, Reliable), plus the type's own specifiers.",
-                UseWhen = "you ask what is Blueprint-visible, replicated, an RPC or EditAnywhere on a type, or which C++ UFUNCTIONs Lua overrides (UnLua: same-named Lua functions are listed). Filter with 'specifiers' (e.g. [\"BlueprintReadWrite\"]), 'kind' or 'replicated_only'.",
+                UseWhen = "you ask what is Blueprint-visible, replicated, an RPC or EditAnywhere on a type. Filter with 'specifiers' (e.g. [\"BlueprintReadWrite\"]), 'kind' or 'replicated_only'.",
                 InsteadOf = "reading the header and parsing UPROPERTY(...) macros by hand or grepping for specifiers.",
                 NotFor = "non-reflected members (use get_members).",
             },
@@ -157,7 +151,7 @@ namespace UEToVS.Mcp.Tools
                 What = "Finds settings: ini keys ([Section] Key=Value), UPROPERTY(config) with the ini file/section/key and current value, console variables and commands (TAutoConsoleVariable / FAutoConsoleVariableRef / FAutoConsoleCommand) and gameplay tags.",
                 UseWhen = "you look for a setting, a CVar or C++ console command by name or words (e.g. from a log or a 'r.Foo' typed in the console), or a gameplay tag. Every space-separated word of the query must occur (case-insensitive); scope='all' adds Engine/Config.",
                 InsteadOf = "grepping Config/*.ini and the source for settings: one call covers all ini layers, config properties, CVars and tags, with file:line.",
-                NotFor = "Lua GM / debug commands (use search_lua); Exec UFUNCTIONs (search_symbols with ue=[\"UFUNCTION\"]).",
+                NotFor = "Lua GM / debug commands (" + LuaTool + "); Exec UFUNCTIONs (search_symbols with ue=[\"UFUNCTION\"]).",
             },
             ["find_delegate_bindings"] = new Guide
             {
@@ -188,7 +182,7 @@ namespace UEToVS.Mcp.Tools
                 What = "Index-based rename of a project class, struct, enum, function, property or variable across every reference.",
                 UseWhen = "you rename a C++ symbol. By DEFAULT ONLY PREVIEWS the edits (file, 1-based line/col, source line); call again with apply=true to write. Reflected types/properties get a [CoreRedirects] line in Config/DefaultEngine.ini (write_redirects, default true) so Blueprints keep loading.",
                 InsteadOf = "search-and-replace or sed: renames the symbol, not same-named text; never touches engine/third-party files.",
-                NotFor = "Lua names; file renames (files named after a class are not renamed). Name-only matches are left out unless include_name_only=true. After applying, run get_diagnostics.",
+                NotFor = "Lua names (" + LuaTool + "); file renames (files named after a class are not renamed). Name-only matches are left out unless include_name_only=true. After applying, run get_diagnostics.",
             },
             ["run_project_inspection"] = new Guide
             {
@@ -199,10 +193,10 @@ namespace UEToVS.Mcp.Tools
             },
             ["index_status"] = new Guide
             {
-                What = "State of the UEToVS index: engine running, indexing phase/progress, file/symbol/asset counts, project/engine roots, UE version and the Lua index state.",
+                What = "State of the UEToVS index: engine running, indexing phase/progress, file/symbol/asset counts, project/engine roots, UE version.",
                 UseWhen = "another UEToVS tool returned nothing or too little for a name that should exist, or before concluding the index is useless.",
                 InsteadOf = "giving up on the index and grepping the whole tree at the first empty answer.",
-                NotFor = "finding code (use the search tools). When it says indexing is unfinished or no Lua folder is set, grep the project's Source/Plugins/Config/Script folders for that question.",
+                NotFor = "finding code (use the search tools); Lua (" + LuaTool + "). When it says indexing is unfinished, grep the project's Source/Plugins/Config folders for that question.",
             },
 
             // ------------------------------------------------------------------ v0.8.0 VS debug control (needs VS open with this solution)

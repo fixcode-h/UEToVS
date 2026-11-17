@@ -110,7 +110,7 @@ UTF-8，一行一个 JSON 对象，`\n` 结尾。一个连接上可以连发多�
 ## 6. 限制
 
 - UE 停在断点时整个进程冻住：面板的 `ue_*` 工具（走 UELink）都调不通，面板会提示先 `continue`。
-- 断点、单步、`eval` 只对 C++ 有效；Lua 不行。
+- 断点、单步、`eval` 只对 C++ 有效；Lua 调试用 IntelliJ IDEA EmmyLua 插件的 `lua_debug_*`。
 - `start` 的启动参数要求启动项目是 VC 工程（UE 生成的 .vcxproj 都是）；VS 在改回参数前崩掉的话，参数会留在启动项目的调试设置里，手动删掉即可。
 - 数据断点是 CPU 调试寄存器，x64 一次最多 4 个。
 - Release 构建（Development）里很多局部变量被优化掉，显示「已优化」；要看全用 `DebugGame Editor`。

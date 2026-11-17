@@ -95,7 +95,6 @@ namespace UEToVS.Host.Logic.Settings
             new Card(Indexing, "索引", "Indexing", "indexing.status", "indexing.cppThreads", "indexing.blueprintThreads",
                      "indexing.duringBuild", "indexing.includeEngine"),
             new Card(Indexing, "引擎索引", "Engine index", "indexing.shareEngineIndex", "indexing.engineIndexPath"),
-            new Card(Indexing, "Lua 脚本", "Lua scripts", "indexing.luaScriptPaths", "indexing.luaStatus", "indexing.indexLua"),
             new Card(Indexing, "重建索引", "Rebuild", "indexing.rebuildProject", "indexing.rebuildEngine", "indexing.rebuildBlueprint"),
 
             // ---- Unreal Engine：和 UE 项目、UE 编辑器相关的

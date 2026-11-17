@@ -107,8 +107,8 @@ namespace UEToVS.Host
 
         internal string SolutionDirectory => _solutionDir;
 
-        /// <summary>The .uproject folder (relative Lua folders and the Content/Script default resolve against it); null without a UE project.</summary>
-        internal string LuaProjectDirectory
+        /// <summary>The .uproject folder; null without a UE project.</summary>
+        internal string UProjectDirectory
         {
             get
             {
@@ -354,7 +354,7 @@ namespace UEToVS.Host
             await TaskScheduler.Default;
 
             Safe.Execute(L, "horde.solutionOpened", Horde.HordeFeature.OnUnrealSolutionOpened);
-            _ = UEToVS.Host.Unreal.UeLiveCodingStartupService.ApplyAsync(LuaProjectDirectory, _settings.Effective.UeLiveCodingManualStartup, "solutionOpened");
+            _ = UEToVS.Host.Unreal.UeLiveCodingStartupService.ApplyAsync(UProjectDirectory, _settings.Effective.UeLiveCodingManualStartup, "solutionOpened");
             await _intelliSense.OnUnrealSolutionOpenedAsync();
             await StartEngineAsync();
             _ = Safe.RunInBackgroundAsync(L, "mcp.register", () => Mcp.McpRegistration.SyncAsync(dir, _settings.Effective)); // .vs\mcp.json for AI agents
@@ -386,7 +386,7 @@ namespace UEToVS.Host
             StopDebugControl();
             // UE may have written its own copy of the ini while it ran: set it again for the next editor start.
             if (_settings.Effective.UeLiveCodingManualStartup)
-                _ = UEToVS.Host.Unreal.UeLiveCodingStartupService.ApplyAsync(LuaProjectDirectory, true, "solutionClosing");
+                _ = UEToVS.Host.Unreal.UeLiveCodingStartupService.ApplyAsync(UProjectDirectory, true, "solutionClosing");
             var engine = _engine;
             _engine = null;
             if (engine != null) _ = Safe.RunInBackgroundAsync(L, "engine.stop", async () => { await engine.StopAsync(); engine.Dispose(); });
@@ -545,12 +545,10 @@ namespace UEToVS.Host
         private void PushIndexingSettings(EngineClient engine, string reason)
         {
             if (engine == null) return;
-            var indexing = HostSettingsSchema.Codec.ToIndexing(_settings.Effective, LuaProjectDirectory);
-            bool luaDefault = HostSettingsSchema.Codec.SplitPaths(_settings.Effective.LuaScriptPaths).Count == 0 && indexing.LuaScriptPaths.Count > 0;
+            var indexing = HostSettingsSchema.Codec.ToIndexing(_settings.Effective);
             _ = Safe.RunInBackgroundAsync(L, "engine.indexing.push", () => engine.SetIndexingSettingsAsync(indexing),
                 ("reason", reason), ("cppThreads", indexing.CppThreads), ("assetThreads", indexing.AssetThreads),
-                ("duringBuild", indexing.DuringBuild), ("includeEngine", indexing.IncludeEngine),
-                ("luaPaths", indexing.LuaScriptPaths == null ? null : string.Join(";", indexing.LuaScriptPaths)), ("luaDefault", luaDefault));
+                ("duringBuild", indexing.DuringBuild), ("includeEngine", indexing.IncludeEngine));
         }
 
         private static void OnEngineStateChanged(EngineClient engine)
@@ -606,7 +604,6 @@ namespace UEToVS.Host
             if (old.ShareEngineIndex != now.ShareEngineIndex || !string.Equals(old.EngineIndexPath, now.EngineIndexPath, StringComparison.OrdinalIgnoreCase) ||
                 old.CppIndexThreads != now.CppIndexThreads || old.BlueprintIndexThreads != now.BlueprintIndexThreads ||
                 old.IndexDuringBuild != now.IndexDuringBuild || old.IndexEngineSource != now.IndexEngineSource ||
-                !string.Equals(old.LuaScriptPaths ?? "", now.LuaScriptPaths ?? "", StringComparison.OrdinalIgnoreCase) ||
                 // ---- v0.4.5 heavy features: switches (off cancels a running job in the engine) and the template cache
                 old.ProjectInspectionEnabled != now.ProjectInspectionEnabled || old.UpgradeAssistantEnabled != now.UpgradeAssistantEnabled ||
                 old.TemplateInstantiationEnabled != now.TemplateInstantiationEnabled || old.TemplateCacheCapacity != now.TemplateCacheCapacity)
@@ -623,7 +620,7 @@ namespace UEToVS.Host
             if (old.DebugStepFilter != now.DebugStepFilter) // v0.4.5 编辑体验
                 _ = Safe.RunInBackgroundAsync(L, "editor.stepFilter", () => Editing.StepFilterDeployer.SyncAsync(now, "settingsChanged"));
             if (old.UeLiveCodingManualStartup != now.UeLiveCodingManualStartup && _unreal.IsUnreal)
-                await UEToVS.Host.Unreal.UeLiveCodingStartupService.ApplyAsync(LuaProjectDirectory, now.UeLiveCodingManualStartup, "settingsChanged");
+                await UEToVS.Host.Unreal.UeLiveCodingStartupService.ApplyAsync(UProjectDirectory, now.UeLiveCodingManualStartup, "settingsChanged");
             await _intelliSense.OnSettingsChangedAsync(old, now, _unreal.IsUnreal);
             if (_fonts != null) await _fonts.OnSettingsChangedAsync(old, now);
             if (old.EnableMcpServer != now.EnableMcpServer && _unreal.IsUnreal)

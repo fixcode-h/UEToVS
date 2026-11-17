@@ -13,8 +13,8 @@ using UEToVS.Mcp.Data;
 namespace UEToVS.Mcp.Tools
 {
     /// <summary>
-    /// Unreal-specific tools: get_reflection_info, get_module_info, suggest_include, search_config, find_delegate_bindings,
-    /// plus the Lua ↔ C++ link used by find_references. They answer from the same sources as the other tools (running
+    /// Unreal-specific tools: get_reflection_info, get_module_info, suggest_include, search_config, find_delegate_bindings.
+    /// They answer from the same sources as the other tools (running
     /// engine first, the on-disk index otherwise) plus small files read on demand (Build.cs, descriptors, Config/*.ini,
     /// the C++ files the index points to); nothing scans the source tree or .uasset files.
     /// </summary>
@@ -25,10 +25,6 @@ namespace UEToVS.Mcp.Tools
 
         private ModuleResolver Modules => LazyInitializer.EnsureInitialized(ref _modules, () => new ModuleResolver(_index));
         private ConfigSearch Config => LazyInitializer.EnsureInitialized(ref _config, () => new ConfigSearch(_index));
-
-        private const string LuaNameNote =
-            "Lua functions with the same name (UnLua overrides a BlueprintImplementableEvent/BlueprintNativeEvent by defining it in the bound Lua module; " +
-            "matched by name only). Lua call sites are not indexed: grep ':Name(' / '.Name(' in the Lua folders for callers.";
 
         private void RegisterUeTools()
         {
@@ -86,7 +82,6 @@ namespace UEToVS.Mcp.Tools
             var (page, more) = Slice(members, offset, limit);
             var items = new List<JsonNode>();
             string typeFull = type == null ? null : string.IsNullOrEmpty(type.Container) ? type.Name : type.Container + "::" + type.Name;
-            int luaLinks = 0;
             foreach (var (s, spec, isFunc) in page)
             {
                 var o = new JsonObject { ["name"] = s.Name, ["kind"] = isFunc ? "function" : "property" };
@@ -106,20 +101,10 @@ namespace UEToVS.Mcp.Tools
                     o["rpc"] = rpc;
                 }
                 if (!isFunc && spec.IsConfig) o["config"] = true;
-                if (isFunc)
-                {
-                    var lua = _index.Lua.FunctionsNamed(s.Name);
-                    if (lua.Count > 0)
-                    {
-                        o["lua"] = new JsonArray(lua.Take(5).Select(h => (JsonNode)LuaSymbolJson(h.Symbol, h.File)).ToArray());
-                        luaLinks++;
-                    }
-                }
                 items.Add(o);
             }
             string note = m.Note;
             if (type == null) note = Join(note, "Type '" + name + "' not found in the index. Try search_symbols.");
-            if (luaLinks > 0) note = Join(note, LuaNameNote);
             var payload = ResultJson.Page(m.Source, m.IndexReady, items, offset, more, note);
             if (type != null)
             {
@@ -621,26 +606,6 @@ namespace UEToVS.Mcp.Tools
                 ResultCount = page.Count,
                 Source = refs.Source,
             };
-        }
-
-        // ================================================================== Lua ↔ C++ (find_references)
-
-        /// <summary>For find_references: Lua functions named like the C++ function (UnLua overrides), when a Lua index exists.</summary>
-        private JsonObject LuaLink(string name, SymbolInfo symbol)
-        {
-            if (string.IsNullOrEmpty(name)) return null;
-            if (symbol != null && symbol.Kind != SymbolKind.Function && symbol.Kind != SymbolKind.Method && (symbol.Ue & UeFlags.UFunction) == 0 &&
-                symbol.Location != null) return null; // a resolved non-function: no Lua counterpart
-            var hits = _index.Lua.FunctionsNamed(name);
-            if (hits.Count == 0) return null;
-            var o = new JsonObject
-            {
-                ["source"] = LuaSource,
-                ["count"] = hits.Count,
-                ["definitions"] = new JsonArray(hits.Take(20).Select(h => (JsonNode)LuaSymbolJson(h.Symbol, h.File)).ToArray()),
-                ["note"] = LuaNameNote,
-            };
-            return o;
         }
     }
 }

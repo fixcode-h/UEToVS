@@ -131,7 +131,6 @@ namespace UEToVS.Engine.Rpc
             {
                 _host.Index.DropBuffers(changes); // saved: the disk is current again
                 _host.Changes.Enqueue(changes, "host");
-                _host.Lua.NotifyChanges(changes);
                 return Task.CompletedTask;
             }, ct, ("count", changes?.Count ?? 0));
 
@@ -453,8 +452,7 @@ namespace UEToVS.Engine.Rpc
                 _host.ApplyIndexingSettings(settings);
                 return Task.CompletedTask;
             }, ct, ("cppThreads", settings?.CppThreads), ("assetThreads", settings?.AssetThreads), ("duringBuild", settings?.DuringBuild),
-                ("includeEngine", settings?.IncludeEngine), ("sharedEngineCache", settings?.SharedEngineCache),
-                ("luaPaths", settings?.LuaScriptPaths == null ? null : string.Join(";", settings.LuaScriptPaths)));
+                ("includeEngine", settings?.IncludeEngine), ("sharedEngineCache", settings?.SharedEngineCache));
 
         public Task RebuildIndexAsync(RebuildScope scope, CancellationToken ct) =>
             InvokeAsync("rpc.rebuildIndex", _ =>

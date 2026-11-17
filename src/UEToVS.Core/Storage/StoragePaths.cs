@@ -4,7 +4,7 @@ using System.IO;
 namespace UEToVS.Core.Storage
 {
     /// <summary>
-    /// Where UEToVS keeps per-solution data: &lt;solution dir&gt;/.vs/UEToVS/{Index,Logs,Cache,Lua}.
+    /// Where UEToVS keeps per-solution data: &lt;solution dir&gt;/.vs/UEToVS/{Index,Logs,Cache,Debug}.
     /// Deleting the .vs folder removes everything. When there is no solution directory (e.g. command-line use without
     /// one) a fallback under the user's local app data is used.
     /// </summary>
@@ -18,7 +18,7 @@ namespace UEToVS.Core.Storage
             Index = Path.Combine(root, "Index");
             Logs = Path.Combine(root, "Logs");
             Cache = Path.Combine(root, "Cache");
-            Lua = Path.Combine(root, "Lua");
+            LegacyLua = Path.Combine(root, "Lua");
             Debug = Path.Combine(root, "Debug");
             LocalSettings = Path.Combine(root, "settings.local.json");
         }
@@ -28,8 +28,11 @@ namespace UEToVS.Core.Storage
         public string Logs { get; }
         public string Cache { get; }
 
-        /// <summary>Lua script index (lua-index.json), written by the engine and read by the MCP server.</summary>
-        public string Lua { get; }
+        /// <summary>
+        /// 旧版（v0.8.0 及以前）Lua 索引所在的目录（lua-index.json）。v0.9.0 起 Lua 归 IntelliJ IDEA 的 EmmyLua 插件，
+        /// UEToVS 不再生成它；只留这个路径给引擎启动时删掉旧文件用（<see cref="DeleteLegacyLuaIndex"/>）。
+        /// </summary>
+        public string LegacyLua { get; }
         public string LocalSettings { get; }
 
         /// <summary>
@@ -54,6 +57,24 @@ namespace UEToVS.Core.Storage
             string baseDir = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
             if (string.IsNullOrEmpty(baseDir)) baseDir = Path.GetTempPath();
             return new StoragePaths(Path.Combine(baseDir, FolderName, "NoSolution"));
+        }
+
+        /// <summary>
+        /// 删掉旧版留下的 Lua 索引目录（只在 UEToVS 自己的存储目录下，不碰用户文件）。返回是否删了东西；删不掉（被占用等）
+        /// 就留着下次再删，不抛异常。
+        /// </summary>
+        public bool DeleteLegacyLuaIndex()
+        {
+            try
+            {
+                if (!Directory.Exists(LegacyLua)) return false;
+                Directory.Delete(LegacyLua, recursive: true);
+                return true;
+            }
+            catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+            {
+                return false; // 被占用或没权限：留到下次启动再删
+            }
         }
 
         /// <summary>Creates all directories; returns this for chaining. Never throws (logging must keep working).</summary>

@@ -290,13 +290,6 @@ namespace UEToVS.Contracts
         /// </summary>
         public List<string> ExcludedFolders { get; set; }
 
-        /// <summary>
-        /// Folders with Lua scripts to index (UnLua / sluaunreal / plain Lua), absolute or relative to the project folder
-        /// (where the .uproject is), e.g. "Content/Script". Null or empty = no Lua index. Changing it re-scans at once
-        /// (incrementally: files already in the Lua index whose size and timestamp did not change are not re-read).
-        /// </summary>
-        public List<string> LuaScriptPaths { get; set; }
-
         // ---- v0.4.5 heavy features: plugin switches (on by default; off = the feature refuses to run, nothing in the background)
 
         /// <summary>Whole-project UE rule inspection (ProjectInspectionAsync / MCP run_project_inspection).</summary>
@@ -324,7 +317,6 @@ namespace UEToVS.Contracts
         Project = 3,
         /// <summary>Engine C++ index only; project data is kept.</summary>
         Engine = 4,
-        /// <summary>Lua script index only: drop it and re-parse every file under the Lua script paths.</summary>
-        Lua = 5,
+        // 5 曾是 Lua（v0.9.0 移除 Lua 支持），不要复用。
     }
 }

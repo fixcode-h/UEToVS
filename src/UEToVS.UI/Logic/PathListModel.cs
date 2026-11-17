@@ -5,7 +5,7 @@ using System.Text;
 namespace UEToVS.UI.Logic
 {
     /// <summary>
-    /// Pure logic behind the path list editor (Lua script folders and other multi-folder settings): parses the stored
+    /// Pure logic behind the path list editor (settings that hold several folders): parses the stored
     /// ';'-separated text (old format, also accepts new lines and '|'), emits it back, and turns a picked absolute folder
     /// into the form stored — relative to a base folder (the .uproject folder) when it lies inside it, absolute otherwise.
     /// WPF-free so it is unit-tested.
