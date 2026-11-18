@@ -35,3 +35,8 @@ T* /*@def:Cast*/Cast(UObject* Src);
 
 template<typename T>
 T* NewObject(UObject* Outer);
+
+// Build.h 里的兜底定义：真正的值由 UBT 在编译命令行 / Definitions.<Module>.h 里给
+#ifndef WITH_EDITOR
+#define WITH_EDITOR 0
+#endif

@@ -100,3 +100,6 @@ void AMyCharacter::/*@caret:AMyCharacter.Equip.Slot.decl:toggle*//*@def:AMyChara
 		Inventory[Slot]->/*@caret:AWeapon.Fire*/Fire();
 	}
 }
+
+#if WITH_EDITOR && defined(UE_BUILD_SHIPPING) // WITH_EDITOR: 预处理指令里的宏也能跳转
+#endif

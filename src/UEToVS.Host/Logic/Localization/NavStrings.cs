@@ -60,6 +60,9 @@ namespace UEToVS.Host.Logic.Localization
                 case "not-found": return Loc.T("索引中没有该名称", "name not in the index");
                 case "no-word": return Loc.T("光标不在标识符上", "the caret is not on an identifier");
                 case "keyword": return Loc.T("关键字", "keyword");
+                case "directive": return Loc.T("预处理指令", "preprocessor directive");
+                case "ubt-macro": return Loc.T("由 UBT 在编译命令行定义，编译一次项目后可跳到 Intermediate 下的 Definitions.<模块>.h",
+                    "defined by UBT on the compiler command line; build the project once to jump to Definitions.<Module>.h under Intermediate");
                 case "unsupported-file": return Loc.T("不支持的文件类型", "unsupported file type");
                 case "index-not-ready": return Loc.T("索引尚未就绪", "index not ready");
                 default: return reason;
