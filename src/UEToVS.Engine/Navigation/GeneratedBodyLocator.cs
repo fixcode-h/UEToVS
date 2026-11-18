@@ -99,23 +99,7 @@ namespace UEToVS.Engine.Navigation
         /// <summary>Newest <paramref name="genName"/> under the owning module's Intermediate/Build/*/*/Inc/&lt;Module&gt;[/UHT].</summary>
         public static string FindGeneratedHeader(string headerPath, string genName)
         {
-            string dir = Path.GetDirectoryName(Path.GetFullPath(headerPath));
-            string module = null, root = null;
-            for (var d = dir; d != null; d = Path.GetDirectoryName(d))
-            {
-                if (module == null)
-                {
-                    var build = SafeFiles(d, "*.Build.cs").FirstOrDefault();
-                    if (build != null) module = Path.GetFileName(build).Replace(".Build.cs", string.Empty);
-                }
-                if (module != null && Directory.Exists(Path.Combine(d, "Intermediate")) &&
-                    (SafeFiles(d, "*.uproject").Any() || SafeFiles(d, "*.uplugin").Any() || string.Equals(Path.GetFileName(d), "Engine", StringComparison.OrdinalIgnoreCase)))
-                {
-                    root = d;
-                    break;
-                }
-            }
-            if (module == null || root == null) return null;
+            if (!TryOwningModule(headerPath, out string module, out string root)) return null;
             string buildDir = Path.Combine(root, "Intermediate", "Build");
             string best = null;
             DateTime bestTime = DateTime.MinValue;
@@ -134,13 +118,38 @@ namespace UEToVS.Engine.Navigation
             return best;
         }
 
-        private static IEnumerable<string> SafeFiles(string dir, string pattern)
+        /// <summary>
+        /// 文件所属的模块（向上找到的第一个 X.Build.cs）和放 Intermediate 的根目录（.uproject / .uplugin 所在目录或 Engine）；找不到时 false。
+        /// </summary>
+        internal static bool TryOwningModule(string path, out string module, out string root)
+        {
+            module = null;
+            root = null;
+            string dir = Path.GetDirectoryName(Path.GetFullPath(path));
+            for (var d = dir; d != null; d = Path.GetDirectoryName(d))
+            {
+                if (module == null)
+                {
+                    var build = SafeFiles(d, "*.Build.cs").FirstOrDefault();
+                    if (build != null) module = Path.GetFileName(build).Replace(".Build.cs", string.Empty);
+                }
+                if (module != null && Directory.Exists(Path.Combine(d, "Intermediate")) &&
+                    (SafeFiles(d, "*.uproject").Any() || SafeFiles(d, "*.uplugin").Any() || string.Equals(Path.GetFileName(d), "Engine", StringComparison.OrdinalIgnoreCase)))
+                {
+                    root = d;
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        internal static IEnumerable<string> SafeFiles(string dir, string pattern)
         {
             try { return Directory.EnumerateFiles(dir, pattern).ToList(); }
             catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException || ex is ArgumentException) { return Array.Empty<string>(); }
         }
 
-        private static IEnumerable<string> SafeDirs(string dir)
+        internal static IEnumerable<string> SafeDirs(string dir)
         {
             try { return Directory.Exists(dir) ? Directory.EnumerateDirectories(dir).ToList() : (IEnumerable<string>)Array.Empty<string>(); }
             catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException) { return Array.Empty<string>(); }

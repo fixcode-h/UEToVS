@@ -329,6 +329,45 @@ namespace UEToVS.Engine.Tests
         }
 
         [Fact]
+        public void Navigate_MacroInsidePreprocessorDirective()
+        {
+            // #if WITH_EDITOR：整行指令是一个 token，宏名要按光标位置取出来，跳到 #define
+            var macro = Nav.Navigate(new NavigationRequest { Caret = _f.Caret("Game/MyCharacter.cpp", "WITH_EDITOR") }, CancellationToken.None);
+            Assert.Equal("WITH_EDITOR", macro.Word);
+            Assert.Equal("macro", macro.Reason);
+            var def = Assert.Single(macro.Targets);
+            Assert.Equal("CoreTypes.h", Path.GetFileName(def.Symbol.Location.FilePath));
+            Assert.Equal(Line("Engine/CoreTypes.h", "#define WITH_EDITOR"), "CoreTypes.h:" + (def.Symbol.Location.Line + 1));
+            Assert.Equal(SymbolKind.Macro, def.Symbol.Kind);
+
+            // 光标紧贴在词尾也算
+            var end = _f.Caret("Game/MyCharacter.cpp", "WITH_EDITOR", 0, "WITH_EDITOR".Length);
+            Assert.Equal("WITH_EDITOR", Nav.Navigate(new NavigationRequest { Caret = end }, CancellationToken.None).Word);
+
+            // defined 是关键字；UE_BUILD_SHIPPING 由 UBT 定义、语料里没有 #define 也没有 Intermediate：给出说明
+            var kw = Nav.Navigate(new NavigationRequest { Caret = _f.Caret("Game/MyCharacter.cpp", "defined(") }, CancellationToken.None);
+            Assert.Equal("keyword", kw.Reason);
+            Assert.Empty(kw.Targets);
+            var ubt = Nav.Navigate(new NavigationRequest { Caret = _f.Caret("Game/MyCharacter.cpp", "UE_BUILD_SHIPPING") }, CancellationToken.None);
+            Assert.Equal("UE_BUILD_SHIPPING", ubt.Word);
+            Assert.Equal("ubt-macro", ubt.Reason);
+            Assert.Empty(ubt.Targets);
+
+            // 行尾注释里的同名词不算；#if 关键字本身也不是宏
+            var comment = Nav.Navigate(new NavigationRequest { Caret = _f.Caret("Game/MyCharacter.cpp", "WITH_EDITOR", 1) }, CancellationToken.None);
+            Assert.Empty(comment.Targets);
+            var keyword = Nav.Navigate(new NavigationRequest { Caret = _f.Caret("Game/MyCharacter.cpp", "#if WITH_EDITOR", 0, 1) }, CancellationToken.None);
+            Assert.Equal("directive", keyword.Reason);
+
+            // #ifndef / #define 行里的宏名
+            var ifndef = Nav.Navigate(new NavigationRequest { Caret = _f.Caret("Engine/CoreTypes.h", "WITH_EDITOR") }, CancellationToken.None);
+            Assert.Equal("macro", ifndef.Reason);
+            Assert.Single(ifndef.Targets);
+            var self = Nav.Navigate(new NavigationRequest { Caret = _f.Caret("Engine/CoreTypes.h", "WITH_EDITOR", 1) }, CancellationToken.None);
+            Assert.Equal("declaration", self.Reason);
+        }
+
+        [Fact]
         public void Navigate_ReportsReasonsAndConfidence()
         {
             var macro = Nav.Navigate(new NavigationRequest { Caret = _f.Caret("Game/MyCharacter.h", "GENERATED_BODY*/GENERATED_BODY") }, CancellationToken.None);

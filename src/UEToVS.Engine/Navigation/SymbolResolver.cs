@@ -67,8 +67,133 @@ namespace UEToVS.Engine.Navigation
         {
             int ti = doc.TokenAt(offset);
             if (ti < 0) return new Resolution { Reason = "no-token" };
+            var tok = doc.Tokens[ti];
+            // 整行预处理指令是一个 token：#if WITH_EDITOR / #ifdef X / #define A B 里的宏名要按光标位置单独取出来
+            if (tok.Kind == TokenKind.Directive && !IsIncludeDirective(tok.Directive)) return ResolveDirective(ctx, doc, ti, offset);
             return ResolveToken(ctx, doc, ti, 0);
         }
+
+        private static bool IsIncludeDirective(DirectiveKind k) => k == DirectiveKind.Include || k == DirectiveKind.IncludeNext || k == DirectiveKind.Import;
+
+        // ------------------------------------------------------------------ directives
+
+        /// <summary>
+        /// 光标在 #if / #ifdef / #ifndef / #elif / #undef / #define 行里的标识符上：条件里的名字只找宏；#define 的宏名是声明本身；
+        /// #define 替换体里的名字先找宏，再按名字找。索引里没有这个宏的 #define 时（WITH_EDITOR 等由 UBT 在命令行定义），
+        /// 到所属模块 Intermediate 下的 Definitions.&lt;Module&gt;.h 里找。
+        /// </summary>
+        private static Resolution ResolveDirective(NavContext ctx, DocumentModel doc, int ti, int offset)
+        {
+            var r = new Resolution { TokenIndex = ti, Reason = "directive" };
+            var tok = doc.Tokens[ti];
+            var dk = tok.Directive;
+            bool define = dk == DirectiveKind.Define;
+            if (!define && dk != DirectiveKind.If && dk != DirectiveKind.Ifdef && dk != DirectiveKind.Ifndef && dk != DirectiveKind.Elif &&
+                dk != DirectiveKind.Elifdef && dk != DirectiveKind.Elifndef && dk != DirectiveKind.Undef) return r;
+            if (!DirectiveIdentifierAt(doc.Text, tok.Start, tok.End, offset, out int start, out int length, out bool first)) return r;
+            string word = System.Text.Encoding.UTF8.GetString(doc.Text, start, length);
+            r.Word = word;
+            if (word == "defined" || word.StartsWith("__has_", StringComparison.Ordinal))
+            {
+                r.Reason = "keyword";
+                return r;
+            }
+            var macros = ctx.ByName(word).Where(s => s.Kind == SymbolKind.Macro).ToList();
+            if (define && first)
+            {
+                // #define X …：光标在宏名上，和普通声明一样（转到定义时去掉自身，跳到别处的同名 #define）
+                int di = doc.DeclAtOffset(start);
+                if (di >= 0)
+                {
+                    var self = ctx.ToSymbol(doc, di);
+                    r.OnDeclaration = self;
+                    r.Candidates = SameEntity(macros, self);
+                    if (!r.Candidates.Any(c => SameLocation(c, self))) r.Candidates.Insert(0, self);
+                    r.Confidence = ResolutionConfidence.Exact;
+                    r.Reason = "declaration";
+                    return r;
+                }
+            }
+            if (macros.Count > 0)
+            {
+                Set(r, macros, "macro");
+                return r;
+            }
+            if (define)
+            {
+                // 替换体里也可能是函数、类型、变量
+                SetNameOnly(r, ctx.ByName(word), "name-only");
+                if (r.Candidates.Count > 0) return r;
+            }
+            var ubt = UbtDefinitionLocator.Find(doc.Path, word);
+            if (ubt != null)
+            {
+                r.Candidates.Add(ubt);
+                r.Confidence = ResolutionConfidence.Exact;
+                r.Reason = "ubt-definition";
+                return r;
+            }
+            r.Reason = UbtDefinitionLocator.IsKnownUbtMacro(word) ? "ubt-macro" : "not-found";
+            return r;
+        }
+
+        /// <summary>
+        /// 指令行 [lineStart, lineEnd) 里覆盖 <paramref name="offset"/> 的标识符（光标紧贴在词尾也算）；跳过 # 和指令关键字、
+        /// 注释、字符串、数字。<paramref name="first"/>：是不是关键字后的第一个标识符（#define 的宏名）。
+        /// </summary>
+        public static bool DirectiveIdentifierAt(byte[] text, int lineStart, int lineEnd, int offset, out int start, out int length, out bool first)
+        {
+            start = length = 0;
+            first = false;
+            int i = lineStart;
+            while (i < lineEnd && (text[i] == '#' || text[i] == ' ' || text[i] == '\t')) i++;
+            while (i < lineEnd && IsIdentByte(text[i])) i++; // the directive keyword
+            bool seenIdent = false;
+            while (i < lineEnd)
+            {
+                byte b = text[i];
+                if (b == '/' && i + 1 < lineEnd && text[i + 1] == '/') return false;
+                if (b == '/' && i + 1 < lineEnd && text[i + 1] == '*')
+                {
+                    i += 2;
+                    while (i + 1 < lineEnd && !(text[i] == '*' && text[i + 1] == '/')) i++;
+                    i += 2;
+                    continue;
+                }
+                if (b == '"' || b == '\'')
+                {
+                    for (i++; i < lineEnd && text[i] != b; i++)
+                        if (text[i] == '\\') i++;
+                    i++;
+                    continue;
+                }
+                if (b >= '0' && b <= '9')
+                {
+                    while (i < lineEnd && IsIdentByte(text[i])) i++;
+                    continue;
+                }
+                if (IsIdentByte(b))
+                {
+                    int j = i;
+                    while (j < lineEnd && IsIdentByte(text[j])) j++;
+                    if (offset >= i && offset <= j)
+                    {
+                        start = i;
+                        length = j - i;
+                        first = !seenIdent;
+                        return true;
+                    }
+                    seenIdent = true;
+                    i = j;
+                    continue;
+                }
+                if (i > offset) return false;
+                i++;
+            }
+            return false;
+        }
+
+        private static bool IsIdentByte(byte b) => b == '_' || (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') || (b >= '0' && b <= '9') || b >= 0x80;
 
         public static Resolution ResolveToken(NavContext ctx, DocumentModel doc, int ti, int depth)
         {
