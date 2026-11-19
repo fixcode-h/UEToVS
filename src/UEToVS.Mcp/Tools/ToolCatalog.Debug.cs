@@ -111,6 +111,8 @@ namespace UEToVS.Mcp.Tools
                 if (e == null) continue;
                 args[DebugArgNames.TryGetValue(name, out var mapped) ? mapped : name] = JsonNode.Parse(e.Value.GetRawText());
             }
+            // Agent 列断点多半是查「为什么没停」：要带上绑定数（VS 端默认只在停下时数，运行中数会卡 VS 的界面线程，面板卡片不要）
+            if (op == "bp.list" && !args.ContainsKey("bound")) args["bound"] = true;
             int waitMs = op == "wait" ? a.Int("timeout_ms", 30000, 0, 120000) : a.Int("wait_ms", op == "step" ? 10000 : op == "pause" ? 5000 : 0, 0, 120000);
             var result = await Debug.CallAsync(op, args, waitMs + 15000, ct).ConfigureAwait(false);
             return new ToolOutput { Payload = result, ResultCount = 1, Source = "vs" };

@@ -138,6 +138,9 @@ namespace UEToVS.Host
             await JoinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);
             using (UiThread.Measure(L, "package.initialize"))
             {
+                // 0. VS 自带 UE 日志窗口取字体失败会带崩整个 VS：先装上兜底（只认这一种异常）
+                Safe.Execute(L, "vs.ueLog.crashGuard", UEToVS.Host.Diagnostics.VsUeLogCrashGuard.Install);
+
                 // 1. UI language first: every string created after this point is localized.
                 await InitializeLanguageAsync();
 

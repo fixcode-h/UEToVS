@@ -48,6 +48,15 @@ namespace UEToVS.Host.Debugging
         private DateTime _buildStartedUtc;
         private ForegroundGuard _focus;
 
+        // v0.9.6：运行中（尤其 F5 刚启动、UE 在加载几百个模块和符号时）在 UI 线程上调 Debugger.DebuggedProcesses、
+        // 断点的 Children 都要等调试引擎回话，面板每 3 秒查一次状态就会把 VS 卡住。被调试的进程只在进入运行模式后取一次缓存起来，
+        // 运行中的 status 直接用缓存；停下时引擎空着，照常现取。
+        private JArray _processes;
+
+        // 只读请求（status、bp.list）还在排队等 UI 线程时，后来的同类请求直接回「VS 正忙」，不再排进 UI 线程：
+        // 客户端 1.5 秒就放弃了，排着的请求却还会一个个执行，VS 一忙就越积越多
+        private int _pendingReads;
+
         private DteDebugBackend(HostPackage package, DTE2 dte, string solutionDir, string projectFile)
         {
             _package = package;
@@ -84,11 +93,13 @@ namespace UEToVS.Host.Debugging
                 RestoreLaunchArgs(); // the process has its command line now
                 _focus.Policy.OnRun();
                 Tracker.OnRun();
+                ScheduleProcessRefresh();
             };
             _onDesign = reason =>
             {
                 RemoveRunToBreakpoints();
                 RestoreLaunchArgs();
+                _processes = null;
                 _focus.Policy.OnDesign();
                 Tracker.OnDesign(DebugHelpers.ReasonText(reason.ToString()));
             };
@@ -146,7 +157,20 @@ namespace UEToVS.Host.Debugging
             if (DebugProtocol.IsAgentControl(op)) _focus?.Policy.OnAgentControl(); // this session is the agent's: VS stays in the back when it stops
             if (op == DebugProtocol.Wait) return await WaitAsync(a.Int("timeoutMs", 30000, 0, DebugProtocol.MaxWaitMs), ct);
 
-            await _package.JoinableTaskFactory.SwitchToMainThreadAsync(ct);
+            bool read = op == DebugProtocol.Status || op == DebugProtocol.BpList;
+            if (read && Interlocked.Increment(ref _pendingReads) > 1)
+            {
+                Interlocked.Decrement(ref _pendingReads);
+                throw new DebugControlException("VS 正忙（上一个状态查询还在等 VS 的界面线程，可能在编译、启动调试或弹着对话框），稍后再查");
+            }
+            try
+            {
+                await _package.JoinableTaskFactory.SwitchToMainThreadAsync(ct);
+            }
+            finally
+            {
+                if (read) Interlocked.Decrement(ref _pendingReads);
+            }
             JObject result;
             int waitMs;
             switch (op)
@@ -227,13 +251,8 @@ namespace UEToVS.Host.Debugging
             }
             catch (Exception) { /* no solution build manager yet */ }
 
-            if (mode != DebugMode.Design)
-            {
-                var procs = new JArray();
-                foreach (EnvDTE.Process p in _dte.Debugger.DebuggedProcesses)
-                    procs.Add(new JObject { ["pid"] = p.ProcessID, ["name"] = Path.GetFileName(p.Name ?? "") });
-                o["processes"] = procs;
-            }
+            if (mode == DebugMode.Break) RefreshProcesses();
+            if (mode != DebugMode.Design && _processes != null) o["processes"] = _processes.DeepClone();
             if (mode == DebugMode.Break)
             {
                 o["breakCount"] = Tracker.BreakCount;
@@ -253,6 +272,33 @@ namespace UEToVS.Host.Debugging
             }
             try { o["breakpoints"] = _dte.Debugger.Breakpoints.Count; } catch (Exception) { } // count is optional in status
             return o;
+        }
+
+        /// <summary>取被调试的进程列表进缓存（UI 线程；取不到就保留上一次的）。</summary>
+        private void RefreshProcesses()
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+            try
+            {
+                var procs = new JArray();
+                foreach (EnvDTE.Process p in _dte.Debugger.DebuggedProcesses)
+                    procs.Add(new JObject { ["pid"] = p.ProcessID, ["name"] = Path.GetFileName(p.Name ?? "") });
+                _processes = procs;
+            }
+            catch (Exception ex) { L.Debug("debug.processes.failed", ex.Message); }
+        }
+
+        /// <summary>
+        /// 进入运行模式的事件里不直接取进程（事件回调里再调调试器容易和引擎互等）：稍后用低优先级在 UI 线程上取一次。
+        /// </summary>
+        private void ScheduleProcessRefresh()
+        {
+            _ = _package.JoinableTaskFactory.RunAsync(async () =>
+            {
+                await Task.Delay(1000).ConfigureAwait(false);
+                await _package.JoinableTaskFactory.SwitchToMainThreadAsync();
+                if (CurrentMode != DebugMode.Design && _processes == null) RefreshProcesses();
+            });
         }
 
         private async Task<JObject> WaitAsync(int timeoutMs, CancellationToken ct)

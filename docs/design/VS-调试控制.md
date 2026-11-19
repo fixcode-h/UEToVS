@@ -66,6 +66,8 @@ UTF-8，一行一个 JSON 对象，`\n` 结尾。一个连接上可以连发多�
 
 ### 会话
 
+v0.9.6：`status`、`bp.list` 上一个还在等 VS 界面线程时，后来的直接回错误「VS 正忙…」，不排队（定时刷新的客户端放弃后，排着的请求仍会执行，VS 忙时越积越多会卡死）。运行中 `status` 的 `processes` 是进入运行模式后取一次的缓存。
+
 | op | args | 说明 / 结果 |
 | --- | --- | --- |
 | `status` | `frames?`（0–20，默认 5） | `mode`（`design` 没在调试 / `run` 运行中 / `break` 停下）、`building`、`launchPending`、`lastReason`、`lastBuildFailed`、`startupProject`、`configuration`（如 `Development Editor\|Win64`）、`processes[{pid,name}]`、`breakpoints`（个数）；停下时还有 `breakCount`、`thread{id,name}`、`location{function,file,line,module}`、`breakpoint`（命中的断点 `A.cpp:12`）、`stack[]` |
@@ -84,7 +86,7 @@ UTF-8，一行一个 JSON 对象，`\n` 结尾。一个连接上可以连发多�
 
 | op | args | 说明 / 结果 |
 | --- | --- | --- |
-| `bp.list` | `offset?`、`limit?`（默认 50） | `items[{i,file,line,function,enabled,condition,hitCount,hits,message,byAgent,bound}]`，`i` 是编号（从 1 起，给 remove / enable 用）。包括用户自己下的断点 |
+| `bp.list` | `offset?`、`limit?`（默认 50）、`bound?` | `items[{i,file,line,function,enabled,condition,hitCount,hits,message,byAgent,bound}]`，`i` 是编号（从 1 起，给 remove / enable 用）。包括用户自己下的断点。`hits`、`bound` 只在停下时或 `bound: true` 时给（v0.9.6）：运行中数绑定位置要等调试引擎，UE 加载模块时会卡住 VS 界面线程，定时刷新的客户端不要传 |
 | `bp.add` | `file`+`line` 或 `function`（`AMyCharacter::Jump`）；`condition?`（`Health < 0`）、`hitCount?`（第 N 次命中才停）、`message?`（日志断点：不停下，把 `Health={Health}` 打到调试输出） | 同一位置已有断点时替换。调试中断点没绑定（符号没加载、这行没代码）时给 `hint`。相对路径按解决方案目录、.uproject 目录找 |
 | `bp.add`（数据断点） | `data`（`this->Health` 或地址表达式）、`size?`（1/2/4/8，默认 4）、`frame?`、`thread?` | 要在停下时设（地址要能算出来）；值一变就停。x64 最多 4 个，调试结束失效 |
 | `bp.remove` | `index` / `indexes[]` / `file`+`line?` / `function` | 删断点 |
