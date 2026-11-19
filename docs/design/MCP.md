@@ -86,10 +86,10 @@ UEToVS.Mcp.exe（每个 Agent 会话一个进程，.NET 8，ModelContextProtocol
 | `get_module_info` | 文件属于哪个模块、模块类型（Runtime/Editor/Developer…）、所在插件、Build.cs 的 Public/Private 依赖；带 `header` 时回答“这个头文件在哪个模块、我的模块依赖了没有” | `path` 或 `module`，可选 `header` |
 | `suggest_include` | 类型的 `#include` 写法（UE 风格，相对模块 Public/Classes）和要加进 Build.cs 的模块；带 `from` 时检查是否已依赖、该放 Public 还是 Private | `type`、`from` |
 | `search_config` | 搜配置：ini 键值（项目和项目插件的 Config；`scope: all` 加引擎 Config）、UPROPERTY(config) 对应的 ini 文件/节/键、项目代码里的 CVar、GameplayTag | `query`、`kinds`（ini/config_property/cvar/tag）、`scope` |
-| `find_blueprint_usages` | 蓝图用法（v0.7.3）：读引擎写的离线蓝图索引（`.vs/UEToVS/Blueprints/`，只含项目和项目插件的资产），列出继承某个类的蓝图，或用到某个函数 / 属性的蓝图和关卡；按名字匹配，结果是 .uasset 路径和对象路径 | `class`（必填，也可写 `Class::Member`）、`member`、分页参数 |
+| `find_blueprint_usages` | 蓝图用法（v0.7.3）：读引擎写的离线蓝图索引（`.vs/UEToVS/Blueprints/`，只含项目和项目插件的资产），列出继承某个类的蓝图，或用到某个函数 / 属性的蓝图和关卡；按名字匹配，结果是 .uasset 路径和对象路径。v0.9.3 起每次查询流式扫一遍索引文件（只解析含这个名字的行），不再整份读进内存，大工程也不超 512 MB 堆上限 | `class`（必填，也可写 `Class::Member`）、`member`、分页参数 |
 | `find_delegate_bindings` | 一个函数被绑到哪些委托 / 输入 / 定时器（`AddDynamic`、`BindUObject`、`CreateUObject`、`BindUFunction`、`BindAction`、`SetTimer`…） | `function`（`UMyClass::OnClicked` 只保留指明该类的绑定）、`scope` |
 
-错误返回 `isError: true` 和 `{"error": "<code>", "message": "..."}`，`code` 有 `invalid_argument`、`unknown_tool`、`tool_removed`（已移除、只为旧名字保留的工具，`message` 写改用哪个）、`file_not_found`、`no_index`、`engine_unavailable`。
+错误返回 `isError: true` 和 `{"error": "<code>", "message": "..."}`，`code` 有 `invalid_argument`、`unknown_tool`、`tool_removed`（已移除、只为旧名字保留的工具，`message` 写改用哪个）、`file_not_found`、`no_index`、`engine_unavailable`、`out_of_memory`（MCP 进程的 512 MB 托管堆用完，`message` 写怎么缩小查询）。
 
 资源：`uetovs://index/status`（同 `index_status`）、`uetovs://guide`（给 Agent 的使用说明：什么时候用哪个工具，索引没就绪时怎么退回 grep / 文件搜索）。
 提示：`explain_ue_class`（讲解一个 UE 类：层次、成员、反射标记）。原来的 `find_blueprint_usage` 已删除：没有蓝图引用数据，只能按名字猜。
