@@ -198,11 +198,12 @@ namespace UEToVS.Host.Fonts
                 foreach (var c in plan.Backup)
                 {
                     if (plan.Write.Any(t => t.Category == c && t.Bundled != null && failed.Contains(t.Bundled))) continue;
+                    if (VsFontCategoryGuids.Of(c) == null) continue; // VS 里没有这个类别（没装 UE 工具），不算失败
                     var cur = storage.Read(c);
                     if (cur == null) { L.Warn("font.vs.backup", "Could not read the current font; category skipped", ("category", c.Id)); continue; }
                     if (backup.AddIfMissing(new VsFontBackupEntry
                         {
-                            Category = c.Id, CategoryGuid = c.Guid, Face = cur.Face, PointSize = cur.PointSize, CharSet = cur.CharSet,
+                            Category = c.Id, CategoryGuid = VsFontCategoryGuids.Of(c) ?? c.Guid, Face = cur.Face, PointSize = cur.PointSize, CharSet = cur.CharSet,
                             WasDefault = cur.IsDefault, ChangedUtc = DateTime.UtcNow,
                         }))
                     {
@@ -250,7 +251,7 @@ namespace UEToVS.Host.Fonts
                 var v = storage.Read(c);
                 return new Dictionary<string, object>
                 {
-                    ["id"] = c.Id, ["guid"] = c.Guid.ToString("B"), ["face"] = v?.Face, ["size"] = v?.PointSize, ["default"] = v?.IsDefault,
+                    ["id"] = c.Id, ["guid"] = VsFontCategoryGuids.Of(c)?.ToString("B"), ["face"] = v?.Face, ["size"] = v?.PointSize, ["default"] = v?.IsDefault,
                 };
             }).ToList();
             L.Info("font.vs.categories", null, ("categories", list));

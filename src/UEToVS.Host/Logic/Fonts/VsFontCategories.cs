@@ -44,6 +44,23 @@ namespace UEToVS.Host.Logic.Fonts
         /// <summary>Default size in points; 0 = keep VS's size.</summary>
         public int DefaultSize { get; }
 
+        /// <summary>
+        /// 不是 VS 自带、GUID 不固定的类别（例如 VS 的 Unreal Engine 日志窗口）：<see cref="Guid"/> 为空，Host 在 VS 配置注册表的
+        /// FontAndColors 下按名字找（名字去掉空格、转小写后传进来）。VS 里没装这个类别时整行不生效。
+        /// </summary>
+        public Func<string, bool> RegisteredName { get; private set; }
+
+        /// <summary>设置行下面的说明（可空）。</summary>
+        public string DescriptionZh { get; private set; }
+        public string DescriptionEn { get; private set; }
+
+        public static VsFontCategory Registered(string id, Func<string, bool> registeredName, string zh, string en, VsFontRole role, FontChoice defaultFamily, int defaultSize,
+                                                string descZh, string descEn) =>
+            new VsFontCategory(id, "00000000-0000-0000-0000-000000000000", zh, en, role, defaultFamily, defaultSize)
+            {
+                RegisteredName = registeredName, DescriptionZh = descZh, DescriptionEn = descEn,
+            };
+
         public string Title(bool english) => english ? TitleEn : TitleZh;
         public override string ToString() => Id;
     }
@@ -89,9 +106,19 @@ namespace UEToVS.Host.Logic.Fonts
         public static readonly VsFontCategory Printer = new VsFontCategory("printer", "47724E70-AF55-48FB-A928-BB161C1D0C05",
             "打印机", "Printer", VsFontRole.Code, FontChoice.Keep, 0);
 
+        /// <summary>
+        /// VS 自带的「Unreal Engine 日志」窗口（VS 2022 17.x 起的 UnrealEngineTools，类别名里有 Unreal 和 Log）。v0.9.7：这个类别的
+        /// 字体是空的时，VS 一显示这个窗口（F5 启动 UE 后）就因为 new Typeface(null) 整个退出，所以默认写成 Consolas（用户 2026-11-19 定）。
+        /// </summary>
+        public static readonly VsFontCategory UeLog = VsFontCategory.Registered("ueLog",
+            n => n.Contains("uelog") || (n.Contains("unreal") && n.Contains("log")),
+            "Unreal Engine 日志", "Unreal Engine Log", VsFontRole.Code, FontChoice.OfSystem("Consolas"), 0,
+            "VS 自带的 UE 日志窗口。它的字体为空时，VS 2026 一显示这个窗口（按 F5 启动 UE 后）就会退出，所以默认用 Consolas",
+            "VS's own UE log window. When its font is empty, VS 2026 quits as soon as the window shows (after F5 starts UE), so it defaults to Consolas");
+
         public static IReadOnlyList<VsFontCategory> All { get; } = new[]
         {
-            TextEditor, OutputWindow, FindResults, CommandWindow, ImmediateWindow, Environment, StatementCompletion, Tooltip, Printer,
+            TextEditor, OutputWindow, FindResults, CommandWindow, ImmediateWindow, UeLog, Environment, StatementCompletion, Tooltip, Printer,
         };
 
         public static VsFontCategory Find(string id) =>
