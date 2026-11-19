@@ -233,6 +233,62 @@ namespace UEToVS.Engine.Tests
 
             Assert.False(new BlueprintIndex().Load(Path.Combine(_dir, "missing.gz")));
         }
+
+        [Fact]
+        public void StreamingScanAnswersLikeTheLoadedIndex()
+        {
+            var index = BuildProject(out var hero, out var child, out var map, out _);
+            string file = BlueprintIndex.DefaultPath(_dir);
+            index.Save(file);
+
+            var cls = BlueprintIndexScan.Scan(file, "LyraCharacter", null, 1000, CancellationToken.None);
+            Assert.True(cls.Ok);
+            var root = Assert.Single(cls.Derived);
+            Assert.Equal(hero, root.Entry.FilePath);
+            Assert.Equal(child, Assert.Single(root.Children).Entry.FilePath);
+            Assert.Equal(new[] { map }, cls.Users.Select(e => e.FilePath)); // the tree's Blueprints are not listed again
+
+            var jump = BlueprintIndexScan.Scan(file, "LyraCharacter", "K2_Jump", 1000, CancellationToken.None);
+            Assert.Equal(index.Usages("K2_Jump", new[] { "LyraCharacter" }).Select(e => e.FilePath).OrderBy(x => x), jump.Users.Select(e => e.FilePath));
+            Assert.All(jump.Users, e => Assert.Empty(e.Names)); // name tables are not kept
+            Assert.Contains(child, BlueprintIndexScan.Scan(file, "LyraCharacter", "Health", 1000, CancellationToken.None).Users.Select(e => e.FilePath));
+            Assert.Empty(BlueprintIndexScan.Scan(file, "OtherClass", "K2_Jump", 1000, CancellationToken.None).Users);
+
+            Assert.False(BlueprintIndexScan.Scan(Path.Combine(_dir, "missing.gz"), "LyraCharacter", null, 10, CancellationToken.None).Ok);
+            File.WriteAllText(Path.Combine(_dir, "bad.gz"), "not gzip");
+            Assert.False(BlueprintIndexScan.Scan(Path.Combine(_dir, "bad.gz"), "LyraCharacter", null, 10, CancellationToken.None).Ok);
+        }
+
+        [Fact]
+        public void StreamingScanHandlesBigIndexesLongLinesAndTheCap()
+        {
+            // 大工程：很多资产、名字表很长的关卡（一行超过读缓冲区），扫描只留下命中的几条
+            var entries = new List<BlueprintEntry>();
+            for (int i = 0; i < 3000; i++)
+                entries.Add(new BlueprintEntry
+                {
+                    FilePath = "D:/G/Content/B_" + i + ".uasset", ParentClass = "/Script/G.Other", NativeParentClass = "/Script/G.Other",
+                    GeneratedClass = "/Game/B_" + i + ".B_" + i + "_C",
+                    Names = BlueprintIndex.SortedNames(Enumerable.Range(0, 200).Select(n => "Name" + n).Concat(i % 1000 == 0 ? new[] { "Target", "Fire" } : Array.Empty<string>())),
+                });
+            entries.Add(new BlueprintEntry
+            {
+                FilePath = "D:/G/Content/L_Huge.umap",
+                Names = BlueprintIndex.SortedNames(Enumerable.Range(0, 120000).Select(n => "Huge" + n).Concat(new[] { "Target", "Fire" })),
+            });
+            var index = new BlueprintIndex();
+            index.Replace(entries);
+            string file = BlueprintIndex.DefaultPath(_dir);
+            index.Save(file);
+
+            var fire = BlueprintIndexScan.Scan(file, "Target", "Fire", 1000, CancellationToken.None);
+            Assert.True(fire.Ok);
+            Assert.Equal(new[] { "D:/G/Content/B_0.uasset", "D:/G/Content/B_1000.uasset", "D:/G/Content/B_2000.uasset", "D:/G/Content/L_Huge.umap" },
+                fire.Users.Select(e => e.FilePath));
+            var capped = BlueprintIndexScan.Scan(file, "Target", "Fire", 2, CancellationToken.None);
+            Assert.Equal(2, capped.Users.Count);
+            Assert.True(capped.UsersCapped);
+        }
     }
 }
 

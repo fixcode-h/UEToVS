@@ -83,6 +83,15 @@ namespace UEToVS.Mcp.Tools
                 L.Write(LogLevel.Info, evt + ".cancelled", null, null, sw.Elapsed.TotalMilliseconds, new (string, object)[] { ("args", argSummary) });
                 throw;
             }
+            catch (OutOfMemoryException ex)
+            {
+                // 进程的托管堆有 512 MiB 硬上限：原样报 internal_error 用户和 Agent 都不知道怎么办
+                double ms = sw.Elapsed.TotalMilliseconds;
+                L.Write(LogLevel.Error, evt + ".out_of_memory", "Tool ran out of memory", ex, ms, new (string, object)[] { ("args", argSummary ?? Summarize(arguments)) });
+                return Error("out_of_memory",
+                    "The UEToVS MCP server ran out of memory answering this call (its heap is capped at 512 MiB so it can never slow down the machine). " +
+                    "Narrow the query (more specific name, smaller limit) and try again; if it keeps happening, update UEToVS and report it with .vs/UEToVS/Logs/mcp-*.log.", ms);
+            }
             catch (Exception ex)
             {
                 double ms = sw.Elapsed.TotalMilliseconds;

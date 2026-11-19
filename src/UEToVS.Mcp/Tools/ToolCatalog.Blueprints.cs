@@ -17,6 +17,12 @@ namespace UEToVS.Mcp.Tools
             "No Blueprint index yet: it is written by the UEToVS engine (.vs/UEToVS/Blueprints/blueprints.jsonl.gz) a few seconds after " +
             "indexing finishes in Visual Studio. Open the solution in VS once, then try again.";
 
+        private const int MaxBlueprintUsers = 1000;
+
+        private const string UnreadableBlueprintIndexNote =
+            "The Blueprint index file could not be read (the engine may be rewriting it right now, or it is from another UEToVS version). " +
+            "Try again in a few seconds; if it keeps failing, let Visual Studio re-index the solution.";
+
         private ToolDefinition BlueprintUsagesTool() => Define(
             "find_blueprint_usages", "Blueprint users and derived Blueprints",
             ToolGuides.Description("find_blueprint_usages"),
@@ -26,7 +32,10 @@ namespace UEToVS.Mcp.Tools
                 PagingProps, "class"),
             BlueprintUsagesAsync);
 
-        private Task<ToolOutput> BlueprintUsagesAsync(ToolArgs a, CancellationToken ct)
+        private Task<ToolOutput> BlueprintUsagesAsync(ToolArgs a, CancellationToken ct) =>
+            Task.Run(() => BlueprintUsages(a, ct), ct); // 大工程要把索引文件读一遍（几秒），不占住调用线程
+
+        private ToolOutput BlueprintUsages(ToolArgs a, CancellationToken ct)
         {
             string cls = a.String("class", required: true, maxLength: 256).Trim();
             string member = a.String("member", maxLength: 256)?.Trim();
@@ -38,32 +47,31 @@ namespace UEToVS.Mcp.Tools
                 cls = cls.Substring(0, colon);
             }
             string ue = BlueprintIndex.UeClassName(cls);
-            var index = _index.Blueprints.Index;
-            string note = index == null ? NoBlueprintIndexNote : null;
+            var scan = _index.Blueprints.Query(ue, string.IsNullOrEmpty(member) ? null : member, MaxBlueprintUsers, ct);
+            string note = scan == null ? NoBlueprintIndexNote : !scan.Ok ? UnreadableBlueprintIndexNote : null;
             var items = new List<JsonNode>();
-            if (index != null)
+            if (scan != null && scan.Ok)
             {
                 if (string.IsNullOrEmpty(member))
                 {
-                    var derived = index.Derived(new[] { ue });
-                    var seen = new HashSet<string>(BlueprintIndexService.Flatten(derived).Select(e => e.FilePath), System.StringComparer.OrdinalIgnoreCase);
-                    items.AddRange(derived.Select(d => (JsonNode)DerivedJson(d)));
-                    foreach (var e in index.Usages(ue, null, 1000))
-                        if (!seen.Contains(e.FilePath)) items.Add(UsageJson(e, "usesClass"));
+                    items.AddRange(scan.Derived.Select(d => (JsonNode)DerivedJson(d)));
+                    foreach (var e in scan.Users) items.Add(UsageJson(e, "usesClass"));
                 }
                 else
                 {
-                    foreach (var e in index.Usages(member, new[] { ue }, 1000)) items.Add(UsageJson(e, "usesMember"));
+                    foreach (var e in scan.Users) items.Add(UsageJson(e, "usesMember"));
                     if (items.Count == 0)
                         note = "No Blueprint or level mentions '" + member + "' together with class '" + ue + "'. Matches are by name in the asset's name table; " +
                                "a member only used from C++ or from engine content does not show up.";
                 }
+                if (scan.UsersCapped)
+                    note = "Only " + MaxBlueprintUsers + " users are listed; more Blueprints match. Pass 'member' or a more specific class to narrow it.";
             }
             var (page, more) = Slice(items, offset, limit);
-            var payload = ResultJson.Page(BlueprintSource, index != null, page, offset, more, note);
+            var payload = ResultJson.Page(BlueprintSource, scan != null && scan.Ok, page, offset, more, note);
             payload.Insert(0, "class", ue);
             if (!string.IsNullOrEmpty(member)) payload.Insert(1, "member", member);
-            return Task.FromResult(new ToolOutput { Payload = payload, ResultCount = page.Count, Source = BlueprintSource });
+            return new ToolOutput { Payload = payload, ResultCount = page.Count, Source = BlueprintSource };
         }
 
         private static JsonObject AssetJson(BlueprintEntry e)
