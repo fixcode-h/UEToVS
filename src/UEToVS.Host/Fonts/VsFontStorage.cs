@@ -44,6 +44,8 @@ namespace UEToVS.Host.Fonts
         {
             ThreadHelper.ThrowIfNotOnUIThread();
             var effective = ReadRaw(c, (uint)(__FCSTORAGEFLAGS.FCSF_READONLY | __FCSTORAGEFLAGS.FCSF_LOADDEFAULTS));
+            if (effective == null && c.RegisteredName != null && RefreshCache(c))
+                effective = ReadRaw(c, (uint)(__FCSTORAGEFLAGS.FCSF_READONLY | __FCSTORAGEFLAGS.FCSF_LOADDEFAULTS));
             var user = ReadRaw(c, (uint)__FCSTORAGEFLAGS.FCSF_READONLY);
             if (effective == null)
             {
@@ -57,6 +59,25 @@ namespace UEToVS.Host.Fonts
             effective.IsDefault = user == null || string.IsNullOrEmpty(user.Face);
             return effective;
         }
+
+        /// <summary>
+        /// 用户机器上 VS 的 UE 日志类别读不出来，「字体和颜色」的下拉里也没有它：多半是 VS 给这个类别的缓存坏了。
+        /// 清掉缓存再让 VS 重建一次（一个会话只试一次），重建成功后它就和别的类别一样能读能写。
+        /// </summary>
+        private bool RefreshCache(VsFontCategory c)
+        {
+            var resolved = VsFontCategoryGuids.Of(c);
+            if (resolved == null || !_refreshed.Add(resolved.Value)) return false;
+            if (!(Package.GetGlobalService(typeof(SVsFontAndColorCacheManager)) is IVsFontAndColorCacheManager cache)) return false;
+            var g = resolved.Value;
+            int clear = cache.ClearCache(ref g);
+            g = resolved.Value;
+            int refresh = cache.RefreshCache(ref g);
+            L.Info("font.vs.cache.refresh", null, ("category", c.Id), ("clear", clear), ("refresh", refresh));
+            return true;
+        }
+
+        private static readonly System.Collections.Generic.HashSet<Guid> _refreshed = new System.Collections.Generic.HashSet<Guid>();
 
         private VsFontValue ReadRaw(VsFontCategory c, uint flags)
         {
