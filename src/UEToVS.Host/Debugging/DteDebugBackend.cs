@@ -160,6 +160,7 @@ namespace UEToVS.Host.Debugging
                 case DebugProtocol.Pause: result = Pause(); waitMs = a.Int("waitMs", 5000, 0, DebugProtocol.MaxWaitMs); break;
                 case DebugProtocol.Continue: result = Continue(); waitMs = a.Int("waitMs", 0, 0, DebugProtocol.MaxWaitMs); break;
                 case DebugProtocol.Step: result = Step(a); waitMs = a.Int("waitMs", 10000, 0, DebugProtocol.MaxWaitMs); break;
+                case DebugProtocol.SolutionOpen: return OpenSolution(a);
                 case DebugProtocol.BpList: return ListBreakpoints(a);
                 case DebugProtocol.BpAdd: return AddBreakpoint(a);
                 case DebugProtocol.BpRemove: return RemoveBreakpoints(a);

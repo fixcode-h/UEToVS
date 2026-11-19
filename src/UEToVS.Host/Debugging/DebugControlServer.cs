@@ -35,13 +35,16 @@ namespace UEToVS.Host.Debugging
         private readonly DebugDispatcher _dispatcher;
         private readonly string _endpointFile;
         private readonly string _pipeName;
+        private readonly string _instanceFile;
         private int _connections;
 
         private DebugControlServer(DteDebugBackend backend, string endpointFile)
         {
             _backend = backend;
             _endpointFile = endpointFile;
-            _pipeName = DebugProtocol.PipePrefix + System.Diagnostics.Process.GetCurrentProcess().Id;
+            int pid = System.Diagnostics.Process.GetCurrentProcess().Id;
+            _pipeName = DebugProtocol.PipePrefix + pid;
+            _instanceFile = Path.Combine(StoragePaths.DebugInstancesDir(), pid + ".json");
             Token = DebugDispatcher.NewToken();
             _dispatcher = new DebugDispatcher(Token, backend);
         }
@@ -82,11 +85,41 @@ namespace UEToVS.Host.Debugging
                 ["vs"] = vsVersion,
                 ["startedUtc"] = DateTime.UtcNow.ToString("o"),
             };
-            Directory.CreateDirectory(Path.GetDirectoryName(_endpointFile));
-            string tmp = _endpointFile + ".tmp";
-            File.WriteAllText(tmp, o.ToString(Formatting.Indented), new UTF8Encoding(false));
-            if (File.Exists(_endpointFile)) File.Delete(_endpointFile);
-            File.Move(tmp, _endpointFile);
+            string text = o.ToString(Formatting.Indented);
+            WriteAtomic(_endpointFile, text);
+            // 用户级的这一份写不了也不影响本解决方案的调试控制，只是面板找不到「开着别的项目的 VS」
+            try
+            {
+                DeleteStaleInstances();
+                WriteAtomic(_instanceFile, text);
+            }
+            catch (Exception ex) { L.Warn("debug.control.instance.write.failed", null, ex, ("file", _instanceFile)); }
+        }
+
+        private static void WriteAtomic(string file, string text)
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(file));
+            string tmp = file + ".tmp";
+            File.WriteAllText(tmp, text, new UTF8Encoding(false));
+            if (File.Exists(file)) File.Delete(file);
+            File.Move(tmp, file);
+        }
+
+        /// <summary>VS 崩了没删的 &lt;PID&gt;.json：进程已经不在的删掉（面板那边也按 PID 判断，这里只是顺手清理）。</summary>
+        private static void DeleteStaleInstances()
+        {
+            string dir = StoragePaths.DebugInstancesDir();
+            if (!Directory.Exists(dir)) return;
+            foreach (string f in Directory.GetFiles(dir, "*.json"))
+            {
+                if (!int.TryParse(Path.GetFileNameWithoutExtension(f), out int pid)) continue;
+                bool alive;
+                try { using (var p = System.Diagnostics.Process.GetProcessById(pid)) alive = !p.HasExited; }
+                catch (ArgumentException) { alive = false; }
+                catch (InvalidOperationException) { alive = false; }
+                if (alive) continue;
+                try { File.Delete(f); } catch (IOException) { } catch (UnauthorizedAccessException) { }
+            }
         }
 
         private NamedPipeServerStream CreatePipe()
@@ -216,6 +249,8 @@ namespace UEToVS.Host.Debugging
                     File.Delete(_endpointFile);
             }
             catch (Exception ex) { L.Debug("debug.control.endpoint.delete.failed", ex.Message); }
+            try { if (File.Exists(_instanceFile)) File.Delete(_instanceFile); }
+            catch (Exception ex) { L.Debug("debug.control.instance.delete.failed", ex.Message); }
             L.Info("debug.control.stop", null, ("pipe", _pipeName));
         }
     }

@@ -114,5 +114,13 @@ namespace UEToVS.Host.Logic.Tests
             Assert.False(DebugProtocol.IsAgentControl(DebugProtocol.Locals));
             Assert.False(DebugProtocol.IsAgentControl(null));
         }
+
+        [Fact]
+        public void SolutionOpen_IsKnownButNotAgentControl()
+        {
+            // 换解决方案是用户在面板上点的，不是 Agent 控制调试会话：不影响 VS 停下时抢不抢前台
+            Assert.True(DebugProtocol.IsKnown(DebugProtocol.SolutionOpen));
+            Assert.False(DebugProtocol.IsAgentControl(DebugProtocol.SolutionOpen));
+        }
     }
 }
