@@ -51,7 +51,9 @@ namespace UEToVS.Host.Fonts
 
         private VsFontValue ReadRaw(VsFontCategory c, uint flags)
         {
-            var guid = c.Guid;
+            var resolved = VsFontCategoryGuids.Of(c);
+            if (resolved == null) return null;
+            var guid = resolved.Value;
             int hr = _storage.OpenCategory(ref guid, flags);
             if (ErrorHandler.Failed(hr))
             {
@@ -63,10 +65,11 @@ namespace UEToVS.Host.Fonts
                 var lf = new LOGFONTW[1];
                 var info = new FontInfo[1];
                 hr = _storage.GetFont(lf, info);
-                if (ErrorHandler.Failed(hr) || info[0].bFaceNameValid == 0) return null;
+                if (ErrorHandler.Failed(hr)) return null;
                 return new VsFontValue
                 {
-                    Face = info[0].bstrFaceName,
+                    // 字体名为空也照常返回（Face = ""）：VS 的 UE 日志类别就是空字体名才让 VS 崩，要能备份并写入它
+                    Face = info[0].bFaceNameValid != 0 ? info[0].bstrFaceName ?? string.Empty : string.Empty,
                     PointSize = info[0].bPointSizeValid != 0 ? info[0].wPointSize : 0,
                     CharSet = info[0].bCharSetValid != 0 ? info[0].iCharSet : DefaultCharSet,
                 };
@@ -86,7 +89,9 @@ namespace UEToVS.Host.Fonts
             ThreadHelper.ThrowIfNotOnUIThread();
             if (!e.WasDefault || !(_storage is IVsFontAndColorStorage2 s2))
                 return Set(c, e.Face, e.PointSize > 0 ? e.PointSize : (int?)null, (byte)Math.Max(0, Math.Min(255, e.CharSet)), "font.vs.restore.write");
-            var guid = c.Guid;
+            var resolved = VsFontCategoryGuids.Of(c);
+            if (resolved == null) return false;
+            var guid = resolved.Value;
             int hr = _storage.OpenCategory(ref guid, (uint)(__FCSTORAGEFLAGS.FCSF_LOADDEFAULTS | __FCSTORAGEFLAGS.FCSF_PROPAGATECHANGES));
             if (ErrorHandler.Failed(hr)) { L.Warn("font.vs.restore.open", null, ("category", c.Id), ("hr", hr)); return false; }
             try
@@ -105,7 +110,9 @@ namespace UEToVS.Host.Fonts
         {
             ThreadHelper.ThrowIfNotOnUIThread();
             if (string.IsNullOrWhiteSpace(face)) return false;
-            var guid = c.Guid;
+            var resolved = VsFontCategoryGuids.Of(c);
+            if (resolved == null) return false;
+            var guid = resolved.Value;
             int hr = _storage.OpenCategory(ref guid, (uint)(__FCSTORAGEFLAGS.FCSF_LOADDEFAULTS | __FCSTORAGEFLAGS.FCSF_PROPAGATECHANGES));
             if (ErrorHandler.Failed(hr)) { L.Warn(evt, "OpenCategory failed", ("category", c.Id), ("hr", hr)); return false; }
             try

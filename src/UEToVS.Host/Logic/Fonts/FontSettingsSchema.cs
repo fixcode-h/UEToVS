@@ -28,7 +28,7 @@ namespace UEToVS.Host.Logic.Fonts
 
         private const string Group = "字体", GroupEn = "Fonts";
         private const string VsGroup = "VS 字体", VsGroupEn = "VS fonts";
-        // 9 个类别分两组：显示代码 / 输出的窗口，和显示界面文字的窗口（VsFontCategory.Role）
+        // 10 个类别分两组：显示代码 / 输出的窗口，和显示界面文字的窗口（VsFontCategory.Role）
         private const string VsCodeGroup = "VS 字体 · 代码类窗口", VsCodeGroupEn = "VS fonts · code windows";
         private const string VsUiGroup = "VS 字体 · 界面类窗口", VsUiGroupEn = "VS fonts · interface windows";
         private const string Keywords = "font fonts 字体 字号 Fonts and Colors 字体和颜色";
@@ -83,7 +83,7 @@ namespace UEToVS.Host.Logic.Fonts
             {
                 bool code = c.Role == VsFontRole.Code;
                 string g = code ? VsCodeGroup : VsUiGroup, gEn = code ? VsCodeGroupEn : VsUiGroupEn;
-                var family = FontRow(category, FamilyKey(c), c.TitleZh, c.TitleEn, null, null, c.DefaultFamily, VsKeywords, code, g, gEn);
+                var family = FontRow(category, FamilyKey(c), c.TitleZh, c.TitleEn, c.DescriptionZh, c.DescriptionEn, c.DefaultFamily, VsKeywords, code, g, gEn);
                 family.EnabledWhenKey = ManageVsKey; // 关掉“由 UEToVS 管理”后改这些行不会写进 VS，置灰免得误以为没生效
                 list.Add(family);
                 list.Add(new SettingDescriptor

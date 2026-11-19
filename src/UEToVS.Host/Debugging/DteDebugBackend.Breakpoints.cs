@@ -19,7 +19,9 @@ namespace UEToVS.Host.Debugging
             return _dte.Debugger.Breakpoints.Cast<Breakpoint>().Where(b => b.Tag != RunToTag).ToList();
         }
 
-        private static JObject BreakpointJson(Breakpoint b, int index)
+        /// <param name="bound">要不要数绑定位置（Children）：运行中要等调试引擎回话，UE 加载模块时会卡住 VS 的界面线程，
+        /// 所以只在停下时或调用方明确要（bound=true，Agent 查断点为什么没停）时才数。</param>
+        private static JObject BreakpointJson(Breakpoint b, int index, bool bound)
         {
             ThreadHelper.ThrowIfNotOnUIThread();
             var o = new JObject { ["i"] = index };
@@ -32,15 +34,18 @@ namespace UEToVS.Host.Debugging
             o["enabled"] = b.Enabled;
             if (!string.IsNullOrEmpty(b.Condition)) o["condition"] = b.Condition;
             if (b.HitCountType != dbgHitCountType.dbgHitCountTypeNone) o["hitCount"] = b.HitCountTarget;
-            o["hits"] = b.CurrentHits;
+            if (bound) o["hits"] = b.CurrentHits;
             if (b is Breakpoint2 b2 && !b2.BreakWhenHit && !string.IsNullOrEmpty(b2.Message)) o["message"] = b2.Message;
             if (b.Tag == AgentTag) o["byAgent"] = true;
-            try
+            if (bound)
             {
-                // Children = bound locations in the running process; none while debugging = symbols not loaded / wrong line.
-                if (b.Children != null) o["bound"] = b.Children.Count;
+                try
+                {
+                    // Children = bound locations in the running process; none while debugging = symbols not loaded / wrong line.
+                    if (b.Children != null) o["bound"] = b.Children.Count;
+                }
+                catch (Exception) { } // binding state unavailable outside a debug session
             }
-            catch (Exception) { } // binding state unavailable outside a debug session
             return o;
         }
 
@@ -55,9 +60,10 @@ namespace UEToVS.Host.Debugging
         {
             ThreadHelper.ThrowIfNotOnUIThread();
             int offset = a.Int("offset", 0, 0, 10000), limit = a.Int("limit", 50, 1, 200);
+            bool bound = a.Bool("bound", CurrentMode == DebugMode.Break);
             var all = AllBreakpoints();
             var arr = new JArray();
-            for (int i = offset; i < all.Count && arr.Count < limit; i++) arr.Add(BreakpointJson(all[i], i + 1));
+            for (int i = offset; i < all.Count && arr.Count < limit; i++) arr.Add(BreakpointJson(all[i], i + 1, bound));
             var o = new JObject { ["total"] = all.Count, ["items"] = arr };
             if (all.Count > offset + limit) o["nextOffset"] = offset + limit;
             return o;
@@ -101,7 +107,7 @@ namespace UEToVS.Host.Debugging
                 }
             }
             var all = AllBreakpoints();
-            var items = new JArray(created.Select(b => BreakpointJson(b, all.IndexOf(b) + 1)));
+            var items = new JArray(created.Select(b => BreakpointJson(b, all.IndexOf(b) + 1, true)));
             var o = new JObject { ["added"] = items, ["replaced"] = existing != null, ["total"] = all.Count };
             if (CurrentMode != DebugMode.Design && created.All(b => { try { return b.Children == null || b.Children.Count == 0; } catch (Exception) { return false; } }))
                 o["hint"] = "断点还没绑定：模块的符号可能还没加载（DLL 没载入），或者这一行没有代码；加载后会自动生效";
@@ -131,7 +137,7 @@ namespace UEToVS.Host.Debugging
             var all = AllBreakpoints();
             return new JObject
             {
-                ["added"] = new JArray(created.Select(b => BreakpointJson(b, all.IndexOf(b) + 1))),
+                ["added"] = new JArray(created.Select(b => BreakpointJson(b, all.IndexOf(b) + 1, true))),
                 ["data"] = address,
                 ["address"] = probe.Value,
                 ["size"] = size,
