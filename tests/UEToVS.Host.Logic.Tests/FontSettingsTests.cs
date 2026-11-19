@@ -69,7 +69,7 @@ namespace UEToVS.Host.Logic.Tests
         {
             var s = new HostSettings { VsFonts = VsFontSettingsText.With("", "textEditor", FontChoice.OfSystem("Consolas"), 12) };
             var t = VsFontPlanner.Targets(s).Single(x => x.Category.Id == "textEditor");
-            Assert.Equal("Maple Mono NL", t.Face);
+            Assert.Equal("Consolas", t.Face);
             Assert.Equal(12, t.Size);
             Assert.Null(t.Bundled);
         }
