@@ -108,13 +108,13 @@ namespace UEToVS.Host.Logic.Fonts
 
         /// <summary>
         /// VS 自带的「Unreal Engine 日志」窗口（VS 2022 17.x 起的 UnrealEngineTools，类别名里有 Unreal 和 Log）。v0.9.7：这个类别的
-        /// 字体是空的时，VS 一显示这个窗口（F5 启动 UE 后）就因为 new Typeface(null) 整个退出，所以默认写成 Consolas（用户 2026-11-19 定）。
+        /// 字体是空的时，VS 一显示这个窗口（F5 启动 UE 后）就因为 new Typeface(null) 整个退出，所以默认写成代码字体（用户 2026-11-19 定，先是 Consolas，后改同代码字体）。
         /// </summary>
         public static readonly VsFontCategory UeLog = VsFontCategory.Registered("ueLog",
             n => n.Contains("uelog") || (n.Contains("unreal") && n.Contains("log")),
-            "Unreal Engine 日志", "Unreal Engine Log", VsFontRole.Code, FontChoice.OfSystem("Consolas"), 0,
-            "VS 自带的 UE 日志窗口。它的字体为空时，VS 2026 一显示这个窗口（按 F5 启动 UE 后）就会退出，所以默认用 Consolas",
-            "VS's own UE log window. When its font is empty, VS 2026 quits as soon as the window shows (after F5 starts UE), so it defaults to Consolas");
+            "Unreal Engine 日志", "Unreal Engine Log", VsFontRole.Code, FontChoice.SameAsCode, 0,
+            "VS 自带的 UE 日志窗口。它的字体为空时，VS 2026 一显示这个窗口（按 F5 启动 UE 后）就会出错，所以默认同代码字体",
+            "VS's own UE log window. When its font is empty, VS 2026 fails as soon as the window shows (after F5 starts UE), so it defaults to the code font");
 
         public static IReadOnlyList<VsFontCategory> All { get; } = new[]
         {
