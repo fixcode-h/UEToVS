@@ -316,6 +316,12 @@ namespace UEToVS.Host.Logic.Settings
         /// <summary>v0.7.5: document tabs of files that differ from Git (modified, added, untracked) get a ● after the name, like IDEA's tab colors.</summary>
         public bool GitTabMarker { get; set; } = true;
 
+        /// <summary>
+        /// v0.9.4 引擎代码只读（参考 IDEA）：UE 项目里打开引擎 Engine\ 目录下的文件时编辑器默认不让改，顶部提示条点“启用编辑”才能改。
+        /// 只在编辑器层锁，不改磁盘文件属性。见 Logic/Editing/EngineReadOnlyPolicy、Editor/EngineReadOnlyMargin。
+        /// </summary>
+        public bool EngineReadOnly { get; set; } = true;
+
         // ---- 字体（设置 > 外观 > 字体；值见 UEToVS.UI.Logic.FontChoice，VS 类别见 Logic/Fonts/VsFontCategories）----
         /// <summary>英文字体: Latin part of the UEToVS UI font ("bundled:IBM Plex Sans", "vs" or an installed family).</summary>
         public string UiLatinFont { get; set; } = UEToVS.UI.Logic.FontSettings.DefaultUiLatin.ToString();

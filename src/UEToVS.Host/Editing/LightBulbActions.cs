@@ -105,7 +105,7 @@ namespace UEToVS.Host.Editing
                     VsStatusBar.SetText(LightBulbStrings.FixProblem(problem));
                     return;
                 }
-                if (view.TextBuffer.IsReadOnly(0)) { problem = "readonly"; VsStatusBar.SetText(LightBulbStrings.FixProblem(problem)); return; }
+                if (view.TextBuffer.IsReadOnly(0) || EngineReadOnlyState.For(view.TextBuffer).Locked) { problem = "readonly"; VsStatusBar.SetText(LightBulbStrings.FixProblem(problem)); return; }
                 var result = RefactorEdits.Apply(title ?? LightBulbStrings.CreateRepNotify(fix.Arg(1)), edits);
                 if (result.Applied == 0) { problem = "stale"; VsStatusBar.SetText(LightBulbStrings.FixProblem(problem)); return; }
                 VsStatusBar.SetText(title != null ? LightBulbStrings.FixApplied(title) : LightBulbStrings.NoSourceForRepNotify(fix.Arg(1)));
