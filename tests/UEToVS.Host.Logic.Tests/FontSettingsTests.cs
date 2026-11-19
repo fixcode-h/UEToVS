@@ -25,9 +25,9 @@ namespace UEToVS.Host.Logic.Tests
         }
 
         [Fact]
-        public void UeLogCategoryIsFoundByNameAndDefaultsToConsolas()
+        public void UeLogCategoryIsFoundByNameAndDefaultsToTheCodeFont()
         {
-            // VS 的 UE 日志类别 GUID 不公开，按注册表里的类别名认；字体为空会让 VS 2026 崩，默认写 Consolas
+            // VS 的 UE 日志类别 GUID 不公开，按注册表里的类别名认；字体为空会让 VS 2026 崩，默认同代码字体
             var c = VsFontCategories.UeLog;
             Assert.Equal(Guid.Empty, c.Guid);
             Assert.True(c.RegisteredName("unrealenginelog"));
@@ -35,7 +35,7 @@ namespace UEToVS.Host.Logic.Tests
             Assert.False(c.RegisteredName("texteditor"));
             Assert.False(c.RegisteredName("outputwindow"));
             var t = VsFontPlanner.Targets(new HostSettings()).Single(x => x.Category == c);
-            Assert.Equal("Consolas", t.Face);
+            Assert.Equal("Maple Mono NL", t.Face);
             Assert.Equal("", VsFontSettingsText.Format(VsFontSettingsText.Parse("")));
         }
 

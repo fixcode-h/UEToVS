@@ -532,6 +532,7 @@ namespace UEToVS.Host.Logic.Settings
                     ["vsFeatures.uhtAnalysis"] = B(s.TurnOffVsUhtAnalysis),
                     ["vsFeatures.codeLens"] = B(s.TurnOffVsCodeLens),
                     ["vsFeatures.adjacentSymbols"] = B(s.TurnOffVsAdjacentSymbols),
+                    ["vsFeatures.ueLogAutoShow"] = B(s.TurnOffVsUeLogAutoShow),
                     ["toolbar.show"] = B(s.ShowToolbar),
                     ["keyboard.doubleShift"] = B(s.DoubleShiftEnabled),
                     ["keyboard.doubleShiftIntervalMs"] = I(s.DoubleShiftIntervalMs),
@@ -640,6 +641,7 @@ namespace UEToVS.Host.Logic.Settings
                         case "vsFeatures.uhtAnalysis": s.TurnOffVsUhtAnalysis = PB(v); break;
                         case "vsFeatures.codeLens": s.TurnOffVsCodeLens = PB(v); break;
                         case "vsFeatures.adjacentSymbols": s.TurnOffVsAdjacentSymbols = PB(v); break;
+                        case "vsFeatures.ueLogAutoShow": s.TurnOffVsUeLogAutoShow = PB(v); break;
                         case "toolbar.show": s.ShowToolbar = PB(v); break;
                         case "keyboard.doubleShift": s.DoubleShiftEnabled = PB(v); break;
                         case "keyboard.doubleShiftIntervalMs": s.DoubleShiftIntervalMs = PI(v, 300); break;
