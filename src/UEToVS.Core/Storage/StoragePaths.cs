@@ -44,6 +44,17 @@ namespace UEToVS.Core.Storage
         /// <summary>The debug control endpoint file (<see cref="Debug"/>\endpoint.json).</summary>
         public string DebugEndpoint => Path.Combine(Debug, "endpoint.json");
 
+        /// <summary>
+        /// v0.9.5：每个开着调试控制的 VS 在这里另写一份发现文件（&lt;devenv PID&gt;.json，内容和 endpoint.json 一样），
+        /// 让 Agent 面板找到「开着别的项目的 VS」，在那个 VS 里打开当前项目（solution.open）。关解决方案时删掉。
+        /// </summary>
+        public static string DebugInstancesDir()
+        {
+            string baseDir = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            if (string.IsNullOrEmpty(baseDir)) baseDir = Path.GetTempPath();
+            return Path.Combine(baseDir, FolderName, "Debug", "instances");
+        }
+
         /// <summary>Paths for a solution directory (the folder holding the .sln).</summary>
         public static StoragePaths ForSolution(string solutionDir)
         {

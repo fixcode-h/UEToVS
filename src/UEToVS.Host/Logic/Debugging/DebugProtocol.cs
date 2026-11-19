@@ -28,6 +28,12 @@ namespace UEToVS.Host.Logic.Debugging
         public const string Status = "status", Start = "start", Stop = "stop", Restart = "restart", Attach = "attach", Build = "build",
                             Pause = "pause", Continue = "continue", Step = "step", Wait = "wait";
 
+        /// <summary>
+        /// v0.9.5：让这个 VS 换成另一个解决方案（Agent 面板「用 VS 打开这个项目」选了在已开着的 VS 里打开）。
+        /// 先应答再切换，切换会关掉这个管道。
+        /// </summary>
+        public const string SolutionOpen = "solution.open";
+
         // breakpoints
         public const string BpList = "bp.list", BpAdd = "bp.add", BpRemove = "bp.remove", BpEnable = "bp.enable", BpClear = "bp.clear";
 
@@ -42,7 +48,7 @@ namespace UEToVS.Host.Logic.Debugging
 
         public static readonly IReadOnlyList<string> Ops = new[]
         {
-            Status, Start, Stop, Restart, Attach, Build, Pause, Continue, Step, Wait,
+            Status, Start, Stop, Restart, Attach, Build, Pause, Continue, Step, Wait, SolutionOpen,
             BpList, BpAdd, BpRemove, BpEnable, BpClear,
             Stack, Threads, Locals, Eval, Output, Dump,
         };
