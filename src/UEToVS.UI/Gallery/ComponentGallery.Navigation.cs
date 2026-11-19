@@ -40,6 +40,14 @@ namespace UEToVS.UI.Gallery
             bar.RightClicked += async (s, e) => await PickAsync(bar.RightBox, members, Loc.T("成员", "Members"), x => bar.SetRight(x.Kind, x.Name));
             sp.Children.Add(bar);
 
+            sp.Children.Add(Heading(() => Loc.T("编辑器提示条（引擎代码只读）", "Editor notice bar (read-only engine code)")));
+            var notice = new EditorNoticeBar { Width = 640, HorizontalAlignment = HorizontalAlignment.Left };
+            notice.Set(() => Loc.T("此文件属于引擎代码，已设为只读", "This file belongs to the engine and is read-only"),
+                       () => Loc.T("防止误改引擎源码", "to protect the engine source from accidental edits"));
+            notice.AddAction(() => Loc.T("启用编辑", "Enable Editing"), () => notice.Visibility = Visibility.Collapsed, ButtonKind.Primary, null, "Ctrl+Shift+Alt+U, E");
+            notice.AddAction(() => Loc.T("闪一下", "Flash"), notice.Flash, ButtonKind.Ghost);
+            sp.Children.Add(notice);
+
             sp.Children.Add(Heading(() => Loc.T("结果弹窗（查找引用）", "Results popup (Find References)")));
             var refs = new UiButton(() => Loc.T("打开“查找引用”弹窗", "Open the Find References popup"), ButtonKind.Primary);
             refs.Click += (s, e) => Ui.Safe("ui.gallery.references", ShowReferencesSample);

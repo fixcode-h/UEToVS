@@ -31,6 +31,7 @@ namespace UEToVS.Host.Editing
                 ctx => HashtagsFeature.ShowAsync(), null, null, EditorFeatureStrings.KwHashtags));
             registry.Register(new DelegateAction(EditorFeatureIds.PasteFromHistory, EditorFeatureStrings.CmdPasteFromHistory, ActionCategory.Refactoring,
                 ctx => ClipboardHistoryFeature.PasteAsync(), ctx => ctx.ActiveDocumentPath != null, null, EditorFeatureStrings.KwClipboard));
+            EngineReadOnlyFeature.Register(registry); // v0.9.4 引擎代码只读
             UEToVS.Host.Diagnostics.Safe.Execute(L, "editor.clipboard.init", ClipboardHistoryFeature.Initialize);
             UEToVS.Host.Diagnostics.Safe.Execute(L, "editor.autoSave.init", AutoSaveFeature.Initialize); // v0.7.5
             UEToVS.Host.Diagnostics.Safe.Execute(L, "editor.gitTabs.init", GitTabMarkers.Initialize);
@@ -41,7 +42,7 @@ namespace UEToVS.Host.Editing
                 FixNamingAsync, ctx => ctx.Get<DiagnosticFix>(RefactorKeys.Argument) != null, null));
             RefactoringFeature.Hub.Register(new EditorFixProvider());
             LightBulbActions.Register(registry); // v0.5.12 灯泡菜单：UE 规则修复、生成、导航、翻译、包围
-            L.Debug("editor.actions.registered", null, ("count", 6));
+            L.Debug("editor.actions.registered", null, ("count", 7));
         }
 
         private static Task ToggleInlayHintsAsync()
@@ -73,7 +74,7 @@ namespace UEToVS.Host.Editing
                 if (fix.Column < 0 || fix.Column + fix.Length > line.Length) { result = "stale"; return; }
                 var span = new Span(line.Start.Position + fix.Column, fix.Length);
                 if (!string.Equals(snapshot.GetText(span), fix.Old, StringComparison.Ordinal)) { result = "stale"; return; }
-                if (view.TextBuffer.IsReadOnly(span)) { result = "readonly"; VsStatusBar.SetText(EditorFeatureStrings.SurroundReadOnly); return; }
+                if (view.TextBuffer.IsReadOnly(span) || EngineReadOnlyState.For(view.TextBuffer).Locked) { result = "readonly"; VsStatusBar.SetText(EditorFeatureStrings.SurroundReadOnly); return; }
                 using (var edit = view.TextBuffer.CreateEdit())
                 {
                     edit.Replace(span, fix.New);

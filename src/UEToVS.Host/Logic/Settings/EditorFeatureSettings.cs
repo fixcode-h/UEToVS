@@ -23,6 +23,7 @@ namespace UEToVS.Host.Logic.Settings
         public const string AutoSaveKey = "editor.autoSave";
         public const string AutoSaveIdleKey = "editor.autoSaveIdleSeconds";
         public const string GitTabMarkerKey = "editor.gitTabMarker";
+        public const string EngineReadOnlyKey = "editor.engineReadOnly";
 
         public const int MinClipboard = 1, MaxClipboard = 100;
         public const int MinAutoSaveIdle = 0, MaxAutoSaveIdle = 600;
@@ -82,6 +83,12 @@ namespace UEToVS.Host.Logic.Settings
                 "With auto-save VS's * disappears quickly, so files that differ from Git (modified, added, untracked) get a ● after the name on their tab. Refreshed on save and when VS is activated; nothing is shown outside a Git repository or without git.",
                 "true", gSave, gSaveEn, "git modified tab 标签页 修改 改动 vcs"));
 
+            const string gEngine = "引擎代码", gEngineEn = "Engine code";
+            list.Add(D(category, EngineReadOnlyKey, SettingKind.Bool, "引擎代码默认只读", "Engine code is read-only by default",
+                "和 IDEA 打开库源码一样：在 UE 项目里打开引擎目录（Engine\\）下的文件时不能直接改，编辑器顶部显示提示条，点“启用编辑”（Ctrl+Shift+Alt+U, E）后这个文件才能改，本次 VS 会话内一直有效。只在编辑器里锁，不改磁盘文件的只读属性；打开引擎自己的解决方案（没有游戏项目）时不锁。",
+                "Like IDEA's library sources: in a UE project, files under the engine's Engine\\ folder open locked. A bar at the top of the editor offers \"Enable Editing\" (Ctrl+Shift+Alt+U, E), which unlocks that file for the rest of the VS session. Only the editor is locked; the file's read-only attribute on disk is never changed. Nothing is locked when the engine's own solution (without a game project) is open.",
+                "true", gEngine, gEngineEn, "engine read-only readonly lock 引擎 只读 锁定 修改 编辑 idea"));
+
             const string gCheck = "代码检查", gCheckEn = "Code checks";
             list.Add(D(category, DeprecationKey, SettingKind.Bool, "弃用 API 提示", "Deprecated API hints",
                 "当前文件里用到 UE_DEPRECATED / [[deprecated]] 的符号时画删除线和警告波浪线（带弃用版本和说明），Quick Info 显示说明；说明里写了“Use X instead”时 Shift+Alt+Q 可一键替换。只检查可见区域，不扫描全工程。",
@@ -112,6 +119,7 @@ namespace UEToVS.Host.Logic.Settings
             d[AutoSaveKey] = B(s.AutoSaveEnabled);
             d[AutoSaveIdleKey] = s.AutoSaveIdleSeconds.ToString(CultureInfo.InvariantCulture);
             d[GitTabMarkerKey] = B(s.GitTabMarker);
+            d[EngineReadOnlyKey] = B(s.EngineReadOnly);
         }
 
         /// <summary>Sets one value; false when <paramref name="key"/> is not one of these rows.</summary>
@@ -131,6 +139,7 @@ namespace UEToVS.Host.Logic.Settings
                 case StepFilterKey: s.DebugStepFilter = PB(v); return true;
                 case AutoSaveKey: s.AutoSaveEnabled = PB(v); return true;
                 case GitTabMarkerKey: s.GitTabMarker = PB(v); return true;
+                case EngineReadOnlyKey: s.EngineReadOnly = PB(v); return true;
                 case AutoSaveIdleKey:
                     s.AutoSaveIdleSeconds = int.TryParse(v, NumberStyles.Integer, CultureInfo.InvariantCulture, out int idle)
                         ? Math.Max(MinAutoSaveIdle, Math.Min(MaxAutoSaveIdle, idle)) : 15;
@@ -156,6 +165,7 @@ namespace UEToVS.Host.Logic.Settings
             d["autoSave"] = s.AutoSaveEnabled;
             d["autoSaveIdleSeconds"] = s.AutoSaveIdleSeconds;
             d["gitTabMarker"] = s.GitTabMarker;
+            d["engineReadOnly"] = s.EngineReadOnly;
         }
 
         private static string B(bool v) => v ? "true" : "false";

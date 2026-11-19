@@ -130,6 +130,8 @@ namespace UEToVS.Host.Logic.Commands
         public const int ToggleInlayHints = 0x0181;
         public const int ShowHashtags = 0x0182;
         public const int PasteFromHistory = 0x0183;
+        /// <summary>v0.9.4 引擎代码只读：当前引擎文件 启用编辑 / 恢复只读（Editing/EngineReadOnlyFeature.cs）。</summary>
+        public const int ToggleEngineReadOnly = 0x0184;
         // ---- v0.4.5 heavy features (0x01A0–0x01AF): Inspection/HeavyFeatureActions.cs
         public const int RunProjectInspection = 0x01A0;
         public const int ShowInspectionResults = 0x01A1;
@@ -383,6 +385,8 @@ namespace UEToVS.Host.Logic.Commands
               "从最近复制过的内容里挑一条粘贴", "Pick one of the things you copied recently and paste it"),
             C(H, ToggleInlayHints, "ToggleInlayHints", "uetovs.edit.toggleInlayHints", "显示 / 隐藏内嵌提示", "Show / Hide Inlay Hints", "editing", Ed, "Ctrl+Shift+Alt+U, 2", null, null,
               "在代码里显示或隐藏参数名、推导类型等灰色小字", "Show or hide the grey parameter-name and type hints inside the code"),
+            C(H, ToggleEngineReadOnly, "ToggleEngineReadOnly", "uetovs.edit.toggleEngineReadOnly", "引擎文件：启用编辑 / 恢复只读", "Engine File: Enable Editing / Make Read-Only", "editing", Ed, "Ctrl+Shift+Alt+U, E", null, null,
+              "引擎目录下的文件默认只读；对当前文件启用编辑，再按一次恢复只读", "Engine files open read-only; enable editing for the current file, press again to lock it"),
             C(H, TranslateSelection, "TranslateSelection", "uetovs.translate.selection", "翻译选中内容", "Translate Selection", "editing", Gl, "Ctrl+Shift+Alt+U, T", null, null,
               "翻译选中的注释或文字，结果在弹窗里显示", "Translate the selected comment or text and show the result in a popup"),
 

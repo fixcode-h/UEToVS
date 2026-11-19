@@ -126,6 +126,8 @@ namespace UEToVS.UI.Theming
         public static readonly Geometry ChevronDown = FrozenGeometry("M 0,0 L 4,4 L 8,0");
         public static readonly Geometry CheckMark = FrozenGeometry("M 0,4 L 3.5,7.5 L 10,0.5");
         public static readonly Geometry CrossMark = FrozenGeometry("M 0,0 L 8,8 M 8,0 L 0,8");
+        /// <summary>锁（v0.9.4 引擎代码只读提示条）：锁梁 + 锁身。</summary>
+        public static readonly Geometry Lock = FrozenGeometry("M 4.5,7 V 5 A 3.5,3.5 0 0 1 11.5,5 V 7 M 3,7 H 13 V 14.5 H 3 Z M 8,10 V 11.5");
         public static readonly Geometry SearchGlass = FrozenGeometry("M 9.2,9.2 L 13,13 M 0.5,5.5 A 5,5 0 1 1 10.5,5.5 A 5,5 0 1 1 0.5,5.5");
     }
 }

@@ -9,6 +9,7 @@ namespace UEToVS.Host.Logic.Localization
         public const string ToggleInlayHints = "uetovs.edit.toggleInlayHints";
         public const string ShowHashtags = "uetovs.edit.hashtags";
         public const string PasteFromHistory = "uetovs.edit.pasteFromHistory";
+        public const string ToggleEngineReadOnly = "uetovs.edit.toggleEngineReadOnly";
 
         /// <summary>Alt+Enter fixes (context actions; argument = the replacement / word).</summary>
         public const string ReplaceDeprecated = "uetovs.edit.replaceDeprecated";
@@ -24,10 +25,26 @@ namespace UEToVS.Host.Logic.Localization
         public static string CmdShowHashtags => Loc.T("#tag 注释列表…", "#tag Comments...");
         public static string CmdPasteFromHistory => Loc.T("从剪贴板历史粘贴…", "Paste from Clipboard History...");
 
+        public static string CmdToggleEngineReadOnly => Loc.T("引擎文件：启用编辑 / 恢复只读", "Engine File: Enable Editing / Make Read-Only");
+
+        public static readonly string[] KwEngineReadOnly = { "engine", "read-only", "readonly", "lock", "unlock", "引擎", "只读", "锁定", "解锁", "启用编辑", "修改" };
         public static readonly string[] KwSurround = { "surround", "wrap", "包裹", "包围", "if", "#if", "region", "IsValid", "SCOPE_CYCLE_COUNTER" };
         public static readonly string[] KwInlay = { "inlay", "hints", "内嵌提示", "参数名", "parameter names", "auto" };
         public static readonly string[] KwHashtags = { "hashtag", "tag", "#tag", "书签", "todo", "bookmark" };
         public static readonly string[] KwClipboard = { "clipboard", "paste", "history", "剪贴板", "粘贴", "历史", "paste multiple" };
+
+        // ---- v0.9.4 引擎代码只读（编辑器顶部提示条 + 状态栏）
+        public static string EngineReadOnlyMessage => Loc.T("此文件属于引擎代码，已设为只读", "This file belongs to the engine and is read-only");
+        public static string EngineReadOnlyDetail => Loc.T("防止误改引擎源码", "to protect the engine source from accidental edits");
+        public static string EngineReadOnlyEnable => Loc.T("启用编辑", "Enable Editing");
+        public static string EngineReadOnlyEnableTip => Loc.T("本次 VS 会话内允许修改这个文件", "Allow editing this file for the rest of the VS session");
+        public static string EngineReadOnlySettings => Loc.T("设置", "Settings");
+        public static string EngineReadOnlySettingsTip => Loc.T("设置 > 编辑 > 引擎代码", "Settings > Editing > Engine code");
+        public static string EngineReadOnlyTyped => Loc.T("引擎代码是只读的：点编辑器顶部的“启用编辑”（Ctrl+Shift+Alt+U, E）后再改", "Engine code is read-only: click \"Enable Editing\" at the top of the editor (Ctrl+Shift+Alt+U, E) first");
+        public static string EngineReadOnlyUnlocked => Loc.T("已允许修改这个引擎文件（本次 VS 会话内有效）", "Editing enabled for this engine file (for this VS session)");
+        public static string EngineReadOnlyLocked => Loc.T("这个引擎文件已恢复只读", "This engine file is read-only again");
+        public static string EngineReadOnlyNotEngine => Loc.T("当前文件不是引擎代码，不需要解锁", "The current file is not engine code; nothing to unlock");
+        public static string EngineReadOnlyOff => Loc.T("引擎代码只读已在设置中关闭（设置 > 编辑 > 引擎代码）", "Read-only engine code is turned off in the settings (Settings > Editing > Engine code)");
 
         // ---- Surround With
         public static string SurroundDisabled => Loc.T("Surround With 已在设置中关闭", "Surround With is turned off in the settings");
