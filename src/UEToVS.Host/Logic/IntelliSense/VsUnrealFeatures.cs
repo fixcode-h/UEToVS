@@ -56,6 +56,7 @@ namespace UEToVS.Host.Logic.IntelliSense
         public const string UhtAnalysis = "uhtAnalysis";
         public const string CodeLens = "codeLens";
         public const string AdjacentSymbols = "adjacentSymbols";
+        public const string UeLogAutoShow = "ueLogAutoShow";
 
         public const string JsonSemanticIndex = "languages.cpp.intelliSense.browsingNavigation.wholeCodebaseSemanticIndex.enabled";
         public const string JsonCodeLensReferences = "languages.cpp.intelliSense.browsingNavigation.wholeCodebaseSemanticIndex.enableCodeLensForReferences";
@@ -64,6 +65,8 @@ namespace UEToVS.Host.Logic.IntelliSense
         public const string JsonUhtAnalysis = "unrealEngine.enableCodeAnalysis";
         public const string JsonCodeLens = "textEditor.codeLens.enabled";
         public const string JsonAdjacentSymbols = "debugging.symbols.load.includeSymbolsNextToModules";
+        /// <summary>VS 选项 > Unreal Engine >「自动显示」（调试游戏项目时自动显示“Unreal Engine 日志”窗口）；键名取自用户的 settings.json（2026-11-19）。</summary>
+        public const string JsonUeLogAutoShow = "unrealEngine.log.showAutomatically";
 
         public static IReadOnlyList<VsUnrealFeature> Features { get; } = new[]
         {
@@ -94,6 +97,13 @@ namespace UEToVS.Host.Logic.IntelliSense
                 "取消后降到 3.5 GB。断点停下时调用栈里的模块仍会按需加载（「在需要时自动包含其他符号」保持打开）；在引擎代码里提前打的断点，要在「模块」窗口里右键加载符号，或把模块加进「包含的模块」。不影响编译。",
                 "Unticks the debugger's \"Always include symbols next to modules\". Debugging the UE editor, the debugger reads the .pdb next to each of 1000+ UnrealEditor-*.dll files; devenv was measured at 12 GB, " +
                 "3.5 GB with it unticked. Modules on the call stack still load on demand when a breakpoint hits (\"Automatically include other symbols when needed\" stays on); for breakpoints set in engine code beforehand, load the module's symbols from the Modules window or add it to the included modules. Builds are not affected."),
+            // v0.9.7（用户 2026-11-19 定，默认关）：VS 2026 的 UE 日志窗口在一些机器上读不出自己的字体，一显示就让 VS 退出；
+            // 调试时不自动弹出它就碰不到这段代码。日志照样能在 Agent 面板 / UE 编辑器里看。
+            new VsUnrealFeature(UeLogAutoShow, "vsFeatures.ueLogAutoShow", "调试时不自动显示 UE 日志窗口", "Don't show the UE log window when debugging",
+                "取消 VS 选项 > Unreal Engine >“自动显示”（调试游戏项目时自动显示“Unreal Engine 日志”窗口）。VS 2026 的这个窗口在一些机器上读不出自己的字体，" +
+                "一显示 VS 就直接退出（按 F5 后看起来像卡死）。关掉后要看 UE 日志可以从 视图 > 其他窗口 手动打开它，或在 UE 编辑器 / Agent 面板里看。",
+                "Unticks VS Options > Unreal Engine > \"Show automatically\" (show the \"Unreal Engine Log\" window when debugging a game project). On some machines VS 2026's window cannot read its own font " +
+                "and VS quits as soon as it shows (after F5 it looks like a hang). With it off, open the window from View > Other Windows when you want it, or read the log in the UE editor / Agent Panel."),
         };
 
         private static CppPropertyCandidate Json(string key) => new CppPropertyCandidate(JsonPage, key, false);
@@ -115,6 +125,7 @@ namespace UEToVS.Host.Logic.IntelliSense
             Def("vsUhtAnalysis", UhtAnalysis, "Disable VS Unreal Header Tool code analysis", Json(JsonUhtAnalysis)),
             Def("vsCodeLens", CodeLens, "Disable CodeLens (all languages)", Json(JsonCodeLens)),
             Def("vsAdjacentSymbols", AdjacentSymbols, "Debugger: don't always load symbols next to modules", Json(JsonAdjacentSymbols)),
+            Def("vsUeLogAutoShow", UeLogAutoShow, "Don't show VS's Unreal Engine Log window automatically when debugging", Json(JsonUeLogAutoShow)),
         };
 
         /// <summary>
@@ -130,6 +141,7 @@ namespace UEToVS.Host.Logic.IntelliSense
             [JsonUhtAnalysis] = true,
             [JsonCodeLens] = true,
             [JsonAdjacentSymbols] = true,
+            [JsonUeLogAutoShow] = true,
         };
 
         /// <summary>True when <paramref name="f"/> cannot take effect in VS of major version <paramref name="vsMajor"/> (0 = unknown: assume it can).</summary>
