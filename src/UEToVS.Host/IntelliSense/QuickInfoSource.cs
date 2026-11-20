@@ -125,7 +125,7 @@ namespace UEToVS.Host.IntelliSense
             {
                 if (parts.Count > 0) parts.Add(new ThematicBreakElement());
                 parts.Add(new ClassifiedTextElement(ReflectionRuns(m.Reflection)));
-                if (m.ReflectionTags.Count > 0)
+                if (m.ReflectionTags.Count > 0 && IntelliSenseContext.Settings?.QuickInfoReflectionTags == true)
                     parts.Add(new ClassifiedTextElement(new ClassifiedTextRun(PredefinedClassificationTypeNames.Comment, string.Join(" · ", m.ReflectionTags))));
             }
             if (m.MacroExpansion != null)

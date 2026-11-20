@@ -242,6 +242,9 @@ namespace UEToVS.Host.Logic.Settings
         /// <summary>Hover / Ctrl+K,I Quick Info (declaration, docs, UE reflection, macro expansion).</summary>
         public bool QuickInfoEnabled { get; set; } = true;
 
+        /// <summary>UFUNCTION / UPROPERTY 原文下面再加一行说明符解读（蓝图可调用 · 可编辑 …）。默认关：原文照源码一行显示（v0.9.8 用户定）。</summary>
+        public bool QuickInfoReflectionTags { get; set; }
+
         // ---- 注释翻译（设置 > 注释翻译；Logic/Translation/TranslationSettingsSchema）----
         /// <summary>Translate doc comments in Quick Info (async, cached; the original shows first).</summary>
         public bool CommentTranslation { get; set; } = true;

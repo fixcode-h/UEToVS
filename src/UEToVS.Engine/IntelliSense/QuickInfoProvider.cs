@@ -79,7 +79,7 @@ namespace UEToVS.Engine.IntelliSense
             return sb.ToString();
         }
 
-        /// <summary>UPROPERTY(...) / UFUNCTION(...) etc. with a line of readable tags; null for non-reflected declarations.</summary>
+        /// <summary>UPROPERTY(...) / UFUNCTION(...) etc. as one line, like the source; null for non-reflected declarations.</summary>
         public static string Reflection(Declaration d)
         {
             if (d == null || d.Ue == UeFlags.None || d.Ue == UeFlags.GeneratedBody) return null;
@@ -88,13 +88,9 @@ namespace UEToVS.Engine.IntelliSense
                 (d.Ue & UeFlags.UMeta) != 0 ? "UMETA" : (d.Ue & UeFlags.UDelegate) != 0 ? "UDELEGATE" : null;
             if (macro == null) return null;
             if (d.Kind == SymbolKind.Delegate) return "Dynamic delegate (Blueprint-compatible)";
-            string specifiers = CleanSpecifiers(d.Specifiers);
-            var sb = new StringBuilder(macro).Append('(').Append(specifiers).Append(')');
-            var tags = Tags(specifiers);
-            if (tags.Count > 0) sb.Append('\n').Append(string.Join(" · ", tags));
-            string meta = Meta(specifiers);
-            if (meta != null) sb.Append("\nmeta: ").Append(meta);
-            return sb.ToString();
+            // v0.9.8（用户 2026-11-20）：按源码原样一行显示。以前在后面另起两行写英文解读（Blueprint callable、meta: …），
+            // 和宿主的中文解读重复，原文也被拆得像换了行；解读改由宿主按设置决定是否显示。
+            return macro + "(" + CleanSpecifiers(d.Specifiers) + ")";
         }
 
         private static readonly System.Text.RegularExpressions.Regex SpecifierComments =
@@ -110,73 +106,6 @@ namespace UEToVS.Engine.IntelliSense
             string s = SpecifierComments.Replace(specifiers, " ");
             s = Spaces.Replace(s, " ").Trim();
             return s.Replace("( ", "(").Replace(" )", ")").Replace(" ,", ",");
-        }
-
-        private static readonly (string Spec, string Tag)[] TagMap =
-        {
-            ("BlueprintCallable", "Blueprint callable"), ("BlueprintPure", "Blueprint pure"), ("BlueprintImplementableEvent", "Blueprint event"),
-            ("BlueprintNativeEvent", "Blueprint native event (_Implementation)"), ("BlueprintReadWrite", "Blueprint read/write"),
-            ("BlueprintReadOnly", "Blueprint read-only"), ("BlueprintAssignable", "Blueprint assignable"), ("EditAnywhere", "Editable"),
-            ("EditDefaultsOnly", "Editable (defaults)"), ("EditInstanceOnly", "Editable (instances)"), ("VisibleAnywhere", "Visible"),
-            ("VisibleDefaultsOnly", "Visible (defaults)"), ("VisibleInstanceOnly", "Visible (instances)"), ("Replicated", "Replicated"),
-            ("ReplicatedUsing", "Replicated (OnRep)"), ("Server", "Server RPC"), ("Client", "Client RPC"), ("NetMulticast", "Multicast RPC"),
-            ("Reliable", "Reliable"), ("Unreliable", "Unreliable"), ("WithValidation", "Validated"), ("Exec", "Console command"),
-            ("Transient", "Transient"), ("SaveGame", "SaveGame"), ("Config", "Config"), ("Blueprintable", "Blueprintable"),
-            ("BlueprintType", "Blueprint type"), ("Abstract", "Abstract"), ("CallInEditor", "Call in editor"),
-        };
-
-        private static List<string> Tags(string specifiers)
-        {
-            var list = new List<string>();
-            if (string.IsNullOrEmpty(specifiers)) return list;
-            string top = specifiers;
-            int meta = IndexOfMeta(specifiers);
-            if (meta >= 0) top = specifiers.Substring(0, meta);
-            foreach (var (spec, tag) in TagMap)
-                if (TypeText.HasSpecifier(top, spec)) list.Add(tag);
-            int cat = top.IndexOf("Category", StringComparison.OrdinalIgnoreCase);
-            if (cat >= 0)
-            {
-                int eq = top.IndexOf('=', cat);
-                if (eq > 0)
-                {
-                    int end = eq + 1;
-                    while (end < top.Length && top[end] == ' ') end++;
-                    int stop = top[end < top.Length ? end : top.Length - 1] == '"' ? top.IndexOf('"', end + 1) + 1 : top.IndexOf(',', end);
-                    if (stop <= end) stop = top.Length;
-                    list.Add("Category: " + top.Substring(end, stop - end).Trim().Trim('"'));
-                }
-            }
-            return list;
-        }
-
-        private static int IndexOfMeta(string s)
-        {
-            int i = s.IndexOf("meta", StringComparison.OrdinalIgnoreCase);
-            while (i >= 0)
-            {
-                int j = i + 4;
-                while (j < s.Length && s[j] == ' ') j++;
-                if (j < s.Length && s[j] == '=' && (i == 0 || !TypeText.IsIdentPart(s[i - 1]))) return i;
-                i = s.IndexOf("meta", i + 4, StringComparison.OrdinalIgnoreCase);
-            }
-            return -1;
-        }
-
-        private static string Meta(string specifiers)
-        {
-            if (string.IsNullOrEmpty(specifiers)) return null;
-            int i = IndexOfMeta(specifiers);
-            if (i < 0) return null;
-            int open = specifiers.IndexOf('(', i);
-            if (open < 0) return null;
-            int depth = 0;
-            for (int k = open; k < specifiers.Length; k++)
-            {
-                if (specifiers[k] == '(') depth++;
-                else if (specifiers[k] == ')' && --depth == 0) return specifiers.Substring(open + 1, k - open - 1).Trim();
-            }
-            return specifiers.Substring(open + 1).Trim();
         }
     }
 

@@ -259,8 +259,8 @@ namespace UEToVS.Engine.Tests
             Assert.StartsWith("Uses the gadget once.", q.Documentation);
             Assert.DoesNotContain("/**", q.Documentation);
             Assert.DoesNotContain("*/", q.Documentation);
-            Assert.StartsWith("UFUNCTION(BlueprintCallable, Category = \"Gadget\")", q.Reflection);
-            Assert.Contains("Blueprint callable", q.Reflection);
+            // 原文一行，不再在后面另起行写解读（v0.9.8）
+            Assert.Equal("UFUNCTION(BlueprintCallable, Category = \"Gadget\")", q.Reflection);
             Assert.Equal(1, q.OverloadCount);
             Assert.Equal("Use", q.Symbol.Name);
             Assert.True(q.Confidence >= ResolutionConfidence.Scoped);
@@ -279,9 +279,8 @@ namespace UEToVS.Engine.Tests
             Assert.Equal("int32 AGadget::Charges", q.Declaration);
             Assert.Equal("Number of charges left.", q.Documentation);
             Assert.Contains("UPROPERTY(EditAnywhere, BlueprintReadWrite", q.Reflection);
-            Assert.Contains("meta: ClampMin = \"0\", UIMax = \"10\"", q.Reflection);
-            Assert.Contains("Editable", q.Reflection);
-            Assert.Contains("Category: Gadget", q.Reflection);
+            Assert.Contains("meta = (ClampMin = \"0\", UIMax = \"10\")", q.Reflection);
+            Assert.DoesNotContain("\n", q.Reflection);
         }
 
         [Fact]
