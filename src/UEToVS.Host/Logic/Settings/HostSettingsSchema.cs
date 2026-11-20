@@ -341,6 +341,8 @@ namespace UEToVS.Host.Logic.Settings
             const string gQi = "Quick Info 与参数信息", gQiEn = "Quick Info & parameter info";
             list.Add(D(IntelliSense, "quickInfo.enabled", SettingKind.Bool, "鼠标悬停显示信息（Quick Info）", "Quick Info on hover",
                 "声明、文档注释、UE 反射摘要与宏展开（也可 Ctrl+K,I）。", "Declaration, docs, UE reflection summary and macro expansion (also Ctrl+K,I).", "true", gQi, gQiEn));
+            list.Add(D(IntelliSense, "quickInfo.reflectionTags", SettingKind.Bool, "解读 UE 说明符", "Explain UE specifiers",
+                "在 UFUNCTION / UPROPERTY 原文下面加一行说明，如“蓝图可调用 · 可编辑”。", "Adds a line under UFUNCTION / UPROPERTY, e.g. \"Blueprint callable · Editable\".", "false", gQi, gQiEn));
             list.Add(D(IntelliSense, "signatureHelp.enabled", SettingKind.Bool, "参数信息", "Parameter info",
                 "输入 ( 或 , 时显示（也可 Ctrl+Shift+Space）。", "Shown on ( and , (also Ctrl+Shift+Space).", "true", gQi, gQiEn));
             UEToVS.Host.Logic.Translation.TranslationSettingsSchema.AddDescriptors(list, IntelliSense);
@@ -568,6 +570,7 @@ namespace UEToVS.Host.Logic.Settings
                     ["completion.accessorFix"] = B(s.CompletionAccessorFix),
                     ["completion.maxResults"] = I(s.CompletionMaxResults),
                     ["quickInfo.enabled"] = B(s.QuickInfoEnabled),
+                    ["quickInfo.reflectionTags"] = B(s.QuickInfoReflectionTags),
                     ["signatureHelp.enabled"] = B(s.SignatureHelpEnabled),
                     ["coloring.enabled"] = B(s.SemanticColoring),
                     ["coloring.overrides"] = s.SemanticColorOverrides ?? "",
@@ -677,6 +680,7 @@ namespace UEToVS.Host.Logic.Settings
                         case "completion.accessorFix": s.CompletionAccessorFix = PB(v); break;
                         case "completion.maxResults": s.CompletionMaxResults = PI(v, 500); break;
                         case "quickInfo.enabled": s.QuickInfoEnabled = PB(v); break;
+                        case "quickInfo.reflectionTags": s.QuickInfoReflectionTags = PB(v); break;
                         case "signatureHelp.enabled": s.SignatureHelpEnabled = PB(v); break;
                         case "coloring.enabled": s.SemanticColoring = PB(v); break;
                         case "coloring.overrides": s.SemanticColorOverrides = v; break;

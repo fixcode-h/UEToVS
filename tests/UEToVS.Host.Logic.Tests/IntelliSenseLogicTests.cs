@@ -625,6 +625,7 @@ namespace UEToVS.Host.Logic.Tests
             Assert.True(s.CompletionEnabled);
             Assert.Equal(CompletionScope.Auto, s.CompletionScope);
             Assert.True(s.CompletionAccessorFix);
+            Assert.False(s.QuickInfoReflectionTags);
             Assert.True(s.SemanticColoring);
             Assert.Equal(50, s.SemanticColoringMarginLines);
             Assert.Equal(string.Empty, s.SemanticColorOverrides);
