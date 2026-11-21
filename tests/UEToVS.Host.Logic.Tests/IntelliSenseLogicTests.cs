@@ -630,5 +630,54 @@ namespace UEToVS.Host.Logic.Tests
             Assert.Equal(50, s.SemanticColoringMarginLines);
             Assert.Equal(string.Empty, s.SemanticColorOverrides);
         }
+    
+    }
+
+    public class CompletionCaseRankingTests
+    {
+        private static RankCandidate C(string text) => new RankCandidate { FilterText = text };
+
+        private static List<string> OrderCase(IReadOnlyList<RankCandidate> items, string pattern, CompletionCaseMode mode, bool tolerant = true) =>
+            CompletionRanker.Rank(items, pattern, null, mode, tolerant).Select(r => items[r.Index].FilterText).ToList();
+
+        [Fact]
+        public void TolerantFindsMistypedNameAfterRegularMatches()
+        {
+            var items = new[] { C("UMETA"), C("UHitMetaData"), C("UMeshComponent"), C("UPakMountExt") };
+            Assert.Equal(new[] { "UMeshComponent" }, OrderCase(items, "Umehs", CompletionCaseMode.Prefer));
+            Assert.Empty(OrderCase(items, "Umehs", CompletionCaseMode.Prefer, tolerant: false));
+            var weak = OrderCase(new[] { C("UMeshComponent"), C("UMeshy") }, "Umesh", CompletionCaseMode.Prefer);
+            Assert.Equal("UMeshy", weak[0]); // both prefix: shorter first
+        }
+
+        [Fact]
+        public void MatchingCaseComesFirst()
+        {
+            var items = new[] { C("actorCount"), C("AActor"), C("ActorTag") };
+            // typed lowercase: the lowercase local first, strong matches before anything weak
+            Assert.Equal("actorCount", OrderCase(items, "actor", CompletionCaseMode.Prefer)[0]);
+            // typed capital: ActorTag / AActor before actorCount
+            var cap = OrderCase(items, "Actor", CompletionCaseMode.Prefer);
+            Assert.Equal("actorCount", cap.Last());
+            Assert.Equal(3, OrderCase(items, "Actor", CompletionCaseMode.Ignore).Count);
+        }
+
+        [Fact]
+        public void QualifiedItemsMatchByValueName()
+        {
+            var r = CompletionRanker.Rank(new[] { C("EWeaponMode::Burst") }, "Bur", null, CompletionCaseMode.Prefer, true);
+            Assert.Equal(MatchKind.Prefix, r[0].Kind);
+            Assert.Equal(13, r[0].Ranges[0].Start);
+        }
+
+        [Fact]
+        public void CaseModesFilter()
+        {
+            var items = new[] { C("actorCount"), C("AActor"), C("ActorTag") };
+            Assert.Equal(new[] { "actorCount" }, OrderCase(items, "actor", CompletionCaseMode.FirstLetter));
+            Assert.DoesNotContain("actorCount", OrderCase(items, "Actor", CompletionCaseMode.FirstLetter));
+            Assert.Equal(new[] { "UMeshComponent" }, OrderCase(new[] { C("UMeshComponent"), C("UMETA") }, "UMesh", CompletionCaseMode.All));
+            Assert.Equal(2, OrderCase(new[] { C("UMeshComponent"), C("UMETA") }, "ume", CompletionCaseMode.Ignore).Count);
+        }
     }
 }

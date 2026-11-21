@@ -54,6 +54,9 @@ namespace UEToVS.Engine.IntelliSense
         /// <summary>General: the identifier is in a position where only types make sense (after 'new', '&lt;', base clause...).</summary>
         public bool TypeExpected { get; set; }
 
+        /// <summary>General: the significant token before the word ('=', '==', 'return', 'case' …); -1 at the start.</summary>
+        public int PrevToken { get; set; } = -1;
+
         /// <summary>GameplayTag / AssetPath / UFunctionName / IniKey: the string literal analysis (columns on the caret line).</summary>
         public StringLiteralSite StringSite { get; set; }
 
@@ -144,6 +147,7 @@ namespace UEToVS.Engine.IntelliSense
             }
             if (TrySpecifier(doc, b, ws, site)) return site;
             if (TryOverride(doc, b, ws, site)) return site;
+            site.PrevToken = b;
             if (b >= 0)
             {
                 var bt = doc.Tokens[b];

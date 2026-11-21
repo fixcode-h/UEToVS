@@ -7,6 +7,9 @@ namespace UEToVS.Core.Matching
     /// Rider/IntelliJ style name matcher: exact, prefix, camel-hump ("PCU" -> PlayerCameraUpdate,
     /// "gAC" -> GetActorComponent), substring and '*'/space wildcards.
     /// A matcher instance is built once per query and reused for every candidate.
+    /// A tolerant matcher (code completion) also accepts, below every other kind, letters in order after a word start
+    /// ("umcmp" -> UMeshComponent) and typos in the leading part of the name ("Umehs" -> UMeshComponent: swapped,
+    /// missing, extra or wrong letters, 1 edit from 5 letters, 2 from 8); the first letter must be right.
     /// </summary>
     public sealed class FuzzyMatcher
     {
@@ -15,13 +18,32 @@ namespace UEToVS.Core.Matching
         private const int CamelScore = 60000;
         private const int SubstringScore = 30000;
         private const int WildcardScore = 20000;
+        private const int SubsequenceScore = 15000;
+        private const int TypoScore = 10000;
+
+        /// <summary>Typo matching starts at this pattern length (shorter patterns would match almost everything).</summary>
+        public const int TypoMinLength = 5;
+
+        /// <summary>Two typos are allowed from this pattern length.</summary>
+        public const int TypoTwoEditsLength = 8;
+
+        [ThreadStatic] private static int[] _row0;
+        [ThreadStatic] private static int[] _row1;
+        [ThreadStatic] private static int[] _row2;
 
         private readonly string _pattern;
         private readonly string[] _fragments;
         private readonly bool _hasWildcard;
+        private readonly bool _tolerant;
 
-        public FuzzyMatcher(string pattern)
+        public FuzzyMatcher(string pattern) : this(pattern, false)
         {
+        }
+
+        /// <param name="tolerant">Also accept subsequence and typo matches (ranked below every other kind).</param>
+        public FuzzyMatcher(string pattern, bool tolerant)
+        {
+            _tolerant = tolerant;
             pattern = pattern ?? string.Empty;
             _pattern = pattern.Trim();
             _hasWildcard = _pattern.IndexOf('*') >= 0 || _pattern.IndexOf(' ') >= 0;
@@ -35,7 +57,169 @@ namespace UEToVS.Core.Matching
         public MatchResult Match(string name)
         {
             if (string.IsNullOrEmpty(name) || IsEmpty) return MatchResult.NoMatch;
-            return _hasWildcard ? MatchWildcard(name) : MatchSingle(_pattern, name);
+            if (_hasWildcard) return MatchWildcard(name);
+            var m = MatchSingle(_pattern, name);
+            if (m.IsMatch || !_tolerant) return m;
+            return MatchTolerant(_pattern, name);
+        }
+
+        /// <summary>Allowed typos for a pattern length (0 = typo matching off for it).</summary>
+        public static int MaxTypos(int patternLength) =>
+            patternLength >= TypoTwoEditsLength ? 2 : patternLength >= TypoMinLength ? 1 : 0;
+
+        private static MatchResult MatchTolerant(string pattern, string name)
+        {
+            if (pattern.Length >= 2)
+            {
+                var sub = MatchSubsequence(pattern, name);
+                if (sub != null)
+                {
+                    int score = SubsequenceScore - sub.Count * 200 - Math.Min(name.Length, 500) - sub[0].Start * 10;
+                    return new MatchResult(MatchKind.Subsequence, score, sub);
+                }
+            }
+            int max = MaxTypos(pattern.Length);
+            if (max == 0) return MatchResult.NoMatch;
+            int d = TypoDistance(pattern, name, max, out int end);
+            if (d < 0) return MatchResult.NoMatch;
+            return new MatchResult(MatchKind.Typo, TypoScore - d * 1000 - Math.Min(name.Length, 500), TypoRanges(pattern, name, end));
+        }
+
+        /// <summary>
+        /// Case-insensitive letters in order; the first one at a word start. Prefers later letters at word starts
+        /// (fewer, longer runs) by trying every word start of the first letter and keeping the fewest runs.
+        /// </summary>
+        public static List<TextRange> MatchSubsequence(string pattern, string name)
+        {
+            if (pattern.Length == 0 || pattern.Length > name.Length) return null;
+            List<TextRange> best = null;
+            var positions = new int[pattern.Length];
+            for (int start = 0; start <= name.Length - pattern.Length; start++)
+            {
+                if (!IsWordStart(name, start) || !EqIgnoreCase(pattern[0], name[start])) continue;
+                positions[0] = start;
+                int pi = 1;
+                for (int ni = start + 1; ni < name.Length && pi < pattern.Length; ni++)
+                    if (EqIgnoreCase(pattern[pi], name[ni])) positions[pi++] = ni;
+                if (pi < pattern.Length) break; // a later start only has fewer letters left
+                var ranges = ToRanges(positions);
+                if (best == null || ranges.Count < best.Count) best = ranges;
+                if (best.Count == 1) break;
+            }
+            return best;
+        }
+
+        /// <summary>
+        /// Smallest optimal-string-alignment distance (insert / delete / substitute / swap adjacent) between the pattern
+        /// and any leading part of <paramref name="name"/>, case-insensitive, with the first letter fixed; -1 when above
+        /// <paramref name="max"/>. <paramref name="end"/> = length of the best leading part.
+        /// </summary>
+        public static int TypoDistance(string pattern, string name, int max, out int end)
+        {
+            end = 0;
+            int m = pattern.Length;
+            if (m == 0 || name.Length == 0 || !EqIgnoreCase(pattern[0], name[0])) return -1;
+            int n = Math.Min(name.Length, m + max);
+            if (n < m - max) return -1;
+            var prev2 = Row(ref _row0, m + 1);
+            var prev = Row(ref _row1, m + 1);
+            var cur = Row(ref _row2, m + 1);
+            // Rows run over the name (j), columns over the pattern (i): D[j][i].
+            for (int i = 0; i <= m; i++) prev[i] = i;
+            int best = int.MaxValue;
+            if (m <= max) { best = m; end = 0; }
+            for (int j = 1; j <= n; j++)
+            {
+                cur[0] = j;
+                int rowMin = cur[0];
+                char nc = char.ToLowerInvariant(name[j - 1]);
+                for (int i = 1; i <= m; i++)
+                {
+                    char pc = char.ToLowerInvariant(pattern[i - 1]);
+                    int cost = pc == nc ? 0 : 1;
+                    int v = Math.Min(Math.Min(prev[i] + 1, cur[i - 1] + 1), prev[i - 1] + cost);
+                    if (i > 1 && j > 1 && pc == char.ToLowerInvariant(name[j - 2]) && char.ToLowerInvariant(pattern[i - 2]) == nc)
+                        v = Math.Min(v, prev2[i - 2] + 1);
+                    cur[i] = v;
+                    if (v < rowMin) rowMin = v;
+                }
+                if (cur[m] < best || cur[m] == best && j <= m)
+                {
+                    best = cur[m];
+                    end = j;
+                }
+                if (rowMin > max) break;
+                var t = prev2;
+                prev2 = prev;
+                prev = cur;
+                cur = t;
+            }
+            return best <= max ? best : -1;
+        }
+
+        private static int[] Row(ref int[] row, int length)
+        {
+            if (row == null || row.Length < length) row = new int[Math.Max(length, 64)];
+            return row;
+        }
+
+        /// <summary>Highlight for a typo match: the letters of the matched leading part that occur in the pattern.</summary>
+        private static List<TextRange> TypoRanges(string pattern, string name, int end)
+        {
+            var list = new List<TextRange>();
+            string lower = pattern.ToLowerInvariant();
+            for (int i = 0; i < end && i < name.Length; i++)
+            {
+                if (lower.IndexOf(char.ToLowerInvariant(name[i])) < 0) continue;
+                if (list.Count > 0 && list[list.Count - 1].End == i)
+                {
+                    var last = list[list.Count - 1];
+                    list[list.Count - 1] = new TextRange(last.Start, last.Length + 1);
+                }
+                else list.Add(new TextRange(i, 1));
+            }
+            if (list.Count == 0) list.Add(new TextRange(0, 1));
+            return list;
+        }
+
+        private static bool EqIgnoreCase(char a, char b) => a == b || char.ToLowerInvariant(a) == char.ToLowerInvariant(b);
+
+        /// <summary>
+        /// Letters of the pattern whose case differs from the name letter they matched (wildcards and spaces skipped);
+        /// -1 when the highlight does not pair one name letter with every pattern letter (typo matches).
+        /// <paramref name="firstDiffers"/>: the first pattern letter's case differs.
+        /// </summary>
+        public static int CaseMismatches(string pattern, string name, IReadOnlyList<TextRange> ranges, out bool firstDiffers)
+        {
+            firstDiffers = false;
+            if (string.IsNullOrEmpty(pattern) || string.IsNullOrEmpty(name) || ranges == null || ranges.Count == 0) return -1;
+            int total = 0;
+            foreach (var r in ranges) total += r.Length;
+            int letters = 0;
+            foreach (char ch in pattern)
+                if (ch != '*' && ch != ' ') letters++;
+            if (total != letters) return -1;
+            int pi = 0, mismatches = 0;
+            foreach (var r in ranges)
+                for (int k = r.Start; k < r.End; k++)
+                {
+                    while (pattern[pi] == '*' || pattern[pi] == ' ') pi++;
+                    if (k < 0 || k >= name.Length) return -1;
+                    if (pattern[pi] != name[k])
+                    {
+                        mismatches++;
+                        if (pi == 0 || IsFirstLetter(pattern, pi)) firstDiffers = true;
+                    }
+                    pi++;
+                }
+            return mismatches;
+        }
+
+        private static bool IsFirstLetter(string pattern, int index)
+        {
+            for (int i = 0; i < index; i++)
+                if (pattern[i] != '*' && pattern[i] != ' ') return false;
+            return true;
         }
 
         /// <summary>Matches a name that may carry a UE type prefix (AActor, UObject, FVector...).</summary>

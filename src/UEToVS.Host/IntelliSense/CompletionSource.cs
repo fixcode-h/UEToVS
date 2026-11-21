@@ -124,6 +124,7 @@ namespace UEToVS.Host.IntelliSense
                     TriggerChar = t.TriggerChar,
                     Explicit = isExplicit,
                     MaxResults = Math.Max(50, settings.CompletionMaxResults),
+                    Tolerant = settings.CompletionTolerant,
                 };
                 var r = await engine.GetCompletionsAsync(request, token).ConfigureAwait(false);
                 if (!r.Ok)

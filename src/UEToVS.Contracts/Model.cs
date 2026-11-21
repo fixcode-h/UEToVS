@@ -153,6 +153,12 @@ namespace UEToVS.Contracts
 
         /// <summary>Recently used paths, most recent first; boosts ranking.</summary>
         public string[] RecentPaths { get; set; }
+
+        /// <summary>
+        /// Code completion: also letters-in-order and typo matches (FuzzyMatcher tolerant mode). Typo candidates are only
+        /// examined while there are not enough strong (camel hump or better) results.
+        /// </summary>
+        public bool Tolerant { get; set; }
     }
 
     public sealed class SearchResponse

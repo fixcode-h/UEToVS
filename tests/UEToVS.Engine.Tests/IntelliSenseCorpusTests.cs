@@ -72,6 +72,10 @@ namespace UEToVS.Engine.Tests
             C("scope.enum", CompletionContextKind.Scope, new[] { "Single", "Burst", "Auto" }, 3, null, "EWeaponMode"),
             C("scope.super", CompletionContextKind.Scope, new[] { "BeginPlay", "Tick", "GetActorLocation" }, 40, new[] { "Charges" }, "AActor"),
             C("scope.class", CompletionContextKind.Scope, new[] { "CountAll", "Use", "StaticClass" }, 60, null, "AGadget"),
+            // expected type (v0.9.9): enum values qualified as written, first
+            C("expected.assign", CompletionContextKind.General, new[] { "EWeaponMode::Single", "EWeaponMode::Burst", "EWeaponMode::Auto" }, 4),
+            C("expected.compare", CompletionContextKind.General, new[] { "EWeaponMode::Burst" }, 1),
+            C("expected.case", CompletionContextKind.General, new[] { "EWeaponMode::Single", "EWeaponMode::Burst", "EWeaponMode::Auto" }, 3),
             C("scope.namespace", CompletionContextKind.Scope, new[] { "FSpread", "DefaultSpread", "Clamp01" }, 3, null, "Game::Weapons"),
             // reflection specifiers (UE5 tables, conflicts and already used ones removed)
             C("spec.uclass", CompletionContextKind.Specifier, new[] { "Abstract", "BlueprintType", "Config" }, 60, new[] { "Blueprintable", "NotBlueprintable", "EditAnywhere" }, "UCLASS"),

@@ -6,11 +6,17 @@ namespace UEToVS.Core.Matching
     public enum MatchKind
     {
         None = 0,
-        Wildcard = 1,
-        Substring = 2,
-        CamelHump = 3,
-        Prefix = 4,
-        Exact = 5,
+
+        /// <summary>Typo-tolerant match (swapped / missing / extra / wrong letter); only with a tolerant matcher.</summary>
+        Typo = 1,
+
+        /// <summary>Pattern letters in order anywhere after a word start ("umcmp" -> UMeshComponent); only with a tolerant matcher.</summary>
+        Subsequence = 2,
+        Wildcard = 3,
+        Substring = 4,
+        CamelHump = 5,
+        Prefix = 6,
+        Exact = 7,
     }
 
     public readonly struct TextRange

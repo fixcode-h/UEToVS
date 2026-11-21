@@ -94,6 +94,7 @@ namespace UEToVS.Engine.Indexing
                 IncludeNonProject = query.IncludeNonProject,
                 RequireUe = query.RequireUe,
                 MaxResultsPerCategory = query.MaxResults,
+                Tolerant = query.Tolerant,
             }, ct);
             foreach (var h in resp.Hits)
             {
