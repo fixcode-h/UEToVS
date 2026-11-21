@@ -43,16 +43,22 @@ namespace UEToVS.Engine.IntelliSense
             private readonly FuzzyMatcher _matcher;
             private readonly string _prefix;
 
-            public Collector(string prefix)
+            public Collector(string prefix, bool tolerant)
             {
                 _prefix = prefix ?? string.Empty;
-                _matcher = _prefix.Length > 0 ? new FuzzyMatcher(_prefix) : null;
+                Tolerant = tolerant;
+                _matcher = _prefix.Length > 0 ? new FuzzyMatcher(_prefix, tolerant) : null;
             }
+
+            public bool Tolerant { get; }
 
             public int Count => _items.Count;
             public bool HasPrefix => _matcher != null;
 
-            /// <summary>Match rank: 3 exact, 2 prefix, 1 camel humps (0 when there is no prefix); -1 = filtered out.</summary>
+            /// <summary>
+            /// Match rank: 3 exact, 2 prefix, 1 camel humps, 0 weak (substring / letters in order / typo, tolerant
+            /// requests only) or no prefix; -1 = filtered out.
+            /// </summary>
             public int Rank(string name, bool unreal, out bool caseExact)
             {
                 caseExact = false;
@@ -69,6 +75,10 @@ namespace UEToVS.Engine.IntelliSense
                         return 2;
                     case MatchKind.CamelHump:
                         return 1;
+                    case MatchKind.Substring:
+                    case MatchKind.Subsequence:
+                    case MatchKind.Typo:
+                        return Tolerant ? 0 : -1;
                     default:
                         return -1;
                 }
@@ -104,7 +114,7 @@ namespace UEToVS.Engine.IntelliSense
             if (site.Suppressed) return resp;
 
             int max = request?.MaxResults > 0 ? request.MaxResults : 500;
-            var c = new Collector(site.Prefix);
+            var c = new Collector(site.Prefix, request?.Tolerant ?? true);
             bool incomplete = false;
             switch (site.Kind)
             {
@@ -795,6 +805,10 @@ namespace UEToVS.Engine.IntelliSense
                 }
             }
 
+            // 2b. expected type (v0.9.9, Rider smart completion): after '=', '==', '!=', 'return' or 'case' of an enum,
+            // its values qualified as written ("EWeaponMode::Burst"), ahead of everything else
+            if (!site.TypeExpected) ExpectedEnumValues(s, site, c, cls);
+
             // 3. this document's namespace-level declarations (the buffer may be newer than the index)
             for (int i = 0; i < doc.Decls.Count; i++)
             {
@@ -853,6 +867,88 @@ namespace UEToVS.Engine.IntelliSense
         }
 
         /// <summary>Outermost <c>X::</c> qualifiers of the buffer that the index knows as namespaces and that match the prefix.</summary>
+        private const int PExpected = PLocal + 1500;
+
+        /// <summary>Type the identifier at the caret is expected to have: left side of = / == / !=, return type, switch subject.</summary>
+        internal static string ExpectedType(IsSession s, CompletionSite site, string cls)
+        {
+            var doc = s.Doc;
+            int b = site.PrevToken;
+            if (b < 0) return null;
+            var types = new ExpressionTypes(s, cls);
+            if (doc.Is(b, Punct.Eq) || doc.Is(b, Punct.EqEq) || doc.Is(b, Punct.BangEq))
+            {
+                int left = b - 1;
+                while (left >= 0 && doc.Tokens[left].Kind == TokenKind.DocComment) left--;
+                return left < 0 ? null : types.TypeOf(left);
+            }
+            if (doc.Is(b, Keyword.Return))
+            {
+                int fn = doc.EnclosingFunction(site.ReplaceStart);
+                return fn >= 0 ? doc.Decls[fn].Type : null;
+            }
+            if (doc.Is(b, Keyword.Case))
+            {
+                // the '{' of the switch body: the first unmatched one before 'case'
+                int depth = 0, t = b - 1;
+                for (; t >= 0; t--)
+                {
+                    if (doc.Is(t, Punct.RBrace)) depth++;
+                    else if (doc.Is(t, Punct.LBrace))
+                    {
+                        if (depth == 0) break;
+                        depth--;
+                    }
+                }
+                if (t < 1 || !doc.Is(t - 1, Punct.RParen)) return null;
+                int open = doc.MatchBackward(t - 1, Punct.LParen, Punct.RParen);
+                if (open < 1 || !doc.Is(open - 1, Keyword.Switch) || t - 2 <= open) return null;
+                return types.TypeOf(t - 2);
+            }
+            return null;
+        }
+
+        /// <summary>Enum named by a type text ("const EFoo&amp;", "TEnumAsByte&lt;EFoo::Type&gt;"): its values, qualified as code writes them.</summary>
+        private static void ExpectedEnumValues(IsSession s, CompletionSite site, Collector c, string cls)
+        {
+            string type = ExpectedType(s, site, cls);
+            if (string.IsNullOrEmpty(type)) return;
+            type = type.Replace("const ", string.Empty).Replace("&", string.Empty).Trim();
+            if (type.StartsWith("TEnumAsByte<", StringComparison.Ordinal) && type.EndsWith(">", StringComparison.Ordinal))
+                type = type.Substring(12, type.Length - 13).Trim();
+            if (type.Length == 0 || type.IndexOf('*') >= 0 || type.IndexOf('<') >= 0) return;
+            // UE4 style "namespace EFoo { enum Type { … } }": values are written EFoo::Value
+            string writtenAs = null;
+            if (type.EndsWith("::Type", StringComparison.Ordinal))
+                writtenAs = type.Substring(0, type.Length - 6);
+            string last = TypeText.LastSegment(type);
+            string qual = type.Length > last.Length ? type.Substring(0, type.Length - last.Length - 2) : null;
+            foreach (var sym in s.Ctx.ByName(last))
+            {
+                if (sym.Kind != SymbolKind.Enum) continue;
+                if (qual != null && !TypeText.ContainerMatches(sym.Container, qual)) continue;
+                var (d, i) = s.DeclOf(sym);
+                if (d == null) continue;
+                bool scoped = (d.Decls[i].Modifiers & DeclModifiers.Scoped) != 0;
+                string prefix = writtenAs != null ? TypeText.LastSegment(writtenAs) + "::" : scoped ? sym.Name + "::" : string.Empty;
+                for (int j = i + 1; j < d.Decls.Count; j++)
+                {
+                    var v = d.Decls[j];
+                    if (v.Parent != i || v.Kind != SymbolKind.EnumValue) continue;
+                    // UE's generated MAX / _MAX entries are rarely what is meant
+                    if (v.Name.EndsWith("_MAX", StringComparison.Ordinal) || v.Name == "MAX" || v.Name == "Max") continue;
+                    string label = prefix + v.Name;
+                    int rank = Math.Max(c.Rank(label, false, out bool exactLabel), c.Rank(v.Name, false, out bool exactValue));
+                    if (rank < 0) continue;
+                    var item = FromDecl(d, j, d.Decls[i].QualifiedName, 0, rank * RankUnit + PExpected - Math.Min(j - i, 400) + (exactLabel || exactValue ? 100 : 0), s.Ctx);
+                    item.Label = label;
+                    item.InsertText = label;
+                    c.Add(item, "v");
+                }
+                return;
+            }
+        }
+
         private static void QualifierNamespaces(IsSession s, CompletionSite site, Collector c)
         {
             var doc = s.Doc;
@@ -890,7 +986,7 @@ namespace UEToVS.Engine.IntelliSense
         {
             string prefix = site.Prefix ?? string.Empty;
             if (prefix.Length == 0) return;
-            var hits = _globals.Search(s.Ctx.Backend, prefix, GlobalSearchMax, s.Ct, out bool truncated);
+            var hits = _globals.Search(s.Ctx.Backend, prefix, c.Tolerant, GlobalSearchMax, s.Ct, out bool truncated);
             if (truncated) incomplete = true;
             var nsCache = new Dictionary<string, bool>(StringComparer.Ordinal);
             string offsetNs = s.Doc.EnclosingNamespace(site.ReplaceStart);
@@ -940,6 +1036,7 @@ namespace UEToVS.Engine.IntelliSense
             private sealed class Entry
             {
                 public string Prefix;
+                public bool Tolerant;
                 public List<SymbolInfo> Hits;
                 public bool Truncated;
                 public long Ticks;
@@ -951,7 +1048,7 @@ namespace UEToVS.Engine.IntelliSense
 
             public long Hits => Interlocked.Read(ref _hits);
 
-            public List<SymbolInfo> Search(ISymbolIndexBackend backend, string prefix, int max, CancellationToken ct, out bool truncated)
+            public List<SymbolInfo> Search(ISymbolIndexBackend backend, string prefix, bool tolerant, int max, CancellationToken ct, out bool truncated)
             {
                 long now = Stopwatch.GetTimestamp();
                 long ttl = Stopwatch.Frequency * 3;
@@ -960,9 +1057,11 @@ namespace UEToVS.Engine.IntelliSense
                     for (var n = _entries.First; n != null; n = n.Next)
                     {
                         var e = n.Value;
-                        if (now - e.Ticks > ttl || !ReferenceEquals(e.Backend, backend)) continue;
+                        if (now - e.Ticks > ttl || !ReferenceEquals(e.Backend, backend) || e.Tolerant != tolerant) continue;
+                        // A longer prefix may be answered by an untruncated shorter one only without typo tolerance: a
+                        // typo match of the longer pattern need not match the shorter one at all.
                         if (string.Equals(e.Prefix, prefix, StringComparison.OrdinalIgnoreCase) ||
-                            !e.Truncated && prefix.StartsWith(e.Prefix, StringComparison.OrdinalIgnoreCase))
+                            !tolerant && !e.Truncated && prefix.StartsWith(e.Prefix, StringComparison.OrdinalIgnoreCase))
                         {
                             Interlocked.Increment(ref _hits);
                             truncated = e.Truncated; // a longer prefix is only answered from an untruncated entry
@@ -977,6 +1076,7 @@ namespace UEToVS.Engine.IntelliSense
                     IncludeSymbols = true,
                     IncludeNonProject = true,
                     MaxResults = max,
+                    Tolerant = tolerant,
                 }, ct);
                 var hits = new List<SymbolInfo>(result.Matches.Count);
                 int types = 0, syms = 0;
@@ -989,7 +1089,7 @@ namespace UEToVS.Engine.IntelliSense
                 truncated = types >= max || syms >= max;
                 lock (_entries)
                 {
-                    _entries.AddFirst(new Entry { Prefix = prefix, Hits = hits, Truncated = truncated, Ticks = now, Backend = backend });
+                    _entries.AddFirst(new Entry { Prefix = prefix, Tolerant = tolerant, Hits = hits, Truncated = truncated, Ticks = now, Backend = backend });
                     while (_entries.Count > 32) _entries.RemoveLast();
                 }
                 return hits;

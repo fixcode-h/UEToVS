@@ -332,6 +332,22 @@ namespace UEToVS.Host.Logic.Settings
             list.Add(scope);
             list.Add(D(IntelliSense, "completion.onIdentifier", SettingKind.Bool, "输入标识符时自动弹出", "Open while typing identifiers",
                 "VA 风格；关闭后只在 . -> :: #include、说明符括号和 Ctrl+Space 时弹出。", "VA style; off = only on . -> :: #include, specifier lists and Ctrl+Space.", "true", gCmp, gCmpEn));
+            var caseMode = D(IntelliSense, "completion.caseMode", SettingKind.Choice, "大小写", "Letter case",
+                "一致优先：都列出，大小写和输入一致的排前面（首字母最重要）；首字母一致 / 全部一致：不一致的不列出（同 Rider）。",
+                "Prefer: everything is listed, items matching the typed case first (the first letter weighs most); first letter / all letters: others are hidden (like Rider).",
+                nameof(CompletionCaseMode.Prefer), gCmp, gCmpEn);
+            caseMode.Options = new[]
+            {
+                new SettingOption(nameof(CompletionCaseMode.Prefer), "一致的优先", "Matching case first"),
+                new SettingOption(nameof(CompletionCaseMode.FirstLetter), "首字母一致", "First letter must match"),
+                new SettingOption(nameof(CompletionCaseMode.All), "全部一致", "All letters must match"),
+                new SettingOption(nameof(CompletionCaseMode.Ignore), "忽略大小写", "Ignore case"),
+            };
+            list.Add(caseMode);
+            list.Add(D(IntelliSense, "completion.tolerant", SettingKind.Bool, "容错匹配", "Forgiving matching",
+                "也列出包含输入的、按顺序含这些字母的（umcmp → UMeshComponent）和打错一两个字母的（Umehs → UMeshComponent），排在正常匹配后面。",
+                "Also lists names containing the text, with the letters in order (umcmp → UMeshComponent) or with a typo or two (Umehs → UMeshComponent), after the regular matches.",
+                "true", gCmp, gCmpEn));
             list.Add(D(IntelliSense, "completion.accessorFix", SettingKind.Bool, "提交时自动修正 . 和 ->", "Fix . / -> on commit",
                 "按变量是否为指针把 . 改成 ->（或反之）。", "Turns . into -> (or back) depending on whether the variable is a pointer.", "true", gCmp, gCmpEn));
             var maxItems = D(IntelliSense, "completion.maxResults", SettingKind.Int, "每次最多候选项", "Items per request",
@@ -567,6 +583,8 @@ namespace UEToVS.Host.Logic.Settings
                     ["completion.enabled"] = B(s.CompletionEnabled),
                     ["completion.scope"] = s.CompletionScope.ToString(),
                     ["completion.onIdentifier"] = B(s.CompletionOnIdentifier),
+                    ["completion.caseMode"] = s.CompletionCaseMode.ToString(),
+                    ["completion.tolerant"] = B(s.CompletionTolerant),
                     ["completion.accessorFix"] = B(s.CompletionAccessorFix),
                     ["completion.maxResults"] = I(s.CompletionMaxResults),
                     ["quickInfo.enabled"] = B(s.QuickInfoEnabled),
@@ -677,6 +695,8 @@ namespace UEToVS.Host.Logic.Settings
                         case "completion.enabled": s.CompletionEnabled = PB(v); break;
                         case "completion.scope": s.CompletionScope = PE(v, CompletionScope.Auto); break;
                         case "completion.onIdentifier": s.CompletionOnIdentifier = PB(v); break;
+                        case "completion.caseMode": s.CompletionCaseMode = PE(v, CompletionCaseMode.Prefer); break;
+                        case "completion.tolerant": s.CompletionTolerant = PB(v); break;
                         case "completion.accessorFix": s.CompletionAccessorFix = PB(v); break;
                         case "completion.maxResults": s.CompletionMaxResults = PI(v, 500); break;
                         case "quickInfo.enabled": s.QuickInfoEnabled = PB(v); break;

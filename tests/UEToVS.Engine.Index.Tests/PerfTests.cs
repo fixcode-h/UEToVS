@@ -179,6 +179,20 @@ namespace UEToVS.Engine.Index.Tests
             times.Sort();
             double p50 = times[times.Count / 2], p95 = times[(int)(times.Count * 0.95)], max = times[^1];
 
+            // completion (tolerant): the same queries with two letters swapped, which forces the typo pass
+            var tolTimes = new List<double>(queries.Count);
+            int tolHits = 0;
+            foreach (var q in queries)
+            {
+                string typo = q.Length >= 5 ? q.Substring(0, 2) + q[3] + q[2] + q.Substring(4) : q;
+                var req = new SearchRequest { Pattern = typo, IncludeNonProject = true, MaxResultsPerCategory = 150, Tolerant = true };
+                var t0 = Stopwatch.GetTimestamp();
+                tolHits += index.Search(req).Hits.Count;
+                tolTimes.Add((Stopwatch.GetTimestamp() - t0) * 1000.0 / Stopwatch.Frequency);
+            }
+            tolTimes.Sort();
+            double tolP95 = tolTimes[(int)(tolTimes.Count * 0.95)];
+
             // exact lookups
             sw.Restart();
             int found = 0;
@@ -202,6 +216,7 @@ namespace UEToVS.Engine.Index.Tests
             _out.WriteLine($"build (2 segments): {buildMs:F0} ms; segments on disk: {diskBytes / 1024.0 / 1024.0:F1} MB; open: {openMs:F1} ms");
             _out.WriteLine($"search x{times.Count}: p50 {p50:F2} ms, p95 {p95:F2} ms, max {max:F2} ms, avg hits {totalHits / (double)times.Count:F1}");
             foreach (var s in perQuery.OrderByDescending(x => x.ms).Take(12)) _out.WriteLine($"  slow: {s.ms,7:F1} ms  '{s.q}' hits={s.hits}");
+            _out.WriteLine($"tolerant (typo) search x{tolTimes.Count}: p50 {tolTimes[tolTimes.Count / 2]:F2} ms, p95 {tolP95:F2} ms, max {tolTimes[^1]:F2} ms, avg hits {tolHits / (double)tolTimes.Count:F1}");
             _out.WriteLine($"FindByName x{Math.Min(1000, names.Count)}: {findMs:F1} ms total ({found} symbols)");
             _out.WriteLine($"process private memory: before open {privBefore / 1048576.0:F1} MB, after open {privOpened / 1048576.0:F1} MB, after open+queries {privAfter / 1048576.0:F1} MB " +
                            $"(delta {(privAfter - privBefore) / 1048576.0:F1} MB), after GC {privSettled / 1048576.0:F1} MB; managed heap {managedBefore / 1048576.0:F1} -> {managedAfter / 1048576.0:F1} MB");
@@ -210,6 +225,7 @@ namespace UEToVS.Engine.Index.Tests
             Assert.Equal(6000, stats.FileCount);
             Assert.True(found >= Math.Min(1000, names.Count));
             Assert.True(p95 < 100, $"search p95 {p95:F1} ms"); // target < 30 ms (Release); loose bound for debug/CI noise
+            Assert.True(tolP95 < 150, $"tolerant search p95 {tolP95:F1} ms");
         }
     }
 }

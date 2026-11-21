@@ -15,4 +15,20 @@ namespace UEToVS.Host.Logic.Settings
         /// <summary>Always the full list (both lists show up while VS's IntelliSense is still on).</summary>
         All = 2,
     }
+
+    /// <summary>How the letter case typed in the completion filter counts (v0.9.9, Rider "match case").</summary>
+    public enum CompletionCaseMode
+    {
+        /// <summary>Everything is listed; items whose case matches what was typed come first (first letter weighs most).</summary>
+        Prefer = 0,
+
+        /// <summary>Only items whose first letter has the typed case (Rider "first letter only").</summary>
+        FirstLetter = 1,
+
+        /// <summary>Only items whose every matched letter has the typed case.</summary>
+        All = 2,
+
+        /// <summary>Case plays no part in the order.</summary>
+        Ignore = 3,
+    }
 }

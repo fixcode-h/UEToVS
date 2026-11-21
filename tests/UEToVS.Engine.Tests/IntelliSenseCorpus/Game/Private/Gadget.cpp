@@ -39,6 +39,9 @@ bool AGadget::Use(float Power, bool bForce)
 	OnGadgetHealth./*@complete:member.dyndelegate*/;
 	this->Cool/*@complete:member.this*/;
 	EWeaponMode::/*@complete:scope.enum*/;
+	EWeaponMode PickedMode = EWea/*@complete:expected.assign*/;
+	if (PickedMode == Bur/*@complete:expected.compare*/) {}
+	switch (PickedMode) { case /*@complete:expected.case*/: break; }
 	Super::/*@complete:scope.super*/;
 	AGadget::/*@complete:scope.class*/;
 	Game::Weapons::/*@complete:scope.namespace*/;

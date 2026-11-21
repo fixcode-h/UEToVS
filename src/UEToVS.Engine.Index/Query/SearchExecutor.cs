@@ -19,6 +19,9 @@ namespace UEToVS.Engine.Index.Query
     {
         private const int CancelCheckMask = 255;
 
+        /// <summary>Longer patterns skip the typo prefilter (its DP rows live on the stack).</summary>
+        private const int MaxTypoPattern = 64;
+
         /// <summary>Non-project hits are counted exactly up to this many, then the count is a lower bound.</summary>
         internal const int NonProjectCountCap = 1000;
 
@@ -28,6 +31,11 @@ namespace UEToVS.Engine.Index.Query
         private readonly FuzzyMatcher _matcher;
         private readonly FuzzyMatcher _containerMatcher;
         private readonly bool _wildcard;
+
+        /// <summary>Tolerant (completion) search: lowercase subsequence prefilter, typo candidates while results are few.</summary>
+        private readonly bool _tolerant;
+        private readonly int _maxTypos;
+        private bool _typoActive;
         private readonly string _filter;
         private readonly byte[] _filterUtf8;
 
@@ -68,14 +76,16 @@ namespace UEToVS.Engine.Index.Query
             _snap = snap;
             _req = req;
             _ct = ct;
-            _matcher = new FuzzyMatcher(pattern);
-            _containerMatcher = string.IsNullOrEmpty(container) ? null : new FuzzyMatcher(LastSegment(container));
             _wildcard = pattern.IndexOf('*') >= 0 || pattern.IndexOf(' ') >= 0;
+            _tolerant = req.Tolerant && !_wildcard;
+            _matcher = new FuzzyMatcher(pattern, _tolerant);
+            _containerMatcher = string.IsNullOrEmpty(container) ? null : new FuzzyMatcher(LastSegment(container));
             var sb = new StringBuilder();
             foreach (char c in pattern)
                 if (c != '*' && c != ' ') sb.Append(char.ToLowerInvariant(c));
             _filter = sb.ToString();
             _filterUtf8 = Encoding.UTF8.GetBytes(_filter);
+            _maxTypos = _tolerant && _filterUtf8.Length <= MaxTypoPattern ? FuzzyMatcher.MaxTypos(_filter.Length) : 0;
             string raw = pattern.Replace("*", string.Empty).Replace(" ", string.Empty);
             bool ascii = true;
             foreach (char c in raw) ascii &= c < 128;
@@ -178,6 +188,10 @@ namespace UEToVS.Engine.Index.Query
             if (HasEnoughPrefixResults() || CountCapReached()) return;
 
             // Phase 2: word-start initials (exact, prefix, camel hump) united with trigram intersection (substrings).
+            // Typo candidates (tolerant search) always start with the pattern's first letter, so they are among the
+            // initials; they are only examined while the strong results are too few (a mistyped name), which keeps
+            // a correctly typed prefix as fast as before.
+            _typoActive = _maxTypos > 0 && !HasEnoughStrongResults();
             _scratchA.Clear();
             foreach (var n in seg.InitialPostings(_filter[0])) _scratchA.Add(n);
 
@@ -316,7 +330,12 @@ namespace UEToVS.Engine.Index.Query
             var seg = view.Segment;
             var entry = seg.Names[n];
             if (entry.SymCount == 0) return;
-            if (caseAware && _caseFilter != null)
+            if (_tolerant)
+            {
+                var lower = seg.NameLower(n);
+                if (!Subsequence(lower, _filterUtf8) && !(_typoActive && TypoCandidate(lower, _filterUtf8, _maxTypos))) return;
+            }
+            else if (caseAware && _caseFilter != null)
             {
                 if (!CaseAwareSubsequence(seg.Strings.GetBytes((uint)n + 1), _caseFilter)) return;
             }
@@ -391,7 +410,8 @@ namespace UEToVS.Engine.Index.Query
                     bool isType = IsTypeKind(d.Kind);
                     if (isType ? !_req.IncludeTypes : !_req.IncludeSymbols) continue;
                     if (_req.RequireUe != UeFlags.None && (d.Ue & _req.RequireUe) == 0) continue;
-                    if (!Subsequence(df.NameLower[i], _filter)) continue;
+                    // Tolerant: the delta (open / changed files) is small, the matcher decides typos directly.
+                    if (!_tolerant && !Subsequence(df.NameLower[i], _filter)) continue;
                     var m = isType ? _matcher.MatchUnreal(d.Name) : _matcher.Match(d.Name);
                     if (!m.IsMatch) continue;
                     int containerBonus = 0;
@@ -591,6 +611,48 @@ namespace UEToVS.Engine.Index.Query
                 if (++j == pattern.Length) return true;
                 p = pattern[j];
                 alt = p >= (byte)'a' && p <= (byte)'z' ? (byte)(p - 32) : p;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Cheap typo prefilter on lowercase UTF-8: the pattern is within <paramref name="max"/> edits (insert / delete /
+        /// substitute / swap adjacent) of a leading part of the name, or of the name without its first letter (UE type
+        /// prefix). Over-accepting is fine: <see cref="FuzzyMatcher"/> decides.
+        /// </summary>
+        internal static bool TypoCandidate(ReadOnlySpan<byte> lower, ReadOnlySpan<byte> pattern, int max)
+        {
+            if (pattern.Length == 0 || pattern.Length > MaxTypoPattern || lower.Length == 0) return false;
+            if (lower[0] == pattern[0] && TypoWithin(lower, pattern, max)) return true;
+            return lower.Length > 1 && lower[1] == pattern[0] && TypoWithin(lower.Slice(1), pattern, max);
+        }
+
+        private static bool TypoWithin(ReadOnlySpan<byte> name, ReadOnlySpan<byte> p, int max)
+        {
+            int m = p.Length;
+            int n = Math.Min(name.Length, m + max);
+            if (n < m - max) return false;
+            Span<int> a = stackalloc int[m + 1], b = stackalloc int[m + 1], c = stackalloc int[m + 1];
+            Span<int> prev2 = a, prev = b, cur = c;
+            for (int i = 0; i <= m; i++) prev[i] = i;
+            for (int j = 1; j <= n; j++)
+            {
+                cur[0] = j;
+                int rowMin = j;
+                byte nc = name[j - 1];
+                for (int i = 1; i <= m; i++)
+                {
+                    int v = Math.Min(Math.Min(prev[i] + 1, cur[i - 1] + 1), prev[i - 1] + (p[i - 1] == nc ? 0 : 1));
+                    if (i > 1 && j > 1 && p[i - 1] == name[j - 2] && p[i - 2] == nc) v = Math.Min(v, prev2[i - 2] + 1);
+                    cur[i] = v;
+                    if (v < rowMin) rowMin = v;
+                }
+                if (cur[m] <= max) return true;
+                if (rowMin > max) return false;
+                var t = prev2;
+                prev2 = prev;
+                prev = cur;
+                cur = t;
             }
             return false;
         }

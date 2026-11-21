@@ -82,5 +82,56 @@ namespace UEToVS.Core.Tests
         [InlineData("UI", null)]
         [InlineData("FPSCounter", null)]
         public void StripPrefix(string input, string expected) => Assert.Equal(expected, UnrealNaming.StripTypePrefix(input));
+    
+        [Theory]
+        [InlineData("Umehs", "UMeshComponent")]   // swapped letters
+        [InlineData("UMehComp", "UMeshComponent")] // missing letter
+        [InlineData("UMeesh", "UMeshComponent")]   // extra letter
+        [InlineData("UMashComponent", "UMeshComponent")] // wrong letter
+        public void TolerantMatchesTypos(string pattern, string name)
+        {
+            Assert.False(new FuzzyMatcher(pattern).MatchUnreal(name).IsMatch);
+            var m = new FuzzyMatcher(pattern, true).MatchUnreal(name);
+            // a missing letter is also "letters in order"
+            Assert.True(m.Kind == MatchKind.Typo || m.Kind == MatchKind.Subsequence, m.Kind.ToString());
+        }
+
+        [Fact]
+        public void TolerantLettersInOrder()
+        {
+            var m = new FuzzyMatcher("umcmp", true).Match("UMeshComponent");
+            Assert.Equal(MatchKind.Subsequence, m.Kind);
+            Assert.Equal(0, m.Ranges[0].Start);
+            Assert.False(new FuzzyMatcher("umcmp").Match("UMeshComponent").IsMatch);
+        }
+
+        [Fact]
+        public void TolerantNeedsRightFirstLetterAndLength()
+        {
+            Assert.False(new FuzzyMatcher("Xmehs", true).Match("UMeshComponent").IsMatch);
+            Assert.False(new FuzzyMatcher("Umhe", true).Match("UMesh").IsMatch); // 4 letters: no typos
+            Assert.False(new FuzzyMatcher("Umxyz", true).Match("UMeshComponent").IsMatch); // too many edits
+            Assert.Equal(2, FuzzyMatcher.TypoDistance("UMehsCopmonent", "UMeshComponent", 2, out _));
+        }
+
+        [Fact]
+        public void TolerantKindsRankBelowEverything()
+        {
+            var tol = new FuzzyMatcher("Umesh", true);
+            Assert.Equal(MatchKind.Prefix, tol.Match("UMeshComponent").Kind);
+            Assert.True(new FuzzyMatcher("umcmp", true).Match("UMeshComponent").Score > new FuzzyMatcher("Umehs", true).Match("UMeshComponent").Score);
+            Assert.True(new FuzzyMatcher("ctor").Match("Actor").Score > new FuzzyMatcher("umcmp", true).Match("UMeshComponent").Score);
+        }
+
+        [Fact]
+        public void CaseMismatchesCountsTypedLetters()
+        {
+            var m = new FuzzyMatcher("ume").Match("UMeshComponent");
+            Assert.Equal(2, FuzzyMatcher.CaseMismatches("ume", "UMeshComponent", m.Ranges, out bool first));
+            Assert.True(first);
+            var ok = new FuzzyMatcher("UMe").Match("UMeshComponent");
+            Assert.Equal(0, FuzzyMatcher.CaseMismatches("UMe", "UMeshComponent", ok.Ranges, out first));
+            Assert.False(first);
+        }
     }
 }

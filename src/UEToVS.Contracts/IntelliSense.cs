@@ -40,6 +40,12 @@ namespace UEToVS.Contracts
         public bool Explicit { get; set; }
 
         public int MaxResults { get; set; } = 500;
+
+        /// <summary>
+        /// Also return weak matches: substring, letters in order ("umcmp" -> UMeshComponent) and typos ("Umehs" ->
+        /// UMeshComponent). They rank below exact / prefix / camel-hump matches.
+        /// </summary>
+        public bool Tolerant { get; set; } = true;
     }
 
     public sealed class CompletionItem

@@ -35,7 +35,7 @@ namespace UEToVS.Engine.Indexing
         public SymbolSearchResult Search(SymbolQuery q, CancellationToken ct)
         {
             var result = new SymbolSearchResult();
-            var matcher = new FuzzyMatcher(q.Pattern);
+            var matcher = new FuzzyMatcher(q.Pattern, q.Tolerant);
             if (matcher.IsEmpty) return result;
             var types = new TopN<SymbolMatch>(q.MaxResults, m => m.Score);
             var symbols = new TopN<SymbolMatch>(q.MaxResults, m => m.Score);

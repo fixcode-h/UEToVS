@@ -67,6 +67,9 @@ namespace UEToVS.Engine.Indexing
 
         /// <summary>Per category (types / symbols).</summary>
         public int MaxResults { get; set; } = 100;
+
+        /// <summary>See <see cref="SearchRequest.Tolerant"/>.</summary>
+        public bool Tolerant { get; set; }
     }
 
     public sealed class SymbolMatch

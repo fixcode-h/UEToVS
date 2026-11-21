@@ -112,7 +112,9 @@ namespace UEToVS.Host.IntelliSense
             if (selected != null && selected.Count > 0 && selected.Count < data.SelectedFilters.Length)
                 source = source.Where(i => !i.Filters.IsDefaultOrEmpty && i.Filters.Any(selected.Contains)).ToImmutableArray();
 
-            var ranked = CompletionRanker.Rank(Candidates(source), pattern, IntelliSenseContext.Recent);
+            var settings = IntelliSenseContext.Settings;
+            var ranked = CompletionRanker.Rank(Candidates(source), pattern, IntelliSenseContext.Recent,
+                                               settings?.CompletionCaseMode ?? Logic.Settings.CompletionCaseMode.Prefer, settings?.CompletionTolerant ?? true);
             var builder = ImmutableArray.CreateBuilder<CompletionItemWithHighlight>(ranked.Count);
             foreach (var r in ranked)
             {

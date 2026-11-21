@@ -233,6 +233,12 @@ namespace UEToVS.Host.Logic.Settings
         /// <summary>Open the list as soon as an identifier is typed (VA style); off = only '.', '-&gt;', '::', #include, specifiers, Ctrl+Space.</summary>
         public bool CompletionOnIdentifier { get; set; } = true;
 
+        /// <summary>大小写：默认“一致的优先”，可选只列首字母一致 / 全部一致，或忽略（v0.9.9 用户要求区分大小写，参考 Rider）。</summary>
+        public CompletionCaseMode CompletionCaseMode { get; set; } = CompletionCaseMode.Prefer;
+
+        /// <summary>容错匹配：子串、按顺序的字母（umcmp）和打错字（Umehs → UMeshComponent），排在正常匹配后面。</summary>
+        public bool CompletionTolerant { get; set; } = true;
+
         /// <summary>VA '.' ↔ '-&gt;' correction applied when a member completion is committed.</summary>
         public bool CompletionAccessorFix { get; set; } = true;
 

@@ -217,5 +217,43 @@ namespace UEToVS.Engine.Index.Tests
             Assert.Empty(r.Hits);
             Assert.True(r.IndexReady);
         }
+    
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public void Tolerant_FindsTyposAndLettersInOrder(bool asDelta)
+        {
+            using var dir = new TempDir();
+            var idx = T.Open(dir.Path);
+            var engine = new[]
+            {
+                T.F("/ue/Engine/Components.h", ItemOrigin.Engine,
+                    T.D("UMeshComponent", SymbolKind.Class, ue: UeFlags.UClass),
+                    T.D("UHitMetaData", SymbolKind.Class, ue: UeFlags.UClass),
+                    T.D("UPakMountExt", SymbolKind.Class),
+                    T.D("UMediaPlayer", SymbolKind.Class)),
+            };
+            if (asDelta)
+            {
+                idx.ReplaceBase(SegmentKind.Engine, Array.Empty<FileSymbols>());
+                foreach (var f in engine) idx.Update(f);
+            }
+            else idx.ReplaceBase(SegmentKind.Engine, engine);
+            using (idx)
+            {
+                // without tolerance a swapped letter finds nothing
+                Assert.Empty(T.Names(idx.Search(T.Req("Umehs")), ResultCategory.Type));
+                var req = T.Req("Umehs");
+                req.Tolerant = true;
+                Assert.Equal("UMeshComponent", T.Names(idx.Search(req), ResultCategory.Type).First());
+                var sub = T.Req("umcmp");
+                sub.Tolerant = true;
+                Assert.Equal(new[] { "UMeshComponent" }, T.Names(idx.Search(sub), ResultCategory.Type));
+                // typo of the name without its UE prefix
+                var stripped = T.Req("Mehscomp");
+                stripped.Tolerant = true;
+                Assert.Contains("UMeshComponent", T.Names(idx.Search(stripped), ResultCategory.Type));
+            }
+        }
     }
 }
