@@ -49,7 +49,6 @@ namespace UEToVS.Host.Navigation
                 if ((e.FileActionType & FileActionTypes.ContentSavedToDisk) != 0) Guard("nav.track.saved", () => nav.OnSaved(e.FilePath));
             }
 
-            Guard("editor.gitTabs.opened", UEToVS.Host.Editing.GitTabMarkers.OnDocumentOpened);
             view.Caret.PositionChanged += Caret;
             view.GotAggregateFocus += Focus;
             view.TextBuffer.Changed += Changed;

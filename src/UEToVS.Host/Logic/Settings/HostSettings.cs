@@ -330,9 +330,6 @@ namespace UEToVS.Host.Logic.Settings
         /// <summary>Seconds without an edit before modified files are saved; 0 = only when VS loses focus.</summary>
         public int AutoSaveIdleSeconds { get; set; } = 15;
 
-        /// <summary>v0.7.5: document tabs of files that differ from Git (modified, added, untracked) get " [Git]" after the name, like IDEA's tab colors.</summary>
-        public bool GitTabMarker { get; set; } = true;
-
         /// <summary>
         /// v0.9.4 引擎代码只读（参考 IDEA）：UE 项目里打开引擎 Engine\ 目录下的文件时编辑器默认不让改，顶部提示条点“启用编辑”才能改。
         /// 只在编辑器层锁，不改磁盘文件属性。见 Logic/Editing/EngineReadOnlyPolicy、Editor/EngineReadOnlyMargin。

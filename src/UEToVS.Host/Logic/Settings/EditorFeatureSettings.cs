@@ -22,7 +22,6 @@ namespace UEToVS.Host.Logic.Settings
         public const string StepFilterKey = "debug.stepFilter";
         public const string AutoSaveKey = "editor.autoSave";
         public const string AutoSaveIdleKey = "editor.autoSaveIdleSeconds";
-        public const string GitTabMarkerKey = "editor.gitTabMarker";
         public const string EngineReadOnlyKey = "editor.engineReadOnly";
 
         public const int MinClipboard = 1, MaxClipboard = 100;
@@ -78,10 +77,6 @@ namespace UEToVS.Host.Logic.Settings
             idle.Min = MinAutoSaveIdle;
             idle.Max = MaxAutoSaveIdle;
             list.Add(idle);
-            list.Add(D(category, GitTabMarkerKey, SettingKind.Bool, "标签页标出 Git 有改动的文件", "Mark files changed in Git on tabs",
-                "自动保存后 VS 的 * 很快消失，这里改用 Git 状态区分：和 Git 版本相比有改动（修改、新增、未跟踪）的文件，标签页名字后面显示 [Git]（不是未保存，保存后不会消失，提交或还原后才消失）。保存、切回 VS 时刷新；不是 Git 仓库或找不到 git 时不显示。",
-                "With auto-save VS's * disappears quickly, so files that differ from Git (modified, added, untracked) get \"[Git]\" after the name on their tab (not unsaved changes: saving does not clear it, committing or reverting does). Refreshed on save and when VS is activated; nothing is shown outside a Git repository or without git.",
-                "true", gSave, gSaveEn, "git modified tab 标签页 修改 改动 vcs"));
 
             const string gEngine = "引擎代码", gEngineEn = "Engine code";
             list.Add(D(category, EngineReadOnlyKey, SettingKind.Bool, "引擎代码默认只读", "Engine code is read-only by default",
@@ -118,7 +113,6 @@ namespace UEToVS.Host.Logic.Settings
             d[StepFilterKey] = B(s.DebugStepFilter);
             d[AutoSaveKey] = B(s.AutoSaveEnabled);
             d[AutoSaveIdleKey] = s.AutoSaveIdleSeconds.ToString(CultureInfo.InvariantCulture);
-            d[GitTabMarkerKey] = B(s.GitTabMarker);
             d[EngineReadOnlyKey] = B(s.EngineReadOnly);
         }
 
@@ -138,7 +132,6 @@ namespace UEToVS.Host.Logic.Settings
                 case NamingKey: s.NamingConventionCheck = PB(v); return true;
                 case StepFilterKey: s.DebugStepFilter = PB(v); return true;
                 case AutoSaveKey: s.AutoSaveEnabled = PB(v); return true;
-                case GitTabMarkerKey: s.GitTabMarker = PB(v); return true;
                 case EngineReadOnlyKey: s.EngineReadOnly = PB(v); return true;
                 case AutoSaveIdleKey:
                     s.AutoSaveIdleSeconds = int.TryParse(v, NumberStyles.Integer, CultureInfo.InvariantCulture, out int idle)
@@ -164,7 +157,6 @@ namespace UEToVS.Host.Logic.Settings
             d["inlayCodeVision"] = s.InlayCodeVision;
             d["autoSave"] = s.AutoSaveEnabled;
             d["autoSaveIdleSeconds"] = s.AutoSaveIdleSeconds;
-            d["gitTabMarker"] = s.GitTabMarker;
             d["engineReadOnly"] = s.EngineReadOnly;
         }
 

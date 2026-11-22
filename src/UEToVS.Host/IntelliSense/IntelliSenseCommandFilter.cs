@@ -125,6 +125,9 @@ namespace UEToVS.Host.IntelliSense
                 Safe.Execute(L, "is.command", () => Run(cmd), ("command", cmd.ToString()));
                 return VSConstants.S_OK;
             }
+            if (pguidCmdGroup == Std2K && nCmdID == (uint)VSConstants.VSStd2KCmdID.BACKSPACE &&
+                Safe.Execute(L, "is.accessorFix.backspace", () => FixedArrow.TryRemove(_view, _completion), false))
+                return VSConstants.S_OK;
             char typed = '\0';
             if (pguidCmdGroup == Std2K && nCmdID == (uint)VSConstants.VSStd2KCmdID.TYPECHAR && pvaIn != IntPtr.Zero)
             {
@@ -201,6 +204,38 @@ namespace UEToVS.Host.IntelliSense
                 var tracking = p.Snapshot.CreateTrackingPoint(p.Position, PointTrackingMode.Positive);
                 Safe.RunAsync(L, "is.quickInfo.hoverTrigger", () => _quickInfo.TriggerQuickInfoAsync(_view, tracking, QuickInfoSessionOptions.TrackMouse, CancellationToken.None));
             });
+        }
+    }
+
+    /// <summary>
+    /// v0.10.1: the "-&gt;" the on-type accessor fix made out of a typed '.' goes with one backspace, as the '.' would have.
+    /// The fix records the arrow on the view (<see cref="Key"/>); any other backspace, or one after the caret moved on,
+    /// falls through to VS and forgets the record.
+    /// </summary>
+    internal static class FixedArrow
+    {
+        private static readonly Logger L = Log.For("IntelliSense");
+
+        public static readonly object Key = typeof(FixedArrow);
+
+        public static bool TryRemove(IWpfTextView view, IAsyncCompletionBroker broker)
+        {
+            if (!view.Properties.TryGetProperty(Key, out ITrackingSpan tracked)) return false;
+            view.Properties.RemoveProperty(Key);
+            var buffer = view.TextBuffer;
+            var span = tracked.GetSpan(buffer.CurrentSnapshot);
+            int caret = view.Caret.Position.BufferPosition.Position;
+            if (!Logic.IntelliSense.AccessorFixes.BackspaceRemovesFix(span.GetText(), span.End.Position, caret, !view.Selection.IsEmpty) ||
+                buffer.IsReadOnly(span.Span))
+                return false;
+            broker?.GetSession(view)?.Dismiss();
+            using (var edit = buffer.CreateEdit())
+            {
+                edit.Delete(span);
+                edit.Apply();
+            }
+            L.Info("is.accessorFix.backspace", null, ("position", span.Start.Position));
+            return true;
         }
     }
 }
