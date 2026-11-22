@@ -234,6 +234,9 @@ namespace UEToVS.Host.IntelliSense
                 if (caretAtEnd && end <= snapshot.Length && _view.Caret.Position.BufferPosition.Position != end)
                     _view.Caret.MoveTo(new SnapshotPoint(snapshot, end));
                 state.AccessorFixSpan = null; // 已经改过，提交时不再改
+                // v0.10.1：记下纠正出来的 "->"，紧跟着退格时一次删掉（用户只打了一个 '.'）
+                if (replacement == "->" && span.Start.Position + 2 <= snapshot.Length)
+                    _view.Properties[FixedArrow.Key] = snapshot.CreateTrackingSpan(span.Start.Position, 2, SpanTrackingMode.EdgeExclusive);
             }
             L.Info("is.completion.accessorFix.onType", null, ("from", current), ("to", replacement), ("applied", problem == null), ("problem", problem),
                    ("ms", Math.Round(sw.Elapsed.TotalMilliseconds, 2)));

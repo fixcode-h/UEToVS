@@ -241,6 +241,28 @@ namespace UEToVS.Host.Logic.Tests
 
     public class AccessorFixTests
     {
+        [Theory]
+        [InlineData("->", 2)]
+        [InlineData("->Bind", 2)]
+        [InlineData(".", 1)]
+        [InlineData(".X", 1)]
+        [InlineData("Bind", 0)]
+        [InlineData("-", 0)]
+        [InlineData("", 0)]
+        [InlineData(null, 0)]
+        public void SkipsAnAccessorTheSpanSwallowed(string text, int skip) =>
+            Assert.Equal(skip, AccessorFixes.LeadingAccessorLength(text));
+
+        [Fact]
+        public void OneBackspaceRemovesTheFixedArrowOnlyRightAfterIt()
+        {
+            Assert.True(AccessorFixes.BackspaceRemovesFix("->", 22, 22, false));
+            Assert.False(AccessorFixes.BackspaceRemovesFix("->", 22, 23, false));
+            Assert.False(AccessorFixes.BackspaceRemovesFix("->", 22, 22, true));
+            Assert.False(AccessorFixes.BackspaceRemovesFix("-", 21, 21, false));
+            Assert.False(AccessorFixes.BackspaceRemovesFix(".", 21, 21, false));
+        }
+
         [Fact]
         public void AppliesOnlyToTheExpectedAccessor()
         {

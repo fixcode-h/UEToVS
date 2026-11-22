@@ -119,7 +119,7 @@ namespace UEToVS.Host.IntelliSense
             var initial = data.InitialSortedList;
             if (!session.Properties.TryGetProperty(CompletionNames.SessionKey, out CompletionSessionState state) || !state.Incomplete) return initial;
             if (!(state.Source is UEToVSCompletionSource source)) return initial;
-            var span = session.ApplicableToSpan.GetSpan(data.Snapshot);
+            var span = CompletionWordSpan.Of(session, data.Snapshot, state);
             string word = span.GetText() ?? string.Empty;
             if (word.Length == 0 || string.Equals(word, state.RequestPrefix, StringComparison.Ordinal)) return initial;
             var cached = state.Refetch;
@@ -153,7 +153,8 @@ namespace UEToVS.Host.IntelliSense
 
         private static FilteredCompletionModel Update(IAsyncCompletionSession session, AsyncCompletionSessionDataSnapshot data, ImmutableArray<VsItem> source)
         {
-            string pattern = session.ApplicableToSpan.GetText(data.Snapshot) ?? string.Empty;
+            session.Properties.TryGetProperty(CompletionNames.SessionKey, out CompletionSessionState state);
+            string pattern = CompletionWordSpan.Of(session, data.Snapshot, state).GetText() ?? string.Empty;
             // Filter buttons (when a source supplies them): keep items carrying a selected filter.
             var selected = data.SelectedFilters.IsDefaultOrEmpty ? null
                 : data.SelectedFilters.Where(f => f.IsSelected).Select(f => f.Filter).ToList();
@@ -182,8 +183,10 @@ namespace UEToVS.Host.IntelliSense
             if (list.Length == 0)
                 return new FilteredCompletionModel(list, 0, filters, UpdateSelectionHint.SoftSelected, true, null);
             VsItem unique = list.Length == 1 && data.Trigger.Reason == CompletionTriggerReason.InvokeAndCommitIfUnique ? list[0].CompletionItem : null;
-            // Nothing typed yet after '.' / '::': soft-select so Enter / ';' do not commit by accident.
-            var hint = pattern.Length == 0 && data.Trigger.Reason == CompletionTriggerReason.Insertion ? UpdateSelectionHint.SoftSelected : UpdateSelectionHint.Selected;
+            // Nothing typed yet: soft-select so Enter / ';' do not commit by accident — except after '.' / '->' / '::'
+            // (v0.10.1, like VA / Rider): the list is the members of that type, so the first one is selected and Enter takes it.
+            bool members = state?.Context == UEToVS.Contracts.CompletionContextKind.Member || state?.Context == UEToVS.Contracts.CompletionContextKind.Scope;
+            var hint = pattern.Length == 0 && data.Trigger.Reason == CompletionTriggerReason.Insertion && !members ? UpdateSelectionHint.SoftSelected : UpdateSelectionHint.Selected;
             return new FilteredCompletionModel(list, 0, filters, hint, true, unique);
         }
 
@@ -258,7 +261,7 @@ namespace UEToVS.Host.IntelliSense
                                            CompletionSessionState state, char typedChar)
         {
             var snapshot = buffer.CurrentSnapshot;
-            var span = session.ApplicableToSpan.GetSpan(snapshot);
+            var span = CompletionWordSpan.Of(session, snapshot, state);
             string insert = item.InsertText ?? item.DisplayText;
             // A typed '(' follows the commit: do not double the parentheses the insert text brings ("BeginPlay()").
             if (typedChar == '(' && insert.EndsWith("()", StringComparison.Ordinal)) insert = insert.Substring(0, insert.Length - 2);
@@ -299,6 +302,22 @@ namespace UEToVS.Host.IntelliSense
             if (string.IsNullOrEmpty(include) || !UEToVS.Host.Logic.Unreal.IncludeDependencyChecker.IsCppFile(include)) return;
             string path = UEToVS.Host.Navigation.VsEditor.FilePathOf(buffer);
             UEToVS.Host.Unreal.ModuleDependencyFixer.OnIncludeCommitted(HostPackage.Instance, path, include, snapshot.GetLineNumberFromPosition(position));
+        }
+    }
+
+    /// <summary>
+    /// The word a UEToVS session filters on and replaces: its applicable span, minus an accessor the span swallowed when the
+    /// on-type fix replaced '.' with '-&gt;' right in front of it (v0.10.1, <see cref="AccessorFixes.LeadingAccessorLength"/>).
+    /// Only member sessions: an include path may legitimately start with '.'.
+    /// </summary>
+    internal static class CompletionWordSpan
+    {
+        public static SnapshotSpan Of(IAsyncCompletionSession session, ITextSnapshot snapshot, CompletionSessionState state)
+        {
+            var span = session.ApplicableToSpan.GetSpan(snapshot);
+            if (state?.Context != UEToVS.Contracts.CompletionContextKind.Member || span.Length == 0) return span;
+            int skip = AccessorFixes.LeadingAccessorLength(span.GetText());
+            return skip == 0 ? span : new SnapshotSpan(span.Start + skip, span.End);
         }
     }
 }

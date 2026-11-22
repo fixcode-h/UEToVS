@@ -56,5 +56,24 @@ namespace UEToVS.Host.Logic.IntelliSense
             if (triggerChar == '>') return fix.Length == 2 && fix.Replacement == ".";
             return false;
         }
+
+        /// <summary>
+        /// v0.10.1：输入即纠正把 '.' 换成 '-&gt;' 时，VS 会把会话的适用范围（空的、贴着访问符）一起撑大，范围文字变成
+        /// "-&gt;"：过滤串成了 "-&gt;"、没有默认选中项，提交时还把 "-&gt;" 一起替换掉（"PlayerInputComponentBindKey"）。
+        /// 成员补全的范围开头若是访问符，返回要跳过的字符数（"-&gt;" 2、"." 1），否则 0。
+        /// </summary>
+        public static int LeadingAccessorLength(string spanText)
+        {
+            if (string.IsNullOrEmpty(spanText)) return 0;
+            if (spanText.StartsWith("->", StringComparison.Ordinal)) return 2;
+            return spanText[0] == '.' ? 1 : 0;
+        }
+
+        /// <summary>
+        /// v0.10.1 一次退格删掉纠正出来的 "-&gt;"：用户只打了一个 '.'，退格也只该按一次。要求光标紧跟在纠正出来的
+        /// 访问符后面（<paramref name="fixEnd"/>），那里仍是 "-&gt;"，且没有选中文字。
+        /// </summary>
+        public static bool BackspaceRemovesFix(string fixText, int fixEnd, int caret, bool hasSelection) =>
+            !hasSelection && fixText == "->" && caret == fixEnd;
     }
 }
