@@ -106,6 +106,9 @@ namespace UEToVS.Host.Logic.Settings
         /// <summary>VS「调试时自动显示 Unreal Engine 日志窗口」（那个窗口在一些机器上一显示就让 VS 退出）。默认关（v0.9.7）。</summary>
         public bool TurnOffVsUeLogAutoShow { get; set; } = true;
 
+        /// <summary>VS 解决方案资源管理器里代码文件可展开成类 / 函数成员。默认跟随接管关闭（v0.9.12）。</summary>
+        public bool TurnOffVsSolutionExplorerSymbols { get; set; } = true;
+
         /// <summary>Ids (<see cref="UEToVS.Host.Logic.IntelliSense.VsUnrealFeatures"/>) of the VS features to turn off.</summary>
         public System.Collections.Generic.ISet<string> TurnOffVsFeatures()
         {
@@ -116,6 +119,7 @@ namespace UEToVS.Host.Logic.Settings
             if (TurnOffVsCodeLens) set.Add(UEToVS.Host.Logic.IntelliSense.VsUnrealFeatures.CodeLens);
             if (TurnOffVsAdjacentSymbols) set.Add(UEToVS.Host.Logic.IntelliSense.VsUnrealFeatures.AdjacentSymbols);
             if (TurnOffVsUeLogAutoShow) set.Add(UEToVS.Host.Logic.IntelliSense.VsUnrealFeatures.UeLogAutoShow);
+            if (TurnOffVsSolutionExplorerSymbols) set.Add(UEToVS.Host.Logic.IntelliSense.VsUnrealFeatures.SolutionExplorerSymbols);
             return set;
         }
 

@@ -58,6 +58,7 @@ namespace UEToVS.Host.Logic.Settings
             new Card(Takeover, "VS 自带的 Unreal Engine 功能", "VS's own Unreal Engine features", "vs.unrealIntegration",
                      "vsFeatures.semanticIndex", "vsFeatures.blueprints", "vsFeatures.uhtAnalysis", "vsFeatures.codeLens"),
             new Card(Takeover, "调试器", "Debugger", "vsFeatures.adjacentSymbols", "vsFeatures.ueLogAutoShow"),
+            new Card(Takeover, "解决方案资源管理器", "Solution Explorer", "vsFeatures.solutionExplorerSymbols"),
             new Card(Takeover, "接管后 VS 自带功能", "VS features after the takeover", "intelliSense.featureMatrix"),
 
             // ---- 补全与提示：写代码时弹出来的东西
