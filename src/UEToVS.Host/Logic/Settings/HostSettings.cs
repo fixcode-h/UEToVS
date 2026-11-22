@@ -326,7 +326,7 @@ namespace UEToVS.Host.Logic.Settings
         /// <summary>Seconds without an edit before modified files are saved; 0 = only when VS loses focus.</summary>
         public int AutoSaveIdleSeconds { get; set; } = 15;
 
-        /// <summary>v0.7.5: document tabs of files that differ from Git (modified, added, untracked) get a ● after the name, like IDEA's tab colors.</summary>
+        /// <summary>v0.7.5: document tabs of files that differ from Git (modified, added, untracked) get " [Git]" after the name, like IDEA's tab colors.</summary>
         public bool GitTabMarker { get; set; } = true;
 
         /// <summary>
