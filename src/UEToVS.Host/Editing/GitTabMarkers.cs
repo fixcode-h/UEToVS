@@ -18,13 +18,15 @@ namespace UEToVS.Host.Editing
 {
     /// <summary>
     /// v0.7.5: with auto-save VS's * vanishes within seconds, so, like IDEA's tab colors, document tabs of files that differ
-    /// from Git (modified, added, untracked) get a ● after the name (<c>VSFPROPID_EditorCaption</c>, the same place VS puts
+    /// from Git (modified, added, untracked) get " [Git]" after the name (<c>VSFPROPID_EditorCaption</c>, the same place VS puts
     /// " [Design]"). Git is asked (<c>git status --porcelain</c>, off the UI thread) when the solution opens, after a save and
     /// when VS is activated; a newly opened document only re-applies the known state. Setting editor.gitTabMarker.
     /// </summary>
     internal static class GitTabMarkers
     {
-        private const string Marker = " ●";
+        // v0.9.11: 以前是 " ●"，VS 18 的未保存标记也是圆点，用户以为文件被改了还没保存（Ctrl+S 也去不掉）。改成文字，一眼能区分
+        private const string Marker = " [Git]";
+        private const string OldMarker = " ●";
         private static readonly Logger L = Log.For("Editing");
         private static readonly TimeSpan RefreshDelay = TimeSpan.FromMilliseconds(800);
 
@@ -222,6 +224,12 @@ namespace UEToVS.Host.Editing
                     frame.GetProperty((int)__VSFPROPID.VSFPROPID_EditorCaption, out object cap);
                     string path = mk as string, caption = cap as string ?? string.Empty;
                     bool want = enabled && !string.IsNullOrEmpty(path) && _changed.Contains(path);
+                    // 升级前打开的标签页可能还带旧标记：先去掉再按新标记判断
+                    if (caption.EndsWith(OldMarker, StringComparison.Ordinal))
+                    {
+                        caption = caption.Substring(0, caption.Length - OldMarker.Length);
+                        frame.SetProperty((int)__VSFPROPID.VSFPROPID_EditorCaption, caption);
+                    }
                     bool has = caption.EndsWith(Marker, StringComparison.Ordinal);
                     if (want && !has) frame.SetProperty((int)__VSFPROPID.VSFPROPID_EditorCaption, caption + Marker);
                     else if (!want && has) frame.SetProperty((int)__VSFPROPID.VSFPROPID_EditorCaption, caption.Substring(0, caption.Length - Marker.Length));

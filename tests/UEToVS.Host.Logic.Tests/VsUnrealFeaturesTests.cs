@@ -42,7 +42,8 @@ namespace UEToVS.Host.Logic.Tests
 
             var json = new UnifiedSettingsJsonStore(_path);
             foreach (var key in new[] { VsUnrealFeatures.JsonSemanticIndex, VsUnrealFeatures.JsonCodeLensReferences, VsUnrealFeatures.JsonCodeLensFields,
-                                        VsUnrealFeatures.JsonBlueprints, VsUnrealFeatures.JsonUhtAnalysis, VsUnrealFeatures.JsonCodeLens, VsUnrealFeatures.JsonAdjacentSymbols, VsUnrealFeatures.JsonUeLogAutoShow })
+                                        VsUnrealFeatures.JsonBlueprints, VsUnrealFeatures.JsonUhtAnalysis, VsUnrealFeatures.JsonCodeLens, VsUnrealFeatures.JsonAdjacentSymbols, VsUnrealFeatures.JsonUeLogAutoShow,
+                                        VsUnrealFeatures.JsonSolutionExplorerSymbols })
             {
                 Assert.True(json.TryRead(VsUnrealFeatures.JsonPage, key, out object v, out _));
                 Assert.Equal(false, v);

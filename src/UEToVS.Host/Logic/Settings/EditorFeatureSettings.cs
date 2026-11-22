@@ -79,8 +79,8 @@ namespace UEToVS.Host.Logic.Settings
             idle.Max = MaxAutoSaveIdle;
             list.Add(idle);
             list.Add(D(category, GitTabMarkerKey, SettingKind.Bool, "标签页标出 Git 有改动的文件", "Mark files changed in Git on tabs",
-                "自动保存后 VS 的 * 很快消失，这里改用 Git 状态区分：和 Git 版本相比有改动（修改、新增、未跟踪）的文件，标签页名字后面显示 ●。保存、切回 VS 时刷新；不是 Git 仓库或找不到 git 时不显示。",
-                "With auto-save VS's * disappears quickly, so files that differ from Git (modified, added, untracked) get a ● after the name on their tab. Refreshed on save and when VS is activated; nothing is shown outside a Git repository or without git.",
+                "自动保存后 VS 的 * 很快消失，这里改用 Git 状态区分：和 Git 版本相比有改动（修改、新增、未跟踪）的文件，标签页名字后面显示 [Git]（不是未保存，保存后不会消失，提交或还原后才消失）。保存、切回 VS 时刷新；不是 Git 仓库或找不到 git 时不显示。",
+                "With auto-save VS's * disappears quickly, so files that differ from Git (modified, added, untracked) get \"[Git]\" after the name on their tab (not unsaved changes: saving does not clear it, committing or reverting does). Refreshed on save and when VS is activated; nothing is shown outside a Git repository or without git.",
                 "true", gSave, gSaveEn, "git modified tab 标签页 修改 改动 vcs"));
 
             const string gEngine = "引擎代码", gEngineEn = "Engine code";

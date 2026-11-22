@@ -57,6 +57,7 @@ namespace UEToVS.Host.Logic.IntelliSense
         public const string CodeLens = "codeLens";
         public const string AdjacentSymbols = "adjacentSymbols";
         public const string UeLogAutoShow = "ueLogAutoShow";
+        public const string SolutionExplorerSymbols = "solutionExplorerSymbols";
 
         public const string JsonSemanticIndex = "languages.cpp.intelliSense.browsingNavigation.wholeCodebaseSemanticIndex.enabled";
         public const string JsonCodeLensReferences = "languages.cpp.intelliSense.browsingNavigation.wholeCodebaseSemanticIndex.enableCodeLensForReferences";
@@ -67,6 +68,11 @@ namespace UEToVS.Host.Logic.IntelliSense
         public const string JsonAdjacentSymbols = "debugging.symbols.load.includeSymbolsNextToModules";
         /// <summary>VS 选项 > Unreal Engine >「自动显示」（调试游戏项目时自动显示“Unreal Engine 日志”窗口）；键名取自用户的 settings.json（2026-11-19）。</summary>
         public const string JsonUeLogAutoShow = "unrealEngine.log.showAutomatically";
+        /// <summary>
+        /// VS 选项 > 项目和解决方案 > 常规：在解决方案资源管理器里把代码文件展开成类 / 函数等成员。键名取自 Roslyn PR #80997
+        /// （"Key provided by the Solution Explorer team"，C++ 也按这个键）；VS 只在启动时读，改了要重启 VS。
+        /// </summary>
+        public const string JsonSolutionExplorerSymbols = "projectsAndSolutions.general.showLanguageSymbolsInsideSolutionExplorerFiles";
 
         public static IReadOnlyList<VsUnrealFeature> Features { get; } = new[]
         {
@@ -104,6 +110,13 @@ namespace UEToVS.Host.Logic.IntelliSense
                 "一显示 VS 就直接退出（按 F5 后看起来像卡死）。关掉后要看 UE 日志可以从 视图 > 其他窗口 手动打开它，或在 UE 编辑器 / Agent 面板里看。",
                 "Unticks VS Options > Unreal Engine > \"Show automatically\" (show the \"Unreal Engine Log\" window when debugging a game project). On some machines VS 2026's window cannot read its own font " +
                 "and VS quits as soon as it shows (after F5 it looks like a hang). With it off, open the window from View > Other Windows when you want it, or read the log in the UE editor / Agent Panel."),
+            // v0.9.12（用户 2026-11-22 定，默认跟随接管关闭）：.cpp / .h 前面的展开箭头让文件树很乱，展开时 VS 还要现解析文件；
+            // 文件结构用 UEToVS 的“文件结构”看。
+            new VsUnrealFeature(SolutionExplorerSymbols, "vsFeatures.solutionExplorerSymbols", "解决方案资源管理器里不展开文件成员", "Don't expand file members in Solution Explorer",
+                "关闭 VS 选项 > 项目和解决方案 > 常规 里“在解决方案资源管理器的文件中显示语言符号”这一项（settings.json 的 projectsAndSolutions.general.showLanguageSymbolsInsideSolutionExplorerFiles）：.cpp / .h 前面不再有展开箭头，展开时也不再列出类、函数等成员，" +
+                "文件树更清爽，展开时 VS 也不用再去解析文件。看文件里的成员用 UEToVS 的“文件结构”（Ctrl+Shift+Alt+M）或导航栏。下次启动 VS 生效。",
+                "Turns off VS's Options > Projects and Solutions > General setting that shows language symbols inside Solution Explorer files (settings.json key projectsAndSolutions.general.showLanguageSymbolsInsideSolutionExplorerFiles): .cpp / .h files no longer get an expand arrow listing classes, functions and other members, " +
+                "so the tree stays tidy and VS does not parse files when you expand them. To see a file's members use UEToVS's File Structure (Ctrl+Shift+Alt+M) or the navigation bar. Takes effect from the next VS start."),
         };
 
         private static CppPropertyCandidate Json(string key) => new CppPropertyCandidate(JsonPage, key, false);
@@ -126,6 +139,7 @@ namespace UEToVS.Host.Logic.IntelliSense
             Def("vsCodeLens", CodeLens, "Disable CodeLens (all languages)", Json(JsonCodeLens)),
             Def("vsAdjacentSymbols", AdjacentSymbols, "Debugger: don't always load symbols next to modules", Json(JsonAdjacentSymbols)),
             Def("vsUeLogAutoShow", UeLogAutoShow, "Don't show VS's Unreal Engine Log window automatically when debugging", Json(JsonUeLogAutoShow)),
+            Def("vsSolutionExplorerSymbols", SolutionExplorerSymbols, "Don't show language symbols inside Solution Explorer files", Json(JsonSolutionExplorerSymbols)),
         };
 
         /// <summary>
@@ -142,6 +156,7 @@ namespace UEToVS.Host.Logic.IntelliSense
             [JsonCodeLens] = true,
             [JsonAdjacentSymbols] = true,
             [JsonUeLogAutoShow] = true,
+            [JsonSolutionExplorerSymbols] = true,
         };
 
         /// <summary>True when <paramref name="f"/> cannot take effect in VS of major version <paramref name="vsMajor"/> (0 = unknown: assume it can).</summary>

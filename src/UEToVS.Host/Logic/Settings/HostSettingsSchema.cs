@@ -180,11 +180,11 @@ namespace UEToVS.Host.Logic.Settings
                 gCpp, gCppEn, SettingKind.Info));
 
             list.Add(A(General, "vs.restoreAll", WindowActions.RestoreVsDefaults, "恢复 VS 原样", "Restore Visual Studio",
-                "禁用或卸载 UEToVS 之前点一下：按备份还原 UEToVS 改过的所有 VS 设置——C++ IntelliSense、浏览数据库、语义索引、后台代码分析、蓝图支持、UHT 代码分析、CodeLens、" +
+                "禁用或卸载 UEToVS 之前点一下：按备份还原 UEToVS 改过的所有 VS 设置——C++ IntelliSense、浏览数据库、语义索引、后台代码分析、蓝图支持、UHT 代码分析、CodeLens、解决方案资源管理器的文件成员、" +
                 "VS 字体和快捷键（包括为 UEToVS 让出按键的 VS 命令），并把接管范围设为“关闭”、不再管理 VS 字体，之后不会再自动改回去。" +
                 "VS 禁用或卸载扩展时不会通知扩展，所以这一步要手动做。",
                 "Click this before disabling or uninstalling UEToVS: restores, from the backups, every VS setting UEToVS changed — C++ IntelliSense, browse database, " +
-                "semantic index, background code analysis, Blueprint support, UHT code analysis, CodeLens, VS fonts and shortcuts (including VS commands that gave their keys to UEToVS) — " +
+                "semantic index, background code analysis, Blueprint support, UHT code analysis, CodeLens, Solution Explorer file members, VS fonts and shortcuts (including VS commands that gave their keys to UEToVS) — " +
                 "and sets the takeover scope to Off and stops managing VS fonts so nothing is changed again. VS does not tell an extension it is being disabled or uninstalled, so this is a manual step.",
                 "卸载前", "Before uninstalling"));
 
@@ -551,6 +551,7 @@ namespace UEToVS.Host.Logic.Settings
                     ["vsFeatures.codeLens"] = B(s.TurnOffVsCodeLens),
                     ["vsFeatures.adjacentSymbols"] = B(s.TurnOffVsAdjacentSymbols),
                     ["vsFeatures.ueLogAutoShow"] = B(s.TurnOffVsUeLogAutoShow),
+                    ["vsFeatures.solutionExplorerSymbols"] = B(s.TurnOffVsSolutionExplorerSymbols),
                     ["toolbar.show"] = B(s.ShowToolbar),
                     ["keyboard.doubleShift"] = B(s.DoubleShiftEnabled),
                     ["keyboard.doubleShiftIntervalMs"] = I(s.DoubleShiftIntervalMs),
@@ -663,6 +664,7 @@ namespace UEToVS.Host.Logic.Settings
                         case "vsFeatures.codeLens": s.TurnOffVsCodeLens = PB(v); break;
                         case "vsFeatures.adjacentSymbols": s.TurnOffVsAdjacentSymbols = PB(v); break;
                         case "vsFeatures.ueLogAutoShow": s.TurnOffVsUeLogAutoShow = PB(v); break;
+                        case "vsFeatures.solutionExplorerSymbols": s.TurnOffVsSolutionExplorerSymbols = PB(v); break;
                         case "toolbar.show": s.ShowToolbar = PB(v); break;
                         case "keyboard.doubleShift": s.DoubleShiftEnabled = PB(v); break;
                         case "keyboard.doubleShiftIntervalMs": s.DoubleShiftIntervalMs = PI(v, 300); break;
