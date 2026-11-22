@@ -7,6 +7,7 @@ using UEToVS.Core.Diagnostics;
 using UEToVS.Host.Diagnostics;
 using UEToVS.Host.IntelliSense;
 using UEToVS.Host.Logic.Editing;
+using UEToVS.Host.Shell;
 
 namespace UEToVS.Host.Editing
 {
@@ -67,6 +68,8 @@ namespace UEToVS.Host.Editing
                 SaveAll(AutoSavePolicy.ReasonIdle);
         }
 
+        private static readonly System.Collections.Generic.HashSet<string> WarnedReadOnly = new System.Collections.Generic.HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
         private static void SaveAll(string reason)
         {
             ThreadHelper.ThrowIfNotOnUIThread();
@@ -75,6 +78,7 @@ namespace UEToVS.Host.Editing
             if (!(Package.GetGlobalService(typeof(DTE)) is DTE dte)) return;
             _saving = true;
             int saved = 0, skipped = 0;
+            string readOnlyName = null;
             try
             {
                 foreach (Document d in dte.Documents)
@@ -87,6 +91,8 @@ namespace UEToVS.Host.Editing
                         bool readOnly = d.ReadOnly || exists && (File.GetAttributes(path) & FileAttributes.ReadOnly) != 0;
                         if (!AutoSavePolicy.ShouldSave(path, true, exists, readOnly))
                         {
+                            // v0.9.13: 只读多半是 P4 里还没签出：以前悄悄跳过，用户以为存了。每个文件提示一次
+                            if (exists && readOnly && WarnedReadOnly.Add(path)) readOnlyName = Path.GetFileName(path);
                             skipped++;
                             continue;
                         }
@@ -105,6 +111,9 @@ namespace UEToVS.Host.Editing
                 _saving = false;
             }
             if (saved + skipped > 0) L.Info("editor.autoSave", null, ("reason", reason), ("saved", saved), ("skipped", skipped));
+            if (readOnlyName != null)
+                VsStatusBar.SetText(UEToVS.Core.Localization.Loc.T(readOnlyName + " 是只读的（P4 下可能还没签出），自动保存跳过了它；签出后会照常自动保存",
+                    readOnlyName + " is read-only (not checked out in P4?), so auto-save skipped it; it is saved as usual once checked out"));
         }
     }
 }

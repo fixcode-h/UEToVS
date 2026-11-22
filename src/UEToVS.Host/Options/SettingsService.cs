@@ -164,6 +164,7 @@ namespace UEToVS.Host.Options
             };
             UEToVS.Host.Logic.Fonts.FontSettingsSchema.Describe(s, d);
             UEToVS.Host.Logic.Settings.EditorFeatureSettings.Describe(s, d); // v0.4.5 编辑体验
+            UEToVS.Host.Logic.Settings.FileEncodingSettings.Describe(s, d); // v0.9.13 文件编码
             UEToVS.Host.Logic.Horde.HordeSettingsSchema.Describe(s, d); // v0.5.4 联合编译
             return Sanitizer.MaskSecrets(d);
         }

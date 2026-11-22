@@ -71,7 +71,14 @@ namespace UEToVS.Host.Editing
             if (state == null || !state.Locked) return;
             Unlocked.Add(EngineReadOnlyPolicy.Key(state.FilePath));
             state.SetLocked(false);
-            VsStatusBar.SetText(EditorFeatureStrings.EngineReadOnlyUnlocked);
+            // v0.9.13: 磁盘上也是只读的引擎文件多半在 P4 里没签出，改的时候 P4VS 会把它签进你的变更列表，先说清楚
+            bool diskReadOnly = false;
+            try { diskReadOnly = System.IO.File.Exists(state.FilePath) && (System.IO.File.GetAttributes(state.FilePath) & System.IO.FileAttributes.ReadOnly) != 0; }
+            catch (Exception) { } // 读不到属性：按不是只读提示
+            VsStatusBar.SetText(diskReadOnly
+                ? UEToVS.Core.Localization.Loc.T("已启用编辑。这个引擎文件在磁盘上是只读的（P4 未签出），开始修改时版本管理会把它签出到你的变更列表",
+                    "Editing enabled. This engine file is read-only on disk (not checked out in P4); source control checks it out to your changelist when you change it")
+                : EditorFeatureStrings.EngineReadOnlyUnlocked);
             L.Info("engineReadOnly.unlocked", null, ("file", EngineReadOnlyPolicy.RelativeToEngine(state.FilePath, EngineRoot)), ("source", source),
                    ("unlockedThisSession", Unlocked.Count));
         }

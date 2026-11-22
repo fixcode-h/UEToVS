@@ -80,6 +80,7 @@ v0.9.6：`status`、`bp.list` 上一个还在等 VS 界面线程时，后来的�
 | `continue` | `waitMs?`（默认 0） | 继续运行；`waitMs` > 0 时等下一次停下 |
 | `step` | `kind`（`into` / `over`（默认）/ `out` / `toLine`）、`file`+`line`（toLine）、`waitMs?`（默认 10000） | 单步；默认等到停下，返回新位置（结果同 `wait`，原动作放在 `action`） |
 | `solution.open` | `path`（.sln 的完整路径） | v0.9.5：让这个 VS 换成另一个解决方案（Agent 面板「用 VS 打开这个项目」选了在已开着的 VS 里打开；只是 VS「文件 > 打开解决方案」，不是调试器能力，用户 2026-11-19 要求加）。正在调试或编译时报错；已经是这个解决方案时回 `already: true`。否则先回 `switching: true`，再在 UI 线程上执行 `File.CloseSolution`（有没保存的文件照常弹 VS 的保存提示，用户取消就不换）和打开新解决方案：这个管道随旧解决方案关掉，调用方按新解决方案的发现文件重连 |
+| `files.unsaved` | `files`（路径数组） | v0.9.13：只读。回 `unsaved[]`：其中在 VS 里开着且有未保存修改的路径。给 MCP 的 `rename_symbol apply=true` 用：有未保存修改的文件不直接写磁盘，免得和编辑器缓冲区冲突。Agent 面板不用它，面板插件不需要改 |
 | `wait` | `timeoutMs?`（0–120000，默认 30000） | 等到停下 / 调试结束 / 编译结束。`event`：`break`、`exited`、`buildDone`、`buildFailed`、`timeout`、`idle`（没在调试也没在编译，马上返回）。已经停着时马上返回 `break`。结果带 `status` 的全部字段，停下时带 8 帧 `stack` |
 
 ### 断点

@@ -25,12 +25,24 @@ namespace UEToVS.Mcp.Tests
                 "#pragma once\n#include \"RenameMe.generated.h\"\n\nUSTRUCT(BlueprintType)\nstruct MYGAME_API FRenameMe\n{\n\tGENERATED_BODY()\n\tint32 Value;\n};\n");
             T.Write("Game/Source/MyGame/Private/RenameUser.cpp",
                 "\uFEFF#include \"RenameMe.h\"\r\n\r\nstatic FRenameMe MakeOne()\r\n{\r\n\tFRenameMe R;\r\n\treturn R;\r\n}\r\n");
+            // v0.9.13: GBK 编码的文件（中文注释），重命名后必须仍是 GBK 字节，不能被当 UTF-8 写坏
+            T.Write("Game/Source/MyGame/Public/GbkThing.h",
+                "#pragma once\n#include \"GbkThing.generated.h\"\n\n// 血量组件\nUSTRUCT()\nstruct MYGAME_API FGbkThing\n{\n\tGENERATED_BODY()\n};\n");
+            File.WriteAllBytes(T.P("Game/Source/MyGame/Public/GbkThing.h"), Gbk.GetBytes(File.ReadAllText(T.P("Game/Source/MyGame/Public/GbkThing.h"))));
             var host = Tree.StartEngine(T);
             host.StartIndexing();
             host.Index.WaitForReadyAsync(CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(60)).GetAwaiter().GetResult();
             host.StopAsync(TimeSpan.FromSeconds(10)).GetAwaiter().GetResult();
             Index = new CodeIndex(T.ProjectRoot, DataSourceMode.Auto);
             Invoker = new ToolInvoker(new ToolCatalog(Index));
+        }
+
+        public static readonly System.Text.Encoding Gbk = GbkEncoding();
+
+        private static System.Text.Encoding GbkEncoding()
+        {
+            System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
+            return System.Text.Encoding.GetEncoding(936);
         }
 
         public FakeUnrealTree T { get; }
@@ -173,6 +185,32 @@ namespace UEToVS.Mcp.Tests
             Assert.Equal(0xEF, File.ReadAllBytes(user)[0]);              // BOM kept
             Assert.Contains("+StructRedirects=(OldName=\"/Script/MyGame.RenameMe\",NewName=\"/Script/MyGame.RenamedThing\")", File.ReadAllText(ini));
             Assert.Contains("[/Script/Engine.Engine]", File.ReadAllText(ini));
+        }
+
+        [Fact]
+        public async Task RenameSymbol_KeepsGbkEncoding_AndWritesNothingWhenAFileIsReadOnly()
+        {
+            string header = _f.T.P("Game/Source/MyGame/Public/GbkThing.h");
+            byte[] before = File.ReadAllBytes(header);
+
+            File.SetAttributes(header, FileAttributes.ReadOnly);
+            try
+            {
+                var blocked = await _f.Call("rename_symbol", new { symbol = "FGbkThing", new_name = "FGbkRenamed", include_name_only = true, apply = true });
+                Assert.True(blocked.GetProperty("failures").GetArrayLength() >= 1, blocked.ToString());
+                Assert.Contains("Nothing was written", blocked.Str("note"));
+                Assert.Equal(before, File.ReadAllBytes(header));
+            }
+            finally
+            {
+                File.SetAttributes(header, FileAttributes.Normal);
+            }
+
+            var applied = await _f.Call("rename_symbol", new { symbol = "FGbkThing", new_name = "FGbkRenamed", include_name_only = true, apply = true });
+            Assert.True(applied.GetProperty("written").Int("files") >= 1, applied.ToString());
+            string text = BuildToolsFixture.Gbk.GetString(File.ReadAllBytes(header));
+            Assert.Contains("// 血量组件", text);
+            Assert.Contains("struct MYGAME_API FGbkRenamed", text);
         }
     }
 

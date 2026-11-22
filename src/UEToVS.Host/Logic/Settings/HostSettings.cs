@@ -426,6 +426,15 @@ namespace UEToVS.Host.Logic.Settings
         /// <summary>UnrealBuildAccelerator/StoreCapacityGb; 0 = not written.</summary>
         public int HordeStoreCapacityGb { get; set; }
 
+        /// <summary>v0.9.13 UEToVS 新建 / 写入文件的默认编码（设置 > 编辑 > 文件编码），默认 UTF-8 无 BOM。</summary>
+        public UEToVS.Core.Text.FileEncodingChoice FileEncoding { get; set; } = UEToVS.Core.Text.FileEncodingChoice.Utf8NoBom;
+
+        /// <summary>v0.9.13 UEToVS 改写已有文件时保留原编码还是转成默认编码。</summary>
+        public UEToVS.Core.Text.ExistingFileEncodingMode ExistingFileEncoding { get; set; } = UEToVS.Core.Text.ExistingFileEncodingMode.Preserve;
+
+        /// <summary>v0.9.13 VS 保存文件时是否统一编码，默认不改。</summary>
+        public UEToVS.Core.Text.SaveEncodingMode SaveEncoding { get; set; } = UEToVS.Core.Text.SaveEncodingMode.Off;
+
         public HostSettings Clone() => (HostSettings)MemberwiseClone();
     }
 }
