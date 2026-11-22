@@ -184,6 +184,11 @@ namespace UEToVS.Host.IntelliSense
                     RequestPrefix = applicableToSpan.GetText() ?? string.Empty, Incomplete = resp.IsIncomplete,
                 };
                 if (resp.AccessorFix != null && settings.CompletionAccessorFix) TrackAccessorFix(state, resp.AccessorFix, triggerLocation.Snapshot);
+                // v0.9.12 输入即纠正：有把握时打出 '.' / '->' 就改，不等提交；列表照常弹（项目本来就是纠正后的类型的成员）
+                var triggerLine = triggerLocation.GetContainingLine();
+                if (state.AccessorFixSpan != null && AccessorFixes.ShouldApplyOnType(resp.AccessorFix, t.TriggerChar, triggerLine.LineNumber,
+                        triggerLocation.Position - triggerLine.Start.Position, settings.CompletionAccessorFix && settings.CompletionAccessorFixOnType))
+                    await ApplyAccessorFixNowAsync(state, token);
                 session.Properties[CompletionNames.SessionKey] = state;
                 return new CompletionContext(items, null, InitialSelectionHint.RegularSelection,
                                              ImmutableArray<CompletionFilterWithState>.Empty, resp.IsIncomplete);
@@ -197,6 +202,41 @@ namespace UEToVS.Host.IntelliSense
                 L.Error("is.completion.failed", "Completion failed", ex);
                 return CompletionContext.Empty;
             }
+        }
+
+        /// <summary>
+        /// v0.9.12: replaces the tracked accessor right away, as its own edit (one Ctrl+Z brings the typed character back).
+        /// The completion session stays open: its applicable span (empty, after the accessor) and the caret move behind the
+        /// new accessor. The commit-time fix is dropped so it never runs twice.
+        /// </summary>
+        private async Task ApplyAccessorFixNowAsync(CompletionSessionState state, CancellationToken token)
+        {
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            await Microsoft.VisualStudio.Shell.ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync(token);
+            string replacement = state.AccessorFixReplacement;
+            string problem = null;
+            var buffer = _view.TextBuffer;
+            var snapshot = buffer.CurrentSnapshot;
+            var span = state.AccessorFixSpan.GetSpan(snapshot);
+            string current = span.GetText();
+            if (_view.IsClosed) problem = "closed";
+            else if (!AccessorFixes.IsAccessor(current) || current == replacement) problem = "changed";
+            else if (buffer.IsReadOnly(span.Span)) problem = "readonly";
+            else
+            {
+                bool caretAtEnd = _view.Caret.Position.BufferPosition.Position == span.End.Position;
+                using (var edit = buffer.CreateEdit())
+                {
+                    edit.Replace(span, replacement);
+                    if (edit.HasEffectiveChanges) snapshot = edit.Apply();
+                }
+                int end = span.Start.Position + replacement.Length;
+                if (caretAtEnd && end <= snapshot.Length && _view.Caret.Position.BufferPosition.Position != end)
+                    _view.Caret.MoveTo(new SnapshotPoint(snapshot, end));
+                state.AccessorFixSpan = null; // 已经改过，提交时不再改
+            }
+            L.Info("is.completion.accessorFix.onType", null, ("from", current), ("to", replacement), ("applied", problem == null), ("problem", problem),
+                   ("ms", Math.Round(sw.Elapsed.TotalMilliseconds, 2)));
         }
 
         /// <summary>Validates the engine's accessor fix against the trigger snapshot and tracks it for the commit.</summary>

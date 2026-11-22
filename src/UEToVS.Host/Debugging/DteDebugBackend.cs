@@ -185,6 +185,7 @@ namespace UEToVS.Host.Debugging
                 case DebugProtocol.Continue: result = Continue(); waitMs = a.Int("waitMs", 0, 0, DebugProtocol.MaxWaitMs); break;
                 case DebugProtocol.Step: result = Step(a); waitMs = a.Int("waitMs", 10000, 0, DebugProtocol.MaxWaitMs); break;
                 case DebugProtocol.SolutionOpen: return OpenSolution(a);
+                case DebugProtocol.FilesUnsaved: return UnsavedFiles(a);
                 case DebugProtocol.BpList: return ListBreakpoints(a);
                 case DebugProtocol.BpAdd: return AddBreakpoint(a);
                 case DebugProtocol.BpRemove: return RemoveBreakpoints(a);
@@ -203,6 +204,26 @@ namespace UEToVS.Host.Debugging
             var waited = await WaitAsync(waitMs, ct);
             waited["action"] = result;
             return waited;
+        }
+
+        /// <summary>v0.9.13 files.unsaved：给定路径里，哪些在 VS 里开着且有未保存的修改。</summary>
+        private JObject UnsavedFiles(DebugArgs a)
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+            var wanted = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (a.Raw["files"] is JArray files)
+                foreach (var f in files)
+                    if (f.Type == JTokenType.String) wanted.Add(System.IO.Path.GetFullPath((string)f));
+            var unsaved = new JArray();
+            foreach (EnvDTE.Document d in _dte.Documents)
+            {
+                try
+                {
+                    if (!d.Saved && wanted.Contains(d.FullName)) unsaved.Add(d.FullName);
+                }
+                catch (Exception) { /* 正在关闭的文档 */ }
+            }
+            return new JObject { ["unsaved"] = unsaved };
         }
 
         // ================================================================== state

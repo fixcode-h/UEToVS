@@ -224,11 +224,9 @@ namespace UEToVS.Host.Build
             try
             {
                 string header = NewClassPlanner.Header(spec), source = NewClassPlanner.Source(spec);
-                var utf8 = new UTF8Encoding(false);
-                Directory.CreateDirectory(Path.GetDirectoryName(choice.Target.HeaderPath));
-                Directory.CreateDirectory(Path.GetDirectoryName(choice.Target.SourcePath));
-                File.WriteAllText(choice.Target.HeaderPath, header, utf8);
-                File.WriteAllText(choice.Target.SourcePath, source, utf8);
+                // v0.9.13: 按设置 > 编辑 > 文件编码 的默认编码（默认 UTF-8 无 BOM）
+                UEToVS.Host.Files.HostFileWriter.WriteNew(choice.Target.HeaderPath, header);
+                UEToVS.Host.Files.HostFileWriter.WriteNew(choice.Target.SourcePath, source);
             }
             catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
             {

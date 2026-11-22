@@ -416,6 +416,10 @@ namespace UEToVS.Host.Logic.Settings
                 "true", gInlay, gInlayEn));
             // ---- v0.4.5 编辑体验
             EditorFeatureSettings.AddDescriptors(list, IntelliSense);
+            FileEncodingSettings.AddDescriptors(list, IntelliSense); // v0.9.13 文件编码
+            CodingAssistSettings.AddDescriptors(list, IntelliSense); // v0.9.12 写代码辅助
+            UnrealFileSettings.AddDescriptors(list, Unreal); // v0.10 着色器与配置文件
+            VcsSettings.AddDescriptors(list, Editing); // 版本信息（Git / Perforce）
 
             // ---- v0.4.5 heavy features: generic template instantiation (IntelliSense page)
             const string gTi = "模板实例化", gTiEn = "Template instantiation";
@@ -616,6 +620,10 @@ namespace UEToVS.Host.Logic.Settings
                 UEToVS.Host.Logic.Fonts.FontSettingsSchema.ToValues(s, d);
                 UEToVS.Host.Logic.Translation.TranslationSettingsSchema.ToValues(s, d);
                 EditorFeatureSettings.ToValues(s, d); // v0.4.5 编辑体验
+                FileEncodingSettings.ToValues(s, d); // v0.9.13 文件编码
+                CodingAssistSettings.ToValues(s, d); // v0.9.12 写代码辅助
+                UnrealFileSettings.ToValues(s, d); // v0.10 着色器与配置文件
+                VcsSettings.ToValues(s, d); // 版本信息
                 UEToVS.Host.Logic.Horde.HordeSettingsSchema.ToValues(s, d); // v0.5.4 联合编译
                 return d;
             }
@@ -727,6 +735,10 @@ namespace UEToVS.Host.Logic.Settings
                             if (UEToVS.Host.Logic.Fonts.FontSettingsSchema.TrySet(s, d.Key, v)) break;
                             if (UEToVS.Host.Logic.Translation.TranslationSettingsSchema.TrySet(s, d.Key, v)) break;
                             if (EditorFeatureSettings.TrySet(s, d.Key, v)) break; // v0.4.5 编辑体验
+                            if (FileEncodingSettings.TrySet(s, d.Key, v)) break; // v0.9.13 文件编码
+                            if (CodingAssistSettings.TrySet(s, d.Key, v)) break; // v0.9.12 写代码辅助
+                            if (UnrealFileSettings.TrySet(s, d.Key, v)) break; // v0.10 着色器与配置文件
+                            if (VcsSettings.TrySet(s, d.Key, v)) break; // 版本信息
                             if (UEToVS.Host.Logic.Horde.HordeSettingsSchema.TrySet(s, d.Key, v)) break; // v0.5.4 联合编译
                             if (d.Key.StartsWith("toolbar.button.", StringComparison.Ordinal))
                             {

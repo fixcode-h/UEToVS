@@ -99,6 +99,8 @@ namespace UEToVS.Host.Shell
             (0x1205, () => CommandCatalog.GroupTitle("editing", Loc.IsEnglish)),
             (0x1206, () => CommandCatalog.GroupTitle("unreal", Loc.IsEnglish)),
             (0x1207, () => CommandCatalog.GroupTitle("build", Loc.IsEnglish)),
+            (0x120A, () => CommandCatalog.GroupTitle("vcs", Loc.IsEnglish)),
+            (0x1003, () => Loc.T("UEToVS 版本管理", "UEToVS Version Control")), // 编辑器右键
             (0x1208, () => Loc.T("设置编号书签", "Set Numbered Bookmark")),
             (0x1209, () => Loc.T("跳到编号书签", "Go to Numbered Bookmark")),
         };

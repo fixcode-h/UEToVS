@@ -84,6 +84,12 @@ namespace UEToVS.Contracts
         public int Column { get; set; }
         public int Length { get; set; }
         public string Replacement { get; set; }
+
+        /// <summary>
+        /// v0.9.12: the corrected access resolved to a known type with members (the list after the fix is not a guess), so the
+        /// host may apply the fix as soon as '.' / '-&gt;' is typed instead of waiting for the commit.
+        /// </summary>
+        public bool Confident { get; set; }
     }
 
     public sealed class CompletionResponse

@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using UEToVS.Contracts;
 using UEToVS.Core.Diagnostics;
+using UEToVS.Core.Text;
 using UEToVS.Host.Logic.Refactoring;
 using UEToVS.Mcp.Data;
 
@@ -303,36 +304,52 @@ namespace UEToVS.Mcp.Tools
             }
 
             // ---- apply
+            // v0.9.13: 以前逐个文件按 UTF-8 读写，GBK 文件的中文注释被写坏；中途某个文件写不了（P4 未签出、被占用）时前面的已经改了。
+            // 现在先全部准备好（按原编码解码、确认能按原编码写回、文件可写、VS 里没有未保存的修改），有一个不行就一个都不写；
+            // 写的过程中出错则把已写的恢复原样。
             int applied = 0, skippedEdits = 0, filesChanged = 0;
             var failures = new JsonArray();
             if (apply)
             {
                 if (edits.Count == 0) throw new ToolException("nothing_to_rename", "No editable project location to change (see the preview: name-only matches need include_name_only=true).");
+                var plan = new List<PlannedWrite>();
                 foreach (var g in edits.GroupBy(e => e.FilePath, StringComparer.OrdinalIgnoreCase))
                 {
-                    var (ok, n, skipped, error) = ApplyToFile(g.Key, g.ToList());
-                    applied += n;
-                    skippedEdits += skipped;
-                    if (ok && n > 0) filesChanged++;
-                    if (!ok) failures.Add(new JsonObject { ["file"] = g.Key, ["error"] = error });
+                    var (w, error) = PlanEdit(g.Key, g.ToList());
+                    if (error != null) failures.Add(new JsonObject { ["file"] = g.Key, ["error"] = error });
+                    else if (w != null) plan.Add(w);
                 }
                 if (ini != null && redirectLine != null)
                 {
-                    try
+                    var (w, error) = PlanRedirect(ini, redirectLine);
+                    if (error != null) failures.Add(new JsonObject { ["file"] = ini, ["error"] = error });
+                    else if (w != null) plan.Add(w);
+                }
+                if (failures.Count == 0 && plan.Count > 0)
+                {
+                    var unsaved = await UnsavedInVsAsync(plan.Select(w => w.Path).ToList(), ct).ConfigureAwait(false);
+                    foreach (var f in unsaved)
+                        failures.Add(new JsonObject { ["file"] = f, ["error"] = "VS 里这个文件有未保存的修改：先在 VS 里保存（或撤销）再重命名，否则两边的改动会冲突" });
+                }
+                if (failures.Count == 0)
+                {
+                    string error = WriteAll(plan);
+                    if (error != null) failures.Add(new JsonObject { ["file"] = "", ["error"] = error });
+                }
+                if (failures.Count == 0)
+                {
+                    foreach (var w in plan)
                     {
-                        string text = File.Exists(ini) ? File.ReadAllText(ini) : string.Empty;
-                        string updated = RenamePlanner.AddRedirects(text, new[] { redirectLine });
-                        if (!string.Equals(updated, text, StringComparison.Ordinal))
-                        {
-                            Directory.CreateDirectory(Path.GetDirectoryName(ini));
-                            File.WriteAllText(ini, updated, new UTF8Encoding(false));
-                        }
+                        applied += w.Applied;
+                        skippedEdits += w.Skipped;
+                        if (!w.IsIni && w.Applied > 0) filesChanged++;
                     }
-                    catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
-                    {
-                        failures.Add(new JsonObject { ["file"] = ini, ["error"] = ex.Message });
-                        ini = null;
-                    }
+                    if (!plan.Any(w => w.IsIni)) ini = null;
+                }
+                else
+                {
+                    skippedEdits = edits.Count;
+                    ini = null;
                 }
             }
 
@@ -371,7 +388,7 @@ namespace UEToVS.Mcp.Tools
             string note = refs.Note;
             if (refs.Value.Truncated) note = Join(note, "More than 5000 references: the list is incomplete; rename in smaller steps or check with find_references.");
             if (nameOnlyLeft > 0) note = Join(note, nameOnlyLeft + " name-only match(es) not included (pass include_name_only=true after checking them with find_references).");
-            note = Join(note, apply ? "Files written. " + SelfCheckHint : "Preview only: nothing was written. Call again with apply=true to change the files.");
+            note = Join(note, apply && failures.Count > 0 ? "Nothing was written (see failures); fix them and call again." : apply ? "Files written. " + SelfCheckHint : "Preview only: nothing was written. Call again with apply=true to change the files.");
             payload["note"] = note;
             payload["changes"] = filesJson;
             LB.Info("mcp.rename", null, ("name", oldName), ("newName", newName), ("apply", apply), ("source", refs.Source), ("edits", edits.Count),
@@ -380,22 +397,108 @@ namespace UEToVS.Mcp.Tools
             return new ToolOutput { Payload = payload, ResultCount = edits.Count, Source = refs.Source };
         }
 
-        /// <summary>Applies the edits to one file on disk, keeping its encoding (BOM) and line endings. Each edit checks the old text first.</summary>
-        private static (bool Ok, int Applied, int Skipped, string Error) ApplyToFile(string path, List<TextEdit> edits)
+        /// <summary>v0.9.13 一个准备好要写的文件：新内容的字节已按原编码编好，原字节留着出错时恢复。</summary>
+        private sealed class PlannedWrite
+        {
+            public string Path;
+            public byte[] Original; // null = 新文件
+            public byte[] Updated;
+            public int Applied, Skipped;
+            public bool IsIni;
+        }
+
+        /// <summary>按原编码解码、应用编辑、确认能按原编码无损写回且文件可写。返回 (null, null) 表示内容没变。</summary>
+        private static (PlannedWrite Write, string Error) PlanEdit(string path, List<TextEdit> edits)
         {
             try
             {
                 var bytes = File.ReadAllBytes(path);
-                bool bom = bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF;
-                string text = new UTF8Encoding(false).GetString(bytes, bom ? 3 : 0, bytes.Length - (bom ? 3 : 0));
+                string text = TextFileCodec.Decode(bytes, out var format);
                 string updated = TextEditApplier.Apply(text, edits, out int skipped);
-                if (!string.Equals(updated, text, StringComparison.Ordinal)) File.WriteAllText(path, updated, new UTF8Encoding(bom));
-                return (true, edits.Count - skipped, skipped, null);
+                if (string.Equals(updated, text, StringComparison.Ordinal)) return (null, null);
+                if (!TextFileCodec.TryEncode(updated, format, out var newBytes))
+                    return (null, "新名字里有 " + format.Name + " 编码表示不了的字符，没有改这个文件");
+                if ((File.GetAttributes(path) & FileAttributes.ReadOnly) != 0)
+                    return (null, "文件是只读的（P4 下可能还没签出）：先签出再重命名");
+                return (new PlannedWrite { Path = path, Original = bytes, Updated = newBytes, Applied = edits.Count - skipped, Skipped = skipped }, null);
             }
             catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
             {
-                return (false, 0, edits.Count, ex.Message);
+                return (null, ex.Message);
             }
+        }
+
+        private static (PlannedWrite Write, string Error) PlanRedirect(string ini, string redirectLine)
+        {
+            try
+            {
+                byte[] bytes = File.Exists(ini) ? File.ReadAllBytes(ini) : null;
+                TextFileFormat format = TextFileFormat.Utf8;
+                string text = bytes == null ? string.Empty : TextFileCodec.Decode(bytes, out format);
+                string updated = RenamePlanner.AddRedirects(text, new[] { redirectLine });
+                if (string.Equals(updated, text, StringComparison.Ordinal)) return (null, null);
+                if (!TextFileCodec.TryEncode(updated, format, out var newBytes)) return (null, "Core Redirect 写不进 " + format.Name + " 编码的 ini");
+                if (bytes != null && (File.GetAttributes(ini) & FileAttributes.ReadOnly) != 0)
+                    return (null, "DefaultEngine.ini 是只读的（P4 下可能还没签出）：先签出再重命名");
+                return (new PlannedWrite { Path = ini, Original = bytes, Updated = newBytes, IsIni = true }, null);
+            }
+            catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+            {
+                return (null, ex.Message);
+            }
+        }
+
+        /// <summary>全部写入；中途失败时把已写的恢复原样（新文件删掉），返回原因。</summary>
+        private static string WriteAll(List<PlannedWrite> plan)
+        {
+            var done = new List<PlannedWrite>();
+            foreach (var w in plan)
+            {
+                try
+                {
+                    if (w.Original == null) Directory.CreateDirectory(Path.GetDirectoryName(w.Path));
+                    File.WriteAllBytes(w.Path, w.Updated);
+                    done.Add(w);
+                }
+                catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+                {
+                    foreach (var d in done)
+                    {
+                        try
+                        {
+                            if (d.Original == null) File.Delete(d.Path);
+                            else File.WriteAllBytes(d.Path, d.Original);
+                        }
+                        catch (Exception) { /* 尽力恢复；下面的错误信息会说明 */ }
+                    }
+                    LB.Warn("mcp.rename.rolledBack", "Writing failed; files restored", ex, ("file", w.Path), ("restored", done.Count));
+                    return "写 " + w.Path + " 失败（" + ex.Message + "），已把改过的 " + done.Count + " 个文件恢复原样";
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// 问开着这个解决方案的 VS 哪些文件有未保存的修改（调试控制管道的 files.unsaved）。VS 没开、太旧或关了调试控制时返回空：
+        /// 那时没有编辑器缓冲区会冲突。
+        /// </summary>
+        private async Task<List<string>> UnsavedInVsAsync(List<string> files, CancellationToken ct)
+        {
+            var result = new List<string>();
+            try
+            {
+                var arr = new JsonArray();
+                foreach (var f in files) arr.Add(f);
+                var r = await Debug.CallAsync("files.unsaved", new JsonObject { ["files"] = arr }, 5000, ct).ConfigureAwait(false);
+                if (r["unsaved"] is JsonArray list)
+                    foreach (var n in list)
+                        if (n?.GetValue<string>() is string s) result.Add(s);
+            }
+            catch (ToolException ex)
+            {
+                LB.Debug("mcp.rename.unsavedCheck.skipped", ex.Message);
+            }
+            return result;
         }
 
         private static string KindFamily(SymbolKind k) =>

@@ -163,6 +163,30 @@ namespace UEToVS.Engine.Tests
             Assert.Equal(2, back.AccessorFix.Length);
             Assert.Null(Complete("member.arrow").AccessorFix);
             Assert.Null(Complete("member.sharedapi").AccessorFix); // TSharedPtr has its own API on '.'
+            // v0.9.12: both fixes resolve to a type with members, so the host may apply them while typing
+            Assert.True(resp.AccessorFix.Confident);
+            Assert.True(back.AccessorFix.Confident);
+        }
+
+        [Fact]
+        public void Completion_AccessorFixNotConfidentForUnknownPointee()
+        {
+            // the same '.' on a pointer to a type the index does not know: still fixed on commit, but never while typing
+            var caret = _f.Caret("member.dotfix");
+            var lines = System.IO.File.ReadAllLines(caret.FilePath);
+            string line = lines[caret.Line];
+            int at = line.IndexOf("Health.", StringComparison.Ordinal);
+            Assert.True(at >= 0);
+            lines[caret.Line] = line.Substring(0, at) + "FNoSuchThingAnywhere* Mystery = nullptr; Mystery." + line.Substring(at + "Health.".Length);
+            int column = lines[caret.Line].IndexOf("Mystery.", StringComparison.Ordinal) + "Mystery.".Length;
+            var resp = _f.Service.GetCompletions(new CompletionRequest
+            {
+                Caret = new CaretRequest { FilePath = caret.FilePath, Text = string.Join("\n", lines), TextVersion = 77, Line = caret.Line, Column = column },
+                TriggerChar = '.',
+            }, CancellationToken.None);
+            Assert.NotNull(resp.AccessorFix);
+            Assert.Equal("->", resp.AccessorFix.Replacement);
+            Assert.False(resp.AccessorFix.Confident);
         }
 
         [Fact]

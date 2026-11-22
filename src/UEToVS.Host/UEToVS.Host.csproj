@@ -78,6 +78,8 @@
     <Content Include="Resources\UEToVS.natvis" IncludeInVSIX="true" />
     <!-- v0.4.5 debug step filter: copied to Documents\Visual Studio *\Visualizers by StepFilterDeployer (no VSIX asset type for it) -->
     <Content Include="Resources\UEToVS.natstepfilter" IncludeInVSIX="true" />
+    <!-- v0.9.12 说明符编辑器：和引擎同一份反射说明符知识库（含中文说明），不另抄一份 -->
+    <EmbeddedResource Include="..\UEToVS.Engine.Syntax\Knowledge\UeMacros.json" Link="Resources\UeMacros.json" LogicalName="UEToVS.Host.UeMacros.json" />
     <None Include="Resources\UEToVS.svg" />
     <None Include="Resources\UEToVS16.png" />
     <None Include="Resources\UEToVS32.png" />

@@ -63,7 +63,7 @@ namespace UEToVS.Host.Logic.Settings
 
             // ---- 补全与提示：写代码时弹出来的东西
             new Card(Completion, "代码补全", "Completion", "completion.enabled", "completion.scope", "completion.onIdentifier",
-                     "completion.caseMode", "completion.tolerant", "completion.accessorFix", "completion.maxResults"),
+                     "completion.caseMode", "completion.tolerant", "completion.accessorFix", "completion.accessorFixOnType", "completion.maxResults"),
             new Card(Completion, "悬停信息与参数信息", "Quick Info & parameter info", "quickInfo.enabled", "quickInfo.reflectionTags", "signatureHelp.enabled"),
             new Card(Completion, "内嵌提示", "Inlay hints", "inlay.parameterNames", "inlay.autoTypes", "inlay.codeVision"),
             new Card(Completion, "代码模板", "Templates", "snippets.enabled", "postfix.enabled"),
@@ -79,6 +79,9 @@ namespace UEToVS.Host.Logic.Settings
             // ---- 编辑
             new Card(Editing, "自动保存", "Auto-save", "editor.autoSave", "editor.autoSaveIdleSeconds", "editor.gitTabMarker"),
             new Card(Editing, "引擎代码", "Engine code", "editor.engineReadOnly"),
+            new Card(Editing, "文件编码", "File encoding", "files.encoding", "files.existingEncoding", "files.encodingOnSave"),
+            new Card(Editing, "版本信息", "Version control", "vcs.inlineBlame", "vcs.inlineBlameScope", "vcs.inlineBlameEngine", "vcs.changeBars",
+                     "vcs.historyMaxCommits", "vcs.issueLinks", "vcs.provider"),
             new Card(Editing, "重命名", "Rename", "editor.renameMode"),
             new Card(Editing, "用代码块包围", "Surround With", "editor.surroundWith"),
             new Card(Editing, "剪贴板历史", "Clipboard history", "editor.clipboardHistory", "editor.clipboardHistorySize"),
@@ -106,6 +109,7 @@ namespace UEToVS.Host.Logic.Settings
             new Card(Unreal, "调试", "Debugging", "debug.stepFilter"),
             new Card(Unreal, "全项目检查", "Whole-project inspection", "inspection.enabled", "inspection.includePlugins", "inspection.run", "inspection.results"),
             new Card(Unreal, "引擎升级助手", "Engine upgrade assistant", "upgrade.enabled", "upgrade.run"),
+            new Card(Unreal, "着色器与配置文件", "Shaders and config files", "shaders.intelliSense", "projectFiles.validation"),
 
             // ---- 联合编译（卡片沿用 HordeSettingsSchema 里的分组）
             new Card(HordePage, null, null, "horde.status", "horde.apply", "horde.openConfig", "horde.restore",

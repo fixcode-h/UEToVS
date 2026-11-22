@@ -121,6 +121,23 @@ namespace UEToVS.Host.Navigation
                 VsStatusBar.SetText(FeatureStrings.NoActiveDocument);
                 return;
             }
+            // v0.10：.usf / .ush 不在 C++ 索引里，用着色器的轻量解析
+            if (Shaders.ShaderWorkspace.IsShaderFile(cur.FilePath) && Shaders.ShaderWorkspace.Enabled)
+            {
+                var view = VsEditor.ActiveTextView();
+                var shaderRows = view == null ? new List<SearchRow>() : Shaders.ShaderNavigation.FileStructureRows(view);
+                L.Info("nav.fileStructure", null, ("file", cur.FilePath), ("symbols", shaderRows.Count), ("shader", true));
+                if (shaderRows.Count == 0)
+                {
+                    VsStatusBar.SetText(Logic.Localization.UnrealFileStrings.ShaderFileStructureEmpty);
+                    return;
+                }
+                var shaderPick = await RowPopups.ShowAsync("uetovs.fileStructure", FeatureStrings.FileStructureTitle(Path.GetFileName(cur.FilePath)), shaderRows, true,
+                                                           new System.Windows.Size(560, 520));
+                if (shaderPick.Chosen && shaderPick.Item != null)
+                    NavigationService.Instance.JumpTo(shaderPick.Item.FilePath, shaderPick.Item.Line, shaderPick.Item.Column, JumpReasons.FileStructure);
+                return;
+            }
             var symbols = await EngineQueries.GetFileSymbolsAsync(package.Engine, cur.FilePath, package.DisposalToken);
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
             if (symbols == null)

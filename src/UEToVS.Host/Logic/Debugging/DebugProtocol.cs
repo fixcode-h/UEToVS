@@ -34,6 +34,12 @@ namespace UEToVS.Host.Logic.Debugging
         /// </summary>
         public const string SolutionOpen = "solution.open";
 
+        /// <summary>
+        /// v0.9.13：给 MCP 的 rename_symbol 用，问这些文件在 VS 里有没有未保存的修改（有就不直接写磁盘，免得和编辑器缓冲区冲突）。
+        /// 只读，Agent 面板不用它。args.files = 路径数组；result.unsaved = 其中有未保存修改的路径。
+        /// </summary>
+        public const string FilesUnsaved = "files.unsaved";
+
         // breakpoints
         public const string BpList = "bp.list", BpAdd = "bp.add", BpRemove = "bp.remove", BpEnable = "bp.enable", BpClear = "bp.clear";
 
@@ -48,7 +54,7 @@ namespace UEToVS.Host.Logic.Debugging
 
         public static readonly IReadOnlyList<string> Ops = new[]
         {
-            Status, Start, Stop, Restart, Attach, Build, Pause, Continue, Step, Wait, SolutionOpen,
+            Status, Start, Stop, Restart, Attach, Build, Pause, Continue, Step, Wait, SolutionOpen, FilesUnsaved,
             BpList, BpAdd, BpRemove, BpEnable, BpClear,
             Stack, Threads, Locals, Eval, Output, Dump,
         };

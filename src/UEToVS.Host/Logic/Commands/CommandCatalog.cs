@@ -44,7 +44,7 @@ namespace UEToVS.Host.Logic.Commands
         public string DescriptionEn { get; set; }
         /// <summary>
         /// One of <see cref="CommandCatalog.Groups"/> ("search" | "navigation" | "history" | "bookmarks" | "refactor" | "generate" |
-        /// "editing" | "unreal" | "build" | "tools" | "diagnostics"): the same categories as the Extensions &gt; UEToVS submenus,
+        /// "editing" | "vcs" | "unreal" | "build" | "tools" | "diagnostics"): the same categories as the Extensions &gt; UEToVS submenus,
         /// used by the keymap page and Find Action.
         /// </summary>
         public string Group { get; set; }
@@ -132,12 +132,26 @@ namespace UEToVS.Host.Logic.Commands
         public const int PasteFromHistory = 0x0183;
         /// <summary>v0.9.4 引擎代码只读：当前引擎文件 启用编辑 / 恢复只读（Editing/EngineReadOnlyFeature.cs）。</summary>
         public const int ToggleEngineReadOnly = 0x0184;
+        // ---- v0.9.12 写代码辅助 (0x01C0–0x01CF): Editing/SpecifierEditorFeature.cs
+        /// <summary>UPROPERTY / UFUNCTION / UCLASS / USTRUCT 说明符编辑器。</summary>
+        public const int EditSpecifiers = 0x01C0;
         // ---- v0.4.5 heavy features (0x01A0–0x01AF): Inspection/HeavyFeatureActions.cs
         public const int RunProjectInspection = 0x01A0;
         public const int ShowInspectionResults = 0x01A1;
         public const int RunUpgradeAssistant = 0x01A2;
         public const int ShowUpgradeResults = 0x01A3;
         public const int CancelHeavyJob = 0x01A4;
+        // ---- v0.10 模块依赖图 (0x01D0–0x01DF): Unreal/ModuleGraphFeature.cs
+        public const int ShowModuleGraph = 0x01D0;
+        // ---- 版本信息（Git / Perforce 只读，0x01B0–0x01BF）：Vcs/VcsActions.cs
+        public const int ToggleInlineBlame = 0x01B0;
+        public const int ToggleBlameGutter = 0x01B1;
+        public const int NextChange = 0x01B2;
+        public const int PreviousChange = 0x01B3;
+        public const int ShowChangeAtCaret = 0x01B4;
+        public const int CompareWithBase = 0x01B5;
+        public const int SelectionHistory = 0x01B6;
+        public const int FunctionHistory = 0x01B7;
 
         // ---- M2 navigation (0x0200–0x02FF): Navigation/NavigationActions.cs
         public const int GoToDefinition = 0x0200;
@@ -256,6 +270,15 @@ namespace UEToVS.Host.Logic.Commands
             public const string GenerateReplication = "uetovs.generate.replication";
             public const string GenerateRpc = "uetovs.generate.rpc";
             public const string TranslateSelection = "uetovs.translate.selection";
+            // ---- 版本信息（mirror of Logic/Localization/VcsStrings.VcsIds）
+            public const string VcsToggleInlineBlame = "uetovs.vcs.toggleInlineBlame";
+            public const string VcsToggleBlameGutter = "uetovs.vcs.toggleBlameGutter";
+            public const string VcsNextChange = "uetovs.vcs.nextChange";
+            public const string VcsPreviousChange = "uetovs.vcs.previousChange";
+            public const string VcsShowChange = "uetovs.vcs.showChange";
+            public const string VcsCompareWithBase = "uetovs.vcs.compareWithBase";
+            public const string VcsSelectionHistory = "uetovs.vcs.selectionHistory";
+            public const string VcsFunctionHistory = "uetovs.vcs.functionHistory";
         }
 
         private static CommandInfo C(CommandOwner owner, int id, string name, string action, string zh, string en, string group, CommandScope scope,
@@ -387,8 +410,28 @@ namespace UEToVS.Host.Logic.Commands
               "在代码里显示或隐藏参数名、推导类型等灰色小字", "Show or hide the grey parameter-name and type hints inside the code"),
             C(H, ToggleEngineReadOnly, "ToggleEngineReadOnly", "uetovs.edit.toggleEngineReadOnly", "引擎文件：启用编辑 / 恢复只读", "Engine File: Enable Editing / Make Read-Only", "editing", Ed, "Ctrl+Shift+Alt+U, E", null, null,
               "引擎目录下的文件默认只读；对当前文件启用编辑，再按一次恢复只读", "Engine files open read-only; enable editing for the current file, press again to lock it"),
+            C(H, EditSpecifiers, "EditSpecifiers", "uetovs.edit.specifiers", "编辑反射说明符…", "Edit Reflection Specifiers...", "editing", Ed, "Ctrl+Shift+Alt+U, Shift+S", null, null,
+              "光标在 UPROPERTY / UFUNCTION / UCLASS / USTRUCT 上时，用勾选方式编辑说明符和 meta（带说明和冲突提示）", "With the caret on a UPROPERTY / UFUNCTION / UCLASS / USTRUCT, edit its specifiers and meta by checking boxes (with descriptions and conflict hints)"),
             C(H, TranslateSelection, "TranslateSelection", "uetovs.translate.selection", "翻译选中内容", "Translate Selection", "editing", Gl, "Ctrl+Shift+Alt+U, T", null, null,
               "翻译选中的注释或文字，结果在弹窗里显示", "Translate the selected comment or text and show the result in a popup"),
+
+            // ---- 版本信息（Git / Perforce 只读；VS 自带的提交、分支、追溯不动）
+            C(H, ToggleInlineBlame, "ToggleInlineBlame", ActionIds.VcsToggleInlineBlame, "显示 / 隐藏行尾追溯", "Show / Hide Inline Blame", "vcs", Ed, "Ctrl+Shift+Alt+U, J", null, null,
+              "在光标所在行行尾显示或隐藏“作者 · 多久前 · 提交说明”", "Show or hide \"author · when · commit summary\" at the end of the caret line"),
+            C(H, ToggleBlameGutter, "ToggleBlameGutter", ActionIds.VcsToggleBlameGutter, "显示 / 隐藏追溯栏", "Show / Hide Blame Gutter", "vcs", Ed, "Ctrl+Shift+Alt+U, O", null, null,
+              "在编辑器左侧列出每行的作者和日期，同一提交同色、越新越亮，点一行看提交详情", "List each line's author and date on the left, coloured per commit (newer is brighter); click a line for the commit"),
+            C(H, NextChange, "NextChange", ActionIds.VcsNextChange, "下一处改动", "Next Change", "vcs", Ed, "Ctrl+Shift+Alt+U, Down Arrow", "Ctrl+Shift+Alt+Down Arrow", null,
+              "跳到下一块和 HEAD（Perforce 为 #have）不同的代码", "Jump to the next block that differs from HEAD (Perforce: #have)"),
+            C(H, PreviousChange, "PreviousChange", ActionIds.VcsPreviousChange, "上一处改动", "Previous Change", "vcs", Ed, "Ctrl+Shift+Alt+U, Up Arrow", "Ctrl+Shift+Alt+Up Arrow", null,
+              "跳到上一块和 HEAD（Perforce 为 #have）不同的代码", "Jump to the previous block that differs from HEAD (Perforce: #have)"),
+            C(H, ShowChangeAtCaret, "ShowChangeAtCaret", ActionIds.VcsShowChange, "查看光标处的改动…", "Show Change at Caret...", "vcs", Ed, "Ctrl+Shift+Alt+U, Z", null, null,
+              "弹出光标所在改动块的旧内容，可回滚这一块或复制旧内容（和点色条一样）", "Show the old text of the change at the caret to roll it back or copy it (same as clicking the bar)"),
+            C(H, CompareWithBase, "CompareWithBase", ActionIds.VcsCompareWithBase, "和 HEAD / #have 比较", "Compare with HEAD / #have", "vcs", Ed, "Ctrl+Shift+Alt+U, 0", null, null,
+              "在 VS 的比较窗口里打开当前文件和 HEAD（Perforce 为 #have）版本的差异", "Open VS's diff window between the current file and HEAD (Perforce: #have)"),
+            C(H, SelectionHistory, "SelectionHistory", ActionIds.VcsSelectionHistory, "查看选中部分的历史…", "Show History for Selection...", "vcs", Ed, "Ctrl+Shift+Alt+U, 4", null, null,
+              "列出改过选中这几行的提交（git log -L），选一个看那次的 diff", "List the commits that changed the selected lines (git log -L) and open one's diff"),
+            C(H, FunctionHistory, "FunctionHistory", ActionIds.VcsFunctionHistory, "查看此函数的历史…", "Show History for Function...", "vcs", Ed, "Ctrl+Shift+Alt+U, 5", null, null,
+              "列出改过光标所在函数的提交，函数范围来自 UEToVS 的代码索引", "List the commits that changed the function at the caret (range from the UEToVS index)"),
 
             // ---- Unreal Engine
             C(M1, GenerateProjectFiles, "GenerateProjectFiles", ActionIds.GenerateProjectFiles, "生成 VS 项目文件", "Generate Visual Studio Project Files", "unreal", Gl, "Ctrl+Shift+Alt+U, G", null, null,
@@ -399,6 +442,9 @@ namespace UEToVS.Host.Logic.Commands
               "打开当前文件所在模块的 .Build.cs", "Open the .Build.cs of the module the current file belongs to"),
             C(M1, AddModuleDependency, "AddModuleDependency", ActionIds.AddModuleDependency, "为 #include 添加模块依赖", "Add Module Dependency for #include", "unreal", Gl, "Ctrl+Shift+Alt+U, A", null, null,
               "把光标处 #include 的头文件所在模块加进 Build.cs 的依赖", "Add the module of the #include at the caret to the dependencies in Build.cs"),
+            C(H, ShowModuleGraph, "ShowModuleGraph", "uetovs.unreal.moduleGraph", "模块依赖图…", "Module Dependency Graph...", "unreal", Gl, "Ctrl+Shift+Alt+U, Shift+B", null, null,
+              "查看当前模块或全项目的 Build.cs 依赖（树和图），标出循环依赖、Public 头用到 Private 依赖、可能没用到的依赖",
+              "See the Build.cs dependencies of the current module or the whole project (tree and graph), with cycles, Private dependencies used by Public headers and possibly unused ones"),
             // heavy features (each behind a plugin switch in Settings > Inspections / IntelliSense)
             C(H, RunProjectInspection, "RunProjectInspection", "uetovs.inspection.run", "检查整个项目（UE 规则）", "Inspect Whole Project (UE Rules)", "unreal", Gl, "Ctrl+Shift+Alt+U, 6", null, null,
               "在后台按 UE 编码规则检查整个项目，项目大时要几分钟", "Check the whole project against the UE rules in the background (minutes on big projects)"),
@@ -461,7 +507,7 @@ namespace UEToVS.Host.Logic.Commands
         /// <summary>Groups in menu order (Extensions &gt; UEToVS submenus, keymap page sections).</summary>
         public static IReadOnlyList<string> Groups { get; } = new[]
         {
-            "search", "navigation", "history", "bookmarks", "refactor", "generate", "editing", "unreal", "build", "tools", "diagnostics",
+            "search", "navigation", "history", "bookmarks", "refactor", "generate", "editing", "vcs", "unreal", "build", "tools", "diagnostics",
         };
 
         /// <summary>Display name of a group; the same words as the submenu in the VSCT.</summary>
@@ -476,6 +522,7 @@ namespace UEToVS.Host.Logic.Commands
                 case "refactor": return english ? "Refactor" : "重构";
                 case "generate": return english ? "Generate Code" : "生成代码";
                 case "editing": return english ? "Editing" : "编辑";
+                case "vcs": return english ? "Version Control" : "版本管理";
                 case "unreal": return "Unreal Engine";
                 case "build": return english ? "Build" : "编译";
                 case "tools": return english ? "Tools" : "工具";

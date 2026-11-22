@@ -237,7 +237,15 @@ namespace UEToVS.Host.Unreal
                 try
                 {
                     var doc = VsEditor.FindOpenDocument(buildCs);
-                    string text = doc != null ? VsEditor.ReadDocument(doc) : File.ReadAllText(buildCs);
+                    // v0.9.13: 没打开时也先让版本管理签出（P4 下 Build.cs 默认只读），再按原编码写回
+                    string problem = doc == null ? UEToVS.Host.Files.HostFileWriter.PrepareEdit(new[] { buildCs }) : null;
+                    if (problem != null)
+                    {
+                        L.Warn("buildcs.apply.blocked", problem, null, ("buildCs", buildCs));
+                        VsStatusBar.SetText(problem);
+                        continue;
+                    }
+                    string text = doc != null ? VsEditor.ReadDocument(doc) : UEToVS.Core.Text.TextFileCodec.ReadFile(buildCs, out _);
                     var (newText, added) = IncludeDependencyChecker.ApplyToText(buildCs, text, group.Select(m => m.Module), isPublic);
                     if (added.Count == 0) continue;
                     if (doc != null)
@@ -245,7 +253,15 @@ namespace UEToVS.Host.Unreal
                         VsEditor.WriteDocument(doc, newText);
                         doc.Save();
                     }
-                    else File.WriteAllText(buildCs, newText);
+                    else
+                    {
+                        problem = UEToVS.Host.Files.HostFileWriter.RewriteExisting(buildCs, _ => newText);
+                        if (problem != null)
+                        {
+                            VsStatusBar.SetText(problem);
+                            continue;
+                        }
+                    }
                     L.Info("buildcs.applied", null, ("buildCs", buildCs), ("added", added.ToArray()), ("public", isPublic));
                     VsStatusBar.SetText(FeatureStrings.DependencyAdded(string.Join(", ", added), Path.GetFileName(buildCs)));
                 }

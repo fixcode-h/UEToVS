@@ -209,8 +209,7 @@ namespace UEToVS.Host.Refactoring
             {
                 try
                 {
-                    Directory.CreateDirectory(Path.GetDirectoryName(ini));
-                    File.WriteAllText(ini, iniWrittenNew);
+                    UEToVS.Host.Files.HostFileWriter.WriteNew(ini, iniWrittenNew); // v0.9.13 默认编码
                 }
                 catch (Exception ex)
                 {
@@ -220,6 +219,7 @@ namespace UEToVS.Host.Refactoring
             }
 
             int renamedFiles = 0;
+            _renamedOutsideVcs = 0;
             if (result.Ok && newBase != null && !string.Equals(oldBase, newBase, StringComparison.Ordinal))
             {
                 foreach (var f in new[] { header, cpp })
@@ -239,6 +239,12 @@ namespace UEToVS.Host.Refactoring
             if (result.Skipped > 0) messages.Add(RefactorStrings.RenameSkipped(result.Skipped));
             if (redirectLines.Count > 0 && ini != null) messages.Add(RefactorStrings.RedirectsWritten(ini));
             if (renamedFiles > 0) messages.Add(RefactorStrings.FilesRenamedRegenerate);
+            if (_renamedOutsideVcs > 0)
+            {
+                L.Warn("refactor.rename.file.outsideVcs", "Read-only files were renamed on disk without source control", null, ("count", _renamedOutsideVcs));
+                messages.Add(UEToVS.Core.Localization.Loc.T("有只读文件是直接在磁盘上改名的，版本管理（P4）不知道，请在 P4V 里对它们做 move / 补 add",
+                    "Some read-only files were renamed on disk only; source control (P4) does not know: move / add them in P4V"));
+            }
             VsStatusBar.SetText(string.Join("  ", messages));
         }
 
@@ -253,6 +259,8 @@ namespace UEToVS.Host.Refactoring
         private static string RenamedFileBase(string header, string oldName, string newName) => RenamePlanner.RenamedFileBase(header, oldName, newName);
 
         /// <summary>Renames through the VS project (keeps the project item and an open document) and falls back to the file system.</summary>
+        private static int _renamedOutsideVcs;
+
         private static bool RenameFile(string from, string to)
         {
             ThreadHelper.ThrowIfNotOnUIThread();
@@ -275,6 +283,8 @@ namespace UEToVS.Host.Refactoring
             {
                 try
                 {
+                    // v0.9.13: 没走项目项改名时版本管理（P4VS 等）不知道这次改名；只读文件多半是 P4 里没签出的，提醒用户在 P4V 里补 move
+                    if ((File.GetAttributes(from) & FileAttributes.ReadOnly) != 0) _renamedOutsideVcs++;
                     File.Move(from, to);
                     ok = true;
                 }

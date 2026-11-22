@@ -65,6 +65,7 @@ VS 自带的 C++ IntelliSense（EDG 前端 + 浏览数据库）在 UE 工程上�
 | 给 VS 自带功能减负 | 关掉 VS 在 UE 大工程上代价过高的后台功能；没有等价替代的要在说明里写清楚 |
 | MCP | 以只读查询索引为主；写操作只有已有的 `rename_symbol`（先预览、再 `apply=true`）和下面的 VS 调试控制，不再新增别的写操作 |
 | 驱动 VS 自带的调试器（v0.8.0，2026-11-16 用户定） | 让 Agent 通过 VS 的自动化接口启停、附加、编译、下断点、单步、读栈和变量、求表达式、读调试输出（`debug_*` MCP 工具，Agent 面板的 `ue_vs_*`）。只开放 VS 已有的能力，不做调试器本体，见 [VS-调试控制.md](VS-调试控制.md) |
+| 编辑器内的版本信息（v0.10.0，2026-11-22 用户定） | Git 和 Perforce 的行尾追溯、改动色条和改动块（可回滚这一块）、追溯栏、文件 / 选中代码 / 函数历史，只读、按需计算，数据来自 `git` / `p4` 命令行；UEToVS 自己改写文件时走 VS 的签出流程（配合 P4VS）、按设置选文件编码。不做提交等仓库操作，见下表 |
 
 **边界外（不做）**
 
@@ -74,7 +75,8 @@ VS 自带的 C++ IntelliSense（EDG 前端 + 浏览数据库）在 UE 工程上�
 | 自动化测试运行器、UE 日志窗口 | VS 自带的 Unreal Engine 集成、UE 编辑器 |
 | 构建系统、调试器本体、调试可视化（natvis）、自己的变量 / 调用栈窗口 | VS + UBT、引擎自带 natvis（UEToVS 只把 VS 调试器开放给 Agent，见上） |
 | 资产 / 蓝图编辑 | UE 编辑器 |
-| 代码格式化、拼写检查、模块 / 插件新建向导 | VS 自带 |
+| 代码格式化、拼写检查（VS 2022 17.5 起自带，含 C++ 注释）、模块 / 插件新建向导 | VS 自带 |
+| 提交、分支、合并、暂存、变更列表、搁置等仓库操作，VS 源代码管理提供程序 | VS 自带的 Git、Perforce 官方的 P4VS / P4V |
 | 新增 MCP 写操作（`rename_symbol` 和 VS 调试控制之外） | Agent 自己的写文件能力 |
 | Lua 的一切（索引、查找、补全、跳转、调试；v0.9.0 起移除，2026-11-17 用户定） | IntelliJ IDEA 的 IntelliJ-EmmyLua 插件：Lua 查找走 IDE 自带 MCP 服务器里的 `lua_code` 工具，调试走 `lua_debug_*`。UEToVS 不再生成 Lua 索引，旧工具名 `search_lua` / `search_lua_files` / `get_lua_outline` 保留一版，调用返回 `tool_removed` |
 
@@ -222,6 +224,8 @@ Rider 在 UE 上的优势主要不在“能做什么”，而在“怎么做”�
 
 ## 4. 功能规划：三档清单
 
+> 状态列 2026-11-22 按 v0.10.0 刷新了 P0 表；P1 / P2 已做的有：Alt+Enter 中枢、Generate、Inline Rename、Code Vision、Inlay Hints、Postfix、调用层次、Smart Select、多重剪贴板、Hashtags、命名规范、Ini / .uproject / .uplugin 补全校验、蓝图用法、UHT 规则、网络复制检查、委托绑定、GameplayTags、配置联动、日志分类、模块依赖图、引擎升级助手、生成代码预览、MCP。注释拼写检查不做（VS 自带）。
+
 图例：
 - **P0 必须开发**：对标 VA 的核心能力，缺了就无法替代 VA。
 - **P1 优秀可选**：VA 或 Rider 有、价值高，但可以后置。
@@ -256,8 +260,8 @@ Rider 在 UE 上的优势主要不在“能做什么”，而在“怎么做”�
 | Quick Info（签名、注释、反射说明符） | VA | L1 | ✅ |
 | 悬停宏展开（含 UE 宏） | VA 2025.3+ | L1，精确模式 L2 | ✅ |
 | 参数信息（Signature Help） | VA | L1 | ✅ |
-| `.` ↔ `->` 自动纠正 | VA | L1 | ⬜ |
-| Add Include（UE 引号风格、Public/Private 路径） + 自动补 Build.cs 依赖 | VA Add Include；Rider | L0/L1 | 🔶（依赖修复已有） |
+| `.` ↔ `->` 自动纠正 | VA | L1 | ✅（v0.10.0 输入即纠正） |
+| Add Include（UE 引号风格、Public/Private 路径） + 自动补 Build.cs 依赖 | VA Add Include；Rider | L0/L1 | ✅ |
 | 未知符号快速红线（高置信度才报） | VA | L1 | ✅ |
 
 #### 重构与代码生成
@@ -281,10 +285,10 @@ Rider 在 UE 上的优势主要不在“能做什么”，而在“怎么做”�
 | UE 宏正确解析（UCLASS / USTRUCT / UENUM / UINTERFACE / UFUNCTION / UPROPERTY / GENERATED_BODY / DECLARE_*_DELEGATE*） | VA | L1 | 🔶（声明级已有） |
 | 不依赖 `.generated.h`（内置 GENERATED_BODY 语义模型） | VA 2021.2 | L1 | 🔶 |
 | 只解析启用的插件与引用模块 | VA 2021.2 | L0 | 🔶 |
-| `CreateDefaultSubobject<T>` 等模板工厂的类型推导 | VA 2024.1 | L1 | ⬜ |
+| `CreateDefaultSubobject<T>` 等模板工厂的类型推导 | VA 2024.1 | L1 | ✅ |
 | 反射说明符补全与文档（UPROPERTY/UFUNCTION/UCLASS/USTRUCT/meta） | Rider | L0 + 知识库 | ✅ |
 | Build.cs 模块依赖检查与修复 | Rider | L0 | ✅ |
-| HLSL / USF / USH 着色、导航、补全 | VA | 独立轻量解析 | 🔶（词法着色 + #include 跳转） |
+| HLSL / USF / USH 着色、导航、补全 | VA | 独立轻量解析 | ✅（v0.10.0） |
 | 生成工程文件 | — | — | ✅（Live Coding 触发需连编辑器，v0.7.0 移除） |
 
 #### 基础设施（不面向用户，但 P0）
