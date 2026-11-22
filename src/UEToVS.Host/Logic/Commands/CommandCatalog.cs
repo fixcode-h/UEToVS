@@ -138,6 +138,8 @@ namespace UEToVS.Host.Logic.Commands
         public const int RunUpgradeAssistant = 0x01A2;
         public const int ShowUpgradeResults = 0x01A3;
         public const int CancelHeavyJob = 0x01A4;
+        // ---- v0.10 模块依赖图 (0x01D0–0x01DF): Unreal/ModuleGraphFeature.cs
+        public const int ShowModuleGraph = 0x01D0;
 
         // ---- M2 navigation (0x0200–0x02FF): Navigation/NavigationActions.cs
         public const int GoToDefinition = 0x0200;
@@ -399,6 +401,9 @@ namespace UEToVS.Host.Logic.Commands
               "打开当前文件所在模块的 .Build.cs", "Open the .Build.cs of the module the current file belongs to"),
             C(M1, AddModuleDependency, "AddModuleDependency", ActionIds.AddModuleDependency, "为 #include 添加模块依赖", "Add Module Dependency for #include", "unreal", Gl, "Ctrl+Shift+Alt+U, A", null, null,
               "把光标处 #include 的头文件所在模块加进 Build.cs 的依赖", "Add the module of the #include at the caret to the dependencies in Build.cs"),
+            C(H, ShowModuleGraph, "ShowModuleGraph", "uetovs.unreal.moduleGraph", "模块依赖图…", "Module Dependency Graph...", "unreal", Gl, "Ctrl+Shift+Alt+U, Shift+B", null, null,
+              "查看当前模块或全项目的 Build.cs 依赖（树和图），标出循环依赖、Public 头用到 Private 依赖、可能没用到的依赖",
+              "See the Build.cs dependencies of the current module or the whole project (tree and graph), with cycles, Private dependencies used by Public headers and possibly unused ones"),
             // heavy features (each behind a plugin switch in Settings > Inspections / IntelliSense)
             C(H, RunProjectInspection, "RunProjectInspection", "uetovs.inspection.run", "检查整个项目（UE 规则）", "Inspect Whole Project (UE Rules)", "unreal", Gl, "Ctrl+Shift+Alt+U, 6", null, null,
               "在后台按 UE 编码规则检查整个项目，项目大时要几分钟", "Check the whole project against the UE rules in the background (minutes on big projects)"),

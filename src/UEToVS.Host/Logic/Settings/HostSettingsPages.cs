@@ -105,6 +105,7 @@ namespace UEToVS.Host.Logic.Settings
             new Card(Unreal, "调试", "Debugging", "debug.stepFilter"),
             new Card(Unreal, "全项目检查", "Whole-project inspection", "inspection.enabled", "inspection.includePlugins", "inspection.run", "inspection.results"),
             new Card(Unreal, "引擎升级助手", "Engine upgrade assistant", "upgrade.enabled", "upgrade.run"),
+            new Card(Unreal, "着色器与配置文件", "Shaders and config files", "shaders.intelliSense", "projectFiles.validation"),
 
             // ---- 联合编译（卡片沿用 HordeSettingsSchema 里的分组）
             new Card(HordePage, null, null, "horde.status", "horde.apply", "horde.openConfig", "horde.restore",

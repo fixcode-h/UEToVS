@@ -1225,6 +1225,17 @@
           <LocCanonicalName>UEToVS.CancelHeavyJob</LocCanonicalName>
         </Strings>
       </Button>
+      <!-- ===== v0.10 模块依赖图 (0x01D0-0x01DF): Unreal/ModuleGraphFeature.cs ===== -->
+      <Button guid="guidUEToVSHostCmdSet" id="cmdShowModuleGraph" priority="0x0060" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpUnrealInspect" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <CommandFlag>DefaultDisabled</CommandFlag>
+        <Strings>
+          <ButtonText>Module Dependency Graph...</ButtonText>
+          <CanonicalName>UEToVS.ShowModuleGraph</CanonicalName>
+          <LocCanonicalName>UEToVS.ShowModuleGraph</LocCanonicalName>
+        </Strings>
+      </Button>
     </Buttons>
 
     <Bitmaps>
@@ -1365,6 +1376,8 @@
     <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdRunUpgradeAssistant" editor="guidVSStd97" key1="U" mod1="Control Shift Alt" key2="8" />
     <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdShowUpgradeResults" editor="guidVSStd97" key1="U" mod1="Control Shift Alt" key2="9" />
     <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdCancelHeavyJob" editor="guidVSStd97" key1="U" mod1="Control Shift Alt" key2="U" />
+    <!-- v0.10 模块依赖图 -->
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdShowModuleGraph" editor="guidVSStd97" key1="U" mod1="Control Shift Alt" key2="B" mod2="Shift" />
   </KeyBindings>
 
   <Symbols>
@@ -1543,6 +1556,8 @@
       <IDSymbol name="cmdRunUpgradeAssistant" value="0x01A2" />
       <IDSymbol name="cmdShowUpgradeResults" value="0x01A3" />
       <IDSymbol name="cmdCancelHeavyJob" value="0x01A4" />
+      <!-- v0.10 模块依赖图 (Unreal/ModuleGraphFeature.cs) -->
+      <IDSymbol name="cmdShowModuleGraph" value="0x01D0" />
     </GuidSymbol>
   </Symbols>
 </CommandTable>

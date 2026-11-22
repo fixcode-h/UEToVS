@@ -422,6 +422,13 @@ namespace UEToVS.Host.Logic.Settings
         /// <summary>UnrealBuildAccelerator/StoreCapacityGb; 0 = not written.</summary>
         public int HordeStoreCapacityGb { get; set; }
 
+        // ---- v0.10 着色器与配置文件（rows: Logic/Settings/UnrealFileSettings.cs）----
+        /// <summary>.usf / .ush：HLSL 补全、悬停、#include 虚拟路径补全、转到定义和文件结构。</summary>
+        public bool ShaderIntelliSense { get; set; } = true;
+
+        /// <summary>ini / .uproject / .uplugin 的校验波浪线（补全不受影响）。</summary>
+        public bool ConfigFileValidation { get; set; } = true;
+
         public HostSettings Clone() => (HostSettings)MemberwiseClone();
     }
 }
