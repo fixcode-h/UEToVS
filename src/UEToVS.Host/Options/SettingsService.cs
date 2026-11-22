@@ -167,6 +167,7 @@ namespace UEToVS.Host.Options
             UEToVS.Host.Logic.Settings.FileEncodingSettings.Describe(s, d); // v0.9.13 文件编码
             UEToVS.Host.Logic.Settings.CodingAssistSettings.Describe(s, d); // v0.9.12 写代码辅助
             UEToVS.Host.Logic.Settings.UnrealFileSettings.Describe(s, d); // v0.10 着色器与配置文件
+            UEToVS.Host.Logic.Settings.VcsSettings.Describe(s, d); // 版本信息
             UEToVS.Host.Logic.Horde.HordeSettingsSchema.Describe(s, d); // v0.5.4 联合编译
             return Sanitizer.MaskSecrets(d);
         }

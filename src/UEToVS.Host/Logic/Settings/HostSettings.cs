@@ -339,6 +339,28 @@ namespace UEToVS.Host.Logic.Settings
         /// </summary>
         public bool EngineReadOnly { get; set; } = true;
 
+        // ---- 版本信息（Git / Perforce 只读；rows: Logic/Settings/VcsSettings.cs）----
+        /// <summary>G1 行尾追溯：光标所在行行尾灰字“作者 · 多久前 · 提交说明”。</summary>
+        public bool VcsInlineBlame { get; set; } = true;
+
+        /// <summary>行尾追溯只在当前行，或屏幕上所有行。</summary>
+        public UEToVS.Host.Logic.Vcs.InlineBlameScope VcsInlineBlameScope { get; set; } = UEToVS.Host.Logic.Vcs.InlineBlameScope.CurrentLine;
+
+        /// <summary>引擎文件（Engine\ 下）也自动做行尾追溯；默认关（引擎大文件追溯一次可能几秒）。</summary>
+        public bool VcsInlineBlameEngine { get; set; }
+
+        /// <summary>G2 行号旁改动色条（对比 HEAD / #have）。</summary>
+        public bool VcsChangeBars { get; set; } = true;
+
+        /// <summary>G5 选中部分 / 函数历史最多看多少次提交。</summary>
+        public int VcsHistoryMaxCommits { get; set; } = 500;
+
+        /// <summary>G6 提交说明里的链接："正则 => URL; …"。</summary>
+        public string VcsIssueLinks { get; set; } = string.Empty;
+
+        /// <summary>用哪种版本管理：自动（最近一层）/ 仅 Git / 仅 Perforce / 关闭。</summary>
+        public UEToVS.Host.Logic.Vcs.VcsProviderChoice VcsProvider { get; set; } = UEToVS.Host.Logic.Vcs.VcsProviderChoice.Auto;
+
         // ---- 字体（设置 > 外观 > 字体；值见 UEToVS.UI.Logic.FontChoice，VS 类别见 Logic/Fonts/VsFontCategories）----
         /// <summary>英文字体: Latin part of the UEToVS UI font ("bundled:IBM Plex Sans", "vs" or an installed family).</summary>
         public string UiLatinFont { get; set; } = UEToVS.UI.Logic.FontSettings.DefaultUiLatin.ToString();

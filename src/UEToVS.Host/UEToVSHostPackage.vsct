@@ -92,6 +92,23 @@
           <ButtonText>Editing</ButtonText>
         </Strings>
       </Menu>
+      <!-- 版本信息（Git / Perforce 只读）：Extensions > UEToVS > 版本管理，以及编辑器右键 > UEToVS 版本管理（同样三组命令，CommandPlacements） -->
+      <Menu guid="guidUEToVSHostCmdSet" id="menuVcs" priority="0x0075" type="Menu">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpMenuSubmenus" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>Version Control</ButtonText>
+        </Strings>
+      </Menu>
+      <Menu guid="guidUEToVSHostCmdSet" id="menuVcsContext" priority="0x0100" type="Menu">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpCodeWinVcs" />
+        <CommandFlag>DynamicVisibility</CommandFlag>
+        <CommandFlag>DefaultInvisible</CommandFlag>
+        <CommandFlag>TextChanges</CommandFlag>
+        <Strings>
+          <ButtonText>UEToVS Version Control</ButtonText>
+        </Strings>
+      </Menu>
       <Menu guid="guidUEToVSHostCmdSet" id="menuUnreal" priority="0x0080" type="Menu">
         <Parent guid="guidUEToVSHostCmdSet" id="grpMenuSubmenus" />
         <CommandFlag>TextChanges</CommandFlag>
@@ -209,6 +226,18 @@
         <Parent guid="guidUEToVSHostCmdSet" id="menuBuild" />
       </Group>
       <!-- Editor right-click > UEToVS: [Context Actions, Rename] [navigation] [Refactor ▸, Generate Code ▸] -->
+      <Group guid="guidUEToVSHostCmdSet" id="grpVcsBlame" priority="0x0010">
+        <Parent guid="guidUEToVSHostCmdSet" id="menuVcs" />
+      </Group>
+      <Group guid="guidUEToVSHostCmdSet" id="grpVcsChanges" priority="0x0020">
+        <Parent guid="guidUEToVSHostCmdSet" id="menuVcs" />
+      </Group>
+      <Group guid="guidUEToVSHostCmdSet" id="grpVcsHistory" priority="0x0030">
+        <Parent guid="guidUEToVSHostCmdSet" id="menuVcs" />
+      </Group>
+      <Group guid="guidUEToVSHostCmdSet" id="grpCodeWinVcs" priority="0x0101">
+        <Parent guid="guidSHLMainMenu" id="IDM_VS_CTXT_CODEWIN" />
+      </Group>
       <Group guid="guidUEToVSHostCmdSet" id="grpCodeWinUEToVS" priority="0x0100">
         <Parent guid="guidSHLMainMenu" id="IDM_VS_CTXT_CODEWIN" />
       </Group>
@@ -1185,6 +1214,87 @@
           <LocCanonicalName>UEToVS.PasteFromHistory</LocCanonicalName>
         </Strings>
       </Button>
+      <!-- ===== 版本信息 (0x01B0-0x01BF): Vcs/VcsActions.cs ===== -->
+      <Button guid="guidUEToVSHostCmdSet" id="cmdToggleInlineBlame" priority="0x0010" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpVcsBlame" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <CommandFlag>DefaultDisabled</CommandFlag>
+        <Strings>
+          <ButtonText>Show / Hide Inline Blame</ButtonText>
+          <CanonicalName>UEToVS.ToggleInlineBlame</CanonicalName>
+          <LocCanonicalName>UEToVS.ToggleInlineBlame</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdToggleBlameGutter" priority="0x0020" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpVcsBlame" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <CommandFlag>DefaultDisabled</CommandFlag>
+        <Strings>
+          <ButtonText>Show / Hide Blame Gutter</ButtonText>
+          <CanonicalName>UEToVS.ToggleBlameGutter</CanonicalName>
+          <LocCanonicalName>UEToVS.ToggleBlameGutter</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdNextChange" priority="0x0010" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpVcsChanges" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <CommandFlag>DefaultDisabled</CommandFlag>
+        <Strings>
+          <ButtonText>Next Change</ButtonText>
+          <CanonicalName>UEToVS.NextChange</CanonicalName>
+          <LocCanonicalName>UEToVS.NextChange</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdPreviousChange" priority="0x0020" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpVcsChanges" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <CommandFlag>DefaultDisabled</CommandFlag>
+        <Strings>
+          <ButtonText>Previous Change</ButtonText>
+          <CanonicalName>UEToVS.PreviousChange</CanonicalName>
+          <LocCanonicalName>UEToVS.PreviousChange</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdShowChangeAtCaret" priority="0x0030" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpVcsChanges" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <CommandFlag>DefaultDisabled</CommandFlag>
+        <Strings>
+          <ButtonText>Show Change at Caret...</ButtonText>
+          <CanonicalName>UEToVS.ShowChangeAtCaret</CanonicalName>
+          <LocCanonicalName>UEToVS.ShowChangeAtCaret</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdCompareWithBase" priority="0x0040" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpVcsChanges" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <CommandFlag>DefaultDisabled</CommandFlag>
+        <Strings>
+          <ButtonText>Compare with HEAD / #have</ButtonText>
+          <CanonicalName>UEToVS.CompareWithBase</CanonicalName>
+          <LocCanonicalName>UEToVS.CompareWithBase</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdSelectionHistory" priority="0x0010" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpVcsHistory" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <CommandFlag>DefaultDisabled</CommandFlag>
+        <Strings>
+          <ButtonText>Show History for Selection...</ButtonText>
+          <CanonicalName>UEToVS.SelectionHistory</CanonicalName>
+          <LocCanonicalName>UEToVS.SelectionHistory</LocCanonicalName>
+        </Strings>
+      </Button>
+      <Button guid="guidUEToVSHostCmdSet" id="cmdFunctionHistory" priority="0x0020" type="Button">
+        <Parent guid="guidUEToVSHostCmdSet" id="grpVcsHistory" />
+        <CommandFlag>TextChanges</CommandFlag>
+        <CommandFlag>DefaultDisabled</CommandFlag>
+        <Strings>
+          <ButtonText>Show History for Function...</ButtonText>
+          <CanonicalName>UEToVS.FunctionHistory</CanonicalName>
+          <LocCanonicalName>UEToVS.FunctionHistory</LocCanonicalName>
+        </Strings>
+      </Button>
       <!-- ===== v0.4.5 heavy features (0x01A0-0x01AF): Inspection/HeavyFeatureActions.cs ===== -->
       <Button guid="guidUEToVSHostCmdSet" id="cmdRunProjectInspection" priority="0x0010" type="Button">
         <Parent guid="guidUEToVSHostCmdSet" id="grpUnrealInspect" />
@@ -1304,10 +1414,21 @@
     <CommandPlacement guid="guidUEToVSHostCmdSet" id="cmdCtxNewUeClass" priority="0x0101">
       <Parent guid="guidUEToVSHostCmdSet" id="grpProjNodeUnreal" />
     </CommandPlacement>
+    <!-- 版本信息：编辑器右键 > UEToVS 版本管理，和 Extensions > UEToVS > 版本管理是同样的三组 -->
+    <CommandPlacement guid="guidUEToVSHostCmdSet" id="grpVcsBlame" priority="0x0010">
+      <Parent guid="guidUEToVSHostCmdSet" id="menuVcsContext" />
+    </CommandPlacement>
+    <CommandPlacement guid="guidUEToVSHostCmdSet" id="grpVcsChanges" priority="0x0020">
+      <Parent guid="guidUEToVSHostCmdSet" id="menuVcsContext" />
+    </CommandPlacement>
+    <CommandPlacement guid="guidUEToVSHostCmdSet" id="grpVcsHistory" priority="0x0030">
+      <Parent guid="guidUEToVSHostCmdSet" id="menuVcsContext" />
+    </CommandPlacement>
   </CommandPlacements>
 
   <VisibilityConstraints>
     <VisibilityItem guid="guidUEToVSHostCmdSet" id="menuUEToVSContext" context="guidUnrealSolutionContext" />
+    <VisibilityItem guid="guidUEToVSHostCmdSet" id="menuVcsContext" context="guidUnrealSolutionContext" />
   </VisibilityConstraints>
 
   <!-- Default keys (text editor scope). The keymap presets may rebind them. -->
@@ -1390,6 +1511,15 @@
     <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdCancelHeavyJob" editor="guidVSStd97" key1="U" mod1="Control Shift Alt" key2="U" />
     <!-- v0.10 模块依赖图 -->
     <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdShowModuleGraph" editor="guidVSStd97" key1="U" mod1="Control Shift Alt" key2="B" mod2="Shift" />
+    <!-- 版本信息 -->
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdToggleInlineBlame" editor="guidTextEditorFactory" key1="U" mod1="Control Shift Alt" key2="J" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdToggleBlameGutter" editor="guidTextEditorFactory" key1="U" mod1="Control Shift Alt" key2="O" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdNextChange" editor="guidTextEditorFactory" key1="U" mod1="Control Shift Alt" key2="VK_DOWN" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdPreviousChange" editor="guidTextEditorFactory" key1="U" mod1="Control Shift Alt" key2="VK_UP" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdShowChangeAtCaret" editor="guidTextEditorFactory" key1="U" mod1="Control Shift Alt" key2="Z" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdCompareWithBase" editor="guidTextEditorFactory" key1="U" mod1="Control Shift Alt" key2="0" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdSelectionHistory" editor="guidTextEditorFactory" key1="U" mod1="Control Shift Alt" key2="4" />
+    <KeyBinding guid="guidUEToVSHostCmdSet" id="cmdFunctionHistory" editor="guidTextEditorFactory" key1="U" mod1="Control Shift Alt" key2="5" />
   </KeyBindings>
 
   <Symbols>
@@ -1572,6 +1702,21 @@
       <IDSymbol name="cmdCancelHeavyJob" value="0x01A4" />
       <!-- v0.10 模块依赖图 (Unreal/ModuleGraphFeature.cs) -->
       <IDSymbol name="cmdShowModuleGraph" value="0x01D0" />
+      <!-- 版本信息 (Vcs/VcsActions.cs) -->
+      <IDSymbol name="menuVcs" value="0x120A" />
+      <IDSymbol name="menuVcsContext" value="0x1003" />
+      <IDSymbol name="grpVcsBlame" value="0x1230" />
+      <IDSymbol name="grpVcsChanges" value="0x1231" />
+      <IDSymbol name="grpVcsHistory" value="0x1232" />
+      <IDSymbol name="grpCodeWinVcs" value="0x1233" />
+      <IDSymbol name="cmdToggleInlineBlame" value="0x01B0" />
+      <IDSymbol name="cmdToggleBlameGutter" value="0x01B1" />
+      <IDSymbol name="cmdNextChange" value="0x01B2" />
+      <IDSymbol name="cmdPreviousChange" value="0x01B3" />
+      <IDSymbol name="cmdShowChangeAtCaret" value="0x01B4" />
+      <IDSymbol name="cmdCompareWithBase" value="0x01B5" />
+      <IDSymbol name="cmdSelectionHistory" value="0x01B6" />
+      <IDSymbol name="cmdFunctionHistory" value="0x01B7" />
     </GuidSymbol>
   </Symbols>
 </CommandTable>
