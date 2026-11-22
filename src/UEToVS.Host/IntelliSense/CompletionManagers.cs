@@ -87,25 +87,73 @@ namespace UEToVS.Host.IntelliSense
             }
         }
 
-        public Task<FilteredCompletionModel> UpdateCompletionListAsync(IAsyncCompletionSession session, AsyncCompletionSessionDataSnapshot data, CancellationToken token)
+        public async Task<FilteredCompletionModel> UpdateCompletionListAsync(IAsyncCompletionSession session, AsyncCompletionSessionDataSnapshot data, CancellationToken token)
         {
-            if (!Ours(session)) return _fallback.UpdateCompletionListAsync(session, data, token);
+            if (!Ours(session)) return await _fallback.UpdateCompletionListAsync(session, data, token).ConfigureAwait(false);
             try
             {
-                return Task.FromResult(Update(session, data));
+                var source = await SourceItemsAsync(session, data, token).ConfigureAwait(false);
+                return Update(session, data, source);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception ex)
             {
                 L.Error("is.completion.update.failed", "Filtering the completion list failed", ex);
                 var all = data.InitialSortedList.Select(i => new CompletionItemWithHighlight(i)).ToImmutableArray();
-                return Task.FromResult(new FilteredCompletionModel(all, 0));
+                return new FilteredCompletionModel(all, 0);
             }
         }
 
-        private static FilteredCompletionModel Update(IAsyncCompletionSession session, AsyncCompletionSessionDataSnapshot data)
+        /// <summary>
+        /// The items to filter: the session's initial list, or — when the engine's first answer was cut and the word has
+        /// grown since ("U" → "UMesh") — a fresh engine answer for the current word plus the other sources' items. VS
+        /// does not reliably ask the source again for IsIncomplete lists, so without this the list kept filtering the
+        /// first answer (the 150 shortest U* names) and never offered UMeshComponent. A fresh answer that was complete
+        /// keeps serving longer words of the same start without another request.
+        /// </summary>
+        private static async Task<ImmutableArray<VsItem>> SourceItemsAsync(IAsyncCompletionSession session, AsyncCompletionSessionDataSnapshot data, CancellationToken token)
+        {
+            var initial = data.InitialSortedList;
+            if (!session.Properties.TryGetProperty(CompletionNames.SessionKey, out CompletionSessionState state) || !state.Incomplete) return initial;
+            if (!(state.Source is UEToVSCompletionSource source)) return initial;
+            var span = session.ApplicableToSpan.GetSpan(data.Snapshot);
+            string word = span.GetText() ?? string.Empty;
+            if (word.Length == 0 || string.Equals(word, state.RequestPrefix, StringComparison.Ordinal)) return initial;
+            var cached = state.Refetch;
+            if (cached == null || !Answers(cached, word))
+            {
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                var fetched = await source.FetchAsync(span.End, '\0', false, token).ConfigureAwait(false);
+                if (fetched == null) return cached?.Items.IsDefault == false ? Merge(initial, cached.Items) : initial;
+                cached = new RefetchResult { Prefix = word, Items = fetched.Value.Items, Incomplete = fetched.Value.Resp.IsIncomplete };
+                state.Refetch = cached;
+                L.Info("is.completion.refetch", null, ("from", state.RequestPrefix), ("word", word), ("items", cached.Items.Length),
+                       ("incomplete", cached.Incomplete), ("ms", sw.ElapsedMilliseconds));
+            }
+            return Merge(initial, cached.Items);
+        }
+
+        /// <summary>A re-fetch answers the word when it was asked with exactly it, or was complete and the word only grew.</summary>
+        internal static bool Answers(RefetchResult r, string word) =>
+            string.Equals(r.Prefix, word, StringComparison.Ordinal) ||
+            !r.Incomplete && !(IntelliSenseContext.Settings?.CompletionTolerant ?? true) && word.StartsWith(r.Prefix, StringComparison.OrdinalIgnoreCase);
+
+        /// <summary>Fresh UEToVS items plus the other sources' items of the initial list.</summary>
+        private static ImmutableArray<VsItem> Merge(ImmutableArray<VsItem> initial, ImmutableArray<VsItem> ours)
+        {
+            var b = ImmutableArray.CreateBuilder<VsItem>(initial.Length + ours.Length);
+            b.AddRange(ours);
+            foreach (var i in initial)
+                if (!i.Properties.ContainsProperty(CompletionNames.ItemKey)) b.Add(i);
+            return Dedupe(b.ToImmutable());
+        }
+
+        private static FilteredCompletionModel Update(IAsyncCompletionSession session, AsyncCompletionSessionDataSnapshot data, ImmutableArray<VsItem> source)
         {
             string pattern = session.ApplicableToSpan.GetText(data.Snapshot) ?? string.Empty;
-            var source = data.InitialSortedList;
             // Filter buttons (when a source supplies them): keep items carrying a selected filter.
             var selected = data.SelectedFilters.IsDefaultOrEmpty ? null
                 : data.SelectedFilters.Where(f => f.IsSelected).Select(f => f.Filter).ToList();
