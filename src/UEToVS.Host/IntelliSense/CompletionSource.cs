@@ -54,6 +54,25 @@ namespace UEToVS.Host.IntelliSense
         public bool ProvidesAll { get; set; }
 
         public int Items { get; set; }
+
+        /// <summary>Word the engine was asked with when the session started ("U" when typing "UMesh" opened it).</summary>
+        public string RequestPrefix { get; set; } = string.Empty;
+
+        /// <summary>The engine's answer was cut (more matches than returned): a longer word must be asked again.</summary>
+        public bool Incomplete { get; set; }
+
+        /// <summary>
+        /// v0.9.10: items re-fetched by the item manager for a longer word (VS does not reliably ask the source again on
+        /// IsIncomplete, so "U" → "UMesh" kept filtering the 150 shortest U* names and never found UMeshComponent).
+        /// </summary>
+        public RefetchResult Refetch { get; set; }
+    }
+
+    internal sealed class RefetchResult
+    {
+        public string Prefix;
+        public ImmutableArray<VsItem> Items;
+        public bool Incomplete;
     }
 
     [Export(typeof(IAsyncCompletionSourceProvider))]
@@ -105,53 +124,68 @@ namespace UEToVS.Host.IntelliSense
                                                IntelliSenseContext.Settings.CompletionOnIdentifier);
         }
 
+        /// <summary>Asks the engine at <paramref name="location"/>; null when it is unavailable or the call failed.</summary>
+        internal async Task<(CompletionResponse Resp, ImmutableArray<VsItem> Items)?> FetchAsync(SnapshotPoint location, char triggerChar, bool isExplicit, CancellationToken token)
+        {
+            var engine = IntelliSenseContext.Engine;
+            if (engine == null) return null;
+            var capture = IntelliSenseEditor.CaptureAt(_view.TextBuffer, location);
+            if (capture == null) return null;
+            var settings = IntelliSenseContext.Settings;
+            var caret = await Task.Run(capture, token).ConfigureAwait(false);
+            var request = new CompletionRequest
+            {
+                Caret = caret,
+                TriggerChar = triggerChar,
+                Explicit = isExplicit,
+                MaxResults = Math.Max(50, settings.CompletionMaxResults),
+                Tolerant = settings.CompletionTolerant,
+            };
+            var r = await engine.GetCompletionsAsync(request, token).ConfigureAwait(false);
+            if (!r.Ok)
+            {
+                if (isExplicit && r.Status == EngineCallStatus.Unavailable) VsStatusBar.SetText(IntelliSenseStrings.CompletionEngineUnavailable);
+                return null;
+            }
+            var resp = r.Value;
+            bool all = IntelliSenseContext.ProvidesAllCompletions;
+            var items = ImmutableArray.CreateBuilder<VsItem>(resp.Items?.Count ?? 0);
+            int dropped = 0;
+            if (resp.Items != null)
+                foreach (var it in resp.Items)
+                {
+                    if (!CompletionPolicy.Keep(it, resp.Context, all))
+                    {
+                        dropped++;
+                        continue;
+                    }
+                    items.Add(Map(it, resp.Context));
+                }
+            if (dropped > 0)
+                L.Debug("is.completion.filtered", null, ("context", resp.Context.ToString()), ("kept", items.Count), ("dropped", dropped), ("providesAll", all));
+            return (resp, items.ToImmutable());
+        }
+
         public async Task<CompletionContext> GetCompletionContextAsync(IAsyncCompletionSession session, CompletionTrigger trigger, SnapshotPoint triggerLocation,
                                                                        SnapshotSpan applicableToSpan, CancellationToken token)
         {
             try
             {
-                var engine = IntelliSenseContext.Engine;
-                if (engine == null) return CompletionContext.Empty;
-                var capture = IntelliSenseEditor.CaptureAt(_view.TextBuffer, triggerLocation);
-                if (capture == null) return CompletionContext.Empty;
                 var t = Evaluate(trigger, triggerLocation);
                 bool isExplicit = trigger.Reason == CompletionTriggerReason.Invoke || trigger.Reason == CompletionTriggerReason.InvokeAndCommitIfUnique;
                 var settings = IntelliSenseContext.Settings;
-                var caret = await Task.Run(capture, token).ConfigureAwait(false);
-                var request = new CompletionRequest
-                {
-                    Caret = caret,
-                    TriggerChar = t.TriggerChar,
-                    Explicit = isExplicit,
-                    MaxResults = Math.Max(50, settings.CompletionMaxResults),
-                    Tolerant = settings.CompletionTolerant,
-                };
-                var r = await engine.GetCompletionsAsync(request, token).ConfigureAwait(false);
-                if (!r.Ok)
-                {
-                    if (isExplicit && r.Status == EngineCallStatus.Unavailable) VsStatusBar.SetText(IntelliSenseStrings.CompletionEngineUnavailable);
-                    return CompletionContext.Empty;
-                }
-                var resp = r.Value;
+                var fetched = await FetchAsync(triggerLocation, t.TriggerChar, isExplicit, token).ConfigureAwait(false);
+                if (fetched == null) return CompletionContext.Empty;
+                var (resp, items) = fetched.Value;
                 bool all = IntelliSenseContext.ProvidesAllCompletions;
-                var items = ImmutableArray.CreateBuilder<VsItem>(resp.Items?.Count ?? 0);
-                int dropped = 0;
-                if (resp.Items != null)
-                    foreach (var it in resp.Items)
-                    {
-                        if (!CompletionPolicy.Keep(it, resp.Context, all))
-                        {
-                            dropped++;
-                            continue;
-                        }
-                        items.Add(Map(it, resp.Context));
-                    }
-                var state = new CompletionSessionState { Context = resp.Context, Source = this, ProvidesAll = all, Items = items.Count };
+                var state = new CompletionSessionState
+                {
+                    Context = resp.Context, Source = this, ProvidesAll = all, Items = items.Length,
+                    RequestPrefix = applicableToSpan.GetText() ?? string.Empty, Incomplete = resp.IsIncomplete,
+                };
                 if (resp.AccessorFix != null && settings.CompletionAccessorFix) TrackAccessorFix(state, resp.AccessorFix, triggerLocation.Snapshot);
                 session.Properties[CompletionNames.SessionKey] = state;
-                if (dropped > 0)
-                    L.Debug("is.completion.filtered", null, ("context", resp.Context.ToString()), ("kept", items.Count), ("dropped", dropped), ("providesAll", all));
-                return new CompletionContext(items.ToImmutable(), null, InitialSelectionHint.RegularSelection,
+                return new CompletionContext(items, null, InitialSelectionHint.RegularSelection,
                                              ImmutableArray<CompletionFilterWithState>.Empty, resp.IsIncomplete);
             }
             catch (OperationCanceledException)
