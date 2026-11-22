@@ -434,6 +434,9 @@ namespace UEToVS.Host.Logic.Settings
 
         /// <summary>v0.9.13 VS 保存文件时是否统一编码，默认不改。</summary>
         public UEToVS.Core.Text.SaveEncodingMode SaveEncoding { get; set; } = UEToVS.Core.Text.SaveEncodingMode.Off;
+        // ---- v0.9.12 写代码辅助（rows: Logic/Settings/CodingAssistSettings.cs）----
+        /// <summary>'.' ↔ '-&gt;' 有把握时在输入时就改（不等提交）；需要 <see cref="CompletionAccessorFix"/> 也开着。</summary>
+        public bool CompletionAccessorFixOnType { get; set; } = true;
 
         public HostSettings Clone() => (HostSettings)MemberwiseClone();
     }

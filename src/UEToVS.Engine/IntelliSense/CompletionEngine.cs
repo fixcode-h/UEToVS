@@ -314,9 +314,15 @@ namespace UEToVS.Engine.IntelliSense
             if (!any)
             {
                 var api = UeBuiltins.ApiOf(ls.Head);
-                if (api != null) AddBuiltins(c, api, ls, null, null, ls.Head);
+                if (api != null)
+                {
+                    AddBuiltins(c, api, ls, null, null, ls.Head);
+                    any = api.Count > 0;
+                }
                 else Delegate(s, c, ls.Head);
             }
+            // v0.9.12 输入即纠正：只有纠正后的类型确实找到了成员（不是猜的）才算有把握，宿主才会在打字时就改
+            if (resp.AccessorFix != null) resp.AccessorFix.Confident = any;
             return listType;
         }
 

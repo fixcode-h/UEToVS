@@ -113,6 +113,7 @@ namespace UEToVS.Host.Refactoring
             CodeDiagnosticCodes.DeprecatedApi, CodeDiagnosticCodes.NamingConvention,
             CodeDiagnosticCodes.MissingModuleDependency, CodeDiagnosticCodes.MissingGeneratedBody, CodeDiagnosticCodes.GeneratedFunctionBody,
             CodeDiagnosticCodes.MissingRepNotify, CodeDiagnosticCodes.UnregisteredReplicatedProperty,
+            CodeDiagnosticCodes.UnsupportedPropertyType, CodeDiagnosticCodes.UnsupportedParameterType, // v0.9.12
         };
 
         /// <summary>v0.4.5: the squiggles under the caret (current snapshot coordinates) for the Alt+Enter fixes.</summary>

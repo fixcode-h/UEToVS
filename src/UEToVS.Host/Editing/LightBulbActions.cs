@@ -42,6 +42,8 @@ namespace UEToVS.Host.Editing
                 OpenGeneratedHeaderAsync, ctx => ctx.Get<string>(RefactorKeys.Argument) != null, null));
 
             RefactoringFeature.Hub.Register(new UeRuleFixProvider());
+            RefactoringFeature.Hub.Register(new UhtTypeFixProvider()); // v0.9.12 UE0009 / UE0010
+            SpecifierEditorFeature.Register(registry); // v0.9.12 说明符编辑器
             foreach (var p in LightBulbProviders.Create(surroundEnabled: () => IntelliSenseContext.Settings?.SurroundWithEnabled != false))
                 RefactoringFeature.Hub.Register(p);
             L.Debug("editor.lightbulb.registered", null, ("actions", 3), ("providers", RefactoringFeature.Hub.Count));
@@ -96,6 +98,11 @@ namespace UEToVS.Host.Editing
                         edits = UeRuleFixPlanner.RepNotify(file, text, fix.Line, fix.Column, fix.Arg(1), fix.Arg(2), cppText == null ? null : cpp, cppText, out problem);
                         if (edits != null && cppText == null) title = null; // 状态栏改为提示只加了声明
                         break;
+                    case CodeDiagnosticCodes.UnsupportedPropertyType: // v0.9.12 UE0009 / UE0010
+                    case CodeDiagnosticCodes.UnsupportedParameterType:
+                        title = UhtTypeFixTitle(fix);
+                        edits = UhtTypeFixPlanner.Plan(file, text, fix, out problem);
+                        break;
                     default:
                         problem = "unknown-rule";
                         break;
@@ -117,8 +124,24 @@ namespace UEToVS.Host.Editing
             }
             finally
             {
-                L.Info("editor.ueRuleFix", null, ("code", fix.Code), ("args", string.Join("|", fix.Args ?? new List<string>())), ("properties", fix.Properties?.Count ?? 0),
+                L.Info("editor.ueRuleFix", null, ("code", fix.Code), ("args", string.Join("|", fix.Args ?? new List<string>())), ("variant", fix.Variant), ("properties", fix.Properties?.Count ?? 0),
                     ("public", fix.IsPublic), ("edits", edits?.Count ?? 0), ("problem", problem), ("file", Path.GetFileName(file ?? string.Empty)), ("line", fix.Line));
+            }
+        }
+
+        /// <summary>状态栏里“已修复：…”用的标题，和灯泡里的一样。</summary>
+        private static string UhtTypeFixTitle(UeRuleFix fix)
+        {
+            string type = fix.Arg(1) ?? string.Empty;
+            switch (fix.Variant)
+            {
+                case UhtTypeFixVariants.ByValue: return CodingAssistStrings.FixByValue(fix.Arg(0), UhtTypeFixPlanner.Pointee(type));
+                case UhtTypeFixVariants.RemoveUProperty: return CodingAssistStrings.FixRemoveUProperty(fix.Arg(0));
+                case UhtTypeFixVariants.ConstRef: return CodingAssistStrings.FixToReference(fix.Arg(0), "const " + UhtTypeFixPlanner.Pointee(type) + "&");
+                case UhtTypeFixVariants.Ref: return CodingAssistStrings.FixToReference(fix.Arg(0), UhtTypeFixPlanner.Pointee(type) + "&");
+                case UhtTypeFixVariants.BlueprintNumber: return CodingAssistStrings.FixNumber(fix.Arg(0), type.TrimEnd('&'), fix.Target);
+                case UhtTypeFixVariants.RemoveUFunction: return CodingAssistStrings.FixRemoveUFunction(fix.Arg(2));
+                default: return fix.Code;
             }
         }
 

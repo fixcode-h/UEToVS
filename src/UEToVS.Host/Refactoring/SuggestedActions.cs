@@ -118,6 +118,7 @@ namespace UEToVS.Host.Refactoring
         {
             CodeDiagnosticCodes.MissingGeneratedBody, CodeDiagnosticCodes.GeneratedFunctionBody, CodeDiagnosticCodes.MissingRepNotify,
             CodeDiagnosticCodes.UnregisteredReplicatedProperty,
+            CodeDiagnosticCodes.UnsupportedPropertyType, CodeDiagnosticCodes.UnsupportedParameterType, // v0.9.12
         };
 
         internal static LightBulbKind KindOf(ContextActionItem i)
