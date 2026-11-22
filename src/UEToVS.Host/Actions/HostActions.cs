@@ -65,6 +65,7 @@ namespace UEToVS.Host.Actions
             Editing.EditorFeatureActions.Register(registry); // v0.4.5 编辑体验
             // ---- v0.4.5 heavy features (whole-project inspection / upgrade assistant)
             Inspection.HeavyFeatureActions.Register(registry, package);
+            Unreal.ModuleGraphFeature.Register(registry, package);
             L.Info("actions.registered", null, ("count", registry.Count));
         }
 

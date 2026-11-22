@@ -25,7 +25,7 @@ using UEToVS.Host.Navigation;
 
 namespace UEToVS.Host.Shaders
 {
-    /// <summary>Content type for UE shader sources (.usf / .ush): lexical colouring and #include navigation only.</summary>
+    /// <summary>Content type for UE shader sources (.usf / .ush): lexical colouring, #include navigation and (v0.10, ShaderLanguage.cs) completion, Quick Info and Go to Definition.</summary>
     internal static class ShaderContentType
     {
         public const string Name = "UEToVS.Shader";
@@ -165,7 +165,7 @@ namespace UEToVS.Host.Shaders
         });
     }
 
-    /// <summary>F12 on an <c>#include "…"</c> line of a shader opens the included file (virtual shader paths resolved).</summary>
+    /// <summary>F12 on an <c>#include "…"</c> line of a shader opens the included file (virtual shader paths resolved); on an identifier it goes to its definition (v0.10).</summary>
     internal sealed class ShaderIncludeFilter : IOleCommandTarget
     {
         private static readonly Logger L = Log.For("Shaders");
@@ -178,7 +178,7 @@ namespace UEToVS.Host.Shaders
         public int QueryStatus(ref Guid pguidCmdGroup, uint cCmds, OLECMD[] prgCmds, IntPtr pCmdText)
         {
             if (pguidCmdGroup == VSConstants.GUID_VSStandardCommandSet97 && cCmds == 1 && prgCmds[0].cmdID == (uint)VSConstants.VSStd97CmdID.GotoDefn &&
-                IncludeAtCaret(out _) != null)
+                (IncludeAtCaret(out _) != null || ShaderWorkspace.Enabled && ShaderNavigation.WordAtCaret(_view, out _) != null))
             {
                 prgCmds[0].cmdf = (uint)(OLECMDF.OLECMDF_SUPPORTED | OLECMDF.OLECMDF_ENABLED);
                 return VSConstants.S_OK;
@@ -194,6 +194,14 @@ namespace UEToVS.Host.Shaders
                 if (include != null)
                 {
                     Open(include, currentFile);
+                    return VSConstants.S_OK;
+                }
+                // v0.10：标识符 → 本文件和 #include 链上的定义
+                bool member = false;
+                string word = ShaderWorkspace.Enabled ? ShaderNavigation.WordAtCaret(_view, out member) : null;
+                if (word != null)
+                {
+                    Safe.Execute(L, "shader.goto", () => ShaderNavigation.GoToDefinition(_view, word, member));
                     return VSConstants.S_OK;
                 }
             }

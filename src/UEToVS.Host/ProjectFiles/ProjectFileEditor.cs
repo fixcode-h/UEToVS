@@ -24,6 +24,7 @@ using UEToVS.Core.Diagnostics;
 using UEToVS.Core.Localization;
 using UEToVS.Host.Diagnostics;
 using UEToVS.Host.IntelliSense;
+using UEToVS.Host.Logic.Localization;
 using UEToVS.Host.Logic.ProjectFiles;
 using UEToVS.Host.Navigation;
 using UEToVS.Host.Search;
@@ -84,15 +85,81 @@ namespace UEToVS.Host.ProjectFiles
     }
 
     /// <summary>
-    /// .uproject / .uplugin: fixed value lists (module Type, LoadingPhase, platform / target lists). .ini: Config property names of
-    /// the class a <c>[/Script/Module.Class]</c> section configures. Other files do not participate (extension check only).
+    /// .uproject / .uplugin: fixed value lists (module Type, LoadingPhase, platform / target lists, LoadingPolicy), v0.10 the keys
+    /// each object level takes and plugin names in "Plugins" (project and engine plugins). .ini: Config property names of the class a
+    /// <c>[/Script/Module.Class]</c> section configures (with the value format in the description), v0.10 section names (config
+    /// classes from the index plus common engine sections) and True / False after '=' for bool properties. Other files do not
+    /// participate (extension check only).
     /// </summary>
     internal sealed class ProjectFileCompletionSource : IAsyncCompletionSource
     {
         private static readonly Logger L = Log.For("ProjectFiles");
+        private static readonly object MemberKey = typeof(SymbolInfo);
         private readonly ITextView _view;
 
         public ProjectFileCompletionSource(ITextView view) => _view = view;
+
+        private enum Where
+        {
+            None,
+            DescriptorValue,
+            DescriptorKey,
+            PluginName,
+            IniKey,
+            IniSection,
+            IniValue,
+        }
+
+        private static bool Explicit(CompletionTrigger t) => t.Reason == CompletionTriggerReason.Invoke || t.Reason == CompletionTriggerReason.InvokeAndCommitIfUnique;
+
+        private Where Locate(SnapshotPoint at, string path, out Span span)
+        {
+            span = default;
+            var snapshot = at.Snapshot;
+            if (ProjectFileLogic.IsDescriptor(path))
+            {
+                if (snapshot.Length > 512 * 1024) return Where.None;
+                string text = snapshot.GetText();
+                var c = ProjectFileLogic.At(text, at.Position);
+                if (DescriptorLogic.ValuesFor(c) != null)
+                {
+                    span = new Span(c.ValueStart, c.ValueLength);
+                    return Where.DescriptorValue;
+                }
+                var t = DescriptorLogic.StringAt(text, at.Position);
+                if (t == null) return Where.None;
+                span = new Span(t.Start, t.Length);
+                if (DescriptorLogic.KeysFor(path, t) != null) return Where.DescriptorKey;
+                if (DescriptorLogic.IsPluginName(t)) return Where.PluginName;
+                return Where.None;
+            }
+            var line = at.GetContainingLine();
+            string lineText = line.GetText();
+            int col = at.Position - line.Start.Position;
+            int sec = IniLogic.SectionStart(lineText, col, out _);
+            if (sec >= 0)
+            {
+                span = new Span(line.Start.Position + sec, col - sec);
+                return Where.IniSection;
+            }
+            if (ScriptSectionAbove(snapshot, line.LineNumber) == null) return Where.None;
+            int s = ProjectFileLogic.IniKeyStart(lineText, col, out _);
+            if (s >= 0)
+            {
+                span = new Span(line.Start.Position + s, col - s);
+                return Where.IniKey;
+            }
+            int v = IniLogic.ValueStart(lineText, col, out _);
+            if (v >= 0)
+            {
+                int e = v;
+                while (e < col && char.IsLetter(lineText[e])) e++;
+                if (e != col) return Where.None; // 只补全刚开始写的单词（True / False）
+                span = new Span(line.Start.Position + v, col - v);
+                return Where.IniValue;
+            }
+            return Where.None;
+        }
 
         public CompletionStartData InitializeCompletion(CompletionTrigger trigger, SnapshotPoint triggerLocation, CancellationToken token)
         {
@@ -100,18 +167,12 @@ namespace UEToVS.Host.ProjectFiles
             if (!ProjectFileDocs.Supported(path)) return CompletionStartData.DoesNotParticipateInCompletion;
             return Safe.Execute(L, "projectFiles.completion.init", () =>
             {
-                var snapshot = triggerLocation.Snapshot;
-                if (ProjectFileLogic.IsDescriptor(path))
-                {
-                    if (snapshot.Length > 512 * 1024) return CompletionStartData.DoesNotParticipateInCompletion;
-                    var c = ProjectFileLogic.At(snapshot.GetText(), triggerLocation.Position);
-                    if (ProjectFileLogic.ValuesFor(c) == null) return CompletionStartData.DoesNotParticipateInCompletion;
-                    return new CompletionStartData(CompletionParticipation.ProvidesItems, new SnapshotSpan(snapshot, c.ValueStart, c.ValueLength));
-                }
-                var line = triggerLocation.GetContainingLine();
-                int s = ProjectFileLogic.IniKeyStart(line.GetText(), triggerLocation.Position - line.Start.Position, out _);
-                if (s < 0 || ScriptSectionAbove(snapshot, line.LineNumber) == null) return CompletionStartData.DoesNotParticipateInCompletion;
-                return new CompletionStartData(CompletionParticipation.ProvidesItems, new SnapshotSpan(line.Start + s, triggerLocation));
+                var where = Locate(triggerLocation, path, out var span);
+                if (where == Where.None) return CompletionStartData.DoesNotParticipateInCompletion;
+                // 值里只在刚打完 '=' 或手动 Ctrl+Space 时弹，别每打一个字母都问一次引擎
+                if (where == Where.IniValue && !Explicit(trigger) && !(trigger.Reason == CompletionTriggerReason.Insertion && trigger.Character == '='))
+                    return CompletionStartData.DoesNotParticipateInCompletion;
+                return new CompletionStartData(CompletionParticipation.ProvidesItems, new SnapshotSpan(triggerLocation.Snapshot, span));
             }, CompletionStartData.DoesNotParticipateInCompletion);
         }
 
@@ -133,25 +194,68 @@ namespace UEToVS.Host.ProjectFiles
             try
             {
                 var items = ImmutableArray.CreateBuilder<VsItem>();
-                string kind;
-                if (ProjectFileLogic.IsDescriptor(path))
+                var where = Locate(triggerLocation, path, out _);
+                var snapshot = triggerLocation.Snapshot;
+                switch (where)
                 {
-                    kind = "descriptor";
-                    var c = ProjectFileLogic.At(triggerLocation.Snapshot.GetText(), triggerLocation.Position);
-                    foreach (var v in ProjectFileLogic.ValuesFor(c) ?? Array.Empty<string>())
-                        items.Add(new VsItem(v, this, IntelliSenseEditor.Image(KnownMonikers.EnumerationItemPublic)));
+                    case Where.DescriptorValue:
+                    {
+                        var c = ProjectFileLogic.At(snapshot.GetText(), triggerLocation.Position);
+                        foreach (var v in DescriptorLogic.ValuesFor(c) ?? Array.Empty<string>())
+                            items.Add(new VsItem(v, this, IntelliSenseEditor.Image(KnownMonikers.EnumerationItemPublic)));
+                        break;
+                    }
+                    case Where.DescriptorKey:
+                    {
+                        string text = snapshot.GetText();
+                        var t = DescriptorLogic.StringAt(text, triggerLocation.Position);
+                        var existing = DescriptorLogic.ExistingKeys(text, t);
+                        foreach (var k in DescriptorLogic.KeysFor(path, t) ?? Array.Empty<string>())
+                            if (!existing.Contains(k))
+                                items.Add(new VsItem(k, this, IntelliSenseEditor.Image(KnownMonikers.Property), ImmutableArray<CompletionFilter>.Empty, UnrealFileStrings.DescriptorKey));
+                        break;
+                    }
+                    case Where.PluginName:
+                    {
+                        var plugins = await Shaders.ShaderWorkspace.PluginsAsync().ConfigureAwait(false);
+                        foreach (var kv in plugins.OrderBy(k => k.Key, StringComparer.OrdinalIgnoreCase))
+                            items.Add(new VsItem(kv.Key, this, IntelliSenseEditor.Image(KnownMonikers.Package), ImmutableArray<CompletionFilter>.Empty, UnrealFileStrings.DescriptorPlugin));
+                        break;
+                    }
+                    case Where.IniSection:
+                        await AddSectionsAsync(items, applicableToSpan.GetText(), token).ConfigureAwait(false);
+                        break;
+                    case Where.IniKey:
+                    {
+                        var section = ScriptSectionAbove(snapshot, triggerLocation.GetContainingLine().LineNumber);
+                        if (section == null) return CompletionContext.Empty;
+                        var (_, members) = await ProjectFileDocs.ConfigClassAsync(section.Value.Module, section.Value.Class, token).ConfigureAwait(false);
+                        foreach (var m in members.GroupBy(m => m.Name).Select(g => g.First()))
+                        {
+                            var item = new VsItem(m.Name, this, IntelliSenseEditor.Image(KnownMonikers.FieldPublic), ImmutableArray<CompletionFilter>.Empty,
+                                                  IniLogic.TypeFromSignature(m.Signature, m.Name) ?? m.Container ?? string.Empty);
+                            item.Properties[MemberKey] = m;
+                            items.Add(item);
+                        }
+                        break;
+                    }
+                    case Where.IniValue:
+                    {
+                        var line = triggerLocation.GetContainingLine();
+                        var section = ScriptSectionAbove(snapshot, line.LineNumber);
+                        IniLogic.ValueStart(line.GetText(), triggerLocation.Position - line.Start.Position, out string key);
+                        if (section == null || key == null) return CompletionContext.Empty;
+                        var (_, members) = await ProjectFileDocs.ConfigClassAsync(section.Value.Module, section.Value.Class, token).ConfigureAwait(false);
+                        var member = members.FirstOrDefault(m => string.Equals(m.Name, key, StringComparison.OrdinalIgnoreCase));
+                        var hint = IniLogic.HintFor(IniLogic.TypeFromSignature(member?.Signature, member?.Name));
+                        foreach (var v in hint.Values)
+                            items.Add(new VsItem(v, this, IntelliSenseEditor.Image(KnownMonikers.EnumerationItemPublic)));
+                        break;
+                    }
+                    default:
+                        return CompletionContext.Empty;
                 }
-                else
-                {
-                    kind = "ini";
-                    var section = ScriptSectionAbove(triggerLocation.Snapshot, triggerLocation.GetContainingLine().LineNumber);
-                    if (section == null) return CompletionContext.Empty;
-                    var (_, members) = await ProjectFileDocs.ConfigClassAsync(section.Value.Module, section.Value.Class, token).ConfigureAwait(false);
-                    foreach (var m in members.GroupBy(m => m.Name).Select(g => g.First()))
-                        items.Add(new VsItem(m.Name, this, IntelliSenseEditor.Image(KnownMonikers.FieldPublic), ImmutableArray<CompletionFilter>.Empty,
-                                             m.Container ?? string.Empty));
-                }
-                L.Debug("projectFiles.completion", null, ("kind", kind), ("items", items.Count), ("ms", sw.ElapsedMilliseconds));
+                L.Debug("projectFiles.completion", null, ("kind", where.ToString()), ("items", items.Count), ("ms", sw.ElapsedMilliseconds));
                 return items.Count == 0 ? CompletionContext.Empty : new CompletionContext(items.ToImmutable());
             }
             catch (OperationCanceledException)
@@ -165,8 +269,47 @@ namespace UEToVS.Host.ProjectFiles
             }
         }
 
-        public Task<object> GetDescriptionAsync(IAsyncCompletionSession session, VsItem item, CancellationToken token) =>
-            Task.FromResult<object>(string.IsNullOrEmpty(item.Suffix) ? null : item.Suffix);
+        /// <summary>
+        /// 节名：常见的引擎节，加上索引里名字和输入匹配的 config 类（UCLASS(config=…)）。输入不到 2 个字时只给常见节，免得问引擎拿一大堆。
+        /// </summary>
+        private async Task AddSectionsAsync(ImmutableArray<VsItem>.Builder items, string typed, CancellationToken token)
+        {
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var s in IniLogic.CommonSections)
+                if (seen.Add(s)) items.Add(new VsItem(s, this, IntelliSenseEditor.Image(KnownMonikers.FolderClosed), ImmutableArray<CompletionFilter>.Empty, UnrealFileStrings.IniSection));
+            string t = typed ?? string.Empty;
+            if (t.StartsWith("/Script/", StringComparison.OrdinalIgnoreCase)) t = t.Substring("/Script/".Length);
+            int dot = t.LastIndexOf('.');
+            string fragment = dot >= 0 ? t.Substring(dot + 1) : t;
+            if (fragment.Length < 2 && t.Length >= 2) fragment = dot > 0 ? t.Substring(0, dot) : t; // "/Script/MyGame." → 按模块名找
+            var engine = HostPackage.Instance?.Engine;
+            if (fragment.Length < 2 || engine == null || !engine.IsConnected) return;
+            var req = new SearchRequest
+            {
+                Pattern = fragment, IncludeTypes = true, IncludeSymbols = false, IncludeFiles = false, IncludeAssets = false, IncludeNonProject = true,
+                MaxResultsPerCategory = 200,
+            };
+            var (ok, resp) = await engine.TryInvokeAsync("projectFiles.sections", (s, c) => s.SearchAsync(req, c), token, TimeSpan.FromSeconds(5), 100).ConfigureAwait(false);
+            if (!ok || resp?.Hits == null) return;
+            int added = 0;
+            foreach (var h in resp.Hits)
+            {
+                var sym = h.Symbol;
+                if (sym == null || sym.Kind != SymbolKind.Class || (sym.Ue & UeFlags.UClass) == 0 || string.IsNullOrEmpty(sym.Module)) continue;
+                if (!IniLogic.IsConfigClass(sym.Specifiers)) continue;
+                string name = "/Script/" + sym.Module + "." + IniLogic.ScriptName(sym.Name);
+                if (!seen.Add(name)) continue;
+                items.Add(new VsItem(name, this, IntelliSenseEditor.Image(KnownMonikers.ClassPublic), ImmutableArray<CompletionFilter>.Empty, UnrealFileStrings.IniConfigClass));
+                added++;
+            }
+            L.Debug("projectFiles.sections", null, ("fragment", fragment), ("hits", resp.Hits.Count), ("configClasses", added));
+        }
+
+        public Task<object> GetDescriptionAsync(IAsyncCompletionSession session, VsItem item, CancellationToken token)
+        {
+            if (item.Properties.TryGetProperty(MemberKey, out SymbolInfo m)) return Task.FromResult(ConfigFileQuickInfo.Describe(m));
+            return Task.FromResult<object>(string.IsNullOrEmpty(item.Suffix) ? null : item.Suffix);
+        }
     }
 
     [Export(typeof(IVsTextViewCreationListener))]

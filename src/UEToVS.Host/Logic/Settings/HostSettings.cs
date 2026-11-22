@@ -434,9 +434,17 @@ namespace UEToVS.Host.Logic.Settings
 
         /// <summary>v0.9.13 VS 保存文件时是否统一编码，默认不改。</summary>
         public UEToVS.Core.Text.SaveEncodingMode SaveEncoding { get; set; } = UEToVS.Core.Text.SaveEncodingMode.Off;
+
         // ---- v0.9.12 写代码辅助（rows: Logic/Settings/CodingAssistSettings.cs）----
         /// <summary>'.' ↔ '-&gt;' 有把握时在输入时就改（不等提交）；需要 <see cref="CompletionAccessorFix"/> 也开着。</summary>
         public bool CompletionAccessorFixOnType { get; set; } = true;
+
+        // ---- v0.10 着色器与配置文件（rows: Logic/Settings/UnrealFileSettings.cs）----
+        /// <summary>.usf / .ush：HLSL 补全、悬停、#include 虚拟路径补全、转到定义和文件结构。</summary>
+        public bool ShaderIntelliSense { get; set; } = true;
+
+        /// <summary>ini / .uproject / .uplugin 的校验波浪线（补全不受影响）。</summary>
+        public bool ConfigFileValidation { get; set; } = true;
 
         public HostSettings Clone() => (HostSettings)MemberwiseClone();
     }

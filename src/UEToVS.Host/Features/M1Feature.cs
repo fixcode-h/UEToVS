@@ -247,7 +247,7 @@ namespace UEToVS.Host
             Add(M1ActionIds.RecentLocations, FeatureStrings.CmdRecentLocations, ActionCategory.Navigation, ctx => NavigationPopups.ShowRecentLocationsAsync(p), null, FeatureStrings.KwRecent);
             Add(M1ActionIds.LastEditLocation, FeatureStrings.CmdLastEditLocation, ActionCategory.Navigation, Ui(NavigationService.Instance.PreviousEdit), null, FeatureStrings.KwRecent);
             Add(M1ActionIds.NextEditLocation, FeatureStrings.CmdNextEditLocation, ActionCategory.Navigation, Ui(NavigationService.Instance.NextEdit), null, FeatureStrings.KwRecent);
-            Add(M1ActionIds.FileStructure, FeatureStrings.CmdFileStructure, ActionCategory.Navigation, ctx => NavigationPopups.ShowFileStructureAsync(p), Engine, FeatureStrings.KwNavigation);
+            Add(M1ActionIds.FileStructure, FeatureStrings.CmdFileStructure, ActionCategory.Navigation, ctx => NavigationPopups.ShowFileStructureAsync(p), Unreal, FeatureStrings.KwNavigation); // v0.10: 着色器文件不需要引擎
             Add(M1ActionIds.NavigateTo, FeatureStrings.CmdNavigateTo, ActionCategory.Navigation, ctx => RelatedNavigator.ShowNavigateToAsync(p), null, FeatureStrings.KwNavigation);
 
             Add(M1ActionIds.ToggleHeaderSource, FeatureStrings.CmdToggleHeaderSource, ActionCategory.Navigation, ctx => RelatedNavigator.ToggleHeaderSourceAsync(p), null, FeatureStrings.KwRelated);
