@@ -2,16 +2,19 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Threading;
 using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.Shell;
+using Microsoft.VisualStudio.Threading;
 using Microsoft.VisualStudio.Shell.Interop;
 using UEToVS.Core.Diagnostics;
 using UEToVS.Host.Diagnostics;
 using UEToVS.Host.IntelliSense;
 using UEToVS.Host.Logic.Editing;
 using UEToVS.Host.Logic.Mcp;
+using UEToVS.Host.Logic.Vcs;
 using UEToVS.Host.Navigation;
 
 namespace UEToVS.Host.Editing
@@ -21,6 +24,9 @@ namespace UEToVS.Host.Editing
     /// from Git (modified, added, untracked) get a ● after the name (<c>VSFPROPID_EditorCaption</c>, the same place VS puts
     /// " [Design]"). Git is asked (<c>git status --porcelain</c>, off the UI thread) when the solution opens, after a save and
     /// when VS is activated; a newly opened document only re-applies the known state. Setting editor.gitTabMarker.
+    /// 版本信息（2026-11）修正：git status 带 --no-optional-locks（不和用户自己的 git 抢 index.lock）、--untracked-files=normal
+    /// （未跟踪的文件夹只报一行，打开的文件在不在里面由 <see cref="GitStatusParser.IsChanged"/> 判断，标记和以前一样）；
+    /// VS 激活触发的刷新最多 30 秒一次（保存、打开解决方案照常刷新）。找 git 和编辑器内版本信息共用 <see cref="Vcs.GitLocator"/>。
     /// </summary>
     internal static class GitTabMarkers
     {
@@ -29,8 +35,9 @@ namespace UEToVS.Host.Editing
         private static readonly TimeSpan RefreshDelay = TimeSpan.FromMilliseconds(800);
 
         private static HashSet<string> _changed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        private static List<string> _untrackedDirs = new List<string>();
+        private static readonly RefreshThrottle ActivationThrottle = new RefreshThrottle(TimeSpan.FromSeconds(30));
         private static string _root;
-        private static string _git;
         private static DispatcherTimer _refresh, _apply;
         private static System.Windows.Window _hooked;
         private static bool _running, _again;
@@ -73,7 +80,9 @@ namespace UEToVS.Host.Editing
             string root = VcsRoot.Find(solutionDir);
             _root = root != null && (Directory.Exists(Path.Combine(root, ".git")) || File.Exists(Path.Combine(root, ".git"))) ? root : null;
             _changed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            _untrackedDirs = new List<string>();
             L.Debug("editor.gitTabs.root", null, ("root", _root));
+            ActivationThrottle.Mark(DateTime.UtcNow);
             ScheduleRefresh();
         }
 
@@ -81,6 +90,7 @@ namespace UEToVS.Host.Editing
         {
             _root = null;
             _changed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            _untrackedDirs = new List<string>();
         }
 
         /// <summary>A document view was opened: put the marker on its tab if its file is known to be changed.</summary>
@@ -101,7 +111,13 @@ namespace UEToVS.Host.Editing
             main.Activated += OnActivated;
         }
 
-        private static void OnActivated(object sender, EventArgs e) => ScheduleRefresh(); // a commit / checkout outside VS
+        /// <summary>VS 被激活（外面可能 commit / checkout 了）：最多 30 秒刷新一次，频繁切窗口时不反复跑 git status。</summary>
+        private static void OnActivated(object sender, EventArgs e)
+        {
+            Safe.Execute(L, "vcs.activated", Vcs.VcsService.Instance.OnActivated);
+            if (!ActivationThrottle.TryEnter(DateTime.UtcNow)) return;
+            ScheduleRefresh();
+        }
 
         private static void ScheduleRefresh()
         {
@@ -124,13 +140,17 @@ namespace UEToVS.Host.Editing
                 {
                     _again = false;
                     string root = _root;
-                    HashSet<string> changed = null;
+                    (HashSet<string> Files, List<string> Dirs)? changed = null;
                     if (Enabled && root != null)
                     {
-                        changed = await Task.Run(() => Query(root));
+                        changed = await QueryAsync(root);
                         await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
                     }
-                    if (changed != null || !Enabled) _changed = changed ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    if (changed != null || !Enabled)
+                    {
+                        _changed = changed?.Files ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                        _untrackedDirs = changed?.Dirs ?? new List<string>();
+                    }
                     Apply();
                 } while (_again);
             }
@@ -140,67 +160,27 @@ namespace UEToVS.Host.Editing
             }
         }
 
-        /// <summary>Runs git status; null when git is missing or fails (the markers then keep the last known state).</summary>
-        private static HashSet<string> Query(string root)
+        /// <summary>Runs git status (background thread, 10 s limit); null when git is missing or fails (the markers then keep the last known state).</summary>
+        private static async Task<(HashSet<string> Files, List<string> Dirs)?> QueryAsync(string root)
         {
-            foreach (string git in Candidates())
+            await TaskScheduler.Default;
+            try
             {
-                try
+                var r = await Vcs.GitLocator.RunAsync(GitStatusParser.Arguments, root, TimeSpan.FromSeconds(10), CancellationToken.None, "git status").ConfigureAwait(false);
+                if (r.ExitCode != 0)
                 {
-                    var psi = new ProcessStartInfo(git, "-C \"" + root + "\" " + GitStatusParser.Arguments)
-                    {
-                        UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true,
-                        StandardOutputEncoding = System.Text.Encoding.UTF8,
-                    };
-                    using (var p = Process.Start(psi))
-                    {
-                        if (p == null) continue;
-                        var output = p.StandardOutput.ReadToEndAsync();
-                        var error = p.StandardError.ReadToEndAsync();
-                        if (!p.WaitForExit(10000))
-                        {
-                            try { p.Kill(); } catch (Exception) { }
-                            L.Debug("editor.gitTabs.timeout", null, ("root", root));
-                            return null;
-                        }
-                        // 进程已退出；无参 WaitForExit 再等输出管道读完，下面取 Result 不会再阻塞。
-                        // 这段跑在后台线程，不碰 UI 线程，VSTHRD002 说的死锁不会发生
-                        p.WaitForExit();
-#pragma warning disable VSTHRD002
-                        var stdout = output.Result;
-                        var stderr = error.Result;
-#pragma warning restore VSTHRD002
-                        if (p.ExitCode != 0)
-                        {
-                            L.Debug("editor.gitTabs.failed", stderr, ("exit", p.ExitCode));
-                            return null;
-                        }
-                        _git = git;
-                        var set = GitStatusParser.Parse(stdout, root);
-                        L.Debug("editor.gitTabs.status", null, ("changed", set.Count));
-                        return set;
-                    }
+                    L.Debug("editor.gitTabs.failed", r.Stderr, ("exit", r.ExitCode));
+                    return null;
                 }
-                catch (System.ComponentModel.Win32Exception)
-                {
-                    // not found: try the next candidate
-                }
+                var dirs = new List<string>();
+                var set = GitStatusParser.Parse(r.Text, root, dirs);
+                L.Debug("editor.gitTabs.status", null, ("changed", set.Count), ("untrackedDirs", dirs.Count), ("ms", Math.Round(r.ElapsedMs, 1)));
+                return (set, dirs);
             }
-            return null;
-        }
-
-        /// <summary>git on PATH, then the copy that ships with Visual Studio.</summary>
-        private static IEnumerable<string> Candidates()
-        {
-            if (_git != null) yield return _git;
-            yield return "git";
-            string ide = null;
-            try { ide = Path.GetDirectoryName(Process.GetCurrentProcess().MainModule?.FileName); }
-            catch (Exception) { } // no process path: only the git on PATH
-            if (ide != null)
+            catch (VcsException ex)
             {
-                string bundled = Path.Combine(ide, "CommonExtensions", "Microsoft", "TeamFoundation", "Team Explorer", "Git", "cmd", "git.exe");
-                if (File.Exists(bundled)) yield return bundled;
+                L.Debug("editor.gitTabs.unavailable", ex.Message, ("root", root));
+                return null;
             }
         }
 
@@ -221,7 +201,7 @@ namespace UEToVS.Host.Editing
                     frame.GetProperty((int)__VSFPROPID.VSFPROPID_pszMkDocument, out object mk);
                     frame.GetProperty((int)__VSFPROPID.VSFPROPID_EditorCaption, out object cap);
                     string path = mk as string, caption = cap as string ?? string.Empty;
-                    bool want = enabled && !string.IsNullOrEmpty(path) && _changed.Contains(path);
+                    bool want = enabled && GitStatusParser.IsChanged(path, _changed, _untrackedDirs);
                     bool has = caption.EndsWith(Marker, StringComparison.Ordinal);
                     if (want && !has) frame.SetProperty((int)__VSFPROPID.VSFPROPID_EditorCaption, caption + Marker);
                     else if (!want && has) frame.SetProperty((int)__VSFPROPID.VSFPROPID_EditorCaption, caption.Substring(0, caption.Length - Marker.Length));

@@ -276,7 +276,7 @@ namespace UEToVS.Host.Logic.Tests
             var menuOfGroup = new Dictionary<string, string>
             {
                 ["search"] = "menuSearch", ["navigation"] = "menuNavigation", ["history"] = "menuHistory", ["bookmarks"] = "menuM1Bookmarks",
-                ["refactor"] = "menuRefactor", ["generate"] = "menuGenerate", ["editing"] = "menuEditing", ["unreal"] = "menuUnreal", ["build"] = "menuBuild",
+                ["refactor"] = "menuRefactor", ["generate"] = "menuGenerate", ["editing"] = "menuEditing", ["vcs"] = "menuVcs", ["unreal"] = "menuUnreal", ["build"] = "menuBuild",
             };
             foreach (var c in CommandCatalog.All)
             {
