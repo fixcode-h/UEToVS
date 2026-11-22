@@ -41,18 +41,16 @@ namespace UEToVS.Host.Logic.Tests
             var d = schema.Single(x => x.Key == "editor.autoSave");
             Assert.Equal("true", d.Default);
             Assert.Equal("15", schema.Single(x => x.Key == "editor.autoSaveIdleSeconds").Default);
-            Assert.Equal("true", schema.Single(x => x.Key == "editor.gitTabMarker").Default);
+            Assert.DoesNotContain(schema, x => x.Key == "editor.gitTabMarker"); // v0.10.1 移除
             var defaults = new HostSettings();
             Assert.True(defaults.AutoSaveEnabled);
-            Assert.True(defaults.GitTabMarker);
 
             var s = HostSettingsSchema.Codec.FromValues(new Dictionary<string, string>
             {
-                ["editor.autoSave"] = "false", ["editor.autoSaveIdleSeconds"] = "9999", ["editor.gitTabMarker"] = "false",
+                ["editor.autoSave"] = "false", ["editor.autoSaveIdleSeconds"] = "9999",
             }, schema, new HostSettings());
             Assert.False(s.AutoSaveEnabled);
             Assert.Equal(EditorFeatureSettings.MaxAutoSaveIdle, s.AutoSaveIdleSeconds);
-            Assert.False(s.GitTabMarker);
             var v = HostSettingsSchema.Codec.ToValues(s);
             Assert.Equal("false", v["editor.autoSave"]);
             Assert.Equal("600", v["editor.autoSaveIdleSeconds"]);

@@ -34,7 +34,6 @@ namespace UEToVS.Host.Editing
             EngineReadOnlyFeature.Register(registry); // v0.9.4 引擎代码只读
             UEToVS.Host.Diagnostics.Safe.Execute(L, "editor.clipboard.init", ClipboardHistoryFeature.Initialize);
             UEToVS.Host.Diagnostics.Safe.Execute(L, "editor.autoSave.init", AutoSaveFeature.Initialize); // v0.7.5
-            UEToVS.Host.Diagnostics.Safe.Execute(L, "editor.gitTabs.init", GitTabMarkers.Initialize);
             UEToVS.Host.Diagnostics.Safe.Execute(L, "files.saveEncoding.init", UEToVS.Host.Files.SaveEncodingNormalizer.Initialize); // v0.9.13 文件编码
             // Alt+Enter fixes (offered by EditorFixProvider from the squiggles under the caret)
             registry.Register(new DelegateAction(EditorFeatureIds.ReplaceDeprecated, EditorFeatureStrings.GroupFix, ActionCategory.Fix,
