@@ -62,7 +62,7 @@ namespace UEToVS.Host.Logic.Settings
 
             // ---- 补全与提示：写代码时弹出来的东西
             new Card(Completion, "代码补全", "Completion", "completion.enabled", "completion.scope", "completion.onIdentifier",
-                     "completion.caseMode", "completion.tolerant", "completion.accessorFix", "completion.maxResults"),
+                     "completion.caseMode", "completion.tolerant", "completion.accessorFix", "completion.accessorFixOnType", "completion.maxResults"),
             new Card(Completion, "悬停信息与参数信息", "Quick Info & parameter info", "quickInfo.enabled", "quickInfo.reflectionTags", "signatureHelp.enabled"),
             new Card(Completion, "内嵌提示", "Inlay hints", "inlay.parameterNames", "inlay.autoTypes", "inlay.codeVision"),
             new Card(Completion, "代码模板", "Templates", "snippets.enabled", "postfix.enabled"),

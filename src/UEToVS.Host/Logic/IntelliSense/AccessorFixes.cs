@@ -42,5 +42,19 @@ namespace UEToVS.Host.Logic.IntelliSense
         /// </summary>
         public static bool PrecedesWord(AccessorFix fix, int wordLine, int wordStartColumn) =>
             fix != null && fix.Line == wordLine && fix.Column + fix.Length <= wordStartColumn;
+
+        /// <summary>
+        /// v0.9.12 输入即纠正：是否在打出 '.' / '-&gt;' 的那一刻就改（而不是等提交）。要求：设置开着；引擎有把握
+        /// （<see cref="AccessorFix.Confident"/>，纠正后的类型确实列出了成员）；这次补全正是由这个访问符触发的
+        /// （'.' 改成 '-&gt;'，或 '&gt;' 结尾的 '-&gt;' 改成 '.'）；访问符就在光标前（之间没有已输入的成员名）。
+        /// </summary>
+        public static bool ShouldApplyOnType(AccessorFix fix, char triggerChar, int caretLine, int caretColumn, bool enabled)
+        {
+            if (!enabled || fix == null || !fix.Confident || !IsAccessor(fix.Replacement)) return false;
+            if (fix.Line != caretLine || fix.Column + fix.Length != caretColumn) return false;
+            if (triggerChar == '.') return fix.Length == 1 && fix.Replacement == "->";
+            if (triggerChar == '>') return fix.Length == 2 && fix.Replacement == ".";
+            return false;
+        }
     }
 }

@@ -27,6 +27,12 @@ namespace UEToVS.Host.Logic.Editing
 
         public string Arg(int i) => Args != null && i < Args.Count ? Args[i] : null;
 
+        /// <summary>v0.9.12 UE0009 / UE0010：同一条诊断的哪一种改法（<see cref="UhtTypeFixVariants"/>）；其余规则为 null。</summary>
+        public string Variant { get; set; }
+
+        /// <summary>v0.9.12 改法的附加参数（UE0010 蓝图整数：换成的类型）。</summary>
+        public string Target { get; set; }
+
         public static UeRuleFix From(CodeDiagnostic d) => new UeRuleFix
         {
             Code = d.Code, Args = d.Args ?? new List<string>(), Line = d.Line, Column = d.Column, Length = d.Length,
