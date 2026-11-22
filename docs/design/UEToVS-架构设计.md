@@ -65,6 +65,7 @@ VS 自带的 C++ IntelliSense（EDG 前端 + 浏览数据库）在 UE 工程上�
 | 给 VS 自带功能减负 | 关掉 VS 在 UE 大工程上代价过高的后台功能；没有等价替代的要在说明里写清楚 |
 | MCP | 以只读查询索引为主；写操作只有已有的 `rename_symbol`（先预览、再 `apply=true`）和下面的 VS 调试控制，不再新增别的写操作 |
 | 驱动 VS 自带的调试器（v0.8.0，2026-11-16 用户定） | 让 Agent 通过 VS 的自动化接口启停、附加、编译、下断点、单步、读栈和变量、求表达式、读调试输出（`debug_*` MCP 工具，Agent 面板的 `ue_vs_*`）。只开放 VS 已有的能力，不做调试器本体，见 [VS-调试控制.md](VS-调试控制.md) |
+| 编辑器内的版本信息（v0.10.0，2026-11-22 用户定） | Git 和 Perforce 的行尾追溯、改动色条和改动块（可回滚这一块）、追溯栏、文件 / 选中代码 / 函数历史，只读、按需计算，数据来自 `git` / `p4` 命令行；UEToVS 自己改写文件时走 VS 的签出流程（配合 P4VS）、按设置选文件编码。不做提交等仓库操作，见下表 |
 
 **边界外（不做）**
 
@@ -74,7 +75,8 @@ VS 自带的 C++ IntelliSense（EDG 前端 + 浏览数据库）在 UE 工程上�
 | 自动化测试运行器、UE 日志窗口 | VS 自带的 Unreal Engine 集成、UE 编辑器 |
 | 构建系统、调试器本体、调试可视化（natvis）、自己的变量 / 调用栈窗口 | VS + UBT、引擎自带 natvis（UEToVS 只把 VS 调试器开放给 Agent，见上） |
 | 资产 / 蓝图编辑 | UE 编辑器 |
-| 代码格式化、拼写检查、模块 / 插件新建向导 | VS 自带 |
+| 代码格式化、拼写检查（VS 2022 17.5 起自带，含 C++ 注释）、模块 / 插件新建向导 | VS 自带 |
+| 提交、分支、合并、暂存、变更列表、搁置等仓库操作，VS 源代码管理提供程序 | VS 自带的 Git、Perforce 官方的 P4VS / P4V |
 | 新增 MCP 写操作（`rename_symbol` 和 VS 调试控制之外） | Agent 自己的写文件能力 |
 | Lua 的一切（索引、查找、补全、跳转、调试；v0.9.0 起移除，2026-11-17 用户定） | IntelliJ IDEA 的 IntelliJ-EmmyLua 插件：Lua 查找走 IDE 自带 MCP 服务器里的 `lua_code` 工具，调试走 `lua_debug_*`。UEToVS 不再生成 Lua 索引，旧工具名 `search_lua` / `search_lua_files` / `get_lua_outline` 保留一版，调用返回 `tool_removed` |
 
