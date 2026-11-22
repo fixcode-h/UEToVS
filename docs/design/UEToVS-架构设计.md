@@ -224,6 +224,8 @@ Rider 在 UE 上的优势主要不在“能做什么”，而在“怎么做”�
 
 ## 4. 功能规划：三档清单
 
+> 状态列 2026-11-22 按 v0.10.0 刷新了 P0 表；P1 / P2 已做的有：Alt+Enter 中枢、Generate、Inline Rename、Code Vision、Inlay Hints、Postfix、调用层次、Smart Select、多重剪贴板、Hashtags、命名规范、Ini / .uproject / .uplugin 补全校验、蓝图用法、UHT 规则、网络复制检查、委托绑定、GameplayTags、配置联动、日志分类、模块依赖图、引擎升级助手、生成代码预览、MCP。注释拼写检查不做（VS 自带）。
+
 图例：
 - **P0 必须开发**：对标 VA 的核心能力，缺了就无法替代 VA。
 - **P1 优秀可选**：VA 或 Rider 有、价值高，但可以后置。
@@ -258,8 +260,8 @@ Rider 在 UE 上的优势主要不在“能做什么”，而在“怎么做”�
 | Quick Info（签名、注释、反射说明符） | VA | L1 | ✅ |
 | 悬停宏展开（含 UE 宏） | VA 2025.3+ | L1，精确模式 L2 | ✅ |
 | 参数信息（Signature Help） | VA | L1 | ✅ |
-| `.` ↔ `->` 自动纠正 | VA | L1 | ⬜ |
-| Add Include（UE 引号风格、Public/Private 路径） + 自动补 Build.cs 依赖 | VA Add Include；Rider | L0/L1 | 🔶（依赖修复已有） |
+| `.` ↔ `->` 自动纠正 | VA | L1 | ✅（v0.10.0 输入即纠正） |
+| Add Include（UE 引号风格、Public/Private 路径） + 自动补 Build.cs 依赖 | VA Add Include；Rider | L0/L1 | ✅ |
 | 未知符号快速红线（高置信度才报） | VA | L1 | ✅ |
 
 #### 重构与代码生成
@@ -283,10 +285,10 @@ Rider 在 UE 上的优势主要不在“能做什么”，而在“怎么做”�
 | UE 宏正确解析（UCLASS / USTRUCT / UENUM / UINTERFACE / UFUNCTION / UPROPERTY / GENERATED_BODY / DECLARE_*_DELEGATE*） | VA | L1 | 🔶（声明级已有） |
 | 不依赖 `.generated.h`（内置 GENERATED_BODY 语义模型） | VA 2021.2 | L1 | 🔶 |
 | 只解析启用的插件与引用模块 | VA 2021.2 | L0 | 🔶 |
-| `CreateDefaultSubobject<T>` 等模板工厂的类型推导 | VA 2024.1 | L1 | ⬜ |
+| `CreateDefaultSubobject<T>` 等模板工厂的类型推导 | VA 2024.1 | L1 | ✅ |
 | 反射说明符补全与文档（UPROPERTY/UFUNCTION/UCLASS/USTRUCT/meta） | Rider | L0 + 知识库 | ✅ |
 | Build.cs 模块依赖检查与修复 | Rider | L0 | ✅ |
-| HLSL / USF / USH 着色、导航、补全 | VA | 独立轻量解析 | 🔶（词法着色 + #include 跳转） |
+| HLSL / USF / USH 着色、导航、补全 | VA | 独立轻量解析 | ✅（v0.10.0） |
 | 生成工程文件 | — | — | ✅（Live Coding 触发需连编辑器，v0.7.0 移除） |
 
 #### 基础设施（不面向用户，但 P0）

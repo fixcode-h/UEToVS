@@ -4,7 +4,7 @@
 
 - 整体设计：[docs/design/UEToVS-架构设计.md](docs/design/UEToVS-架构设计.md)
 - 定位与能力边界：[设计文档 §1.4](docs/design/UEToVS-架构设计.md#14-定位与能力边界2026-11-15-确定)（做什么、不做什么、新需求怎么判断）
-- 当前状态：**v0.7.3**。M0–M4 已完成：原型功能对齐（Search Everywhere、导航历史、书签、相关项、Build.cs 依赖修复、资产搜索、Rider 键位）、导航（转到定义/实现、查找引用、类型层次、调用层次、速览定义、导航栏、引用高亮）、IntelliSense（UE 感知成员补全、Quick Info、宏展开、参数信息、语法着色、内嵌提示、UE 规则波浪线、反射说明符补全、通用模板实例化）、重构与生成（上下文操作 Shift+Alt+Q、重命名、更改签名、移动实现、提取方法、引入变量、封装字段、前置声明、生成实现、Live Templates、Surround With）、UE 专项（新建 UE 类、编译错误波浪线、全项目检查、引擎升级助手、蓝图索引：查找引用和类型层次里列出蓝图，Code Vision 显示派生类和蓝图数量）。另有给 AI Agent 用的 MCP 服务（见下文）。
+- 当前状态：**v0.10.0**。导航（Search Everywhere、转到定义/实现、查找引用、类型层次、调用层次、相关项）、UE 感知 IntelliSense（补全、`.`/`->` 输入即纠正、Quick Info、宏展开、参数信息、语义着色、内嵌提示、UE 规则波浪线）、重构与生成（重命名、更改签名、移动实现、提取方法、说明符编辑器…）、UE 专项（新建 UE 类、全项目检查、引擎升级助手、蓝图索引、Code Vision、模块依赖图、ini / .uproject / .uplugin 补全检查、着色器补全跳转）、编辑器内的版本信息（Git / Perforce 行尾追溯、改动色条、追溯栏、选中 / 函数历史）。另有给 AI Agent 用的 MCP 服务（见下文）。
 
 ## 结构
 
@@ -72,7 +72,7 @@ msbuild src\UEToVS.Host\UEToVS.Host.csproj /restore /p:Configuration=Release
 
 ## 在 VS 自带聊天里用自定义 API 的模型（Agent / API）
 
-UEToVS 设置 > Agent / API：添加 API（名称、地址、密钥、密钥的发送方式、并发上限），“测试连接”或“从接口获取”模型，勾选要用的模型后应用。勾选的模型会自动写入 VS Copilot 聊天的自定义模型（Ollama 类型，地址是 UEToVS 的本地转发服务 `http://127.0.0.1:47811`），重新打开聊天窗口即可在模型选择器里选择。密钥用 Windows DPAPI 加密保存在本机，不会交给 VS。目前支持 OpenAI Chat Completions 兼容的 API。原理和限制见 [docs/design/Agent-API.md](docs/design/Agent-API.md)。
+UEToVS 设置 > Agent / API：添加 API（名称、地址、密钥、密钥的发送方式、并发上限），“测试连接”或“从接口获取”模型，勾选要用的模型后应用。勾选的模型会自动写入 VS Copilot 聊天的自定义模型（Ollama 类型，地址是 UEToVS 的本地转发服务 `http://127.0.0.1:11434`，和 VS“添加 Ollama 提供程序”预填的一致；11434 被本机 Ollama 等占用时自动改用 47811），重新打开聊天窗口即可在模型选择器里选择。密钥用 Windows DPAPI 加密保存在本机，不会交给 VS。目前支持 OpenAI Chat Completions 兼容的 API。原理和限制见 [docs/design/Agent-API.md](docs/design/Agent-API.md)。
 
 ## 给 AI Agent 用（MCP）
 
