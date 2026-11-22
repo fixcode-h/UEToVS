@@ -77,7 +77,7 @@ namespace UEToVS.Host.Logic.Settings
             new Card(Highlighting, "编译错误", "Build errors", "build.squiggles", "errorList.enabled", "errorList.includeBuild"),
 
             // ---- 编辑
-            new Card(Editing, "自动保存", "Auto-save", "editor.autoSave", "editor.autoSaveIdleSeconds", "editor.gitTabMarker"),
+            new Card(Editing, "自动保存", "Auto-save", "editor.autoSave", "editor.autoSaveIdleSeconds"),
             new Card(Editing, "引擎代码", "Engine code", "editor.engineReadOnly"),
             new Card(Editing, "文件编码", "File encoding", "files.encoding", "files.existingEncoding", "files.encodingOnSave"),
             new Card(Editing, "版本信息", "Version control", "vcs.inlineBlame", "vcs.inlineBlameScope", "vcs.inlineBlameEngine", "vcs.changeBars",

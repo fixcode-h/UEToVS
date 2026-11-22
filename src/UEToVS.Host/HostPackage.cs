@@ -351,7 +351,6 @@ namespace UEToVS.Host
             await SetUnrealContextAsync(true);
             await JoinableTaskFactory.SwitchToMainThreadAsync(DisposalToken);
             Safe.Execute(L, "m1.solutionOpened", () => M1Feature.OnUnrealSolutionOpened(dir));
-            Safe.Execute(L, "editor.gitTabs.solutionOpened", () => Editing.GitTabMarkers.OnSolutionOpened(dir));
             Safe.Execute(L, "vcs.solutionOpened", () => Vcs.VcsService.Instance.OnSolutionOpened(dir)); // 编辑器内版本信息
             // The document VS restored with the solution became active before the solution was known to be UE: reveal it now.
             Safe.Execute(L, "solutionExplorer.solutionOpened", () => _solutionExplorer?.RevealActiveAfterSolutionOpened());
@@ -384,7 +383,6 @@ namespace UEToVS.Host
         private void OnSolutionClosing()
         {
             Safe.Execute(L, "m1.solutionClosing", M1Feature.OnSolutionClosing);
-            Safe.Execute(L, "editor.gitTabs.solutionClosing", Editing.GitTabMarkers.OnSolutionClosing);
             Safe.Execute(L, "vcs.solutionClosing", Vcs.VcsService.Instance.OnSolutionClosing);
             if (!_unreal.IsUnreal) return;
             L.Info("solution.closing", null, ("solution", _solutionFile));
