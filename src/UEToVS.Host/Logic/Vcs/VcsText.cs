@@ -46,7 +46,7 @@ namespace UEToVS.Host.Logic.Vcs
             time == default ? string.Empty : time.ToString(dateOnly ? "yyyy-MM-dd" : "yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
     }
 
-    /// <summary>行尾灰字和追溯栏的文字。</summary>
+    /// <summary>行尾灰字和注解栏的文字。</summary>
     public static class BlameText
     {
         public const int MaxSummary = 80;
@@ -64,13 +64,19 @@ namespace UEToVS.Host.Logic.Vcs
             return sb.ToString();
         }
 
-        /// <summary>追溯栏一行：作者（截短）+ 日期。</summary>
+        /// <summary>注解栏日期列的宽度（"2026/10/26"）。</summary>
+        public const int DateWidth = 10;
+
+        /// <summary>
+        /// 注解栏一行（v0.10.2 照 Rider 的 Annotate）：日期（yyyy/M/d，补齐到 <see cref="DateWidth"/>）+ 作者（截短）。
+        /// 每行都写，不再只写同一提交的第一行。
+        /// </summary>
         public static string Gutter(VcsCommit c, bool english, int authorWidth = 12)
         {
             if (c == null) return string.Empty;
             if (c.IsUncommitted) return english ? "Not committed" : "未提交";
-            string author = Truncate(string.IsNullOrEmpty(c.Author) ? "?" : c.Author, authorWidth);
-            return author.PadRight(authorWidth + 1) + RelativeTime.Absolute(c.Time, true);
+            string date = c.Time == default ? string.Empty : c.Time.ToString("yyyy/M/d", CultureInfo.InvariantCulture);
+            return date.PadRight(DateWidth + 1) + Truncate(string.IsNullOrEmpty(c.Author) ? "?" : c.Author, authorWidth);
         }
 
         public static string Truncate(string s, int max)
@@ -81,8 +87,8 @@ namespace UEToVS.Host.Logic.Vcs
     }
 
     /// <summary>
-    /// 追溯栏的颜色：同一提交同一色相（由提交号算出，固定），越新越亮（按文件里所有提交的时间排名）。返回 0–1 的亮度，
-    /// 由界面层按深浅主题换成画刷。
+    /// 注解栏的颜色（v0.10.2 照用户给的 Rider 截图）：统一用蓝色，越新越深越饱和、越旧越接近背景（按文件里所有提交的时间排名），
+    /// 一眼看出哪些行是最近改的。由界面层按深浅主题换成画刷。
     /// </summary>
     public static class BlameColors
     {
@@ -128,16 +134,19 @@ namespace UEToVS.Host.Logic.Vcs
             return ((byte)Math.Round(Ch(h + 1.0 / 3) * 255), (byte)Math.Round(Ch(h) * 255), (byte)Math.Round(Ch(h - 1.0 / 3) * 255));
         }
 
+        /// <summary>注解栏的色相：蓝。</summary>
+        public const double AnnotateHue = 216;
+
         /// <summary>
-        /// 追溯栏底色：深色主题上越新越亮，浅色主题上越新越饱和；alpha 也随新旧变化（旧提交几乎透明，不抢正文）。
+        /// 注解栏底色（不透明）：深色主题上旧提交是接近编辑器底色的暗灰蓝，越新越亮越蓝；浅色主题上旧提交接近白，越新越深越蓝。
         /// </summary>
-        public static (byte A, byte R, byte G, byte B) Background(string commitId, double rank, bool dark)
+        public static (byte A, byte R, byte G, byte B) Background(double rank, bool dark)
         {
             rank = Math.Max(0, Math.Min(1, rank));
-            double l = dark ? 0.30 + 0.25 * rank : 0.80 - 0.15 * rank;
-            var (r, g, b) = FromHsl(Hue(commitId), 0.45 + 0.25 * rank, l);
-            byte a = (byte)Math.Round(40 + 140 * rank);
-            return (a, r, g, b);
+            double s = 0.15 + 0.45 * rank;
+            double l = dark ? 0.17 + 0.15 * rank : 0.95 - 0.15 * rank;
+            var (r, g, b) = FromHsl(AnnotateHue, s, l);
+            return (255, r, g, b);
         }
     }
 

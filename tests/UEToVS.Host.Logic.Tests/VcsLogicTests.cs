@@ -329,8 +329,11 @@ namespace UEToVS.Host.Logic.Tests
             c.Summary = new string('x', 200);
             Assert.True(BlameText.Inline(c, now, false).Length < 120);
             Assert.EndsWith("…", BlameText.Inline(c, now, false));
-            Assert.StartsWith("张三", BlameText.Gutter(c, false));
-            Assert.Contains("2026-11-19", BlameText.Gutter(c, false));
+            string g = BlameText.Gutter(c, false);
+            Assert.StartsWith(c.Time.ToString("yyyy/M/d", System.Globalization.CultureInfo.InvariantCulture), g);
+            Assert.EndsWith("张三", g);
+            Assert.Equal(BlameText.DateWidth + 1, g.IndexOf('张'));
+            Assert.Equal("未提交", BlameText.Gutter(new VcsCommit { IsUncommitted = true }, false));
         }
 
         [Fact]
@@ -350,10 +353,14 @@ namespace UEToVS.Host.Logic.Tests
             Assert.Equal(0.5, r["c"]);
             Assert.False(r.ContainsKey("u"));
             Assert.Equal(BlameColors.Hue(ShaA), BlameColors.Hue(ShaA));
-            var oldDark = BlameColors.Background("a", 0, true);
-            var newDark = BlameColors.Background("a", 1, true);
-            Assert.True(newDark.A > oldDark.A);
+            var oldDark = BlameColors.Background(0, true);
+            var newDark = BlameColors.Background(1, true);
+            Assert.Equal((byte)255, newDark.A);
             Assert.True(newDark.R + newDark.G + newDark.B > oldDark.R + oldDark.G + oldDark.B);
+            Assert.True(newDark.B > newDark.R); // 蓝
+            var oldLight = BlameColors.Background(0, false);
+            var newLight = BlameColors.Background(1, false);
+            Assert.True(newLight.R + newLight.G + newLight.B < oldLight.R + oldLight.G + oldLight.B); // 浅色主题越新越深
             Assert.Equal((byte)255, BlameColors.FromHsl(0, 1, 0.5).R);
         }
 
@@ -461,13 +468,17 @@ namespace UEToVS.Host.Logic.Tests
         public void Settings_DefaultsAndRoundTrip()
         {
             var s = new HostSettings();
-            Assert.True(s.VcsInlineBlame);
+            Assert.True(s.VcsAnnotate);     // v0.10.2：行号旁注解默认开
+            Assert.False(s.VcsInlineBlame); // 行尾追溯默认关，由注解替代
             Assert.False(s.VcsInlineBlameEngine); // 引擎文件默认关
             Assert.True(s.VcsChangeBars);
             Assert.Equal(InlineBlameScope.CurrentLine, s.VcsInlineBlameScope);
             Assert.Equal(500, s.VcsHistoryMaxCommits);
             var v = HostSettingsSchema.Codec.ToValues(s);
-            Assert.Equal("true", v[VcsSettings.InlineBlameKey]);
+            Assert.Equal("true", v[VcsSettings.AnnotateKey]);
+            Assert.Equal("false", v[VcsSettings.InlineBlameKey]);
+            Assert.True(VcsSettings.TrySet(s, VcsSettings.AnnotateKey, "false"));
+            Assert.False(s.VcsAnnotate);
             Assert.Equal("CurrentLine", v[VcsSettings.InlineBlameScopeKey]);
             Assert.True(VcsSettings.TrySet(s, VcsSettings.InlineBlameScopeKey, "AllLines"));
             Assert.True(VcsSettings.TrySet(s, VcsSettings.HistoryMaxKey, "99999"));

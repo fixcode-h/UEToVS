@@ -22,7 +22,7 @@ using UEToVS.UI.Theming;
 namespace UEToVS.Host.Vcs
 {
     /// <summary>
-    /// 行尾追溯 / 追溯栏的悬停卡片（UEToVS.UI 的 PopupShell，和其它弹窗同一套样式）：提交说明首行、作者和邮箱、时间、哈希，
+    /// 行尾追溯 / 注解栏的悬停卡片（UEToVS.UI 的 PopupShell，和其它弹窗同一套样式）：提交说明首行、作者和邮箱、时间、哈希，
     /// 后台补上完整说明（带 vcs.issueLinks 链接）和本次提交改动的文件；按钮：复制哈希、查看这次提交的 diff、追溯上一版。整个应用只有一个实例。
     /// </summary>
     internal static class CommitCard

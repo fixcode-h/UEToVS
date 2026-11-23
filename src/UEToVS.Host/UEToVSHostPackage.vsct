@@ -1230,7 +1230,7 @@
         <CommandFlag>TextChanges</CommandFlag>
         <CommandFlag>DefaultDisabled</CommandFlag>
         <Strings>
-          <ButtonText>Show / Hide Blame Gutter</ButtonText>
+          <ButtonText>Show / Hide Annotations</ButtonText>
           <CanonicalName>UEToVS.ToggleBlameGutter</CanonicalName>
           <LocCanonicalName>UEToVS.ToggleBlameGutter</LocCanonicalName>
         </Strings>

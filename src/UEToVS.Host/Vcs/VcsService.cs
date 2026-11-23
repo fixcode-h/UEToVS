@@ -73,11 +73,11 @@ namespace UEToVS.Host.Vcs
                     ClearProviders();
                     foreach (var root in roots) BaseInvalidated?.Invoke(this, root); // 打开的文档换 provider 重新载入
                 }
-                if (o.VcsInlineBlame != n.VcsInlineBlame || o.VcsInlineBlameScope != n.VcsInlineBlameScope || o.VcsInlineBlameEngine != n.VcsInlineBlameEngine ||
+                if (o.VcsAnnotate != n.VcsAnnotate || o.VcsInlineBlame != n.VcsInlineBlame || o.VcsInlineBlameScope != n.VcsInlineBlameScope || o.VcsInlineBlameEngine != n.VcsInlineBlameEngine ||
                     o.VcsChangeBars != n.VcsChangeBars || o.VcsProvider != n.VcsProvider || o.VcsIssueLinks != n.VcsIssueLinks)
                 {
                     _issueRules = null;
-                    L.Info("vcs.settings", null, ("inlineBlame", n.VcsInlineBlame), ("scope", n.VcsInlineBlameScope.ToString()), ("engine", n.VcsInlineBlameEngine),
+                    L.Info("vcs.settings", null, ("annotate", n.VcsAnnotate), ("inlineBlame", n.VcsInlineBlame), ("scope", n.VcsInlineBlameScope.ToString()), ("engine", n.VcsInlineBlameEngine),
                            ("changeBars", n.VcsChangeBars), ("provider", n.VcsProvider.ToString()));
                     SettingsChanged?.Invoke(this, EventArgs.Empty);
                 }

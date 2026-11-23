@@ -21,7 +21,7 @@ namespace UEToVS.Host.Logic.Localization
     {
         // ---- 命令
         public static string CmdToggleInlineBlame => Loc.T("显示 / 隐藏行尾追溯", "Show / Hide Inline Blame");
-        public static string CmdToggleBlameGutter => Loc.T("显示 / 隐藏追溯栏", "Show / Hide Blame Gutter");
+        public static string CmdToggleBlameGutter => Loc.T("显示 / 隐藏注解", "Show / Hide Annotations");
         public static string CmdNextChange => Loc.T("下一处改动", "Next Change");
         public static string CmdPreviousChange => Loc.T("上一处改动", "Previous Change");
         public static string CmdShowChange => Loc.T("查看光标处的改动…", "Show Change at Caret...");
@@ -47,7 +47,7 @@ namespace UEToVS.Host.Logic.Localization
         public static string InlineOn => Loc.T("已显示行尾追溯", "Inline blame shown");
         public static string InlineOff => Loc.T("已隐藏行尾追溯（本次 VS 会话）", "Inline blame hidden (for this VS session)");
         public static string InlineOffInSettings => Loc.T("行尾追溯已在设置里关闭（设置 > 编辑 > 版本信息）", "Inline blame is off in Settings > Editing > Version control");
-        public static string InlineEngineOff => Loc.T("引擎文件默认不做行尾追溯，可在设置 > 编辑 > 版本信息里打开；追溯栏仍可用", "Engine files are not blamed inline by default (Settings > Editing > Version control); the blame gutter still works");
+        public static string InlineEngineOff => Loc.T("引擎文件默认不做行尾追溯，可在设置 > 编辑 > 版本信息里打开；注解栏仍可用", "Engine files are not blamed inline by default (Settings > Editing > Version control); annotations still work");
         public static string Copied => Loc.T("已复制", "Copied");
         public static string RolledBack => Loc.T("已回滚这一块（Ctrl+Z 撤销）", "Block rolled back (Ctrl+Z undoes it)");
         public static string ReadOnly => Loc.T("文件是只读的，不能回滚", "The file is read-only: nothing was rolled back");
@@ -73,7 +73,7 @@ namespace UEToVS.Host.Logic.Localization
         public static string ShowDiff => Loc.T("查看这次提交的 diff", "Show This Commit's Diff");
         public static string ShowDiffTip => Loc.T("在 VS 的比较窗口里看这次提交对当前文件的改动", "See what this commit changed in the current file, in VS's diff window");
         public static string BlamePrevious => Loc.T("追溯上一版", "Blame Previous Revision");
-        public static string BlamePreviousTip => Loc.T("打开这次提交之前的版本并显示追溯栏，看改这行之前是谁写的", "Open the revision before this commit with the blame gutter, to see who wrote the line before");
+        public static string BlamePreviousTip => Loc.T("打开这次提交之前的版本并显示注解栏，看改这行之前是谁写的", "Open the revision before this commit with annotations, to see who wrote the line before");
         public static string FilesHeader(int n, bool truncated) => truncated
             ? Loc.F("改动的文件（前 {0} 个）", "Changed files (first {0})", n)
             : Loc.F("改动的文件（{0}）", "Changed files ({0})", n);
