@@ -16,7 +16,7 @@ namespace UEToVS.Host.Vcs
 {
     /// <summary>
     /// 用 VS 自己的比较窗口（IVsDifferenceService）看 diff：两个版本写成只读临时文件（VcsTempFiles），和工作区比较时右边就是真实文件，
-    /// 可以直接在比较窗口里改。“追溯上一版”把旧版本写成临时文件打开，登记到 VcsService，打开后自动显示追溯栏。
+    /// 可以直接在比较窗口里改。“追溯上一版”把旧版本写成临时文件打开，登记到 VcsService，打开后自动显示注解栏。
     /// </summary>
     internal static class VcsDiffWindow
     {
@@ -70,7 +70,7 @@ namespace UEToVS.Host.Vcs
             diff.OpenComparisonWindow2(left, right, caption, caption, leftLabel, rightLabel, null, null, options);
         }
 
-        /// <summary>“追溯上一版”：把 <paramref name="revision"/> 版本写成只读临时文件打开，滚到 <paramref name="line"/>（从 0 开始），显示追溯栏。</summary>
+        /// <summary>“追溯上一版”：把 <paramref name="revision"/> 版本写成只读临时文件打开，滚到 <paramref name="line"/>（从 0 开始），显示注解栏。</summary>
         public static async Task OpenRevisionAsync(IVcsProvider p, string path, string revision, int line, CancellationToken ct)
         {
             var sw = Stopwatch.StartNew();

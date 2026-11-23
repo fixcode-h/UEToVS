@@ -16,8 +16,8 @@ using UEToVS.Host.Navigation;
 namespace UEToVS.Host.Vcs
 {
     /// <summary>
-    /// 一个打开的文件的版本信息状态（挂在 ITextBuffer 上，色条、行尾追溯、追溯栏共用一份）。基准版本只取一次（VcsService 缓存），
-    /// 编辑停 250 ms 后在后台线程上和基准做行 diff，UI 线程只换结果；追溯按需取（光标停下、打开追溯栏），编辑过的行用 diff 映射成“未提交”，
+    /// 一个打开的文件的版本信息状态（挂在 ITextBuffer 上，色条、行尾追溯、注解栏共用一份）。基准版本只取一次（VcsService 缓存），
+    /// 编辑停 250 ms 后在后台线程上和基准做行 diff，UI 线程只换结果；追溯按需取（光标停下、打开注解栏），编辑过的行用 diff 映射成“未提交”，
     /// 不重跑 blame。“追溯上一版”打开的旧版本文件没有色条，追溯的是那个版本。
     /// </summary>
     internal sealed class VcsDocument
@@ -56,7 +56,7 @@ namespace UEToVS.Host.Vcs
         public static VcsDocument For(ITextBuffer buffer) =>
             buffer.Properties.GetOrCreateSingletonProperty(typeof(VcsDocument), () => new VcsDocument(buffer));
 
-        /// <summary>色条 / 行尾追溯 / 追溯栏各自 Attach 一次；全都 Detach（视图关了）后释放。</summary>
+        /// <summary>色条 / 行尾追溯 / 注解栏各自 Attach 一次；全都 Detach（视图关了）后释放。</summary>
         public void Attach()
         {
             _users++;
@@ -97,7 +97,7 @@ namespace UEToVS.Host.Vcs
 
         public bool IsLarge => _buffer.CurrentSnapshot.LineCount > LargeFileLines;
 
-        /// <summary>差异或追溯变了（UI 线程）：色条、追溯栏、行尾重画。</summary>
+        /// <summary>差异或追溯变了（UI 线程）：色条、注解栏、行尾重画。</summary>
         public event EventHandler Changed;
 
         private void Raise() => Changed?.Invoke(this, EventArgs.Empty);

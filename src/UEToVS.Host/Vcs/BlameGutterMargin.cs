@@ -19,8 +19,8 @@ namespace UEToVS.Host.Vcs
 {
     [Export(typeof(IWpfTextViewMarginProvider))]
     [Name(BlameGutterMargin.MarginName)]
-    [MarginContainer(PredefinedMarginNames.Left)]
-    [Order(Before = PredefinedMarginNames.Glyph)]
+    [MarginContainer(PredefinedMarginNames.LeftSelection)]
+    [Order(Before = PredefinedMarginNames.LineNumber)]
     [ContentType("text")]
     [TextViewRole(PredefinedTextViewRoles.Document)]
     internal sealed class BlameGutterMarginProvider : IWpfTextViewMarginProvider
@@ -33,8 +33,9 @@ namespace UEToVS.Host.Vcs
     }
 
     /// <summary>
-    /// G4 追溯栏（命令 Ctrl+Shift+Alt+U, O 打开 / 关闭，每个编辑器窗口单独）：编辑器最左边列出作者和日期，同一提交同色相、越新越亮
-    /// （<see cref="BlameColors"/>），同一提交连续的几行只在第一行写字；点一行弹出提交卡片，可“追溯上一版”（打开父提交的版本再追溯，一路往回看）。
+    /// G4 注解栏（v0.10.2 照用户给的 Rider Annotate 截图改）：紧贴行号左边，每行写“日期 作者”，越新底色越蓝（<see cref="BlameColors"/>）。
+    /// 设置“行号旁显示注解”（vcs.annotate，默认开）决定打开文件时显不显示；引擎文件跟“引擎文件也自动追溯”。Ctrl+Shift+Alt+U, O
+    /// 只切当前编辑器。点一行弹出提交卡片，可“追溯上一版”（打开父提交的版本再注解，一路往回看）。
     /// VS 自带的追溯（右键 > Git > 追溯）不动，两个可以同时用。只画可见的行。
     /// </summary>
     internal sealed class BlameGutterMargin : FrameworkElement, IWpfTextViewMargin
@@ -45,7 +46,8 @@ namespace UEToVS.Host.Vcs
 
         private readonly IWpfTextView _view;
         private readonly VcsDocument _doc;
-        private bool _shown;
+        /// <summary>Ctrl+Shift+Alt+U, O 或“追溯上一版”在这个编辑器里定下的显示 / 隐藏；null 时跟设置。</summary>
+        private bool? _forced;
         private bool _disposed;
         private Dictionary<string, double> _ranks;
         private BlameResult _ranksFor;
@@ -63,7 +65,8 @@ namespace UEToVS.Host.Vcs
             Cursor = Cursors.Hand;
             Width = 0;
             string path = _doc.FilePath;
-            if (path != null && OpenWithGutter.Remove(path)) SetShown(true);
+            if (path != null && OpenWithGutter.Remove(path)) _forced = true;
+            Refresh();
         }
 
         /// <summary>“追溯上一版”打开的旧版本：打开时就显示追溯栏。</summary>
@@ -75,31 +78,47 @@ namespace UEToVS.Host.Vcs
         public static BlameGutterMargin Of(IWpfTextView view) =>
             view != null && view.Properties.TryGetProperty(typeof(BlameGutterMargin), out BlameGutterMargin m) ? m : null;
 
-        public bool Shown => _shown;
+        /// <summary>现在是否显示（文档还没准备好时按将要显示算）。</summary>
+        public bool Shown => _forced ?? BySettings;
+
+        /// <summary>设置决定的显示：开着“行号旁显示注解”；引擎文件还要开“引擎文件也自动追溯”（旧版本临时文件不算引擎文件）。</summary>
+        private bool BySettings
+        {
+            get
+            {
+                var s = VcsService.Settings;
+                if (s == null || !s.VcsAnnotate) return false;
+                return _doc.Revision != null || s.VcsInlineBlameEngine || !_doc.Ready || !_doc.IsEngineFile;
+            }
+        }
 
         public void SetShown(bool shown)
         {
-            _shown = shown;
-            if (shown && _doc.Ready) _doc.RequestBlame();
-            UpdateWidth();
-            InvalidateVisual();
+            _forced = shown;
+            Refresh();
             VcsService.L.Info("vcs.gutter", null, ("shown", shown), ("file", System.IO.Path.GetFileName(_doc.FilePath)), ("revision", _doc.Revision?.Revision));
         }
+
+        private void Refresh()
+        {
+            _shown = Shown && VcsService.Active && _doc.Ready;
+            if (_shown && _doc.Blame == null && !_doc.BlameRunning && _doc.BlameError == null) _doc.RequestBlame();
+            UpdateWidth();
+            InvalidateVisual();
+        }
+
+        private bool _shown;
 
         private double CharWidth => (_view.FormattedLineSource?.DefaultTextProperties?.FontRenderingEmSize ?? 13.0) * 0.92 * 0.6;
 
         private void UpdateWidth()
         {
-            double w = _shown && VcsService.Active && _doc.Ready ? Math.Ceiling(CharWidth * (AuthorChars + 12) + 12) : 0;
+            double w = _shown ? Math.Ceiling(CharWidth * (BlameText.DateWidth + 1 + AuthorChars) + 14) : 0;
             if (Width != w) Width = w;
         }
 
-        private void OnChanged(object sender, EventArgs e) => Safe.Execute(VcsService.L, "vcs.gutter.changed", () =>
-        {
-            if (_shown && _doc.Ready && _doc.Blame == null && !_doc.BlameRunning && _doc.BlameError == null) _doc.RequestBlame();
-            UpdateWidth();
-            InvalidateVisual();
-        });
+        // 设置改了（VcsService 会让文档重新载入）也走这里
+        private void OnChanged(object sender, EventArgs e) => Safe.Execute(VcsService.L, "vcs.gutter.changed", Refresh);
 
         private void OnLayoutChanged(object sender, TextViewLayoutChangedEventArgs e)
         {
@@ -110,11 +129,12 @@ namespace UEToVS.Host.Vcs
         {
             if (_brushes.TryGetValue(commitId, out var b)) return b;
             bool dark = ThemeManager.Instance.IsDark;
-            if (uncommitted) b = new SolidColorBrush(Color.FromArgb(0x30, 0x80, 0x80, 0x80));
+            // 未提交：中性灰，和蓝色的提交区分开
+            if (uncommitted) b = new SolidColorBrush(dark ? Color.FromRgb(0x3A, 0x3A, 0x3A) : Color.FromRgb(0xE4, 0xE4, 0xE4));
             else
             {
                 double rank = _ranks != null && _ranks.TryGetValue(commitId, out var r) ? r : 0;
-                var (a, red, g, bl) = BlameColors.Background(commitId, rank, dark);
+                var (a, red, g, bl) = BlameColors.Background(rank, dark);
                 b = new SolidColorBrush(Color.FromArgb(a, red, g, bl));
             }
             b.Freeze();
@@ -148,28 +168,26 @@ namespace UEToVS.Host.Vcs
             }
             var snapshot = _view.TextSnapshot;
             double top = _view.ViewportTop;
-            string prevId = null;
-            bool first = true;
             bool english = Loc.IsEnglish;
+            var texts = new Dictionary<string, FormattedText>(StringComparer.Ordinal); // 同一提交的字只排一次版
             foreach (var line in _view.TextViewLines)
             {
-                if (!line.IsFirstTextViewLineForSnapshotLine) continue;
+                // 自动换行的续行只铺底色，字写在第一段
                 int n = line.Start.GetContainingLine().LineNumber;
                 var c = _doc.CommitAt(snapshot, n, out _);
-                if (first && n > 0) prevId = _doc.CommitAt(snapshot, n - 1, out _)?.Id;
-                first = false;
-                if (c == null) { prevId = null; continue; }
+                if (c == null) continue;
                 double y = line.Top - top;
                 dc.DrawRectangle(BrushFor(c.Id, c.IsUncommitted), null, new Rect(0, y, ActualWidth - 2, line.Height));
-                if (c.Id != prevId)
+                if (!line.IsFirstTextViewLineForSnapshotLine) continue;
+                if (!texts.TryGetValue(c.Id, out var ft))
                 {
-                    var ft = new FormattedText(BlameText.Gutter(c, english, AuthorChars), CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, typeface, size, fg, dip)
+                    ft = new FormattedText(BlameText.Gutter(c, english, AuthorChars), CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, typeface, size, fg, dip)
                     {
                         MaxTextWidth = Math.Max(10, ActualWidth - 8), MaxLineCount = 1, Trimming = TextTrimming.CharacterEllipsis,
                     };
-                    dc.DrawText(ft, new Point(4, y + Math.Max(0, (line.Height - ft.Height) / 2)));
+                    texts[c.Id] = ft;
                 }
-                prevId = c.Id;
+                dc.DrawText(ft, new Point(4, y + Math.Max(0, (line.Height - ft.Height) / 2)));
             }
         }
 
@@ -192,7 +210,7 @@ namespace UEToVS.Host.Vcs
                 var c = _doc.CommitAt(_view.TextSnapshot, n, out int baseLine);
                 if (c == null) return;
                 e.Handled = true;
-                CommitCard.Show(_doc, c, baseLine, PopupAnchor.Mouse());
+                VcsCommitWindow.Show(_doc, c, baseLine); // v0.10.2：打开提交面板，列出这次提交改的所有文件
             });
         }
 

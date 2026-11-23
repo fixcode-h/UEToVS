@@ -12,6 +12,7 @@ namespace UEToVS.Host.Logic.Settings
     /// </summary>
     public static class VcsSettings
     {
+        public const string AnnotateKey = "vcs.annotate";
         public const string InlineBlameKey = "vcs.inlineBlame";
         public const string InlineBlameScopeKey = "vcs.inlineBlameScope";
         public const string InlineBlameEngineKey = "vcs.inlineBlameEngine";
@@ -22,7 +23,7 @@ namespace UEToVS.Host.Logic.Settings
 
         public const int MinHistory = 20, MaxHistory = 10000, DefaultHistory = 500;
 
-        public static readonly string[] Keys = { InlineBlameKey, InlineBlameScopeKey, InlineBlameEngineKey, ChangeBarsKey, HistoryMaxKey, IssueLinksKey, ProviderKey };
+        public static readonly string[] Keys = { AnnotateKey, InlineBlameKey, InlineBlameScopeKey, InlineBlameEngineKey, ChangeBarsKey, HistoryMaxKey, IssueLinksKey, ProviderKey };
 
         private static SettingDescriptor D(string category, string key, SettingKind kind, string zh, string en, string descZh, string descEn, string def, string keywords) =>
             new SettingDescriptor
@@ -33,10 +34,14 @@ namespace UEToVS.Host.Logic.Settings
 
         public static void AddDescriptors(List<SettingDescriptor> list, string category)
         {
+            list.Add(D(category, AnnotateKey, SettingKind.Bool, "打开文件时显示注解", "Show annotations when a file opens",
+                "默认关：在编辑器右键菜单点“注解”（或 Ctrl+Shift+Alt+U, O）在当前编辑器里显示 / 隐藏。打开后行号左边一列，每行显示最后改它的日期和作者，越新底色越蓝；点一行打开提交面板，列出这次提交改的所有文件。显示注解时追溯一次，编辑过的行显示“未提交”。",
+                "Off by default: right-click > Annotate in the editor (or Ctrl+Shift+Alt+U, O) shows / hides them in the current editor. A column left of the line numbers shows, for every line, the date and author of the last change, bluer for newer commits. Click a line to open the commit panel listing every file of that commit. The file is blamed once when the annotations appear; edited lines show \"Not committed\".",
+                "false", "git blame annotate 注解 追溯 作者 日期 rider idea p4 perforce"));
             list.Add(D(category, InlineBlameKey, SettingKind.Bool, "行尾显示追溯信息", "Inline blame at the end of the line",
                 "光标停下 300 毫秒后，在行尾用灰字显示“作者 · 多久前 · 提交说明”，没提交的行显示“未提交”；悬停看完整说明、改动的文件，可复制哈希、看这次提交的 diff、追溯上一版。Ctrl+Shift+Alt+U, J 临时开关。超过 5000 行的文件要等光标第一次停下才计算。",
                 "After the caret rests for 300 ms, the end of the line shows \"author · how long ago · commit summary\" in grey (\"Not committed yet\" for local changes). Hover for the full message and changed files, copy the hash, see the commit's diff or blame the previous revision. Ctrl+Shift+Alt+U, J toggles. Files over 5000 lines are blamed only once the caret first rests.",
-                "true", "git blame annotate inline 追溯 作者 提交 gitlens p4 perforce"));
+                "false", "git blame annotate inline 追溯 作者 提交 gitlens p4 perforce"));
             var scope = D(category, InlineBlameScopeKey, SettingKind.Choice, "行尾追溯显示在", "Show inline blame on",
                 "仅当前行：只在光标所在行显示；所有行：屏幕上每一行都显示（同一提交连续的几行只在第一行显示）。",
                 "Current line: only the caret line; All lines: every visible line (consecutive lines of the same commit show it once).",
@@ -47,9 +52,9 @@ namespace UEToVS.Host.Logic.Settings
                 new SettingOption(nameof(InlineBlameScope.AllLines), "所有行", "All lines"),
             };
             list.Add(scope);
-            list.Add(D(category, InlineBlameEngineKey, SettingKind.Bool, "引擎文件也显示行尾追溯", "Inline blame in engine files too",
-                "引擎目录（Engine\\）下的文件提交历史很长，追溯一次可能要几秒、占满一个核，默认不自动计算；追溯栏（Ctrl+Shift+Alt+U, O）仍可手动打开。",
-                "Engine files (under Engine\\) have long histories and one blame can take seconds and a whole core, so they are not blamed automatically; the blame gutter (Ctrl+Shift+Alt+U, O) still works on demand.",
+            list.Add(D(category, InlineBlameEngineKey, SettingKind.Bool, "引擎文件也自动追溯", "Blame engine files automatically too",
+                "引擎目录（Engine\\）下的文件提交历史很长，追溯一次可能要几秒、占满一个核，默认打开时不显示注解和行尾追溯；Ctrl+Shift+Alt+U, O 仍可在当前编辑器里手动打开注解。",
+                "Engine files (under Engine\\) have long histories and one blame can take seconds and a whole core, so annotations and inline blame are off for them by default; Ctrl+Shift+Alt+U, O still shows the annotations in the current editor.",
                 "false", "engine blame 引擎 追溯"));
             list.Add(D(category, ChangeBarsKey, SettingKind.Bool, "行号旁显示改动色条", "Change bars next to line numbers",
                 "和 Git 的 HEAD（Perforce 的 #have 版本）比较：新增绿色、修改蓝色、删除红色三角。点色条看这一块的旧内容，可回滚这一块（可撤销）或复制旧内容；Ctrl+Shift+Alt+U, ↓ / ↑ 跳到下一处 / 上一处改动。基准版本每个文件只取一次，编辑时在本地比较。",
@@ -82,6 +87,7 @@ namespace UEToVS.Host.Logic.Settings
 
         public static void ToValues(HostSettings s, IDictionary<string, string> d)
         {
+            d[AnnotateKey] = B(s.VcsAnnotate);
             d[InlineBlameKey] = B(s.VcsInlineBlame);
             d[InlineBlameScopeKey] = s.VcsInlineBlameScope.ToString();
             d[InlineBlameEngineKey] = B(s.VcsInlineBlameEngine);
@@ -95,6 +101,7 @@ namespace UEToVS.Host.Logic.Settings
         {
             switch (key)
             {
+                case AnnotateKey: s.VcsAnnotate = PB(v); return true;
                 case InlineBlameKey: s.VcsInlineBlame = PB(v); return true;
                 case InlineBlameScopeKey:
                     s.VcsInlineBlameScope = Enum.TryParse(v, true, out InlineBlameScope sc) && Enum.IsDefined(typeof(InlineBlameScope), sc) ? sc : InlineBlameScope.CurrentLine;
@@ -114,6 +121,7 @@ namespace UEToVS.Host.Logic.Settings
 
         public static void Describe(HostSettings s, IDictionary<string, object> d)
         {
+            d["vcsAnnotate"] = s.VcsAnnotate;
             d["vcsInlineBlame"] = s.VcsInlineBlame;
             d["vcsInlineBlameScope"] = s.VcsInlineBlameScope.ToString();
             d["vcsInlineBlameEngine"] = s.VcsInlineBlameEngine;

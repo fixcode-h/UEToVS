@@ -337,13 +337,19 @@ namespace UEToVS.Host.Logic.Settings
         public bool EngineReadOnly { get; set; } = true;
 
         // ---- 版本信息（Git / Perforce 只读；rows: Logic/Settings/VcsSettings.cs）----
-        /// <summary>G1 行尾追溯：光标所在行行尾灰字“作者 · 多久前 · 提交说明”。</summary>
-        public bool VcsInlineBlame { get; set; } = true;
+        /// <summary>
+        /// 打开文件时就在行号旁显示注解（照 Rider 的 Annotate：每行日期 + 作者，越新底色越蓝）。默认关：用户要在编辑器右键“注解”
+        /// 手动打开（2026-11-23 用户定）。
+        /// </summary>
+        public bool VcsAnnotate { get; set; }
+
+        /// <summary>G1 行尾追溯：光标所在行行尾灰字“作者 · 多久前 · 提交说明”。v0.10.2 起默认关，注解栏替代它。</summary>
+        public bool VcsInlineBlame { get; set; }
 
         /// <summary>行尾追溯只在当前行，或屏幕上所有行。</summary>
         public UEToVS.Host.Logic.Vcs.InlineBlameScope VcsInlineBlameScope { get; set; } = UEToVS.Host.Logic.Vcs.InlineBlameScope.CurrentLine;
 
-        /// <summary>引擎文件（Engine\ 下）也自动做行尾追溯；默认关（引擎大文件追溯一次可能几秒）。</summary>
+        /// <summary>引擎文件（Engine\ 下）也自动追溯（注解栏、行尾）；默认关（引擎大文件追溯一次可能几秒）。</summary>
         public bool VcsInlineBlameEngine { get; set; }
 
         /// <summary>G2 行号旁改动色条（对比 HEAD / #have）。</summary>

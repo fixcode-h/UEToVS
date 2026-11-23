@@ -329,8 +329,11 @@ namespace UEToVS.Host.Logic.Tests
             c.Summary = new string('x', 200);
             Assert.True(BlameText.Inline(c, now, false).Length < 120);
             Assert.EndsWith("…", BlameText.Inline(c, now, false));
-            Assert.StartsWith("张三", BlameText.Gutter(c, false));
-            Assert.Contains("2026-11-19", BlameText.Gutter(c, false));
+            string g = BlameText.Gutter(c, false);
+            Assert.StartsWith(c.Time.ToString("yyyy/M/d", System.Globalization.CultureInfo.InvariantCulture), g);
+            Assert.EndsWith("张三", g);
+            Assert.Equal(BlameText.DateWidth + 1, g.IndexOf('张'));
+            Assert.Equal("未提交", BlameText.Gutter(new VcsCommit { IsUncommitted = true }, false));
         }
 
         [Fact]
@@ -350,10 +353,14 @@ namespace UEToVS.Host.Logic.Tests
             Assert.Equal(0.5, r["c"]);
             Assert.False(r.ContainsKey("u"));
             Assert.Equal(BlameColors.Hue(ShaA), BlameColors.Hue(ShaA));
-            var oldDark = BlameColors.Background("a", 0, true);
-            var newDark = BlameColors.Background("a", 1, true);
-            Assert.True(newDark.A > oldDark.A);
+            var oldDark = BlameColors.Background(0, true);
+            var newDark = BlameColors.Background(1, true);
+            Assert.Equal((byte)255, newDark.A);
             Assert.True(newDark.R + newDark.G + newDark.B > oldDark.R + oldDark.G + oldDark.B);
+            Assert.True(newDark.B > newDark.R); // 蓝
+            var oldLight = BlameColors.Background(0, false);
+            var newLight = BlameColors.Background(1, false);
+            Assert.True(newLight.R + newLight.G + newLight.B < oldLight.R + oldLight.G + oldLight.B); // 浅色主题越新越深
             Assert.Equal((byte)255, BlameColors.FromHsl(0, 1, 0.5).R);
         }
 
@@ -461,13 +468,17 @@ namespace UEToVS.Host.Logic.Tests
         public void Settings_DefaultsAndRoundTrip()
         {
             var s = new HostSettings();
-            Assert.True(s.VcsInlineBlame);
+            Assert.False(s.VcsAnnotate);    // v0.10.2：注解默认不显示，右键“注解”手动打开
+            Assert.False(s.VcsInlineBlame); // 行尾追溯默认关，由注解替代
             Assert.False(s.VcsInlineBlameEngine); // 引擎文件默认关
             Assert.True(s.VcsChangeBars);
             Assert.Equal(InlineBlameScope.CurrentLine, s.VcsInlineBlameScope);
             Assert.Equal(500, s.VcsHistoryMaxCommits);
             var v = HostSettingsSchema.Codec.ToValues(s);
-            Assert.Equal("true", v[VcsSettings.InlineBlameKey]);
+            Assert.Equal("false", v[VcsSettings.AnnotateKey]);
+            Assert.Equal("false", v[VcsSettings.InlineBlameKey]);
+            Assert.True(VcsSettings.TrySet(s, VcsSettings.AnnotateKey, "true"));
+            Assert.True(s.VcsAnnotate);
             Assert.Equal("CurrentLine", v[VcsSettings.InlineBlameScopeKey]);
             Assert.True(VcsSettings.TrySet(s, VcsSettings.InlineBlameScopeKey, "AllLines"));
             Assert.True(VcsSettings.TrySet(s, VcsSettings.HistoryMaxKey, "99999"));
@@ -486,5 +497,62 @@ namespace UEToVS.Host.Logic.Tests
                 Assert.Equal("版本信息", d.GroupZh);
             }
         }
+    }
+}
+
+namespace UEToVS.Host.Logic.Tests
+{
+    public class ChangeTreeTests
+    {
+        private static CommitFile F(string path, string status = "M") => new CommitFile { Path = path, Status = status };
+
+        [Fact]
+        public void CompressesSingleChildDirectoriesAndCountsFiles()
+        {
+            var tree = ChangeTree.Build(new[]
+            {
+                F("//Silver/Dev/Script/Module/A.lua", "edit"),
+                F("//Silver/Dev/Script/Module/Sub/B.lua", "add"),
+                F("//Silver/Dev/Script/Top.lua"),
+                F("//Silver/Dev/Bytecode/MOBILE/A.luac"),
+            });
+            var root = Assert.Single(tree);
+            Assert.Equal("//Silver/Dev", root.Name);
+            Assert.Equal(4, root.FileCount);
+            Assert.Equal(new[] { "Bytecode/MOBILE", "Script" }, root.Children.Select(c => c.Name));
+            var script = root.Children[1];
+            Assert.Equal(3, script.FileCount);
+            Assert.Equal(new[] { "Module", "Top.lua" }, script.Children.Select(c => c.Name)); // 目录在前
+            var module = script.Children[0];
+            Assert.Equal(new[] { "Sub", "A.lua" }, module.Children.Select(c => c.Name));
+            Assert.Equal("//Silver/Dev/Script/Module", module.FullPath);
+            Assert.False(module.Children[1].IsDirectory);
+            Assert.Equal("//Silver/Dev/Script/Module/A.lua", module.Children[1].File.Path);
+        }
+
+        [Fact]
+        public void GitPathsAndRootFiles()
+        {
+            var tree = ChangeTree.Build(new[] { F("README.md"), F("src/a.cpp"), F("src/b.h"), null, F("") });
+            Assert.Equal(new[] { "src", "README.md" }, tree.Select(c => c.Name));
+            Assert.Equal(2, tree[0].FileCount);
+            Assert.Empty(ChangeTree.Build(null));
+        }
+
+        [Theory]
+        [InlineData("M", FileChangeKind.Modified)]
+        [InlineData("A", FileChangeKind.Added)]
+        [InlineData("D", FileChangeKind.Deleted)]
+        [InlineData("R100", FileChangeKind.Moved)]
+        [InlineData("C75", FileChangeKind.Added)]
+        [InlineData("edit", FileChangeKind.Modified)]
+        [InlineData("integrate", FileChangeKind.Modified)]
+        [InlineData("add", FileChangeKind.Added)]
+        [InlineData("branch", FileChangeKind.Added)]
+        [InlineData("delete", FileChangeKind.Deleted)]
+        [InlineData("move/delete", FileChangeKind.Deleted)]
+        [InlineData("move/add", FileChangeKind.Moved)]
+        [InlineData(null, FileChangeKind.Modified)]
+        public void KindOfStatus(string status, FileChangeKind kind) => Assert.Equal(kind, ChangeTree.KindOf(status));
     }
 }

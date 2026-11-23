@@ -418,8 +418,8 @@ namespace UEToVS.Host.Logic.Commands
             // ---- 版本信息（Git / Perforce 只读；VS 自带的提交、分支、追溯不动）
             C(H, ToggleInlineBlame, "ToggleInlineBlame", ActionIds.VcsToggleInlineBlame, "显示 / 隐藏行尾追溯", "Show / Hide Inline Blame", "vcs", Ed, "Ctrl+Shift+Alt+U, J", null, null,
               "在光标所在行行尾显示或隐藏“作者 · 多久前 · 提交说明”", "Show or hide \"author · when · commit summary\" at the end of the caret line"),
-            C(H, ToggleBlameGutter, "ToggleBlameGutter", ActionIds.VcsToggleBlameGutter, "显示 / 隐藏追溯栏", "Show / Hide Blame Gutter", "vcs", Ed, "Ctrl+Shift+Alt+U, O", null, null,
-              "在编辑器左侧列出每行的作者和日期，同一提交同色、越新越亮，点一行看提交详情", "List each line's author and date on the left, coloured per commit (newer is brighter); click a line for the commit"),
+            C(H, ToggleBlameGutter, "ToggleBlameGutter", ActionIds.VcsToggleBlameGutter, "注解", "Annotate", "vcs", Ed, "Ctrl+Shift+Alt+U, O", null, null,
+              "在行号左边显示或隐藏每行的日期和作者（越新底色越蓝），点一行看提交详情", "Show or hide each line's date and author left of the line numbers (bluer for newer); click a line for the commit"),
             C(H, NextChange, "NextChange", ActionIds.VcsNextChange, "下一处改动", "Next Change", "vcs", Ed, "Ctrl+Shift+Alt+U, Down Arrow", "Ctrl+Shift+Alt+Down Arrow", null,
               "跳到下一块和 HEAD（Perforce 为 #have）不同的代码", "Jump to the next block that differs from HEAD (Perforce: #have)"),
             C(H, PreviousChange, "PreviousChange", ActionIds.VcsPreviousChange, "上一处改动", "Previous Change", "vcs", Ed, "Ctrl+Shift+Alt+U, Up Arrow", "Ctrl+Shift+Alt+Up Arrow", null,

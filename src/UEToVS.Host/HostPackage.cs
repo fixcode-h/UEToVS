@@ -52,6 +52,7 @@ namespace UEToVS.Host
     // v0.3.0: all settings live in the UEToVS settings window; Tools > Options keeps one stub page that opens it.
     [ProvideOptionPage(typeof(GeneralOptionsPage), "UEToVS", "General", 0, 0, true, Sort = 0)]
     [ProvideToolWindow(typeof(Search.SearchResultsWindow), Style = VsDockStyle.Tabbed, Window = ToolWindowGuids.Outputwindow, MultiInstances = false)]
+    [ProvideToolWindow(typeof(Vcs.VcsCommitWindow), Style = VsDockStyle.Tabbed, Window = ToolWindowGuids.SolutionExplorer, MultiInstances = false)]
     [ProvideUIContextRule(PackageGuids.CppSolutionContextString,
         name: "UEToVS C++ solution",
         expression: "SolutionReady & VisualCpp",
