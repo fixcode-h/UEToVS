@@ -650,8 +650,17 @@ namespace UEToVS.Host
             EngineAvailable = _engine?.IsConnected == true,
             Services = this,
             CancellationToken = DisposalToken,
-            // TODO(editor adapters): ActiveDocumentPath / caret from the active text view (L3).
+            // v0.10.3：菜单 / 快捷键的可用判断要知道当前编辑器的文件。以前从来没填，凡是要求“有活动文档”的命令
+            // （注解、下一处改动、翻译选中、扩选…）在菜单里一直是灰的。只在 UI 线程取（QueryStatus 就在 UI 线程）。
+            ActiveDocumentPath = ActiveDocumentPathOrNull(),
         };
+
+        private static string ActiveDocumentPathOrNull()
+        {
+            if (!ThreadHelper.CheckAccess()) return null;
+            var view = UEToVS.Host.Editor.EditorServices.ActiveView();
+            return view == null || view.IsClosed ? null : UEToVS.Host.Editor.EditorServices.FilePath(view.TextBuffer);
+        }
 
         /// <summary>Runs an action by id from any UI surface (banner links, tool window buttons, options pages).</summary>
         internal void ExecuteAction(string id, ActionSource source = ActionSource.Programmatic)
