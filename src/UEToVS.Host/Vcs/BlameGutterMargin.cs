@@ -210,7 +210,7 @@ namespace UEToVS.Host.Vcs
                 var c = _doc.CommitAt(_view.TextSnapshot, n, out int baseLine);
                 if (c == null) return;
                 e.Handled = true;
-                CommitCard.Show(_doc, c, baseLine, PopupAnchor.Mouse());
+                VcsCommitWindow.Show(_doc, c, baseLine); // v0.10.2：打开提交面板，列出这次提交改的所有文件
             });
         }
 

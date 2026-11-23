@@ -1230,7 +1230,7 @@
         <CommandFlag>TextChanges</CommandFlag>
         <CommandFlag>DefaultDisabled</CommandFlag>
         <Strings>
-          <ButtonText>Show / Hide Annotations</ButtonText>
+          <ButtonText>Annotate</ButtonText>
           <CanonicalName>UEToVS.ToggleBlameGutter</CanonicalName>
           <LocCanonicalName>UEToVS.ToggleBlameGutter</LocCanonicalName>
         </Strings>
@@ -1399,6 +1399,10 @@
     </CommandPlacement>
     <CommandPlacement guid="guidUEToVSHostCmdSet" id="menuGenerate" priority="0x0020">
       <Parent guid="guidUEToVSHostCmdSet" id="grpContextGenerate" />
+    </CommandPlacement>
+    <!-- 注解（v0.10.2，照 Rider）：直接放在编辑器右键菜单上，点了在当前编辑器的行号旁显示 / 隐藏注解 -->
+    <CommandPlacement guid="guidUEToVSHostCmdSet" id="cmdToggleBlameGutter" priority="0x0090">
+      <Parent guid="guidUEToVSHostCmdSet" id="grpCodeWinTranslate" />
     </CommandPlacement>
     <!-- Translate Selection: also directly on the right-click menu of every text editor -->
     <CommandPlacement guid="guidUEToVSHostCmdSet" id="cmdTranslateSelection" priority="0x0100">

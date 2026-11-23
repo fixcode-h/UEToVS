@@ -34,10 +34,10 @@ namespace UEToVS.Host.Logic.Settings
 
         public static void AddDescriptors(List<SettingDescriptor> list, string category)
         {
-            list.Add(D(category, AnnotateKey, SettingKind.Bool, "行号旁显示注解", "Annotations next to line numbers",
-                "行号左边一列，每行显示最后改它的日期和作者，越新底色越蓝；点一行看这次提交的说明、改动的文件，可复制哈希、看这次提交的 diff、追溯上一版。Ctrl+Shift+Alt+U, O 在当前编辑器里显示 / 隐藏。每个文件打开时追溯一次，编辑过的行显示“未提交”。",
-                "A column left of the line numbers shows, for every line, the date and author of the last change, bluer for newer commits. Click a line for the commit message and changed files, copy the hash, see the commit's diff or blame the previous revision. Ctrl+Shift+Alt+U, O shows / hides it in the current editor. Each file is blamed once when opened; edited lines show \"Not committed\".",
-                "true", "git blame annotate 注解 追溯 作者 日期 rider idea p4 perforce"));
+            list.Add(D(category, AnnotateKey, SettingKind.Bool, "打开文件时显示注解", "Show annotations when a file opens",
+                "默认关：在编辑器右键菜单点“注解”（或 Ctrl+Shift+Alt+U, O）在当前编辑器里显示 / 隐藏。打开后行号左边一列，每行显示最后改它的日期和作者，越新底色越蓝；点一行打开提交面板，列出这次提交改的所有文件。显示注解时追溯一次，编辑过的行显示“未提交”。",
+                "Off by default: right-click > Annotate in the editor (or Ctrl+Shift+Alt+U, O) shows / hides them in the current editor. A column left of the line numbers shows, for every line, the date and author of the last change, bluer for newer commits. Click a line to open the commit panel listing every file of that commit. The file is blamed once when the annotations appear; edited lines show \"Not committed\".",
+                "false", "git blame annotate 注解 追溯 作者 日期 rider idea p4 perforce"));
             list.Add(D(category, InlineBlameKey, SettingKind.Bool, "行尾显示追溯信息", "Inline blame at the end of the line",
                 "光标停下 300 毫秒后，在行尾用灰字显示“作者 · 多久前 · 提交说明”，没提交的行显示“未提交”；悬停看完整说明、改动的文件，可复制哈希、看这次提交的 diff、追溯上一版。Ctrl+Shift+Alt+U, J 临时开关。超过 5000 行的文件要等光标第一次停下才计算。",
                 "After the caret rests for 300 ms, the end of the line shows \"author · how long ago · commit summary\" in grey (\"Not committed yet\" for local changes). Hover for the full message and changed files, copy the hash, see the commit's diff or blame the previous revision. Ctrl+Shift+Alt+U, J toggles. Files over 5000 lines are blamed only once the caret first rests.",

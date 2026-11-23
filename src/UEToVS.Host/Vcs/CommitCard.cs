@@ -174,7 +174,7 @@ namespace UEToVS.Host.Vcs
         }
 
         /// <summary>说明正文，vcs.issueLinks 匹配到的部分做成链接（点了用默认浏览器打开）。</summary>
-        private static void FillMessage(TextBlock block, string text)
+        internal static void FillMessage(TextBlock block, string text)
         {
             block.Inlines.Clear();
             if (string.IsNullOrEmpty(text))

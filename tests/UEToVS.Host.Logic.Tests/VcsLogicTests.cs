@@ -468,17 +468,17 @@ namespace UEToVS.Host.Logic.Tests
         public void Settings_DefaultsAndRoundTrip()
         {
             var s = new HostSettings();
-            Assert.True(s.VcsAnnotate);     // v0.10.2：行号旁注解默认开
+            Assert.False(s.VcsAnnotate);    // v0.10.2：注解默认不显示，右键“注解”手动打开
             Assert.False(s.VcsInlineBlame); // 行尾追溯默认关，由注解替代
             Assert.False(s.VcsInlineBlameEngine); // 引擎文件默认关
             Assert.True(s.VcsChangeBars);
             Assert.Equal(InlineBlameScope.CurrentLine, s.VcsInlineBlameScope);
             Assert.Equal(500, s.VcsHistoryMaxCommits);
             var v = HostSettingsSchema.Codec.ToValues(s);
-            Assert.Equal("true", v[VcsSettings.AnnotateKey]);
+            Assert.Equal("false", v[VcsSettings.AnnotateKey]);
             Assert.Equal("false", v[VcsSettings.InlineBlameKey]);
-            Assert.True(VcsSettings.TrySet(s, VcsSettings.AnnotateKey, "false"));
-            Assert.False(s.VcsAnnotate);
+            Assert.True(VcsSettings.TrySet(s, VcsSettings.AnnotateKey, "true"));
+            Assert.True(s.VcsAnnotate);
             Assert.Equal("CurrentLine", v[VcsSettings.InlineBlameScopeKey]);
             Assert.True(VcsSettings.TrySet(s, VcsSettings.InlineBlameScopeKey, "AllLines"));
             Assert.True(VcsSettings.TrySet(s, VcsSettings.HistoryMaxKey, "99999"));
@@ -497,5 +497,62 @@ namespace UEToVS.Host.Logic.Tests
                 Assert.Equal("版本信息", d.GroupZh);
             }
         }
+    }
+}
+
+namespace UEToVS.Host.Logic.Tests
+{
+    public class ChangeTreeTests
+    {
+        private static CommitFile F(string path, string status = "M") => new CommitFile { Path = path, Status = status };
+
+        [Fact]
+        public void CompressesSingleChildDirectoriesAndCountsFiles()
+        {
+            var tree = ChangeTree.Build(new[]
+            {
+                F("//Silver/Dev/Script/Module/A.lua", "edit"),
+                F("//Silver/Dev/Script/Module/Sub/B.lua", "add"),
+                F("//Silver/Dev/Script/Top.lua"),
+                F("//Silver/Dev/Bytecode/MOBILE/A.luac"),
+            });
+            var root = Assert.Single(tree);
+            Assert.Equal("//Silver/Dev", root.Name);
+            Assert.Equal(4, root.FileCount);
+            Assert.Equal(new[] { "Bytecode/MOBILE", "Script" }, root.Children.Select(c => c.Name));
+            var script = root.Children[1];
+            Assert.Equal(3, script.FileCount);
+            Assert.Equal(new[] { "Module", "Top.lua" }, script.Children.Select(c => c.Name)); // 目录在前
+            var module = script.Children[0];
+            Assert.Equal(new[] { "Sub", "A.lua" }, module.Children.Select(c => c.Name));
+            Assert.Equal("//Silver/Dev/Script/Module", module.FullPath);
+            Assert.False(module.Children[1].IsDirectory);
+            Assert.Equal("//Silver/Dev/Script/Module/A.lua", module.Children[1].File.Path);
+        }
+
+        [Fact]
+        public void GitPathsAndRootFiles()
+        {
+            var tree = ChangeTree.Build(new[] { F("README.md"), F("src/a.cpp"), F("src/b.h"), null, F("") });
+            Assert.Equal(new[] { "src", "README.md" }, tree.Select(c => c.Name));
+            Assert.Equal(2, tree[0].FileCount);
+            Assert.Empty(ChangeTree.Build(null));
+        }
+
+        [Theory]
+        [InlineData("M", FileChangeKind.Modified)]
+        [InlineData("A", FileChangeKind.Added)]
+        [InlineData("D", FileChangeKind.Deleted)]
+        [InlineData("R100", FileChangeKind.Moved)]
+        [InlineData("C75", FileChangeKind.Added)]
+        [InlineData("edit", FileChangeKind.Modified)]
+        [InlineData("integrate", FileChangeKind.Modified)]
+        [InlineData("add", FileChangeKind.Added)]
+        [InlineData("branch", FileChangeKind.Added)]
+        [InlineData("delete", FileChangeKind.Deleted)]
+        [InlineData("move/delete", FileChangeKind.Deleted)]
+        [InlineData("move/add", FileChangeKind.Moved)]
+        [InlineData(null, FileChangeKind.Modified)]
+        public void KindOfStatus(string status, FileChangeKind kind) => Assert.Equal(kind, ChangeTree.KindOf(status));
     }
 }

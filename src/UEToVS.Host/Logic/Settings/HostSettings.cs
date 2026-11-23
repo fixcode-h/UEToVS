@@ -338,9 +338,10 @@ namespace UEToVS.Host.Logic.Settings
 
         // ---- 版本信息（Git / Perforce 只读；rows: Logic/Settings/VcsSettings.cs）----
         /// <summary>
-        /// 行号旁的注解栏（照 Rider 的 Annotate）：每行日期 + 作者，越新底色越蓝。v0.10.2 起默认开（用户要的是这个，不是行尾灰字）。
+        /// 打开文件时就在行号旁显示注解（照 Rider 的 Annotate：每行日期 + 作者，越新底色越蓝）。默认关：用户要在编辑器右键“注解”
+        /// 手动打开（2026-11-23 用户定）。
         /// </summary>
-        public bool VcsAnnotate { get; set; } = true;
+        public bool VcsAnnotate { get; set; }
 
         /// <summary>G1 行尾追溯：光标所在行行尾灰字“作者 · 多久前 · 提交说明”。v0.10.2 起默认关，注解栏替代它。</summary>
         public bool VcsInlineBlame { get; set; }

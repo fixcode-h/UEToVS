@@ -21,7 +21,7 @@ namespace UEToVS.Host.Logic.Localization
     {
         // ---- 命令
         public static string CmdToggleInlineBlame => Loc.T("显示 / 隐藏行尾追溯", "Show / Hide Inline Blame");
-        public static string CmdToggleBlameGutter => Loc.T("显示 / 隐藏注解", "Show / Hide Annotations");
+        public static string CmdToggleBlameGutter => Loc.T("注解", "Annotate");
         public static string CmdNextChange => Loc.T("下一处改动", "Next Change");
         public static string CmdPreviousChange => Loc.T("上一处改动", "Previous Change");
         public static string CmdShowChange => Loc.T("查看光标处的改动…", "Show Change at Caret...");
@@ -80,6 +80,20 @@ namespace UEToVS.Host.Logic.Localization
         public static string FileTip => Loc.T("点击看这个文件在这次提交里的 diff", "Click to see this file's diff in the commit");
         public static string ReadingDetails => Loc.T("正在读取提交详情…", "Reading the commit...");
         public static string ChangeLabel(string id) => Loc.F("变更 {0}", "Change {0}", id);
+
+        // ---- 提交面板（注解里点一行）
+        public static string CommitWindowCaption(string id, bool perforce) => string.IsNullOrEmpty(id)
+            ? Loc.T("提交的文件", "Committed Files")
+            : perforce ? Loc.F("在变更 {0} 中提交的文件", "Files Submitted in Change {0}", id)
+                       : Loc.F("提交 {0} 改动的文件", "Files Changed in Commit {0}", id);
+        public static string ShowFileDiff => Loc.T("查看选中文件在这次提交里的 diff（也可以双击文件）", "Show the selected file's diff in this commit (or double-click the file)");
+        public static string CopyId => Loc.T("复制提交号 / 变更号", "Copy the commit hash / change number");
+        public static string FileCount(int n) => Loc.F("{0} 个文件", n == 1 ? "{0} file" : "{0} files", n);
+        public static string FileAdded => Loc.T("新增", "Added");
+        public static string FileDeleted => Loc.T("删除", "Deleted");
+        public static string FileMoved => Loc.T("移动", "Moved");
+        public static string NoDetails => Loc.T("读不到这次提交的详情", "Cannot read this commit");
+        public static string NoFiles => Loc.T("这次提交没有文件改动", "This commit changes no files");
 
         // ---- 改动块
         public static string HunkTitle(ChangeKind kind, int first, int last)
