@@ -19,7 +19,10 @@ namespace UEToVS.Host.Logic.Localization
 
         public static string NotInstalled(string path) => Loc.F("未找到 MCP 服务程序：{0}（请重新安装扩展）。", "MCP server not found: {0} (reinstall the extension).", path);
 
-        public static string Written(string path, int otherServers) => otherServers > 0
+        public static string Written(string path, int otherServers, bool merged = false) => merged
+            ? Loc.F("已在 {0} 里加入 / 更新 uetovs，文件里原有的内容（{1} 个其他服务器、注释）都保留。在该目录启动 Claude Code 即可使用。",
+                "Added / updated uetovs in {0}; everything else in the file ({1} other server(s), comments) was kept. Start Claude Code in that folder to use it.", path, otherServers)
+            : otherServers > 0
             ? Loc.F("已写入 {0}（保留了其他 {1} 个服务器）。在该目录启动 Claude Code 即可使用。", "Wrote {0} (kept {1} other server(s)). Start Claude Code in that folder to use it.", path, otherServers)
             : Loc.F("已写入 {0}。在该目录启动 Claude Code 即可使用。", "Wrote {0}. Start Claude Code in that folder to use it.", path);
 

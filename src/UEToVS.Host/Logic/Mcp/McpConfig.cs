@@ -74,6 +74,12 @@ namespace UEToVS.Host.Logic.Mcp
 
         /// <summary>Other servers already in the file (kept as they were).</summary>
         public int OtherServers { get; set; }
+
+        /// <summary>
+        /// 已有文件改动时：true 表示没法在原文上局部修改（写法认不出），整份按标准格式重写了（内容仍然完整合并，只是注释和排版会变）。
+        /// 正常情况下为 false：只改 uetovs 那一段，文件其余文字原样保留。
+        /// </summary>
+        public bool Reformatted { get; set; }
     }
 
     /// <summary>
@@ -196,6 +202,7 @@ namespace UEToVS.Host.Logic.Mcp
             if (created) root = new JObject();
             else if (!TryParse(existingJson, out root, out string error))
                 return new McpMergeResult { Outcome = McpMergeOutcome.Invalid, Error = error, Json = existingJson };
+            var before = created ? null : (JObject)root.DeepClone();
 
             bool changed = false;
             int others = 0;
@@ -231,12 +238,30 @@ namespace UEToVS.Host.Logic.Mcp
                 changed = true;
                 if (!servers.HasValues) root.Remove(key);
             }
-            return new McpMergeResult
+            var result = new McpMergeResult
             {
                 Outcome = created ? McpMergeOutcome.Created : changed ? McpMergeOutcome.Updated : McpMergeOutcome.Unchanged,
-                Json = changed || created ? root.ToString(Formatting.Indented) + Environment.NewLine : existingJson,
+                Json = existingJson,
                 OtherServers = others,
             };
+            if (created) result.Json = root.ToString(Formatting.Indented) + Environment.NewLine;
+            else if (changed) Render(result, existingJson, before, root, rootKeys.Concat(dropKeys ?? Array.Empty<string>()));
+            return result;
+        }
+
+        /// <summary>
+        /// 已有文件：只在原文上改 uetovs 那一段（追加、更新或删除），其他服务器、注释、缩进原样保留；
+        /// 原文写法认不出时才整份重排（内容一样完整，<see cref="McpMergeResult.Reformatted"/> 标出来写日志）。
+        /// </summary>
+        private static void Render(McpMergeResult result, string existingJson, JObject before, JObject after, IEnumerable<string> keys)
+        {
+            if (JsoncTextEditor.TryApply(existingJson, before, after, keys, ServerName, out string text))
+            {
+                result.Json = text;
+                return;
+            }
+            result.Json = after.ToString(Formatting.Indented) + Environment.NewLine;
+            result.Reformatted = true;
         }
 
         private static JObject MergeEntry(JObject current, JObject entry)
@@ -280,6 +305,7 @@ namespace UEToVS.Host.Logic.Mcp
             if (string.IsNullOrWhiteSpace(existingJson)) return new McpMergeResult { Outcome = McpMergeOutcome.Unchanged, Json = existingJson };
             if (!TryParse(existingJson, out var root, out string error))
                 return new McpMergeResult { Outcome = McpMergeOutcome.Invalid, Error = error, Json = existingJson };
+            var before = (JObject)root.DeepClone();
             bool changed = false;
             foreach (var key in rootKeys)
             {
@@ -289,11 +315,9 @@ namespace UEToVS.Host.Logic.Mcp
                     if (!servers.HasValues) root.Remove(key);
                 }
             }
-            return new McpMergeResult
-            {
-                Outcome = changed ? McpMergeOutcome.Removed : McpMergeOutcome.Unchanged,
-                Json = changed ? root.ToString(Formatting.Indented) + Environment.NewLine : existingJson,
-            };
+            var result = new McpMergeResult { Outcome = changed ? McpMergeOutcome.Removed : McpMergeOutcome.Unchanged, Json = existingJson };
+            if (changed) Render(result, existingJson, before, root, rootKeys);
+            return result;
         }
 
         /// <summary>The command path of an existing uetovs entry (first root key that has one), or null.</summary>
@@ -329,7 +353,11 @@ namespace UEToVS.Host.Logic.Mcp
         /// </summary>
         public static McpMergeResult ApplyToFile(McpConfigTarget target, JObject entry, bool remove = false, bool deleteIfEmpty = false)
         {
-            string existing = File.Exists(target.Path) ? File.ReadAllText(target.Path) : null;
+            bool exists = File.Exists(target.Path);
+            byte[] raw = exists ? File.ReadAllBytes(target.Path) : null;
+            // 原文件带 UTF-8 BOM 就照样带回去，不因为我们改了一段就换掉用户的编码标记
+            bool bom = raw != null && raw.Length >= 3 && raw[0] == 0xEF && raw[1] == 0xBB && raw[2] == 0xBF;
+            string existing = exists ? File.ReadAllText(target.Path) : null;
             if (remove && existing == null) return new McpMergeResult { Outcome = McpMergeOutcome.Unchanged };
             var result = remove ? Remove(existing, target.AllKeys) : Merge(existing, target.RootKeys, entry, target.DropKeys);
             if (remove && deleteIfEmpty && result.Outcome == McpMergeOutcome.Removed && TryParse(result.Json, out var left, out _) && !left.HasValues)
@@ -341,7 +369,7 @@ namespace UEToVS.Host.Logic.Mcp
             {
                 Directory.CreateDirectory(System.IO.Path.GetDirectoryName(target.Path));
                 string tmp = target.Path + ".tmp";
-                File.WriteAllText(tmp, result.Json, new System.Text.UTF8Encoding(false));
+                File.WriteAllText(tmp, result.Json, new System.Text.UTF8Encoding(bom));
                 if (File.Exists(target.Path)) File.Replace(tmp, target.Path, null);
                 else File.Move(tmp, target.Path);
             }
