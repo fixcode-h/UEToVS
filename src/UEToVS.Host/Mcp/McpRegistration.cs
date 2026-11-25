@@ -109,7 +109,7 @@ namespace UEToVS.Host.Mcp
                     VsStatusBar.SetText(McpStrings.AlreadyUpToDate(target.Path));
                     break;
                 default:
-                    VsStatusBar.SetText(McpStrings.Written(target.Path, r.OtherServers));
+                    VsStatusBar.SetText(McpStrings.Written(target.Path, r.OtherServers, merged: r.Outcome == McpMergeOutcome.Updated));
                     break;
             }
         }
@@ -191,7 +191,7 @@ namespace UEToVS.Host.Mcp
             if (r.Outcome == McpMergeOutcome.Invalid)
                 L.Warn("mcp.config.invalid", "MCP config file is not valid JSON; left unchanged", ("file", path), ("which", which), ("error", r.Error));
             else
-                L.Info("mcp.config.written", null, ("file", path), ("which", which), ("outcome", r.Outcome.ToString()), ("otherServers", r.OtherServers));
+                L.Info("mcp.config.written", null, ("file", path), ("which", which), ("outcome", r.Outcome.ToString()), ("otherServers", r.OtherServers), ("reformatted", r.Reformatted));
         }
     }
 }

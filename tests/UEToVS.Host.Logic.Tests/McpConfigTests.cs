@@ -238,6 +238,128 @@ namespace UEToVS.Host.Logic.Tests
             }
         }
 
+        // ---------------------------------------------------------------- 已有文件只改 uetovs 那一段（v0.10.4）
+
+        private const string UserFile =
+            "{\r\n" +
+            "    // 团队共用的 MCP 服务器\r\n" +
+            "    \"mcpServers\": {\r\n" +
+            "        \"github\": { \"url\": \"https://api.githubcopilot.com/mcp/\" }, // 别删\r\n" +
+            "        \"fs\": {\r\n" +
+            "            \"command\": \"npx\",\r\n" +
+            "            \"args\": [\"-y\", \"@modelcontextprotocol/server-filesystem\"]\r\n" +
+            "        }\r\n" +
+            "    },\r\n" +
+            "    /* 其他工具的设置 */\r\n" +
+            "    \"other\": [1, 2, 3]\r\n" +
+            "}\r\n";
+
+        [Fact]
+        public void Merge_ExistingFile_AppendsOurEntry_AndKeepsEverythingElseVerbatim()
+        {
+            var shared = McpConfigTarget.SharedProject(Sln);
+            var r = McpConfig.Merge(UserFile, shared.RootKeys, Entry(), shared.DropKeys);
+            Assert.Equal(McpMergeOutcome.Updated, r.Outcome);
+            Assert.False(r.Reformatted);
+            Assert.Equal(2, r.OtherServers);
+            // 原文一字不差地还在：注释、4 空格缩进、CRLF、写在一行里的 github、其他根键
+            int at = r.Json.IndexOf("        \"uetovs\"", StringComparison.Ordinal);
+            Assert.True(at > 0, r.Json);
+            string head = UserFile.Substring(0, UserFile.IndexOf("        }\r\n    },", StringComparison.Ordinal) + "        }".Length);
+            Assert.StartsWith(head + ",\r\n        \"uetovs\": {\r\n            \"type\": \"stdio\",", r.Json);
+            Assert.EndsWith("        }\r\n    },\r\n    /* 其他工具的设置 */\r\n    \"other\": [1, 2, 3]\r\n}\r\n", r.Json);
+            Assert.DoesNotContain("\n\n", r.Json.Replace("\r\n", "\n"));
+            Assert.DoesNotMatch("[^\r]\n", r.Json);
+            var j = JObject.Parse(r.Json);
+            Assert.Equal(Exe, (string)j["mcpServers"]["uetovs"]["command"]);
+            Assert.Equal("npx", (string)j["mcpServers"]["fs"]["command"]);
+
+            // 再写一次不变；更新只替换 uetovs 那一段；删掉后回到用户原来的文件
+            Assert.Equal(McpMergeOutcome.Unchanged, McpConfig.Merge(r.Json, shared.RootKeys, Entry(), shared.DropKeys).Outcome);
+            var upd = McpConfig.Merge(r.Json, shared.RootKeys, McpConfig.BuildEntry(@"C:\New\UEToVS.Mcp.exe", Sln), shared.DropKeys);
+            Assert.Equal(McpMergeOutcome.Updated, upd.Outcome);
+            Assert.False(upd.Reformatted);
+            Assert.Equal(r.Json.Replace(JValue.CreateString(Exe).ToString(Newtonsoft.Json.Formatting.None), JValue.CreateString(@"C:\New\UEToVS.Mcp.exe").ToString(Newtonsoft.Json.Formatting.None)), upd.Json);
+            var removed = McpConfig.Remove(upd.Json, shared.AllKeys);
+            Assert.Equal(McpMergeOutcome.Removed, removed.Outcome);
+            Assert.Equal(UserFile, removed.Json);
+        }
+
+        [Theory]
+        [InlineData("{}")]
+        [InlineData("{ }\n")]
+        [InlineData("{\"a\":1}")]
+        [InlineData("{\"a\":1,}")]
+        [InlineData("{\n  \"a\": 1,\n}\n")]
+        [InlineData("{\n\t\"mcpServers\": {}\n}\n")]
+        [InlineData("{\n  \"mcpServers\": {\n  }\n}")]
+        [InlineData("{\n  \"mcpServers\": null\n}")]
+        [InlineData("{ 'mcpServers': { other: { 'command': 'x' } } } // 尾注释")]
+        public void Merge_OddButValidFiles_AreEditedInPlace(string existing)
+        {
+            var r = McpConfig.Merge(existing, new[] { McpConfig.PortableRootKey }, Entry());
+            Assert.Equal(McpMergeOutcome.Updated, r.Outcome);
+            Assert.False(r.Reformatted, r.Json);
+            Assert.Equal(Exe, (string)JObject.Parse(r.Json)["mcpServers"]["uetovs"]["command"]);
+            var back = McpConfig.Remove(r.Json, new[] { McpConfig.PortableRootKey });
+            Assert.False(back.Reformatted, back.Json);
+            // 删掉后：原来就有别的服务器时回到原样；原来 mcpServers 为空或没有时，这个变空的根键也一起去掉
+            var expected = JObject.Parse(existing);
+            if (!(expected["mcpServers"] is JObject servers) || !servers.HasValues) expected.Remove("mcpServers");
+            Assert.True(JToken.DeepEquals(expected, JObject.Parse(back.Json)), back.Json);
+        }
+
+        [Fact]
+        public void AddThenRemove_KeepsTheCommentAfterTheLastServer()
+        {
+            string existing = "{\n  \"mcpServers\": {\n    \"x\": {\"command\": \"y\"} // 注释\n  }\n}\n";
+            var keys = new[] { McpConfig.PortableRootKey };
+            var r = McpConfig.Merge(existing, keys, Entry());
+            Assert.StartsWith("{\n  \"mcpServers\": {\n    \"x\": {\"command\": \"y\"}, // 注释\n    \"uetovs\": {\n", r.Json);
+            Assert.Equal(existing, McpConfig.Remove(r.Json, keys).Json);
+        }
+
+        [Fact]
+        public void Merge_TabIndentedFile_UsesTabs()
+        {
+            string existing = "{\n\t\"mcpServers\": {\n\t\t\"a\": {\n\t\t\t\"command\": \"x\"\n\t\t}\n\t}\n}\n";
+            var r = McpConfig.Merge(existing, new[] { McpConfig.PortableRootKey }, Entry());
+            Assert.False(r.Reformatted);
+            Assert.Contains("\t\t},\n\t\t\"uetovs\": {\n\t\t\t\"type\": \"stdio\",", r.Json);
+            Assert.EndsWith("\t\t]\n\t\t}\n\t}\n}\n", r.Json);
+        }
+
+        [Fact]
+        public void Merge_SharedFileWithOldServersCopy_RemovesItInPlace()
+        {
+            string existing = "{\n  \"servers\": {\n    \"uetovs\": { \"command\": \"old\" }\n  },\n  \"mcpServers\": {\n    \"a\": { \"command\": \"x\" }\n  }\n}\n";
+            var shared = McpConfigTarget.SharedProject(Sln);
+            var r = McpConfig.Merge(existing, shared.RootKeys, Entry(), shared.DropKeys);
+            Assert.False(r.Reformatted);
+            Assert.StartsWith("{\n  \"mcpServers\": {\n    \"a\": { \"command\": \"x\" },\n    \"uetovs\": {", r.Json);
+            Assert.Null(JObject.Parse(r.Json)["servers"]);
+        }
+
+        [Fact]
+        public void ApplyToFile_KeepsTheBom()
+        {
+            string dir = Path.Combine(Path.GetTempPath(), "uetovs-mcpcfg-" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                Directory.CreateDirectory(dir);
+                var shared = McpConfigTarget.SharedProject(dir);
+                File.WriteAllText(shared.Path, "{\"mcpServers\":{\"a\":{\"command\":\"x\"}}}", new System.Text.UTF8Encoding(true));
+                Assert.Equal(McpMergeOutcome.Updated, McpConfig.ApplyToFile(shared, Entry()).Outcome);
+                var bytes = File.ReadAllBytes(shared.Path);
+                Assert.Equal(new byte[] { 0xEF, 0xBB, 0xBF, (byte)'{' }, bytes.AsSpan(0, 4).ToArray());
+                Assert.NotNull(JObject.Parse(File.ReadAllText(shared.Path))["mcpServers"]["a"]);
+            }
+            finally
+            {
+                if (Directory.Exists(dir)) Directory.Delete(dir, true);
+            }
+        }
+
         [Fact]
         public void ApplyToFile_RemoveWithDeleteIfEmpty_DeletesOnlyAnEmptyFile()
         {
