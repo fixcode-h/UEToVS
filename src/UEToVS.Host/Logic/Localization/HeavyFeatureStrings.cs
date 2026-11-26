@@ -104,6 +104,13 @@ namespace UEToVS.Host.Logic.Localization
                 case "UE0014": return Loc.T("BlueprintPure 没有输出", "BlueprintPure without output");
                 case "UE0015": return Loc.T("私有成员用了 BlueprintReadWrite / ReadOnly", "Private Blueprint-visible property");
                 case "UE0016": return Loc.T("USTRUCT 里的 UFUNCTION", "UFUNCTION in a USTRUCT");
+                case "UE0017": return Loc.T("找不到头文件", "Include file not found");
+                case "UE0018": return Loc.T("include 了别的模块的私有头文件", "Private header of another module");
+                case "UE0019": return Loc.T(".generated.h 缺失 / 名字不对 / 不在最后", ".generated.h missing / misnamed / not last");
+                case "UE0020": return Loc.T("include 路径可简化", "Include path can be shorter");
+                case "UE0021": return Loc.T("语法错误", "Syntax error");
+                case "UE0022": return Loc.T("用了但没 include 头文件", "Used without its #include");
+                case "UE0023": return Loc.T("未定义标识符", "Undefined identifier");
                 default: return code ?? string.Empty;
             }
         }

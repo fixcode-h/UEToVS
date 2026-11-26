@@ -367,6 +367,7 @@ namespace UEToVS.Host.IntelliSense
             var package = HostPackage.Instance;
             bool checkIncludes = package?.Unreal?.IsUnreal == true && IncludeDependencyChecker.IsCppFile(path);
             bool checkDeprecated = IntelliSenseContext.Settings.DeprecationHints, checkNaming = IntelliSenseContext.Settings.NamingConventionCheck;
+            var disabled = IntelliSenseContext.Settings.DisabledDiagnosticRules(); // v0.11.0
             var (gen, ct) = _gate.Begin(NavigationContext.Disposal);
             int n = ++_requests;
             Safe.RunAsync(L, "intellisense.diagnostics.request", async () =>
@@ -377,6 +378,7 @@ namespace UEToVS.Host.IntelliSense
                 {
                     Document = doc, StartLine = range.Start, EndLine = range.End, UnsavedFiles = unsaved,
                     CheckDeprecated = checkDeprecated, CheckNaming = checkNaming, // v0.4.5 编辑体验
+                    DisabledRules = disabled,
                 };
                 var engineTask = engine.GetDiagnosticsAsync(request, ct);
                 var includes = checkIncludes ? await Task.Run(() => IncludeDependencyChecker.ParseIncludes(snapshot.GetText()), ct).ConfigureAwait(false) : null;
@@ -475,7 +477,8 @@ namespace UEToVS.Host.IntelliSense
         private void OnSettingsChanged(object sender, Options.SettingsChangedEventArgs e) => Safe.Execute(L, "intellisense.diagnostics.settings", () =>
         {
             if (e.Old.DiagnosticsEnabled == e.New.DiagnosticsEnabled && e.Old.DeprecationHints == e.New.DeprecationHints &&
-                e.Old.NamingConventionCheck == e.New.NamingConventionCheck) return;
+                e.Old.NamingConventionCheck == e.New.NamingConventionCheck &&
+                string.Join(",", e.Old.DisabledDiagnosticRules()) == string.Join(",", e.New.DisabledDiagnosticRules())) return;
             _coveredVersion = -1; // v0.4.5: a rule switched on / off, check again
             if (!e.New.DiagnosticsEnabled) ClearAll();
             else Schedule(ScrollDelay);

@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using UEToVS.Contracts;
 using UEToVS.Core.Diagnostics;
 using UEToVS.Engine.Indexing;
@@ -129,6 +130,11 @@ namespace UEToVS.Engine.Includes
 
         /// <summary>Reads a UBT response file's lines; null when absent (tests replace it).</summary>
         public Func<ModuleInfo, IReadOnlyList<string>> ResponseFileLines { get; set; }
+
+        /// <summary>v0.11.0: include folders from UBT's JsonExport (null = not available).</summary>
+        public UbtExport Export { get; set; }
+
+        private int _exportVersion = -1;
 
         public ModuleCatalog Catalog
         {
@@ -449,6 +455,8 @@ namespace UEToVS.Engine.Includes
                     var dirs = Evaluate(e, d);
                     if (dirs != null) foreach (var x in dirs) v.ExtraRoots.Add(NavContext.NormalizePath(x).TrimEnd('/'));
                 }
+                var dx = Export?.Get(d.Name);
+                if (dx != null) foreach (var x in dx.Public) AddExported(v, x);
             }
             if (module.LegacyPublicIncludePaths != false) v.LegacyPublic.Add(module.Name);
             if (module.LegacyParentIncludePaths != false) v.LegacyParent.Add(module.Name);
@@ -457,6 +465,15 @@ namespace UEToVS.Engine.Includes
                 var dirs = Evaluate(e, module);
                 if (dirs == null) { v.OpaquePaths = true; continue; }
                 foreach (var x in dirs) v.ExtraRoots.Add(NavContext.NormalizePath(x).TrimEnd('/'));
+            }
+            // UBT's JsonExport (run by the host when a Build.cs changes): the module's include folders as UBT evaluated them
+            var own = Export?.Get(module.Name);
+            if (own != null)
+            {
+                foreach (var x in own.Public) AddExported(v, x);
+                foreach (var x in own.Private) AddExported(v, x);
+                v.FromResponseFile = true;
+                v.OpaquePaths = false;
             }
             // UBT's response file: the exact /I list of the last compile. It settles everything the Build.cs might add.
             var rsp = ReadResponseRoots(module);
@@ -469,6 +486,18 @@ namespace UEToVS.Engine.Includes
             L.Debug("includes.view", null, ("module", module.Name), ("strict", v.StrictRoots.Count), ("extra", v.ExtraRoots.Count), ("visible", v.Visible.Count),
                 ("opaque", v.OpaquePaths), ("rsp", v.FromResponseFile));
             return v;
+        }
+
+        private void AddExported(ModuleIncludeView v, string dir)
+        {
+            string p = dir.Replace('\\', '/');
+            if (!(System.IO.Path.IsPathRooted(p) || p.Length > 1 && p[1] == ':'))
+            {
+                string src = EngineSource();
+                if (src == null) return;
+                p = src.Replace('\\', '/').TrimEnd('/') + "/" + p;
+            }
+            v.ExtraRoots.Add(NavContext.NormalizePath(CollapseOriginal(p)).TrimEnd('/'));
         }
 
         /// <summary>The module itself, its direct dependencies (public, private, include-path-only) and, transitively, the public ones of those.</summary>
@@ -737,6 +766,13 @@ namespace UEToVS.Engine.Includes
         {
             var snap = _files?.Snapshot() ?? Array.Empty<FileEntry>();
             var catalog = _modules();
+            int exportVersion = Export?.Version ?? 0;
+            if (exportVersion != Volatile.Read(ref _exportVersion))
+            {
+                // a new UBT export: every module view may change
+                _views.Clear();
+                Volatile.Write(ref _exportVersion, exportVersion);
+            }
             if (ReferenceEquals(snap, _source) && ReferenceEquals(catalog, _catalog)) return;
             lock (_gate)
             {

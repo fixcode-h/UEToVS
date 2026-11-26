@@ -284,10 +284,36 @@ namespace UEToVS.Host.IntelliSense
             }
             IntelliSenseContext.Recent.Record(item.FilterText);
             if (state?.Context == UEToVS.Contracts.CompletionContextKind.Include) CheckIncludeDependency(buffer, span.Start.Position);
+            string autoInclude = !string.IsNullOrEmpty(contract.AddInclude) && IntelliSenseContext.Settings.CompletionAutoInclude ? AddInclude(buffer, contract.AddInclude) : null;
             L.Info("is.completion.commit", null, ("label", contract.Label), ("kind", contract.Kind.ToString()), ("context", state?.Context.ToString()),
                    ("typedChar", typedChar == '\0' ? null : typedChar.ToString()), ("accessorFix", fixApplied ? state.AccessorFixReplacement : null),
-                   ("inherited", contract.IsInherited), ("ue", contract.Ue.ToString()));
+                   ("inherited", contract.IsInherited), ("ue", contract.Ue.ToString()), ("autoInclude", autoInclude));
             return new CommitResult(true, CommitBehavior.None);
+        }
+
+        /// <summary>
+        /// v0.11.0 (2.4): the committed type / function lives in a header this file does not reach yet: add the #include where
+        /// "Add Include" would (an undo step of its own) and offer the Build.cs dependency. Null when nothing was added.
+        /// </summary>
+        private static string AddInclude(ITextBuffer buffer, string include)
+        {
+            try
+            {
+                string text = buffer.CurrentSnapshot.GetText();
+                if (UEToVS.Host.Logic.Refactoring.IncludePlanner.AlreadyIncluded(text, include)) return null;
+                string path = UEToVS.Host.Navigation.VsEditor.FilePathOf(buffer);
+                var point = UEToVS.Host.Logic.Refactoring.IncludePlanner.Plan(text, include);
+                int applied = UEToVS.Host.Refactoring.RefactorEdits.ApplyToBuffer(buffer, new[] { UEToVS.Host.Logic.Refactoring.TextEdit.Insert(path, point.Line, point.Text) }, out _);
+                if (applied == 0) return null;
+                UEToVS.Host.Shell.VsStatusBar.SetText(UEToVS.Host.Logic.Localization.RefactorStrings.IncludeAdded(include));
+                UEToVS.Host.Unreal.ModuleDependencyFixer.OnIncludeCommitted(HostPackage.Instance, path, include, point.Line);
+                return include;
+            }
+            catch (Exception ex)
+            {
+                L.Warn("is.completion.autoInclude.failed", "Adding the #include on commit failed", ex, ("include", include));
+                return null;
+            }
         }
 
         /// <summary>

@@ -73,7 +73,8 @@ namespace UEToVS.Host.Logic.Settings
             new Card(Highlighting, "语义着色", "Semantic coloring", "coloring.enabled", "coloring.overrides", "coloring.marginLines",
                      "coloring.importVa", "coloring.reset"),
             new Card(Highlighting, "引用高亮", "Reference highlighting", "nav.highlightReferences", "nav.highlightReadColor", "nav.highlightWriteColor"),
-            new Card(Highlighting, "代码检查", "Code checks", "diagnostics.enabled", "diagnostics.deprecated", "diagnostics.naming"),
+            new Card(Highlighting, "代码检查", "Code checks", "diagnostics.enabled", "diagnostics.deprecated", "diagnostics.naming",
+                "diagnostics.includes", "diagnostics.syntax", "diagnostics.missingInclude", "diagnostics.unknownIdentifiers", "completion.autoInclude"),
             new Card(Highlighting, "编译错误", "Build errors", "build.squiggles", "errorList.enabled", "errorList.includeBuild"),
 
             // ---- 编辑
