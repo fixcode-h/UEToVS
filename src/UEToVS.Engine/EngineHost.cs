@@ -51,6 +51,8 @@ namespace UEToVS.Engine
             Navigation.Documents.Buffers = Index.Buffers; // v0.7.5: unsaved editor text of other open files
             IntelliSense = new IntelliSense.IntelliSenseService(Index.Backend, Index.Files, () => Index.Phase == IndexPhase.Ready, Navigation.Documents,
                 assets: Index.Assets, indexStamp: () => Index.Revision); // phase change / re-indexed file: drop colouring decided against the older index
+            // v0.11.1: the include closure behind auto #include is built on the background lane, never while a list waits
+            IntelliSense.RunInBackground = (name, work) => Scheduler.RunAsync(WorkPriority.Background, name, work);
             UeCode = new UeCode.UeCodeService(Index); // v0.4.5 editor link: tests / log sites, scanned on demand
             Refactoring = new Refactoring.RefactoringService(Index.Backend, Index.Files, Navigation.Documents, () => Index.Phase == IndexPhase.Ready)
             {

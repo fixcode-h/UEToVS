@@ -71,12 +71,12 @@ namespace UEToVS.Engine.Includes
         public IncludeClosure Closure(string file, IReadOnlyList<string> directIncludes, CancellationToken ct)
         {
             var source = Revision?.Invoke();
-            string key = NavContext.NormalizePath(file) + "\n" + string.Join("\n", directIncludes ?? Array.Empty<string>());
+            string key = Key(file, directIncludes);
             lock (_gate)
             {
                 if (!Equals(source, _source))
                 {
-                    _closures.Clear();
+                    // the older closures stay (with their revision) for Peek: completion may use one a revision old
                     _resolved.Clear();
                     _source = source;
                 }
@@ -84,6 +84,7 @@ namespace UEToVS.Engine.Includes
                 {
                     if (n.Value.Key != key) continue;
                     _closures.Remove(n);
+                    if (!Equals(n.Value.Source, source)) break; // stale: walk again below
                     _closures.AddFirst(n);
                     Interlocked.Increment(ref _hits);
                     return n.Value.Closure;
@@ -100,6 +101,28 @@ namespace UEToVS.Engine.Includes
                 ("unresolved", closure.Unresolved), ("unknownLists", closure.UnknownLists), ("cachedResolutions", _resolved.Count), ("ms", closure.ElapsedMs));
             return closure;
         }
+
+        /// <summary>
+        /// The cached closure for this root and include list without walking (completion must not wait for a cold walk of
+        /// thousands of headers), or null. <paramref name="fresh"/> is false when it was built against an older index revision.
+        /// </summary>
+        public IncludeClosure Peek(string file, IReadOnlyList<string> directIncludes, out bool fresh)
+        {
+            fresh = false;
+            var source = Revision?.Invoke();
+            string key = Key(file, directIncludes);
+            lock (_gate)
+                for (var n = _closures.First; n != null; n = n.Next)
+                {
+                    if (n.Value.Key != key) continue;
+                    fresh = Equals(n.Value.Source, source);
+                    return n.Value.Closure;
+                }
+            return null;
+        }
+
+        private static string Key(string file, IReadOnlyList<string> directIncludes) =>
+            NavContext.NormalizePath(file) + "\n" + string.Join("\n", directIncludes ?? Array.Empty<string>());
 
         private IncludeClosure Walk(string root, IReadOnlyList<string> direct, CancellationToken ct)
         {

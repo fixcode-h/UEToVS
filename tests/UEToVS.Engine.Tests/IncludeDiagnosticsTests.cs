@@ -332,6 +332,32 @@ namespace UEToVS.Engine.Tests
         }
 
         [Fact]
+        public void Completion_never_walks_the_include_closure_itself()
+        {
+            // v0.11.1: a cold closure walk (thousands of engine headers) made the list wait seconds; it goes to the background lane
+            var queued = new List<Action<CancellationToken>>();
+            _f.Service.RunInBackground = (name, work) => { queued.Add(work); return System.Threading.Tasks.Task.CompletedTask; };
+            try
+            {
+                string text = "#include \"MyActor.h\"\n#include \"OnlyInThisTest.h\"\nvoid AMyActor::Fire()\n{\n\tUGame\n}\n";
+                CompletionResponse Complete() => _f.Service.GetCompletions(new CompletionRequest
+                {
+                    Caret = new CaretRequest { FilePath = _f.P(Cpp), Text = text, Line = 4, Column = 6, TextVersion = Interlocked.Increment(ref _version) },
+                    Explicit = true,
+                }, CancellationToken.None);
+                var resp = Complete();
+                Assert.Null(Assert.Single(resp.Items, i => i.Label == "UGameplayStatics").AddInclude);
+                Assert.NotEmpty(queued);
+                foreach (var work in queued.ToArray()) work(CancellationToken.None);
+                queued.Clear();
+                resp = Complete();
+                Assert.Equal("Kismet/GameplayStatics.h", Assert.Single(resp.Items, i => i.Label == "UGameplayStatics").AddInclude);
+                Assert.Empty(queued); // cached now: nothing more to build
+            }
+            finally { _f.Service.RunInBackground = null; }
+        }
+
+        [Fact]
         public void Platform_header_macro_resolves()
         {
             Assert.Equal("Windows/WindowsPlatform.h", IncludeGraph.PlatformHeader("COMPILED_PLATFORM_HEADER(Platform.h)"));
