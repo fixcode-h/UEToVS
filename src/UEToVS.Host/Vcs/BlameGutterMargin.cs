@@ -166,7 +166,7 @@ namespace UEToVS.Host.Vcs
                 _ranks = BlameColors.AgeRanks(blame.Commits.Values);
                 _brushes.Clear();
             }
-            double top = _view.ViewportTop;
+            double dy = MarginGeometry.ViewOffsetY(_view, this);
             bool english = Loc.IsEnglish;
             var texts = new Dictionary<string, FormattedText>(StringComparer.Ordinal); // 同一提交的字只排一次版
             foreach (var line in _view.TextViewLines)
@@ -174,7 +174,7 @@ namespace UEToVS.Host.Vcs
                 // 自动换行的续行只铺底色，字写在第一段
                 var c = _doc.CommitAt(line.Start, out _);
                 if (c == null) continue;
-                double y = line.Top - top;
+                double y = line.Top - _view.ViewportTop + dy; // 和改动色条同一个换算（MarginGeometry）
                 dc.DrawRectangle(BrushFor(c.Id, c.IsUncommitted), null, new Rect(0, y, ActualWidth - 2, line.Height));
                 if (!line.IsFirstTextViewLineForSnapshotLine) continue;
                 if (!texts.TryGetValue(c.Id, out var ft))
@@ -202,7 +202,7 @@ namespace UEToVS.Host.Vcs
             Safe.Execute(VcsService.L, "vcs.gutter.click", () =>
             {
                 if (!_shown || !_doc.Ready) return;
-                var line = _view.TextViewLines.GetTextViewLineContainingYCoordinate(e.GetPosition(this).Y + _view.ViewportTop);
+                var line = _view.TextViewLines.GetTextViewLineContainingYCoordinate(MarginGeometry.MouseViewY(_view, e, this));
                 if (line == null) return;
                 var c = _doc.CommitAt(line.Start, out int baseLine);
                 if (c == null) return;
