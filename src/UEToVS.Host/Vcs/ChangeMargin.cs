@@ -35,7 +35,7 @@ namespace UEToVS.Host.Vcs
     /// v0.11.1：色条显示时把这个编辑器里 VS 自带的“跟踪更改”边距（黄 / 绿条，记的是这次打开以来的编辑，不是和版本库比）关掉，
     /// 行号旁只剩一套和 Git / P4 一致的标记；只改这个视图的选项，不动 VS 的全局设置，色条隐藏（设置关掉、不在版本库里）时还原。
     /// 行号按每个 TextViewLine 自己的快照映射到 diff 快照（布局还没跟上最新编辑时也不会错行），色条画在文字那一段（TextTop），
-    /// 不含 Code Vision 在上面加出来的空行。
+    /// 不含 Code Vision 在上面加出来的空行。v0.11.3：位置按文字区到边距的实际变换算（编辑器缩放时只有文字区缩放），点击直接命中画出来的色条。
     /// </summary>
     internal sealed class ChangeMargin : FrameworkElement, IWpfTextViewMargin
     {
@@ -50,7 +50,8 @@ namespace UEToVS.Host.Vcs
         private readonly VcsDocument _doc;
         private bool _disposed;
         private bool _hidVsTrackChanges;
-        private double _loggedOffset = double.NaN;
+        private string _loggedGeometry;
+        private readonly System.Collections.Generic.List<(double Top, double Bottom, DiffHunk Hunk)> _hits = new System.Collections.Generic.List<(double, double, DiffHunk)>();
 
         public ChangeMargin(IWpfTextView view)
         {
@@ -59,6 +60,7 @@ namespace UEToVS.Host.Vcs
             _doc.Attach();
             _doc.Changed += OnChanged;
             _view.LayoutChanged += OnLayoutChanged;
+            _view.ZoomLevelChanged += OnZoomChanged;
             _view.Closed += (s, e) => Dispose();
             ClipToBounds = true;
             Cursor = Cursors.Hand;
@@ -115,13 +117,19 @@ namespace UEToVS.Host.Vcs
             if (Visible) InvalidateVisual();
         }
 
+        private void OnZoomChanged(object sender, ZoomLevelChangedEventArgs e)
+        {
+            if (Visible) InvalidateVisual();
+        }
+
         protected override void OnRender(DrawingContext dc)
         {
+            _hits.Clear();
             if (_disposed || !Visible || _view.IsClosed || _view.InLayout) return;
             var hunks = _doc.Hunks;
             if (hunks == null || hunks.Count == 0) return;
-            double dy = MarginGeometry.ViewOffsetY(_view, this);
-            LogOffsetOnce(dy);
+            var geo = MarginGeometry.For(_view, this);
+            LogGeometry(geo);
             dc.DrawRectangle(Brushes.Transparent, null, new Rect(0, 0, ActualWidth, ActualHeight)); // 整条可点击
             foreach (var line in _view.TextViewLines)
             {
@@ -129,7 +137,7 @@ namespace UEToVS.Host.Vcs
                 var h = HunkMath.At(hunks, dl);
                 if (h == null) continue;
                 // 画在文字那一段：Code Vision 等行变换在行上面加出的空白不算（和行号对齐）
-                double y = MarginGeometry.TextTopInMargin(_view, line, dy);
+                var (y, bottom) = geo.TextSpan(line);
                 if (h.Kind == ChangeKind.Deleted)
                 {
                     if (!line.IsFirstTextViewLineForSnapshotLine) continue;
@@ -143,19 +151,29 @@ namespace UEToVS.Host.Vcs
                     }
                     g.Freeze();
                     dc.DrawGeometry(DeletedBrush, null, g);
+                    _hits.Add((y - 5, y + 5, h));
                     continue;
                 }
-                dc.DrawRectangle(h.Kind == ChangeKind.Added ? AddedBrush : ModifiedBrush, null, new Rect(1, y, BarWidth, line.TextHeight));
+                dc.DrawRectangle(h.Kind == ChangeKind.Added ? AddedBrush : ModifiedBrush, null, new Rect(1, y, BarWidth, Math.Max(1, bottom - y)));
+                _hits.Add((y, bottom, h));
             }
             _doc.EnsureDiffCurrent();
         }
 
-        /// <summary>文字区相对边距有偏移时记一次（偏移变了再记），方便对照用户截图。</summary>
-        private void LogOffsetOnce(double dy)
+        /// <summary>
+        /// 记一次换算参数（变了再记）：缩放、文字区在边距里的位移、第一行的位置。色条位置再不对时，拿日志里的 vcs.margin.geometry 对照截图。
+        /// </summary>
+        private void LogGeometry(MarginGeometry geo)
         {
-            if (Math.Abs(dy - _loggedOffset) < 0.5 || Math.Abs(dy) < 0.5 && double.IsNaN(_loggedOffset)) return;
-            _loggedOffset = dy;
-            VcsService.L.Info("vcs.margin.offset", null, ("offsetY", Math.Round(dy, 1)), ("lineHeight", Math.Round(_view.LineHeight, 1)));
+            double origin = geo.ToMargin(_view.ViewportTop);
+            string key = Math.Round(geo.Scale, 3) + "|" + Math.Round(origin, 1) + "|" + geo.FromTransform;
+            if (key == _loggedGeometry) return;
+            _loggedGeometry = key;
+            var first = _view.TextViewLines?.FirstVisibleLine;
+            VcsService.L.Info("vcs.margin.geometry", null, ("scale", Math.Round(geo.Scale, 3)), ("originY", Math.Round(origin, 1)), ("transform", geo.FromTransform),
+                              ("zoom", Math.Round(_view.ZoomLevel, 1)), ("lineHeight", Math.Round(_view.LineHeight, 1)), ("marginHeight", Math.Round(ActualHeight, 1)),
+                              ("viewHeight", Math.Round(_view.VisualElement.ActualHeight, 1)), ("firstLine", first?.Start.GetContainingLine().LineNumber ?? -1),
+                              ("firstTextTop", first == null ? 0 : Math.Round(first.TextTop - _view.ViewportTop, 1)));
         }
 
         protected override void OnMouseLeftButtonUp(MouseButtonEventArgs e)
@@ -164,13 +182,15 @@ namespace UEToVS.Host.Vcs
             Safe.Execute(VcsService.L, "vcs.margin.click", () =>
             {
                 if (!Visible) return;
-                double y = MarginGeometry.MouseViewY(_view, e, this);
-                var line = _view.TextViewLines.GetTextViewLineContainingYCoordinate(y);
-                if (line == null) return;
-                int dl = _doc.ToDiffLine(line.Start);
-                var h = HunkMath.At(_doc.Hunks, dl);
-                // 删除三角跨在两行之间：点在上一行底部也算
-                if (h == null && y - line.TextTop < 4 || h == null && line.TextBottom - y < 4) h = HunkMath.At(_doc.Hunks, y - line.TextTop < 4 ? dl : dl + 1);
+                // 直接命中上次画出来的色条：画在哪里就点得到哪里，不再从鼠标位置反算行号
+                double y = e.GetPosition(this).Y;
+                DiffHunk h = null;
+                foreach (var (top, bottom, hunk) in _hits)
+                    if (y >= top && y < bottom) { h = hunk; break; }
+                if (h == null)
+                    foreach (var (top, bottom, hunk) in _hits)
+                        if (y >= top - 3 && y < bottom + 3) { h = hunk; break; }
+                VcsService.L.Debug("vcs.margin.click", null, ("y", Math.Round(y, 1)), ("bars", _hits.Count), ("hit", h?.ToString() ?? "none"));
                 if (h == null) return;
                 e.Handled = true;
                 HunkPopup.Show(_view, _doc, h, PopupAnchor.Mouse());
@@ -192,6 +212,7 @@ namespace UEToVS.Host.Vcs
             _disposed = true;
             _doc.Changed -= OnChanged;
             _view.LayoutChanged -= OnLayoutChanged;
+            _view.ZoomLevelChanged -= OnZoomChanged;
             if (_hidVsTrackChanges && !_view.IsClosed) _view.Options.ClearOptionValue(DefaultTextViewHostOptions.ChangeTrackingId);
             _hidVsTrackChanges = false;
             _doc.Detach();

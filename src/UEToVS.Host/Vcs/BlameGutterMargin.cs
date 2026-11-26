@@ -60,6 +60,7 @@ namespace UEToVS.Host.Vcs
             _doc.Attach();
             _doc.Changed += OnChanged;
             _view.LayoutChanged += OnLayoutChanged;
+            _view.ZoomLevelChanged += OnZoomChanged;
             _view.Closed += (s, e) => Dispose();
             ClipToBounds = true;
             Cursor = Cursors.Hand;
@@ -120,6 +121,11 @@ namespace UEToVS.Host.Vcs
         // 设置改了（VcsService 会让文档重新载入）也走这里
         private void OnChanged(object sender, EventArgs e) => Safe.Execute(VcsService.L, "vcs.gutter.changed", Refresh);
 
+        private void OnZoomChanged(object sender, ZoomLevelChangedEventArgs e)
+        {
+            if (_shown) InvalidateVisual();
+        }
+
         private void OnLayoutChanged(object sender, TextViewLayoutChangedEventArgs e)
         {
             if (_shown) InvalidateVisual();
@@ -148,7 +154,8 @@ namespace UEToVS.Host.Vcs
             dc.DrawRectangle(Brushes.Transparent, null, new Rect(0, 0, ActualWidth, ActualHeight));
             var props = _view.FormattedLineSource?.DefaultTextProperties;
             var typeface = props?.Typeface ?? new Typeface("Consolas");
-            double size = Math.Max(7.0, (props?.FontRenderingEmSize ?? 13.0) * 0.92);
+            var geo = MarginGeometry.For(_view, this); // 编辑器缩放时只有文字区缩放：位置和字号都按它换算
+            double size = Math.Max(7.0, (props?.FontRenderingEmSize ?? 13.0) * 0.92 * geo.Scale);
             double dip = VisualTreeHelper.GetDpi(this).PixelsPerDip;
             var fg = Frozen(ThemeManager.Instance.IsDark ? Color.FromRgb(0xC8, 0xC8, 0xC8) : Color.FromRgb(0x40, 0x40, 0x40));
             var blame = _doc.Blame;
@@ -166,7 +173,6 @@ namespace UEToVS.Host.Vcs
                 _ranks = BlameColors.AgeRanks(blame.Commits.Values);
                 _brushes.Clear();
             }
-            double dy = MarginGeometry.ViewOffsetY(_view, this);
             bool english = Loc.IsEnglish;
             var texts = new Dictionary<string, FormattedText>(StringComparer.Ordinal); // 同一提交的字只排一次版
             foreach (var line in _view.TextViewLines)
@@ -174,8 +180,9 @@ namespace UEToVS.Host.Vcs
                 // 自动换行的续行只铺底色，字写在第一段
                 var c = _doc.CommitAt(line.Start, out _);
                 if (c == null) continue;
-                double y = line.Top - _view.ViewportTop + dy; // 和改动色条同一个换算（MarginGeometry）
-                dc.DrawRectangle(BrushFor(c.Id, c.IsUncommitted), null, new Rect(0, y, ActualWidth - 2, line.Height));
+                var (y, bottom) = geo.LineSpan(line);
+                double h = Math.Max(1, bottom - y);
+                dc.DrawRectangle(BrushFor(c.Id, c.IsUncommitted), null, new Rect(0, y, ActualWidth - 2, h));
                 if (!line.IsFirstTextViewLineForSnapshotLine) continue;
                 if (!texts.TryGetValue(c.Id, out var ft))
                 {
@@ -185,7 +192,7 @@ namespace UEToVS.Host.Vcs
                     };
                     texts[c.Id] = ft;
                 }
-                dc.DrawText(ft, new Point(4, y + Math.Max(0, (line.Height - ft.Height) / 2)));
+                dc.DrawText(ft, new Point(4, y + Math.Max(0, (h - ft.Height) / 2)));
             }
         }
 
@@ -226,6 +233,7 @@ namespace UEToVS.Host.Vcs
             _disposed = true;
             _doc.Changed -= OnChanged;
             _view.LayoutChanged -= OnLayoutChanged;
+            _view.ZoomLevelChanged -= OnZoomChanged;
             _doc.Detach();
         }
     }
