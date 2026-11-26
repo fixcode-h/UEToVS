@@ -111,13 +111,18 @@ namespace UEToVS.Engine.Includes
         private bool _engineIndexed;
         private readonly ConcurrentDictionary<string, ModuleIncludeView> _views = new ConcurrentDictionary<string, ModuleIncludeView>(StringComparer.OrdinalIgnoreCase);
         private readonly ConcurrentDictionary<string, bool> _disk = new ConcurrentDictionary<string, bool>(StringComparer.Ordinal);
+        private readonly ConcurrentDictionary<string, bool> _moduleIndexed = new ConcurrentDictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
 
         public IncludeModel(FileTable files, Func<ModuleCatalog> modules, Func<Workspace> workspace = null)
         {
             _files = files;
             _modules = modules ?? (() => null);
             _workspace = workspace ?? (() => null);
+            Graph = new IncludeGraph(this);
         }
+
+        /// <summary>Include closures over the index's include lists (set <see cref="IncludeGraph.IncludesOf"/> to enable).</summary>
+        public IncludeGraph Graph { get; }
 
         /// <summary>Probe for files outside the index (generated / excluded folders); replaceable in tests.</summary>
         public Func<string, bool> FileExists { get; set; } = SafeExists;
@@ -158,6 +163,35 @@ namespace UEToVS.Engine.Includes
         }
 
         public ModuleInfo ModuleOf(string file) => Catalog?.FindForFile(file);
+
+        /// <summary>Whether any source file of the module is in the file table (cached per file-table snapshot).</summary>
+        public bool IsModuleIndexed(ModuleInfo module)
+        {
+            if (module?.Directory == null) return false;
+            Refresh();
+            return _moduleIndexed.GetOrAdd(module.BuildCsPath ?? module.Name, _ =>
+            {
+                string dir = NavContext.NormalizePath(module.Directory).TrimEnd('/') + "/";
+                foreach (var p in _paths)
+                    if (p.StartsWith(dir, StringComparison.Ordinal)) return true;
+                return false;
+            });
+        }
+
+        /// <summary>
+        /// The module and every module it can see are indexed: only then does "declared nowhere" mean what it says (an engine plugin
+        /// left out of the index would make all of its names look unknown).
+        /// </summary>
+        public bool DependenciesIndexed(ModuleInfo module)
+        {
+            if (module == null || Catalog == null) return false;
+            foreach (var name in View(module).Visible)
+            {
+                var m = _catalog.Get(name);
+                if (m == null || !IsModuleIndexed(m)) return false;
+            }
+            return true;
+        }
 
         // ================================================================== resolve
 
@@ -729,6 +763,7 @@ namespace UEToVS.Engine.Includes
                 _paths = paths;
                 _engineIndexed = engine;
                 _disk.Clear();
+                _moduleIndexed.Clear();
                 _source = snap;
             }
         }

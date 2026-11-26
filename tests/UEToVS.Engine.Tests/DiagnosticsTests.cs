@@ -373,7 +373,9 @@ void AMyActor::Fire()
             var resp = Run("Game/Private/Typing.cpp", text, 3, 10);
             Assert.Empty(resp.Items);
             resp = Run("Game/Private/Typing.cpp", text, 0, 0);
-            Assert.Single(resp.Items);
+            Assert.Single(resp.Items, d => d.Code == CodeDiagnosticCodes.UnknownMember);
+            // v0.11.0: once the caret has left, the unfinished statement is also missing its ';'
+            Assert.Single(resp.Items, d => d.Code == CodeDiagnosticCodes.SyntaxError);
         }
 
         [Fact]

@@ -41,7 +41,7 @@ namespace UEToVS.Host.Refactoring
             }
             // module-relative path: relative to the module folder (Build.cs) when the header has no Public/Classes folder
             string buildCs = ModuleLocator.ForFileSystem().FindBuildCs(type.HeaderPath);
-            string include = ctx.Get<string>(RefactorKeys.Argument) ?? IncludePlanner.UeIncludePath(type.HeaderPath, buildCs == null ? null : Path.GetDirectoryName(buildCs));
+            string include = ctx.Get<string>(RefactorKeys.Argument) ?? type.IncludeText ?? IncludePlanner.UeIncludePath(type.HeaderPath, buildCs == null ? null : Path.GetDirectoryName(buildCs));
             string text = view.TextBuffer.CurrentSnapshot.GetText();
             if (IncludePlanner.AlreadyIncluded(text, include))
             {

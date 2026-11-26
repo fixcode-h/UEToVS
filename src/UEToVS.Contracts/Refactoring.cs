@@ -136,6 +136,9 @@ namespace UEToVS.Contracts
 
         /// <summary>Files visited by the include walk (diagnostics).</summary>
         public int FilesVisited { get; set; }
+
+        /// <summary>v0.11.0: how this file should write the include of <see cref="HeaderPath"/> (include path model), or null when unknown.</summary>
+        public string IncludeText { get; set; }
     }
 
     public sealed class ClassAtCaret

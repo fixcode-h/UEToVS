@@ -80,6 +80,8 @@ namespace UEToVS.Engine.Indexing
             AssetThrottle.SetPolicy(_config.DuringBuild);
             Includes = new UEToVS.Engine.Includes.IncludeModel(Files, () => Modules, () => Workspace);
             Files.Includes = Includes;
+            Includes.Graph.IncludesOf = p => (_backend as SegmentedIndexBackend)?.Store?.GetFile(p)?.Includes;
+            Includes.Graph.Revision = () => Revision;
         }
 
         public WorkspaceOptions Options { get; private set; }

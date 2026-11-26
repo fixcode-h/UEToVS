@@ -15,6 +15,11 @@ namespace UEToVS.Engine.IntelliSense
 
         public bool CheckDeprecated { get; set; }
         public bool CheckNaming { get; set; }
+
+        /// <summary>v0.11.0: rule codes switched off in the settings (UE0017…UE0023); null = all on.</summary>
+        public HashSet<string> Disabled { get; set; }
+
+        public bool On(string code) => Disabled == null || !Disabled.Contains(code);
     }
 
     /// <summary>

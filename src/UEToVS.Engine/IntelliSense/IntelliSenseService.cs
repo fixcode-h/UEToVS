@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 using UEToVS.Contracts;
@@ -240,7 +241,12 @@ namespace UEToVS.Engine.IntelliSense
             int to = Math.Min(lineCount - 1, Math.Max(from, request.EndLine));
             int caret = request.Document.Line > 0 || request.Document.Column > 0 ? Offset(doc, request.Document) : -1;
             var stats = new DiagnosticsStats();
-            var options = new DiagnosticsOptions { CheckDeprecated = request.CheckDeprecated, CheckNaming = request.CheckNaming };
+            var options = new DiagnosticsOptions
+            {
+                CheckDeprecated = request.CheckDeprecated,
+                CheckNaming = request.CheckNaming,
+                Disabled = request.DisabledRules != null && request.DisabledRules.Count > 0 ? new HashSet<string>(request.DisabledRules, StringComparer.Ordinal) : null,
+            };
             var items = _diagnostics.Run(s, from, to, caret, stats, request.UnsavedFiles, options);
             var resp = new CodeDiagnosticsResponse
             {

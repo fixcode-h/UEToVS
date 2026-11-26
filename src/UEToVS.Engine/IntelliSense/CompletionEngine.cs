@@ -598,14 +598,29 @@ namespace UEToVS.Engine.IntelliSense
             string from = s.Doc.Path;
             string fromDir = NavContext.NormalizePath(Path.GetDirectoryName(from) ?? string.Empty);
             var (fromModule, _) = s.Ctx.FileOrigin(from);
+            // v0.11.0: with the include path model, list what this module can include, spelled from its include roots
+            var model = files.Includes;
+            var fromInfo = model?.ModuleOf(from);
+            var view = fromInfo != null ? model.View(fromInfo) : null;
             var matcher = prefix.Length > 0 ? new FuzzyMatcher(Path.GetFileName(prefix)) : null;
             string prefixLower = prefix.ToLowerInvariant();
             int count = 0;
-            foreach (var e in _includes.Get(files))
+            foreach (var e in _includes.Get(files, model?.Catalog))
             {
                 if ((++count & 1023) == 0) s.Ct.ThrowIfCancellationRequested();
                 if (string.Equals(e.PathKey, NavContext.NormalizePath(from), StringComparison.Ordinal)) continue;
                 string inc = e.IncludePath;
+                string requires = null;
+                if (view != null && e.Owner != null)
+                {
+                    if (string.Equals(e.Owner, fromInfo.Name, StringComparison.OrdinalIgnoreCase)) inc = e.OwnPath ?? inc;
+                    else if (e.PublicPath == null) continue; // another module's Private / Internal folder: UBT never adds it
+                    else
+                    {
+                        inc = e.PublicPath;
+                        if (!view.Visible.Contains(e.Owner)) requires = e.Owner;
+                    }
+                }
                 // same directory: the bare file name works
                 if (e.DirKey == fromDir) inc = e.FileName;
                 int rank;
@@ -618,21 +633,23 @@ namespace UEToVS.Engine.IntelliSense
                 }
                 else if (prefix.IndexOf('/') < 0 && e.FileName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) rank = 2;
                 else if (prefix.IndexOf('/') < 0 && matcher != null && matcher.Match(e.FileName).Kind == MatchKind.CamelHump) rank = 1;
-                else if (prefix.IndexOf('/') >= 0 && e.IncludeLower.Contains(prefixLower, StringComparison.Ordinal)) rank = 1;
+                else if (prefix.IndexOf('/') >= 0 && inc.ToLowerInvariant().Contains(prefixLower, StringComparison.Ordinal)) rank = 1;
                 else continue;
                 int p = TypeText.IsProject(e.Origin) ? PNamespace : PGlobal;
                 if (fromModule != null && string.Equals(e.Module, fromModule, StringComparison.Ordinal)) p += 500;
                 if (exact) p += 100;
+                if (requires != null) p -= 1500; // reachable only after adding a Build.cs dependency: after everything visible
                 p -= Math.Min(inc.Length, 120);
                 c.Add(new CompletionItem
                 {
                     Label = inc,
                     InsertText = inc,
                     Kind = SymbolKind.Unknown,
-                    Detail = e.Module,
-                    Container = e.Module,
+                    Detail = requires != null ? requires + " (+Build.cs)" : e.Owner ?? e.Module,
+                    Container = e.Owner ?? e.Module,
                     Score = rank * RankUnit + p,
                     Location = new SourceLocation { FilePath = e.Path, Line = 0, Column = 0 },
+                    RequiresModule = requires,
                 }, "i");
             }
         }
@@ -644,18 +661,22 @@ namespace UEToVS.Engine.IntelliSense
             {
                 public string Path, PathKey, DirKey, FileName, IncludePath, IncludeLower, Module;
                 public ItemOrigin Origin;
+
+                /// <summary>v0.11.0 (include model): owning module (Build.cs), the path below its Public / Classes folder (null when not public), the shortest path below its own roots.</summary>
+                public string Owner, PublicPath, OwnPath;
             }
 
             private FileEntry[] _source;
+            private UEToVS.Engine.Unreal.ModuleCatalog _catalog;
             private Entry[] _entries = Array.Empty<Entry>();
             private readonly object _gate = new object();
 
-            public Entry[] Get(FileTable files)
+            public Entry[] Get(FileTable files, UEToVS.Engine.Unreal.ModuleCatalog catalog = null)
             {
                 var snap = files.Snapshot();
                 lock (_gate)
                 {
-                    if (ReferenceEquals(snap, _source)) return _entries;
+                    if (ReferenceEquals(snap, _source) && ReferenceEquals(catalog, _catalog)) return _entries;
                     var list = new List<Entry>(snap.Length / 2);
                     foreach (var fe in snap)
                     {
@@ -674,11 +695,28 @@ namespace UEToVS.Engine.IntelliSense
                             Module = f.Module,
                             Origin = f.Origin,
                         });
+                        var owner = catalog?.FindForFile(f.Path);
+                        if (owner != null)
+                        {
+                            var entry = list[list.Count - 1];
+                            entry.Owner = owner.Name;
+                            entry.PublicPath = Below(norm, owner.Directory, "Public") ?? Below(norm, owner.Directory, "Classes");
+                            entry.OwnPath = new[] { Below(norm, owner.Directory, "Private"), entry.PublicPath, Below(norm, owner.Directory, "Internal"), Below(norm, owner.Directory, null) }
+                                .Where(x => x != null).OrderBy(x => x.Length).FirstOrDefault();
+                        }
                     }
                     _entries = list.ToArray();
                     _source = snap;
+                    _catalog = catalog;
                     return _entries;
                 }
+            }
+
+            /// <summary>Path of <paramref name="normalized"/> (forward slashes) below <paramref name="moduleDir"/>/<paramref name="folder"/>, or null.</summary>
+            private static string Below(string normalized, string moduleDir, string folder)
+            {
+                string root = (folder == null ? moduleDir : System.IO.Path.Combine(moduleDir, folder)).Replace('\\', '/').TrimEnd('/') + "/";
+                return normalized.StartsWith(root, StringComparison.OrdinalIgnoreCase) && normalized.Length > root.Length ? normalized.Substring(root.Length) : null;
             }
 
             /// <summary>Path relative to the module's Public / Classes / Private folder (UBT include roots), else the file name.</summary>

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -23,6 +24,7 @@ namespace UEToVS.Engine.Tests
         public void Corpus_NoFalsePositives()
         {
             int total = 0, uncertain = 0, items = 0;
+            var wrong = new List<string>();
             foreach (var path in Directory.GetFiles(_f.Root, "*.*", SearchOption.AllDirectories).Where(p => p.EndsWith(".h") || p.EndsWith(".cpp")).OrderBy(p => p))
             {
                 var resp = _f.Service.GetDiagnostics(new CodeDiagnosticsRequest { Document = new CaretRequest { FilePath = path }, StartLine = 0, EndLine = 100000 }, CancellationToken.None);
@@ -37,11 +39,14 @@ namespace UEToVS.Engine.Tests
                     _out.WriteLine($"{Path.GetFileName(path)}:{d.Line + 1}:{d.Column + 1} {d.Code} {d.Message}");
                     // true positives only: unfinished words at completion markers, and a member the engine stand-in FVector lacks
                     // and AGadget::ServerUse, a Server RPC whose specifier list is unfinished at a completion marker (UE0013 is right), and the corpus defines by hand (UE0004 is right: UHT generates that body)
-                    Assert.True(line.Contains("/*@complete:") || word == "IsNearlyZero" || d.Code == CodeDiagnosticCodes.GeneratedFunctionBody && word == "ServerUse" ||
-                                d.Code == CodeDiagnosticCodes.RpcMissingReliability && word == "ServerUse" && lines[d.Line - 1].Contains("/*@complete:"), $"false positive {d.Code} '{word}' {Path.GetFileName(path)}:{d.Line + 1}");
+                    // v0.11.0: names the corpus marks as unknown on purpose (/*@quick:unknown*/) really are undeclared (UE0023 is right)
+                    bool ok = (line.Contains("/*@complete:") || d.Code == CodeDiagnosticCodes.UnknownIdentifier && line.Contains("/*@quick:unknown*/") || word == "IsNearlyZero" || d.Code == CodeDiagnosticCodes.GeneratedFunctionBody && word == "ServerUse" ||
+                                d.Code == CodeDiagnosticCodes.RpcMissingReliability && word == "ServerUse" && lines[d.Line - 1].Contains("/*@complete:"));
+                    if (!ok) wrong.Add($"{d.Code} '{word}' {Path.GetFileName(path)}:{d.Line + 1}");
                 }
             }
             _out.WriteLine($"checked {total}, uncertain {uncertain}, reported {items}");
+            Assert.True(wrong.Count == 0, "false positives: " + string.Join("; ", wrong));
             Assert.True(total > 20);
             Assert.Equal(15, items); // v0.4.5: +5 unfinished words at GameTemplates.cpp completion markers; v0.7.3: +1 UE0013 ServerUse
         }

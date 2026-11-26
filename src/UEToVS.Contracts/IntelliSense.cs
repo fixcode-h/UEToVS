@@ -75,6 +75,15 @@ namespace UEToVS.Contracts
         public int Score { get; set; }
 
         public SourceLocation Location { get; set; }
+
+        /// <summary>
+        /// v0.11.0: include text (as it should be written) the host inserts when this item is committed, because the symbol's
+        /// header is not reachable from the file's includes yet. Null = nothing to add.
+        /// </summary>
+        public string AddInclude { get; set; }
+
+        /// <summary>v0.11.0 #include completion: the header's module is not a Build.cs dependency of this module yet (it must be added).</summary>
+        public string RequiresModule { get; set; }
     }
 
     /// <summary>VA-style '.' / '-&gt;' correction: replace the accessor the user typed with the right one for the left-hand type.</summary>

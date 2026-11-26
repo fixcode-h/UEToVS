@@ -97,7 +97,7 @@ namespace UEToVS.Host.Logic.Refactoring
             if (t.Include == IncludeState.Unknown && t.FilesVisited == 0) return false; // not checked at all
             if (string.Equals(t.HeaderPath, c.FilePath, StringComparison.OrdinalIgnoreCase)) return false;
             if (!Core.Unreal.RelatedNames.IsHeader(t.HeaderPath)) return false;
-            include = IncludePlanner.UeIncludePath(t.HeaderPath);
+            include = t.IncludeText ?? IncludePlanner.UeIncludePath(t.HeaderPath); // v0.11.0: the engine spells it from the module include roots
             return !string.IsNullOrEmpty(include);
         }
 
