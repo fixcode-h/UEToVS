@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading;
 using UEToVS.Contracts;
 using UEToVS.Core.Diagnostics;
+using UEToVS.Engine.Includes;
 using UEToVS.Engine.Indexing;
 using UEToVS.Engine.Navigation;
 using UEToVS.Engine.Syntax;
@@ -126,7 +127,9 @@ namespace UEToVS.Engine.IntelliSense
             var site = CompletionSiteAnalyzer.Analyze(doc, caret);
             double analyzeMs = Ms(sw);
             var resp = _completion.Complete(s, site, request, sw, out string resolvedType);
+            double beforeAuto = Ms(sw);
             int autoIncludes = site.Kind == CompletionContextKind.General ? AutoIncludes(s, resp) : 0;
+            double autoIncludeMs = Math.Round(Ms(sw) - beforeAuto, 2);
             resp.IndexReady = _indexReady();
             resp.ElapsedMs = Ms(sw);
             var data = new (string, object)[]
@@ -137,7 +140,7 @@ namespace UEToVS.Engine.IntelliSense
                 ("trigger", request.TriggerChar == '\0' ? null : request.TriggerChar.ToString()), ("explicit", request.Explicit),
                 ("top", resp.Items.Count > 0 ? resp.Items[0].Label : null), ("ms", resp.ElapsedMs), ("analyzeMs", analyzeMs),
                 ("indexQueries", s.Ctx.IndexQueries), ("file", FileName(doc.Path)), ("line", request.Caret.Line), ("version", request.Caret.TextVersion),
-                ("autoIncludes", autoIncludes == 0 ? (int?)null : autoIncludes),
+                ("autoIncludes", autoIncludes == 0 ? (int?)null : autoIncludes), ("autoIncludeMs", autoIncludeMs >= 1 ? autoIncludeMs : (double?)null),
             };
             if (resp.ElapsedMs > CompletionBudgetMs) L.Warn("is.completion", "Completion over budget (" + CompletionBudgetMs + " ms)", data);
             else L.Info("is.completion", null, data);
@@ -146,6 +149,47 @@ namespace UEToVS.Engine.IntelliSense
 
         /// <summary>Items looked at for <see cref="CompletionItem.AddInclude"/> (the best-scored ones: the list shows only the top anyway).</summary>
         private const int MaxAutoIncludeItems = 150;
+
+        /// <summary>Time the auto include pass may add to one completion request (spellings resolve include paths, some on disk).</summary>
+        private const double AutoIncludeBudgetMs = 15;
+
+        private const int MaxSpellings = 20000;
+
+        /// <summary>How a module spells the include of a header (module + "\n" + header → spelling), for the current index revision.</summary>
+        private readonly System.Collections.Concurrent.ConcurrentDictionary<string, string> _spellings =
+            new System.Collections.Concurrent.ConcurrentDictionary<string, string>(StringComparer.Ordinal);
+        private long _spellingRevision = -1;
+
+        /// <summary>Closure walks queued or running (one per key).</summary>
+        private readonly System.Collections.Concurrent.ConcurrentDictionary<string, byte> _warming =
+            new System.Collections.Concurrent.ConcurrentDictionary<string, byte>(StringComparer.Ordinal);
+
+        /// <summary>
+        /// Runs work off the request path (the engine host passes the scheduler's Background lane). Null: the closure is
+        /// walked inline (tests, offline tools), where nobody waits on a list.
+        /// </summary>
+        public Func<string, Action<CancellationToken>, System.Threading.Tasks.Task> RunInBackground { get; set; }
+
+        /// <summary>Queues the closure walk on the background lane (once per key) and returns <paramref name="stale"/> meanwhile.</summary>
+        private IncludeClosure WarmClosure(IncludeModel model, string path, List<string> direct, IncludeClosure stale)
+        {
+            Background("is.includeClosure\n" + path + "\n" + string.Join("\n", direct), ct => model.Graph.Closure(path, direct, ct));
+            return stale;
+        }
+
+        /// <summary>Queues <paramref name="work"/> on the background lane unless the same key is already queued or running.</summary>
+        private void Background(string key, Action<CancellationToken> work)
+        {
+            if (!_warming.TryAdd(key, 0)) return;
+            Action<CancellationToken> run = ct =>
+            {
+                try { work(ct); }
+                catch (OperationCanceledException) { }
+                catch (Exception ex) { L.Warn("is.completion.autoInclude.warmFailed", "Preparing the auto include data failed", ex, ("work", key.Split('\n')[0])); }
+            };
+            // removed also when the item is dropped unstarted (cancelled / shut down): the next request queues it again
+            RunInBackground(key.Split('\n')[0], run).ContinueWith(_ => _warming.TryRemove(key, out byte _), System.Threading.Tasks.TaskScheduler.Default);
+        }
 
         /// <summary>
         /// v0.11.0 (2.4): types / free functions whose header is outside the file's include closure get the include to add on
@@ -156,7 +200,14 @@ namespace UEToVS.Engine.IntelliSense
             try
             {
                 var model = s.Ctx.Files?.Includes;
-                if (model?.Catalog == null || model.Graph.IncludesOf == null || resp.Items.Count == 0 || !_indexReady()) return 0;
+                if (model == null || model.Graph.IncludesOf == null || resp.Items.Count == 0 || !_indexReady()) return 0;
+                if (RunInBackground != null && !model.IsCurrent)
+                {
+                    // a file was re-indexed since the maps were built: rebuild them off the request path
+                    Background("is.includeModel", ct => { _ = model.Catalog; });
+                    return 0;
+                }
+                if (model.Catalog == null) return 0;
                 var doc = s.Doc;
                 var module = model.ModuleOf(doc.Path);
                 if (module == null) return 0;
@@ -166,12 +217,23 @@ namespace UEToVS.Engine.IntelliSense
                 string ext = System.IO.Path.GetExtension(doc.Path ?? string.Empty).ToLowerInvariant();
                 if (ext != ".h" && ext != ".hpp" && !string.IsNullOrEmpty(module.PrivatePchHeader))
                     direct.Add(System.IO.Path.IsPathRooted(module.PrivatePchHeader) ? module.PrivatePchHeader : System.IO.Path.Combine(module.Directory, module.PrivatePchHeader));
-                var closure = model.Graph.Closure(doc.Path, direct, s.Ct);
-                if (closure.Capped || closure.UnknownLists > 0) return 0;
+                // v0.11.1: never walk the closure here. A cold walk of a UE file (PCH → thousands of engine headers) took
+                // seconds and the list waited for it; use the cached one (even a revision old) and build it in the background.
+                IncludeClosure closure;
+                if (RunInBackground == null) closure = model.Graph.Closure(doc.Path, direct, s.Ct);
+                else
+                {
+                    closure = model.Graph.Peek(doc.Path, direct, out bool fresh);
+                    if (closure == null || !fresh) closure = WarmClosure(model, doc.Path, direct, closure);
+                }
+                if (closure == null || closure.Capped || closure.UnknownLists > 0) return 0;
+                long revision = _indexStamp();
+                if (Interlocked.Exchange(ref _spellingRevision, revision) != revision) _spellings.Clear();
+                var started = Stopwatch.StartNew();
                 int n = 0;
-                var spellings = new Dictionary<string, string>(StringComparer.Ordinal);
                 foreach (var item in resp.Items.OrderByDescending(i => i.Score).Take(MaxAutoIncludeItems))
                 {
+                    if (started.Elapsed.TotalMilliseconds > AutoIncludeBudgetMs) break; // the rest just get no auto include
                     string file = item.Location?.FilePath;
                     if (file == null || item.IsKeyword || item.IsInherited) continue;
                     bool type = TypeText.IsTypeKind(item.Kind) && item.Kind != SymbolKind.Namespace;
@@ -180,7 +242,13 @@ namespace UEToVS.Engine.IntelliSense
                     string norm = NavContext.NormalizePath(file);
                     if (!norm.EndsWith(".h", StringComparison.Ordinal) || norm.EndsWith(".generated.h", StringComparison.Ordinal)) continue;
                     if (s.Ctx.IsOverlayPath(file) || closure.Files.Contains(norm)) continue;
-                    if (!spellings.TryGetValue(norm, out var spelling)) spellings[norm] = spelling = model.Spelling(file, doc.Path);
+                    string spellingKey = module.Name + "\n" + norm;
+                    if (!_spellings.TryGetValue(spellingKey, out var spelling))
+                    {
+                        spelling = model.Spelling(file, doc.Path);
+                        if (_spellings.Count >= MaxSpellings) _spellings.Clear();
+                        _spellings[spellingKey] = spelling;
+                    }
                     if (string.IsNullOrEmpty(spelling)) continue;
                     item.AddInclude = spelling;
                     n++;
