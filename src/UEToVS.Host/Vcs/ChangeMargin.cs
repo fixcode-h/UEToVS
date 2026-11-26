@@ -50,6 +50,7 @@ namespace UEToVS.Host.Vcs
         private readonly VcsDocument _doc;
         private bool _disposed;
         private bool _hidVsTrackChanges;
+        private double _loggedOffset = double.NaN;
 
         public ChangeMargin(IWpfTextView view)
         {
@@ -119,7 +120,8 @@ namespace UEToVS.Host.Vcs
             if (_disposed || !Visible || _view.IsClosed || _view.InLayout) return;
             var hunks = _doc.Hunks;
             if (hunks == null || hunks.Count == 0) return;
-            double top = _view.ViewportTop;
+            double dy = MarginGeometry.ViewOffsetY(_view, this);
+            LogOffsetOnce(dy);
             dc.DrawRectangle(Brushes.Transparent, null, new Rect(0, 0, ActualWidth, ActualHeight)); // 整条可点击
             foreach (var line in _view.TextViewLines)
             {
@@ -127,7 +129,7 @@ namespace UEToVS.Host.Vcs
                 var h = HunkMath.At(hunks, dl);
                 if (h == null) continue;
                 // 画在文字那一段：Code Vision 等行变换在行上面加出的空白不算（和行号对齐）
-                double y = line.TextTop - top;
+                double y = MarginGeometry.TextTopInMargin(_view, line, dy);
                 if (h.Kind == ChangeKind.Deleted)
                 {
                     if (!line.IsFirstTextViewLineForSnapshotLine) continue;
@@ -148,13 +150,21 @@ namespace UEToVS.Host.Vcs
             _doc.EnsureDiffCurrent();
         }
 
+        /// <summary>文字区相对边距有偏移时记一次（偏移变了再记），方便对照用户截图。</summary>
+        private void LogOffsetOnce(double dy)
+        {
+            if (Math.Abs(dy - _loggedOffset) < 0.5 || Math.Abs(dy) < 0.5 && double.IsNaN(_loggedOffset)) return;
+            _loggedOffset = dy;
+            VcsService.L.Info("vcs.margin.offset", null, ("offsetY", Math.Round(dy, 1)), ("lineHeight", Math.Round(_view.LineHeight, 1)));
+        }
+
         protected override void OnMouseLeftButtonUp(MouseButtonEventArgs e)
         {
             base.OnMouseLeftButtonUp(e);
             Safe.Execute(VcsService.L, "vcs.margin.click", () =>
             {
                 if (!Visible) return;
-                double y = e.GetPosition(this).Y + _view.ViewportTop;
+                double y = MarginGeometry.MouseViewY(_view, e, this);
                 var line = _view.TextViewLines.GetTextViewLineContainingYCoordinate(y);
                 if (line == null) return;
                 int dl = _doc.ToDiffLine(line.Start);
