@@ -32,6 +32,10 @@ namespace UEToVS.Host.Vcs
     /// <summary>
     /// G2 行号旁的改动色条（对比 HEAD / #have）：新增绿、修改蓝、删除红三角。只画可见的行（OnRender 里按 TextViewLines），
     /// 差异由 <see cref="VcsDocument"/> 在后台算好；点色条弹出这一块（<see cref="HunkPopup"/>）。设置 vcs.changeBars 关掉时宽度为 0。
+    /// v0.11.1：色条显示时把这个编辑器里 VS 自带的“跟踪更改”边距（黄 / 绿条，记的是这次打开以来的编辑，不是和版本库比）关掉，
+    /// 行号旁只剩一套和 Git / P4 一致的标记；只改这个视图的选项，不动 VS 的全局设置，色条隐藏（设置关掉、不在版本库里）时还原。
+    /// 行号按每个 TextViewLine 自己的快照映射到 diff 快照（布局还没跟上最新编辑时也不会错行），色条画在文字那一段（TextTop），
+    /// 不含 Code Vision 在上面加出来的空行。
     /// </summary>
     internal sealed class ChangeMargin : FrameworkElement, IWpfTextViewMargin
     {
@@ -45,6 +49,7 @@ namespace UEToVS.Host.Vcs
         private readonly IWpfTextView _view;
         private readonly VcsDocument _doc;
         private bool _disposed;
+        private bool _hidVsTrackChanges;
 
         public ChangeMargin(IWpfTextView view)
         {
@@ -59,6 +64,28 @@ namespace UEToVS.Host.Vcs
             UpdateWidth();
         }
 
+        /// <summary>
+        /// 我们的色条显示时关掉这个视图的 VS“跟踪更改”边距，不显示时还原成跟随 VS 的全局选项（ClearOptionValue，不写死 true）。
+        /// </summary>
+        private void SyncVsTrackChanges(bool oursVisible)
+        {
+            if (_view.IsClosed) return;
+            var options = _view.Options;
+            if (oursVisible)
+            {
+                if (!_hidVsTrackChanges || options.GetOptionValue(DefaultTextViewHostOptions.ChangeTrackingId))
+                {
+                    options.SetOptionValue(DefaultTextViewHostOptions.ChangeTrackingId, false);
+                    _hidVsTrackChanges = true;
+                }
+            }
+            else if (_hidVsTrackChanges)
+            {
+                options.ClearOptionValue(DefaultTextViewHostOptions.ChangeTrackingId);
+                _hidVsTrackChanges = false;
+            }
+        }
+
         private static Brush Frozen(Color c)
         {
             var b = new SolidColorBrush(c);
@@ -70,8 +97,10 @@ namespace UEToVS.Host.Vcs
 
         private void UpdateWidth()
         {
-            double w = Visible ? Width_ : 0;
+            bool visible = Visible;
+            double w = visible ? Width_ : 0;
             if (Width != w) Width = w;
+            SyncVsTrackChanges(visible);
         }
 
         private void OnChanged(object sender, EventArgs e) => Safe.Execute(VcsService.L, "vcs.margin.changed", () =>
@@ -90,16 +119,15 @@ namespace UEToVS.Host.Vcs
             if (_disposed || !Visible || _view.IsClosed || _view.InLayout) return;
             var hunks = _doc.Hunks;
             if (hunks == null || hunks.Count == 0) return;
-            var snapshot = _view.TextSnapshot;
             double top = _view.ViewportTop;
             dc.DrawRectangle(Brushes.Transparent, null, new Rect(0, 0, ActualWidth, ActualHeight)); // 整条可点击
             foreach (var line in _view.TextViewLines)
             {
-                int n = line.Start.GetContainingLine().LineNumber;
-                int dl = _doc.ToDiffLine(snapshot, n);
+                int dl = _doc.ToDiffLine(line.Start);
                 var h = HunkMath.At(hunks, dl);
                 if (h == null) continue;
-                double y = line.Top - top;
+                // 画在文字那一段：Code Vision 等行变换在行上面加出的空白不算（和行号对齐）
+                double y = line.TextTop - top;
                 if (h.Kind == ChangeKind.Deleted)
                 {
                     if (!line.IsFirstTextViewLineForSnapshotLine) continue;
@@ -115,8 +143,9 @@ namespace UEToVS.Host.Vcs
                     dc.DrawGeometry(DeletedBrush, null, g);
                     continue;
                 }
-                dc.DrawRectangle(h.Kind == ChangeKind.Added ? AddedBrush : ModifiedBrush, null, new Rect(1, y, BarWidth, line.Height));
+                dc.DrawRectangle(h.Kind == ChangeKind.Added ? AddedBrush : ModifiedBrush, null, new Rect(1, y, BarWidth, line.TextHeight));
             }
+            _doc.EnsureDiffCurrent();
         }
 
         protected override void OnMouseLeftButtonUp(MouseButtonEventArgs e)
@@ -128,11 +157,10 @@ namespace UEToVS.Host.Vcs
                 double y = e.GetPosition(this).Y + _view.ViewportTop;
                 var line = _view.TextViewLines.GetTextViewLineContainingYCoordinate(y);
                 if (line == null) return;
-                int n = line.Start.GetContainingLine().LineNumber;
-                int dl = _doc.ToDiffLine(_view.TextSnapshot, n);
+                int dl = _doc.ToDiffLine(line.Start);
                 var h = HunkMath.At(_doc.Hunks, dl);
                 // 删除三角跨在两行之间：点在上一行底部也算
-                if (h == null && y - line.Top < 4 || h == null && line.Bottom - y < 4) h = HunkMath.At(_doc.Hunks, y - line.Top < 4 ? dl : dl + 1);
+                if (h == null && y - line.TextTop < 4 || h == null && line.TextBottom - y < 4) h = HunkMath.At(_doc.Hunks, y - line.TextTop < 4 ? dl : dl + 1);
                 if (h == null) return;
                 e.Handled = true;
                 HunkPopup.Show(_view, _doc, h, PopupAnchor.Mouse());
@@ -154,6 +182,8 @@ namespace UEToVS.Host.Vcs
             _disposed = true;
             _doc.Changed -= OnChanged;
             _view.LayoutChanged -= OnLayoutChanged;
+            if (_hidVsTrackChanges && !_view.IsClosed) _view.Options.ClearOptionValue(DefaultTextViewHostOptions.ChangeTrackingId);
+            _hidVsTrackChanges = false;
             _doc.Detach();
         }
     }

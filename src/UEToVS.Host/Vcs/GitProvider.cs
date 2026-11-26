@@ -204,11 +204,14 @@ namespace UEToVS.Host.Vcs
         private static readonly TimeSpan ShowTimeout = TimeSpan.FromSeconds(20);
         private static readonly TimeSpan LogTimeout = TimeSpan.FromMinutes(10);
         private readonly GitCatFile _catFile;
+        private readonly GitHeadWatcher _headWatcher;
 
         public GitProvider(string root)
         {
             Root = root;
             _catFile = new GitCatFile(root);
+            // 在 VS 里提交 / 切分支时 VS 不会重新激活：HEAD 一动就让 VcsService 检查这个仓库，色条马上换成新的基准
+            _headWatcher = GitHeadWatcher.TryCreate(root, () => VcsService.Instance.OnGitHeadTouched(root));
         }
 
         public VcsKind Kind => VcsKind.Git;
@@ -337,6 +340,10 @@ namespace UEToVS.Host.Vcs
         private static bool IsNoSuchPath(string stderr) =>
             stderr != null && (stderr.IndexOf("no such path", StringComparison.OrdinalIgnoreCase) >= 0 || stderr.IndexOf("does not exist", StringComparison.OrdinalIgnoreCase) >= 0);
 
-        public void Dispose() => _catFile.Dispose();
+        public void Dispose()
+        {
+            _headWatcher?.Dispose();
+            _catFile.Dispose();
+        }
     }
 }

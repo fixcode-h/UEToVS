@@ -170,6 +170,12 @@ namespace UEToVS.Engine.Includes
 
         public ModuleInfo ModuleOf(string file) => Catalog?.FindForFile(file);
 
+        /// <summary>
+        /// False when the file table or module catalog changed since the last rebuild: the next call that needs the maps
+        /// rebuilds them over every indexed file (hundreds of ms on an engine index), which completion leaves to the background.
+        /// </summary>
+        public bool IsCurrent => ReferenceEquals(_files?.Snapshot() ?? Array.Empty<FileEntry>(), _source) && ReferenceEquals(_modules(), _catalog);
+
         /// <summary>Whether any source file of the module is in the file table (cached per file-table snapshot).</summary>
         public bool IsModuleIndexed(ModuleInfo module)
         {

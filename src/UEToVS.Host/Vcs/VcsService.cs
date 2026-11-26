@@ -129,12 +129,25 @@ namespace UEToVS.Host.Vcs
             _ = Safe.RunInBackgroundAsync(L, "vcs.stateCheck", CheckStateAsync);
         }
 
-        private async Task CheckStateAsync()
+        /// <summary>
+        /// Git 仓库的 HEAD / logs\HEAD 文件变了（<see cref="GitHeadWatcher"/>，后台线程，已合并 500 ms）：不走 30 秒节流，
+        /// 只查这一个仓库；HEAD 真的换了才清缓存、让打开的文档重新取基准。
+        /// </summary>
+        public void OnGitHeadTouched(string root)
+        {
+            if (!Active || string.IsNullOrEmpty(root) || !_providers.ContainsKey(root)) return;
+            _ = Safe.RunInBackgroundAsync(L, "vcs.stateCheck.head", () => CheckStateAsync(root));
+        }
+
+        private Task CheckStateAsync() => CheckStateAsync(null);
+
+        private async Task CheckStateAsync(string onlyRoot)
         {
             var changed = new List<string>();
             foreach (var p in _providers.Values)
             {
                 if (p.Kind != VcsKind.Git) continue; // P4 不定时问服务器：靠文件重新载入
+                if (onlyRoot != null && !string.Equals(p.Root, onlyRoot, StringComparison.OrdinalIgnoreCase)) continue;
                 string key;
                 try
                 {
