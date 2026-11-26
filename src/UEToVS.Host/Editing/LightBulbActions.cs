@@ -43,6 +43,7 @@ namespace UEToVS.Host.Editing
 
             RefactoringFeature.Hub.Register(new UeRuleFixProvider());
             RefactoringFeature.Hub.Register(new UhtTypeFixProvider()); // v0.9.12 UE0009 / UE0010
+            RefactoringFeature.Hub.Register(new EngineDiagnosticFixProvider()); // v0.11.0 UE0017–UE0023
             SpecifierEditorFeature.Register(registry); // v0.9.12 说明符编辑器
             foreach (var p in LightBulbProviders.Create(surroundEnabled: () => IntelliSenseContext.Settings?.SurroundWithEnabled != false))
                 RefactoringFeature.Hub.Register(p);
@@ -64,7 +65,25 @@ namespace UEToVS.Host.Editing
             try
             {
                 string text = view.TextBuffer.CurrentSnapshot.GetText();
-                switch (fix.Code)
+                // v0.11.0 引擎算好的修复（UE0017–UE0023）
+                if (EngineDiagnosticFixProvider.Codes.Contains(fix.Code ?? string.Empty) && fix.Variant != null)
+                {
+                    title = EngineDiagnosticFixPlanner.Title(fix.Variant, fix.Target);
+                    if (fix.Variant == EngineDiagnosticFixPlanner.AddInclude)
+                    {
+                        if (IncludePlanner.AlreadyIncluded(text, fix.Target)) { VsStatusBar.SetText(RefactorStrings.IncludeAlreadyThere(fix.Target)); return; }
+                        var point = IncludePlanner.Plan(text, fix.Target);
+                        int applied = RefactorEdits.ApplyToBuffer(view.TextBuffer, new[] { TextEdit.Insert(file, point.Line, point.Text) }, out _);
+                        edits = new List<TextEdit>();
+                        if (applied == 0) { problem = "stale"; VsStatusBar.SetText(LightBulbStrings.FixProblem(problem)); return; }
+                        VsStatusBar.SetText(RefactorStrings.IncludeAdded(fix.Target));
+                        // 头文件所在模块还不是依赖时，和“添加 include”一样提示加 Build.cs 依赖
+                        ModuleDependencyFixer.OnIncludeCommitted(HostPackage.Instance, file, fix.Target, point.Line);
+                        return;
+                    }
+                    edits = EngineDiagnosticFixPlanner.Plan(file, text, fix, out problem);
+                }
+                else switch (fix.Code)
                 {
                     case CodeDiagnosticCodes.MissingModuleDependency:
                         title = LightBulbStrings.AddModuleDependency(fix.Arg(1), fix.Arg(2), fix.IsPublic);

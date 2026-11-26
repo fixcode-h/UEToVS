@@ -111,6 +111,11 @@ namespace UEToVS.Engine.IntelliSense
             options ??= DiagnosticsOptions.Default;
             if (options.CheckDeprecated) run.Deprecated(start, end, result);
             if (options.CheckNaming) run.Naming(start, end, result);
+            // v0.11.0 headers, syntax and names (design: 后续规划-代码诊断与提示, stage 1–2)
+            run.IncludeLines(start, end, result, options);
+            if (options.On(CodeDiagnosticCodes.SyntaxError)) run.Syntax(start, end, result);
+            if (options.On(CodeDiagnosticCodes.MissingInclude)) run.MissingIncludes(start, end, result);
+            if (options.On(CodeDiagnosticCodes.UnknownIdentifier)) run.UnknownIdentifiers(start, end, result);
             result.Sort((a, b) => a.Line != b.Line ? a.Line.CompareTo(b.Line) : a.Column.CompareTo(b.Column));
             return result;
         }

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
@@ -178,6 +179,35 @@ namespace UEToVS.Host.Build
             VsStatusBar.SetText(BuildStrings.NextBuildError(_navIndex + 1, order.Count, (string.IsNullOrEmpty(d.Code) ? "" : d.Code + ": ") + d.Message));
             L.Info("build.errors.next", null, ("index", _navIndex), ("count", order.Count), ("code", d.Code));
         }
+
+        /// <summary>
+        /// v0.11.0 save check: the result of compiling <paramref name="file"/> on its own replaces that file's marks (and adds the
+        /// headers' marks it reported); the rest of the last build stays. UI thread.
+        /// </summary>
+        public void MergeSingleFile(string file, BuildRecord single)
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+            if (_building || single == null) return; // a real build is running: it owns the marks
+            string key = BuildErrorSet.NormalizePath(file);
+            var reported = new HashSet<string>(single.Items.Where(d => d.HasLocation).Select(d => BuildErrorSet.NormalizePath(d.File)), StringComparer.OrdinalIgnoreCase) { key };
+            var old = Current.Record;
+            var merged = new BuildRecord
+            {
+                Source = "save-check",
+                StartedUtc = single.StartedUtc,
+                FinishedUtc = single.FinishedUtc,
+                DurationMs = single.DurationMs,
+                Result = single.Result,
+            };
+            if (old?.Items != null) merged.Items.AddRange(old.Items.Where(d => !d.HasLocation || !reported.Contains(BuildErrorSet.NormalizePath(d.File))));
+            merged.Items.AddRange(single.Items);
+            merged.Errors = merged.Items.Count(d => d.Severity == BuildSeverity.Error);
+            merged.Warnings = merged.Items.Count(d => d.Severity == BuildSeverity.Warning);
+            merged.Notes = merged.Items.Count(d => d.Severity == BuildSeverity.Info);
+            Set(new BuildErrorSet(merged));
+        }
+
+        public bool IsBuilding => _building;
 
         public void Clear()
         {

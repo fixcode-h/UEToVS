@@ -57,6 +57,32 @@ namespace UEToVS.Host.Logic.IntelliSense
                                  "{1} cannot be used on private member '{0}' without meta=(AllowPrivateAccess=\"true\") (UHT will fail)", A(0), A(1));
                 case CodeDiagnosticCodes.UFunctionInStruct:
                     return Loc.F("USTRUCT “{1}” 里不能声明 UFUNCTION “{0}”（UHT 会报错）", "USTRUCT '{1}' cannot contain UFUNCTION '{0}' (UHT will fail)", A(0), A(1));
+                // ---- v0.11.0 头文件、语法、名称
+                case CodeDiagnosticCodes.IncludeNotFound:
+                    return Arg(d, 1) != null
+                        ? Loc.F("找不到头文件 “{0}”，应写作 “{1}”", "Cannot open include file '{0}'; write '{1}'", A(0), A(1))
+                        : Loc.F("找不到头文件 “{0}”（不在本模块的 include 路径下）", "Cannot open include file '{0}' (not below an include path of this module)", A(0));
+                case CodeDiagnosticCodes.IncludeOfPrivateHeader:
+                    return Loc.F("“{0}” 是模块 {1} 的私有头文件（Private），其他模块 include 不到", "'{0}' is a private header of module {1}; other modules cannot include it", A(0), A(1));
+                case CodeDiagnosticCodes.GeneratedInclude:
+                    switch (A(0))
+                    {
+                        case "name": return Loc.F("这个头文件的生成头是 “{1}”，不是 “{2}”（UHT 会报错）", "The generated header of this file is '{1}', not '{2}' (UHT will fail)", A(0), A(1), A(2));
+                        case "not-last": return Loc.F("“{1}” 必须是最后一个 #include，这一行要移到它前面（UHT 会报错）", "'{1}' must be the last #include; move this line above it (UHT will fail)", A(0), A(1));
+                        default: return Loc.F("有反射类型的头文件必须在最后 include “{1}”（UHT 会报错）", "A header with reflected types must include '{1}' last (UHT will fail)", A(0), A(1));
+                    }
+                case CodeDiagnosticCodes.IncludeSpelling:
+                    return Loc.F("“{0}” 是靠旧版 include 路径找到的，建议写作 “{1}”", "'{0}' is found through a legacy include path; write '{1}'", A(0), A(1));
+                case CodeDiagnosticCodes.SyntaxError:
+                    return SyntaxMessage(A(0), Arg(d, 1));
+                case CodeDiagnosticCodes.MissingInclude:
+                    return A(2) == "incomplete"
+                        ? Loc.F("“{0}” 在这里只有前置声明，用到它的定义需要 #include \"{1}\"", "'{0}' is only forward-declared here; its definition needs #include \"{1}\"", A(0), A(1))
+                        : Loc.F("“{0}” 声明在 “{1}” 里，但这个文件没有 include 它（靠 PCH / Unity 才能编过）", "'{0}' is declared in '{1}', which this file does not include (it compiles only through the PCH / unity build)", A(0), A(1));
+                case CodeDiagnosticCodes.UnknownIdentifier:
+                    return Arg(d, 1) != null
+                        ? Loc.F("未定义标识符 “{0}”，是不是 “{1}”？", "Identifier '{0}' is undefined; did you mean '{1}'?", A(0), A(1).Split('|')[0])
+                        : Loc.F("未定义标识符 “{0}”", "Identifier '{0}' is undefined", A(0));
                 // ---- v0.4.5 编辑体验
                 case CodeDiagnosticCodes.DeprecatedApi:
                     return UEToVS.Host.Logic.Localization.EditorFeatureStrings.Deprecated(A(0), Arg(d, 1), Arg(d, 2));
@@ -64,6 +90,21 @@ namespace UEToVS.Host.Logic.IntelliSense
                     return UEToVS.Host.Logic.Localization.EditorFeatureStrings.Naming(A(0), A(1), A(2));
                 default:
                     return d.Message ?? d.Code ?? string.Empty;
+            }
+        }
+
+        private static string SyntaxMessage(string kind, string detail)
+        {
+            switch (kind)
+            {
+                case "unbalanced-brace": return Loc.T("多余的 “}”", "Unbalanced '}'");
+                case "unclosed-brace": return Loc.T("“{” 没有配对的 “}”", "'{' is never closed");
+                case "endif-without-if": return Loc.T("#endif 没有对应的 #if", "#endif without #if");
+                case "else-without-if": return Loc.T("#else / #elif 没有对应的 #if", "#else / #elif without #if");
+                case "missing-semicolon-after-type": return Loc.F("“{0}” 的定义后面缺少 “;”", "Expected ';' after the definition of '{0}'", detail ?? "?");
+                case "missing-semicolon": return Loc.T("“}” 前缺少 “;”", "Expected ';' before '}'");
+                case "unbalanced-paren": return detail == "(" ? Loc.T("“(” 没有配对的 “)”", "'(' is never closed") : Loc.T("多余的 “)”", "Unbalanced ')'");
+                default: return detail ?? kind ?? string.Empty;
             }
         }
 

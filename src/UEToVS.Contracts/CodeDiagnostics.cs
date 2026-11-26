@@ -67,6 +67,32 @@ namespace UEToVS.Contracts
 
         /// <summary>UFUNCTION declared in a USTRUCT (UHT error). Args: function, struct.</summary>
         public const string UFunctionInStruct = "UE0016";
+
+        // ---- v0.11.0 headers, syntax and names (design: 后续规划-代码诊断与提示, stage 1–2)
+
+        /// <summary>#include of a file that exists nowhere (index or disk under the module's include roots), error. Args: include, suggestion ("" when none).</summary>
+        public const string IncludeNotFound = "UE0017";
+
+        /// <summary>#include of a header in another module's Private folder (UBT never puts it on the include path), error. Args: include, module.</summary>
+        public const string IncludeOfPrivateHeader = "UE0018";
+
+        /// <summary>X.generated.h problem in a header with reflected types (UHT error). Args: "missing" | "name" | "not-last", expected include, the include written ("" when none).</summary>
+        public const string GeneratedInclude = "UE0019";
+
+        /// <summary>The include resolves but can be written shorter from the module's include roots, info. Args: include, shorter spelling.</summary>
+        public const string IncludeSpelling = "UE0020";
+
+        /// <summary>Syntax error the parser is certain about, error. Args: kind (unbalanced-brace | unclosed-brace | endif-without-if | else-without-if | missing-semicolon-after-type | missing-semicolon | unbalanced-paren), detail.</summary>
+        public const string SyntaxError = "UE0021";
+
+        /// <summary>
+        /// A name declared only in headers this file does not include (directly or through its includes), warning; or a type used
+        /// with . / -> that is only forward-declared here. Args: name, include to add, "missing" | "incomplete".
+        /// </summary>
+        public const string MissingInclude = "UE0022";
+
+        /// <summary>A name declared nowhere (no local, member, macro or symbol in the index), error. Args: name, suggestions separated by '|' ("" when none).</summary>
+        public const string UnknownIdentifier = "UE0023";
     }
 
     public sealed class CodeDiagnosticsRequest
@@ -89,6 +115,9 @@ namespace UEToVS.Contracts
 
         /// <summary>v0.4.5: report UE naming convention problems (UE0012) of the file's own declarations in the range.</summary>
         public bool CheckNaming { get; set; }
+
+        /// <summary>v0.11.0: rule codes the user switched off (UE0017…UE0023 have settings of their own). Null / empty = all on.</summary>
+        public List<string> DisabledRules { get; set; }
     }
 
     public sealed class CodeDiagnostic
@@ -106,6 +135,21 @@ namespace UEToVS.Contracts
 
         /// <summary>English fallback text (logs, hosts that do not know the code).</summary>
         public string Message { get; set; }
+
+        /// <summary>v0.11.0: mechanical fixes the engine computed (light bulb / Alt+Enter); null or empty when none.</summary>
+        public List<CodeDiagnosticFix> Fixes { get; set; }
+    }
+
+    /// <summary>
+    /// v0.11.0: one fix of a diagnostic. <see cref="Kind"/> names it for the host's localized title ("replace" with Args[0] the new
+    /// text, "add-include" with Args[0] the include to insert — the host plans the line like Add Include and offers the module
+    /// dependency); <see cref="Edits"/> are applied as one undo step when present.
+    /// </summary>
+    public sealed class CodeDiagnosticFix
+    {
+        public string Kind { get; set; }
+        public List<string> Args { get; set; } = new List<string>();
+        public List<FileTextEdit> Edits { get; set; } = new List<FileTextEdit>();
     }
 
     public sealed class CodeDiagnosticsResponse

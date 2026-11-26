@@ -114,6 +114,8 @@ namespace UEToVS.Host.Refactoring
             CodeDiagnosticCodes.MissingModuleDependency, CodeDiagnosticCodes.MissingGeneratedBody, CodeDiagnosticCodes.GeneratedFunctionBody,
             CodeDiagnosticCodes.MissingRepNotify, CodeDiagnosticCodes.UnregisteredReplicatedProperty,
             CodeDiagnosticCodes.UnsupportedPropertyType, CodeDiagnosticCodes.UnsupportedParameterType, // v0.9.12
+            CodeDiagnosticCodes.IncludeNotFound, CodeDiagnosticCodes.GeneratedInclude, CodeDiagnosticCodes.IncludeSpelling, // v0.11.0
+            CodeDiagnosticCodes.MissingInclude, CodeDiagnosticCodes.UnknownIdentifier,
         };
 
         /// <summary>v0.4.5: the squiggles under the caret (current snapshot coordinates) for the Alt+Enter fixes.</summary>
@@ -130,7 +132,7 @@ namespace UEToVS.Host.Refactoring
                     var l = span.Start.GetContainingLine();
                     moved.Add(new CodeDiagnostic
                     {
-                        Code = item.Code, Severity = item.Severity, Args = item.Args, Message = item.Message,
+                        Code = item.Code, Severity = item.Severity, Args = item.Args, Message = item.Message, Fixes = item.Fixes,
                         Line = l.LineNumber, Column = span.Start.Position - l.Start.Position, Length = span.Length,
                     });
                 }

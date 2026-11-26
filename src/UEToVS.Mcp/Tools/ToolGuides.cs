@@ -172,7 +172,7 @@ namespace UEToVS.Mcp.Tools
             },
             ["get_diagnostics"] = new Guide
             {
-                What = "Runs UEToVS's Unreal checks on whole C++ files: unknown member on a known type (UE0001), missing GENERATED_BODY (UE0003), hand-written body of a generated UFUNCTION (UE0004), ReplicatedUsing without OnRep (UE0005), replicated property not in GetLifetimeReplicatedProps (UE0006), unknown gameplay tag / asset path (UE0007/8), types UHT rejects (UE0009/10).",
+                What = "Runs UEToVS's Unreal checks on whole C++ files: unknown member on a known type (UE0001), missing GENERATED_BODY (UE0003), hand-written body of a generated UFUNCTION (UE0004), ReplicatedUsing without OnRep (UE0005), replicated property not in GetLifetimeReplicatedProps (UE0006), unknown gameplay tag / asset path (UE0007/8), types UHT rejects (UE0009/10), include lines that resolve nowhere / private headers / .generated.h problems (UE0017-UE0020), syntax errors (UE0021), types used without their #include (UE0022), undefined identifiers (UE0023).",
                 UseWhen = "right after you edit C++ files, before building — pass the changed paths. Only certain problems are reported.",
                 InsteadOf = "a full build to find UHT/replication mistakes.",
                 NotFor = "general C++ compile errors (build, then get_build_errors); engine files (skipped). Reads files as saved on disk.",
@@ -186,7 +186,7 @@ namespace UEToVS.Mcp.Tools
             },
             ["run_project_inspection"] = new Guide
             {
-                What = "Whole-project run of the UEToVS UE rules (UE0001-UE0010, UE0013-UE0016, same as get_diagnostics) over every project source file.",
+                What = "Whole-project run of the UEToVS UE rules (UE0001-UE0010, UE0013-UE0023, same as get_diagnostics) over every project source file.",
                 UseWhen = "the user asks to check the whole project. Asynchronous: action 'start' returns at once; poll 'status' until Completed, then page 'results' (filter by rule / file); 'cancel' stops.",
                 InsteadOf = "calling get_diagnostics file by file or a full rebuild.",
                 NotFor = "checking a few edited files (use get_diagnostics). Heavy on large projects; refuses when switched off in the UEToVS settings.",

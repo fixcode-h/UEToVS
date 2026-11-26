@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Threading;
 using UEToVS.Contracts;
 using UEToVS.Core.Diagnostics;
@@ -124,6 +126,7 @@ namespace UEToVS.Engine.IntelliSense
             var site = CompletionSiteAnalyzer.Analyze(doc, caret);
             double analyzeMs = Ms(sw);
             var resp = _completion.Complete(s, site, request, sw, out string resolvedType);
+            int autoIncludes = site.Kind == CompletionContextKind.General ? AutoIncludes(s, resp) : 0;
             resp.IndexReady = _indexReady();
             resp.ElapsedMs = Ms(sw);
             var data = new (string, object)[]
@@ -134,10 +137,62 @@ namespace UEToVS.Engine.IntelliSense
                 ("trigger", request.TriggerChar == '\0' ? null : request.TriggerChar.ToString()), ("explicit", request.Explicit),
                 ("top", resp.Items.Count > 0 ? resp.Items[0].Label : null), ("ms", resp.ElapsedMs), ("analyzeMs", analyzeMs),
                 ("indexQueries", s.Ctx.IndexQueries), ("file", FileName(doc.Path)), ("line", request.Caret.Line), ("version", request.Caret.TextVersion),
+                ("autoIncludes", autoIncludes == 0 ? (int?)null : autoIncludes),
             };
             if (resp.ElapsedMs > CompletionBudgetMs) L.Warn("is.completion", "Completion over budget (" + CompletionBudgetMs + " ms)", data);
             else L.Info("is.completion", null, data);
             return resp;
+        }
+
+        /// <summary>Items looked at for <see cref="CompletionItem.AddInclude"/> (the best-scored ones: the list shows only the top anyway).</summary>
+        private const int MaxAutoIncludeItems = 150;
+
+        /// <summary>
+        /// v0.11.0 (2.4): types / free functions whose header is outside the file's include closure get the include to add on
+        /// commit. Silent when the closure is not known (no module, capped, unknown include lists, the index not ready).
+        /// </summary>
+        private int AutoIncludes(IsSession s, CompletionResponse resp)
+        {
+            try
+            {
+                var model = s.Ctx.Files?.Includes;
+                if (model?.Catalog == null || model.Graph.IncludesOf == null || resp.Items.Count == 0 || !_indexReady()) return 0;
+                var doc = s.Doc;
+                var module = model.ModuleOf(doc.Path);
+                if (module == null) return 0;
+                var direct = new List<string>();
+                foreach (var inc in doc.Summary.Includes)
+                    if (!string.IsNullOrWhiteSpace(inc.Path)) direct.Add(inc.Path);
+                string ext = System.IO.Path.GetExtension(doc.Path ?? string.Empty).ToLowerInvariant();
+                if (ext != ".h" && ext != ".hpp" && !string.IsNullOrEmpty(module.PrivatePchHeader))
+                    direct.Add(System.IO.Path.IsPathRooted(module.PrivatePchHeader) ? module.PrivatePchHeader : System.IO.Path.Combine(module.Directory, module.PrivatePchHeader));
+                var closure = model.Graph.Closure(doc.Path, direct, s.Ct);
+                if (closure.Capped || closure.UnknownLists > 0) return 0;
+                int n = 0;
+                var spellings = new Dictionary<string, string>(StringComparer.Ordinal);
+                foreach (var item in resp.Items.OrderByDescending(i => i.Score).Take(MaxAutoIncludeItems))
+                {
+                    string file = item.Location?.FilePath;
+                    if (file == null || item.IsKeyword || item.IsInherited) continue;
+                    bool type = TypeText.IsTypeKind(item.Kind) && item.Kind != SymbolKind.Namespace;
+                    bool free = item.Kind == SymbolKind.Function && string.IsNullOrEmpty(item.Container);
+                    if (!type && !free) continue;
+                    string norm = NavContext.NormalizePath(file);
+                    if (!norm.EndsWith(".h", StringComparison.Ordinal) || norm.EndsWith(".generated.h", StringComparison.Ordinal)) continue;
+                    if (s.Ctx.IsOverlayPath(file) || closure.Files.Contains(norm)) continue;
+                    if (!spellings.TryGetValue(norm, out var spelling)) spellings[norm] = spelling = model.Spelling(file, doc.Path);
+                    if (string.IsNullOrEmpty(spelling)) continue;
+                    item.AddInclude = spelling;
+                    n++;
+                }
+                return n;
+            }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception ex)
+            {
+                L.Warn("is.completion.autoInclude.failed", "Computing the includes to add failed", ex);
+                return 0;
+            }
         }
 
         // ================================================================== quick info
@@ -240,7 +295,12 @@ namespace UEToVS.Engine.IntelliSense
             int to = Math.Min(lineCount - 1, Math.Max(from, request.EndLine));
             int caret = request.Document.Line > 0 || request.Document.Column > 0 ? Offset(doc, request.Document) : -1;
             var stats = new DiagnosticsStats();
-            var options = new DiagnosticsOptions { CheckDeprecated = request.CheckDeprecated, CheckNaming = request.CheckNaming };
+            var options = new DiagnosticsOptions
+            {
+                CheckDeprecated = request.CheckDeprecated,
+                CheckNaming = request.CheckNaming,
+                Disabled = request.DisabledRules != null && request.DisabledRules.Count > 0 ? new HashSet<string>(request.DisabledRules, StringComparer.Ordinal) : null,
+            };
             var items = _diagnostics.Run(s, from, to, caret, stats, request.UnsavedFiles, options);
             var resp = new CodeDiagnosticsResponse
             {

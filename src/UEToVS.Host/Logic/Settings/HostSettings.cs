@@ -309,6 +309,39 @@ namespace UEToVS.Host.Logic.Settings
         /// <summary>UE naming convention suggestions for types and bool members declared in the current file (UE0012).</summary>
         public bool NamingConventionCheck { get; set; } = false;
 
+        // ---- v0.11.0 头文件、语法、名称（rows: Logic/Settings/EditorFeatureSettings.cs）----
+        /// <summary>Include lines: not found / private header of another module / .generated.h / legacy spelling (UE0017–UE0020).</summary>
+        public bool IncludeChecks { get; set; } = true;
+
+        /// <summary>Syntax errors: braces, parentheses, missing ';' (UE0021).</summary>
+        public bool SyntaxChecks { get; set; } = true;
+
+        /// <summary>Types used without including their header (UE0022, warning).</summary>
+        public bool MissingIncludeCheck { get; set; } = true;
+
+        /// <summary>Names declared nowhere, with spelling suggestions (UE0023).</summary>
+        public bool UnknownIdentifierCheck { get; set; } = true;
+
+        /// <summary>Completion: committing a type / function whose header is not included yet adds the #include (2.4).</summary>
+        public bool CompletionAutoInclude { get; set; } = true;
+
+        /// <summary>Run UBT's JsonExport in the background when a Build.cs / Target.cs changes (exact include paths for the checks).</summary>
+        public bool UbtIncludeExport { get; set; } = true;
+
+        /// <summary>Stage 3 C: compile a saved .cpp on its own in the background (UBT -SingleFile) and show the compiler's errors. Off by default.</summary>
+        public bool SaveCompileCheck { get; set; } = false;
+
+        /// <summary>Rule codes the engine should skip, from the switches above.</summary>
+        public System.Collections.Generic.List<string> DisabledDiagnosticRules()
+        {
+            var list = new System.Collections.Generic.List<string>();
+            if (!IncludeChecks) list.AddRange(new[] { "UE0017", "UE0018", "UE0019", "UE0020" });
+            if (!SyntaxChecks) list.Add("UE0021");
+            if (!MissingIncludeCheck) list.Add("UE0022");
+            if (!UnknownIdentifierCheck) list.Add("UE0023");
+            return list;
+        }
+
         /// <summary>Deploy UEToVS.natstepfilter to the user's Visualizers folder (removed when off).</summary>
         public bool DebugStepFilter { get; set; } = true;
 

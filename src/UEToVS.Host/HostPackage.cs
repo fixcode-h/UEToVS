@@ -358,6 +358,7 @@ namespace UEToVS.Host
             await TaskScheduler.Default;
 
             Safe.Execute(L, "horde.solutionOpened", Horde.HordeFeature.OnUnrealSolutionOpened);
+            Safe.Execute(L, "ubt.background.solutionOpened", () => Build.BackgroundUbt.Start(this)); // v0.11.0 include-path export / save check
             _ = UEToVS.Host.Unreal.UeLiveCodingStartupService.ApplyAsync(UProjectDirectory, _settings.Effective.UeLiveCodingManualStartup, "solutionOpened");
             await _intelliSense.OnUnrealSolutionOpenedAsync();
             await StartEngineAsync();
@@ -385,6 +386,7 @@ namespace UEToVS.Host
         {
             Safe.Execute(L, "m1.solutionClosing", M1Feature.OnSolutionClosing);
             Safe.Execute(L, "vcs.solutionClosing", Vcs.VcsService.Instance.OnSolutionClosing);
+            Safe.Execute(L, "ubt.background.solutionClosing", Build.BackgroundUbt.Stop);
             if (!_unreal.IsUnreal) return;
             L.Info("solution.closing", null, ("solution", _solutionFile));
             StopDebugControl();

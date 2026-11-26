@@ -364,6 +364,8 @@ namespace UEToVS.Engine.Refactoring
                           .ThenBy(c => TypeText.IsProject(c.Origin) ? 0 : 1).First();
             var info = new TypeAtCaret { Symbol = best, HeaderPath = best.Location?.FilePath };
             if (string.IsNullOrEmpty(info.HeaderPath)) return info;
+            try { info.IncludeText = _files?.Includes?.Spelling(info.HeaderPath, doc.Path); }
+            catch (Exception ex) when (!(ex is OperationCanceledException)) { info.IncludeText = null; }
             if (all.Any(c => ctx.IsOverlayPath(c.Location?.FilePath)))
             {
                 info.Include = IncludeState.SameFile;
@@ -379,7 +381,7 @@ namespace UEToVS.Engine.Refactoring
                 info.FilesVisited = cached.Visited;
                 return info;
             }
-            var (state, via, visited) = IncludeWalk(includes, info.HeaderPath, ct);
+            var (state, via, visited) = IncludeWalk(includes, info.HeaderPath, ct, doc.Path);
             _includeCache.Add(key, (state, via, visited));
             info.Include = state;
             info.IncludedVia = via;
@@ -398,11 +400,19 @@ namespace UEToVS.Engine.Refactoring
         /// through the include lists the index stored for each resolved header (no file reads), at most
         /// <see cref="MaxIncludeDepth"/> levels / <see cref="MaxIncludeFiles"/> files. Hitting a bound without a match → Unknown.
         /// </summary>
-        internal (IncludeState State, string Via, int Visited) IncludeWalk(IReadOnlyList<string> includes, string target, CancellationToken ct)
+        internal (IncludeState State, string Via, int Visited) IncludeWalk(IReadOnlyList<string> includes, string target, CancellationToken ct, string fromFile = null)
         {
             string t = NavContext.NormalizePath(target);
             foreach (var inc in includes)
                 if (IncludeMatches(inc, t)) return (IncludeState.Direct, inc, 0);
+            // v0.11.0: the include graph (real include roots, no depth limit up to IncludeGraph.MaxFiles)
+            var model = _files?.Includes;
+            if (model != null && IncludesOf == null && model.Graph.IncludesOf != null && model.ModuleOf(fromFile) != null)
+            {
+                var closure = model.Graph.Closure(fromFile, includes, ct);
+                if (closure.Contains(target)) return (IncludeState.Transitive, closure.Via.TryGetValue(t, out var v) ? v : null, closure.Files.Count);
+                return (closure.Capped ? IncludeState.Unknown : IncludeState.Missing, null, closure.Files.Count);
+            }
             var includesOf = IncludesOf ?? DefaultIncludesOf();
             if (includesOf == null || _files == null) return (IncludeState.Unknown, null, 0);
 

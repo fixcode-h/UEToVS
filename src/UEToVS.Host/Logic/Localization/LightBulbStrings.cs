@@ -9,6 +9,11 @@ namespace UEToVS.Host.Logic.Localization
         public static string GroupNavigate => Loc.T("导航", "Navigate");
         public static string GroupEdit => Loc.T("编辑", "Edit");
 
+        // ---- v0.11.0 引擎算好的修复（UE0017–UE0023）
+        public static string ReplaceWith(string text) => Loc.F("改为 {0}", "Change to {0}", text);
+        public static string AddIncludeOf(string include) => Loc.F("添加 #include \"{0}\"", "Add #include \"{0}\"", include);
+        public static string InsertLine(string line) => Loc.F("插入 {0}", "Insert {0}", line);
+
         // ---- UE 规则修复（UE0002–UE0006）
         public static string AddModuleDependency(string module, string owner, bool isPublic) => isPublic
             ? Loc.F("将模块 {0} 加到 {1}.Build.cs 的 Public 依赖", "Add module {0} to the public dependencies in {1}.Build.cs", module, owner)

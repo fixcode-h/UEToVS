@@ -269,10 +269,22 @@ namespace UEToVS.Engine.Navigation
 
         // ------------------------------------------------------------------ includes
 
-        /// <summary>Resolves <c>#include "X/Y.h"</c> against the file table: same directory first, then project files, shortest path.</summary>
+        /// <summary>
+        /// Resolves <c>#include "X/Y.h"</c>: through the include path model when the file belongs to a module (v0.11.0), else against
+        /// the file table: same directory first, then project files, shortest path.
+        /// </summary>
         public string ResolveInclude(string includePath, string fromFile)
         {
             if (string.IsNullOrEmpty(includePath)) return null;
+            // v0.11.0: the include path model knows the module's real include roots; the suffix scan below is the fallback
+            var model = _files?.Includes;
+            if (model != null && model.Catalog != null && model.ModuleOf(fromFile) != null)
+            {
+                var r = model.Resolve(includePath, false, fromFile);
+                if (r.Status == UEToVS.Engine.Includes.IncludeStatus.Found) return r.Path;
+                // not on the include path (missing dependency…): still go to the file the user means
+                if (r.Status == UEToVS.Engine.Includes.IncludeStatus.NotOnIncludePath && r.Candidates.Count > 0) return r.Candidates[0];
+            }
             string inc = includePath.Replace('\\', '/').TrimStart('.', '/');
             if (inc.Length == 0) return null;
             if (!string.IsNullOrEmpty(fromFile))
