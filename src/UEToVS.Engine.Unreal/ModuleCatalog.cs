@@ -30,6 +30,22 @@ namespace UEToVS.Engine.Unreal
         /// <summary>The module folder and its Private folder.</summary>
         public List<string> PrivateIncludeDirs { get; } = new List<string>();
 
+        /// <summary>v0.11.0: PublicIncludePathModuleNames / PrivateIncludePathModuleNames (headers visible without linking).</summary>
+        public IReadOnlyCollection<string> PublicIncludePathModules { get; set; } = Array.Empty<string>();
+        public IReadOnlyCollection<string> PrivateIncludePathModules { get; set; } = Array.Empty<string>();
+
+        /// <summary>v0.11.0: raw include path expressions of the Build.cs (see <see cref="BuildCsFile.PublicIncludePathExpressions"/>).</summary>
+        public IReadOnlyList<string> PublicIncludePathExpressions { get; set; } = Array.Empty<string>();
+        public IReadOnlyList<string> PrivateIncludePathExpressions { get; set; } = Array.Empty<string>();
+
+        /// <summary>v0.11.0: bLegacyPublicIncludePaths / bLegacyParentIncludePaths when the Build.cs sets them.</summary>
+        public bool? LegacyPublicIncludePaths { get; set; }
+        public bool? LegacyParentIncludePaths { get; set; }
+
+        /// <summary>v0.11.0: PrivatePCHHeaderFile / SharedPCHHeaderFile as written (relative to <see cref="Directory"/>).</summary>
+        public string PrivatePchHeader { get; set; }
+        public string SharedPchHeader { get; set; }
+
         /// <summary>Set when the Build.cs could not be read.</summary>
         public string Error { get; set; }
     }
@@ -84,6 +100,14 @@ namespace UEToVS.Engine.Unreal
                     var rules = new BuildCsFile(b.Module, text);
                     info.PublicDependencies = rules.PublicDependencies.ToArray();
                     info.PrivateDependencies = rules.PrivateDependencies.ToArray();
+                    info.PublicIncludePathModules = rules.PublicIncludePathModules.ToArray();
+                    info.PrivateIncludePathModules = rules.PrivateIncludePathModules.ToArray();
+                    info.PublicIncludePathExpressions = rules.PublicIncludePathExpressions.ToArray();
+                    info.PrivateIncludePathExpressions = rules.PrivateIncludePathExpressions.ToArray();
+                    info.LegacyPublicIncludePaths = rules.LegacyPublicIncludePaths;
+                    info.LegacyParentIncludePaths = rules.LegacyParentIncludePaths;
+                    info.PrivatePchHeader = rules.PrivatePchHeader;
+                    info.SharedPchHeader = rules.SharedPchHeader;
                 }
                 catch (Exception ex)
                 {

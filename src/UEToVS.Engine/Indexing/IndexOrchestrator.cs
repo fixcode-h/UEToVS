@@ -78,12 +78,17 @@ namespace UEToVS.Engine.Indexing
             AssetThrottle = new WorkerThrottle("assets", _config.AssetThreads);
             CppThrottle.SetPolicy(_config.DuringBuild);
             AssetThrottle.SetPolicy(_config.DuringBuild);
+            Includes = new UEToVS.Engine.Includes.IncludeModel(Files, () => Modules, () => Workspace);
+            Files.Includes = Includes;
         }
 
         public WorkspaceOptions Options { get; private set; }
         public Workspace Workspace { get; private set; }
         public ModuleCatalog Modules { get; private set; } = new ModuleCatalog();
         public FileTable Files { get; } = new FileTable();
+
+        /// <summary>v0.11.0 include path model (module include roots, include resolution and spelling).</summary>
+        public UEToVS.Engine.Includes.IncludeModel Includes { get; private set; }
         public AssetTable Assets { get; } = new AssetTable();
         public PhaseRecorder Phases { get; } = new PhaseRecorder();
         public ISymbolIndexBackend Backend => _backend;

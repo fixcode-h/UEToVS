@@ -33,6 +33,12 @@ namespace UEToVS.Engine.Indexing
 
         public int Count => _files.Count;
 
+        /// <summary>
+        /// v0.11.0 include path model over this table (set by the index orchestrator). It hangs here because every consumer of
+        /// include resolution (navigation, IntelliSense, refactoring) already receives the file table; null in tests that do not need it.
+        /// </summary>
+        public UEToVS.Engine.Includes.IncludeModel Includes { get; set; }
+
         public bool TryGet(string path, out FileEntry e) => _files.TryGetValue(path, out e);
 
         public FileEntry Upsert(ListedFile f)

@@ -35,6 +35,36 @@ namespace UEToVS.Core.Unreal
         public bool DependsOn(string module) => PublicDependencies.Contains(module) || PrivateDependencies.Contains(module);
 
         /// <summary>
+        /// v0.11.0: the expressions (C# source text) added to PublicIncludePaths / PublicSystemIncludePaths, e.g.
+        /// <c>Path.Combine(ModuleDirectory, "Public/Sub")</c> or <c>"Runtime/Engine/Private"</c>. The engine's include model
+        /// evaluates the common shapes; one it cannot evaluate makes "header not found" uncertain for this module.
+        /// </summary>
+        public List<string> PublicIncludePathExpressions { get; } = new List<string>();
+
+        /// <summary>v0.11.0: expressions added to PrivateIncludePaths / PrivateSystemIncludePaths (see <see cref="PublicIncludePathExpressions"/>).</summary>
+        public List<string> PrivateIncludePathExpressions { get; } = new List<string>();
+
+        /// <summary>v0.11.0: <c>bLegacyPublicIncludePaths = true/false</c>; null when the rules file does not set it (UBT default by build settings version).</summary>
+        public bool? LegacyPublicIncludePaths { get; private set; }
+
+        /// <summary>v0.11.0: <c>bLegacyParentIncludePaths = true/false</c>; null when not set.</summary>
+        public bool? LegacyParentIncludePaths { get; private set; }
+
+        /// <summary>v0.11.0: <c>PrivatePCHHeaderFile = "…"</c> (relative to the module folder), or null.</summary>
+        public string PrivatePchHeader { get; private set; }
+
+        /// <summary>v0.11.0: <c>SharedPCHHeaderFile = "…"</c> (relative to the module folder), or null.</summary>
+        public string SharedPchHeader { get; private set; }
+
+        private static readonly Regex IncludePathCall = new Regex(
+            @"(?<list>PublicIncludePaths|PrivateIncludePaths|PublicSystemIncludePaths|PrivateSystemIncludePaths)\s*\.\s*(?<op>AddRange|Add)\s*\(",
+            RegexOptions.Compiled);
+
+        private static readonly Regex BoolSetting = new Regex(@"\b(?<name>bLegacyPublicIncludePaths|bLegacyParentIncludePaths)\s*=\s*(?<value>true|false)\b", RegexOptions.Compiled);
+
+        private static readonly Regex PchSetting = new Regex(@"\b(?<name>PrivatePCHHeaderFile|SharedPCHHeaderFile)\s*=\s*""(?<value>[^""]+)""", RegexOptions.Compiled);
+
+        /// <summary>
         /// Every module whose headers <paramref name="root"/> can include: itself, its direct dependencies and, transitively,
         /// the public dependencies of those (UBT propagates public include paths).
         /// </summary>
@@ -79,6 +109,108 @@ namespace UEToVS.Core.Unreal
             }
             foreach (Match m in AddOne.Matches(code))
                 SetFor(m.Groups["list"].Value).Add(m.Groups["name"].Value);
+            ParseIncludePaths(code);
+        }
+
+        private void ParseIncludePaths(string code)
+        {
+            PublicIncludePathExpressions.Clear();
+            PrivateIncludePathExpressions.Clear();
+            LegacyPublicIncludePaths = null;
+            LegacyParentIncludePaths = null;
+            PrivatePchHeader = null;
+            SharedPchHeader = null;
+            foreach (Match m in IncludePathCall.Matches(code))
+            {
+                int open = m.Index + m.Length - 1;
+                int close = MatchParen(code, open);
+                if (close < 0) continue;
+                string arg = code.Substring(open + 1, close - open - 1).Trim();
+                var list = m.Groups["list"].Value.StartsWith("Public", StringComparison.Ordinal) ? PublicIncludePathExpressions : PrivateIncludePathExpressions;
+                if (m.Groups["op"].Value == "AddRange")
+                {
+                    // AddRange(new string[] { a, b }) / AddRange(new[] { … }); anything else (a variable, a method call) stays one opaque item
+                    int lb = arg.IndexOf('{');
+                    int rb = arg.LastIndexOf('}');
+                    if (arg.StartsWith("new", StringComparison.Ordinal) && lb >= 0 && rb > lb)
+                    {
+                        foreach (var item in SplitTopLevel(arg.Substring(lb + 1, rb - lb - 1)))
+                            if (item.Length > 0) list.Add(item);
+                    }
+                    else list.Add("?" + arg);
+                }
+                else if (arg.Length > 0) list.Add(arg);
+            }
+            foreach (Match m in BoolSetting.Matches(code))
+            {
+                bool v = m.Groups["value"].Value == "true";
+                if (m.Groups["name"].Value == "bLegacyPublicIncludePaths") LegacyPublicIncludePaths = v;
+                else LegacyParentIncludePaths = v;
+            }
+            foreach (Match m in PchSetting.Matches(code))
+            {
+                if (m.Groups["name"].Value == "PrivatePCHHeaderFile") PrivatePchHeader = m.Groups["value"].Value;
+                else SharedPchHeader = m.Groups["value"].Value;
+            }
+        }
+
+        /// <summary>Index of the ')' closing the '(' at <paramref name="open"/> (strings skipped), or -1.</summary>
+        public static int MatchParen(string s, int open)
+        {
+            int depth = 0;
+            for (int i = open; i < s.Length; i++)
+            {
+                char c = s[i];
+                if (c == '"')
+                {
+                    i = SkipString(s, i);
+                    continue;
+                }
+                if (c == '(') depth++;
+                else if (c == ')' && --depth == 0) return i;
+            }
+            return -1;
+        }
+
+        /// <summary>Index of the closing quote of the string literal opening at <paramref name="quote"/> (@"…" verbatim: no escapes).</summary>
+        public static int SkipString(string s, int quote)
+        {
+            bool verbatim = quote > 0 && s[quote - 1] == '@';
+            for (int i = quote + 1; i < s.Length; i++)
+            {
+                if (s[i] == '\\' && !verbatim) { i++; continue; }
+                if (s[i] == '"')
+                {
+                    if (verbatim && i + 1 < s.Length && s[i + 1] == '"') { i++; continue; }
+                    return i;
+                }
+            }
+            return s.Length;
+        }
+
+        /// <summary>Splits on commas outside parentheses, brackets, braces and strings; items trimmed.</summary>
+        public static List<string> SplitTopLevel(string s)
+        {
+            var list = new List<string>();
+            int depth = 0, start = 0;
+            for (int i = 0; i < s.Length; i++)
+            {
+                char c = s[i];
+                if (c == '"')
+                {
+                    i = SkipString(s, i);
+                    continue;
+                }
+                if (c == '(' || c == '[' || c == '{') depth++;
+                else if (c == ')' || c == ']' || c == '}') depth--;
+                else if (c == ',' && depth == 0)
+                {
+                    list.Add(s.Substring(start, i - start).Trim());
+                    start = i + 1;
+                }
+            }
+            if (start < s.Length) list.Add(s.Substring(start).Trim());
+            return list;
         }
 
         private HashSet<string> SetFor(string list)
