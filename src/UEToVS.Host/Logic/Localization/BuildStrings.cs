@@ -5,6 +5,14 @@ namespace UEToVS.Host.Logic.Localization
     /// <summary>v0.4.5 构建结果 / 错误列表 / 新建 UE 类 / 生成 VS 项目文件 strings (bilingual, follow the VS UI language).</summary>
     public static class BuildStrings
     {
+        // ---- v0.11.0 后台 UBT（include 路径导出、保存后编译检查）
+        public static string SaveCheckRunning(string file) => Loc.F("UEToVS：正在后台编译检查 {0}…", "UEToVS: compile-checking {0} in the background...", file);
+        public static string SaveCheckDone(string file, int errors, int warnings, double sec) => errors + warnings == 0
+            ? Loc.F("UEToVS：{0} 编译检查通过（{1:0.#} 秒）", "UEToVS: {0} compiles cleanly ({1:0.#} s)", file, sec)
+            : Loc.F("UEToVS：{0} 编译检查发现 {1} 个错误、{2} 个警告（{3:0.#} 秒）", "UEToVS: compile check of {0} found {1} error(s), {2} warning(s) ({3:0.#} s)", file, errors, warnings, sec);
+        public static string SaveCheckLiveCoding => Loc.T("UEToVS：编辑器的 Live Coding 正在运行，保存后编译检查跳过了这次", "UEToVS: the editor's Live Coding is active; the save check was skipped");
+        public static string SaveCheckFailed(string file) => Loc.F("UEToVS：{0} 的后台编译检查没有跑完，详情见日志", "UEToVS: the background compile check of {0} did not finish; see the log", file);
+
         // ---- commands
         public static string CmdNewUeClass => Loc.T("新建 UE 类…", "New Unreal Class...");
         public static string CmdNextBuildError => Loc.T("跳到下一个编译错误", "Go to Next Build Error");

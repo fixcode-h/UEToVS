@@ -38,6 +38,7 @@ namespace UEToVS.Engine.Tests
                 "PublicDependencyModuleNames.AddRange(new string[] { \"Core\", \"CoreUObject\", \"Engine\" });\nPrivateDependencyModuleNames.Add(\"Legacy\");"),
             ["Game/Source/MyGame/Public/MyActor.h"] = "#pragma once\n#include \"GameFramework/Actor.h\"\n#include \"MyActor.generated.h\"\nUCLASS()\nclass AMyActor : public AActor\n{\n\tGENERATED_BODY()\npublic:\n\tvirtual void BeginPlay() override;\n\tint Health;\n\tvoid Fire();\n};\n",
             ["Game/Source/MyGame/Private/MyActor.cpp"] = "#include \"MyActor.h\"\nvoid AMyActor::Fire()\n{\n\tHealth = 1;\n}\n",
+            ["Game/Source/MyGame/Extra/ExtraThing.h"] = "#pragma once\nstruct FExtraThing { int A; };\n",
             ["Game/Source/Other/Other.Build.cs"] = Rules("Other", "PublicDependencyModuleNames.Add(\"Core\");"),
             ["Game/Source/Other/Public/OtherThing.h"] = "#pragma once\nstruct FOtherThing { int A; };\n",
             ["Game/Source/Other/Private/OtherPrivate.h"] = "#pragma once\nstruct FOtherPrivate { int A; };\n",
@@ -76,6 +77,7 @@ namespace UEToVS.Engine.Tests
                 Backend.UpdateParsed(path, parser.Parse(ctx, File.ReadAllBytes(path), CancellationToken.None));
             }
             var ws = new Workspace { EngineRoot = P("UE"), ProjectRoot = P("Game") };
+            Workspace = ws;
             Modules = ModuleCatalog.Build(ws, found);
             Model = new IncludeModel(Table, () => Modules, () => ws);
             Table.Includes = Model;
@@ -87,6 +89,7 @@ namespace UEToVS.Engine.Tests
         public SegmentedIndexBackend Backend { get; }
         public FileTable Table { get; } = new FileTable();
         public ModuleCatalog Modules { get; }
+        public Workspace Workspace { get; }
         public IncludeModel Model { get; }
         public IntelliSenseService Service { get; }
         public bool Ready { get; set; } = true;
@@ -286,6 +289,46 @@ namespace UEToVS.Engine.Tests
             string text = "#include \"Nope/Missing.h\"\nvoid F()\n{\n\tHealht = 3;\n}\n";
             Assert.Equal(2, Run(Cpp, text).Count);
             Assert.Empty(Run(Cpp, text, disabled: new List<string> { CodeDiagnosticCodes.IncludeNotFound, CodeDiagnosticCodes.UnknownIdentifier }));
+        }
+
+        [Fact]
+        public void Ubt_export_settles_include_folders_the_build_cs_cannot_say()
+        {
+            string json = "{ \"Name\": \"MyGameEditor\", \"Modules\": { \"MyGame\": { \"Name\": \"MyGame\", \"PublicIncludePathModules\": [\"Core\"], " +
+                          "\"PrivateIncludePaths\": [" + System.Text.Json.JsonSerializer.Serialize(_f.P("Game/Source/MyGame/Extra")) + "], \"PublicIncludePaths\": [] } } }";
+            var parsed = UbtExport.Parse(json);
+            Assert.Single(parsed["MyGame"].Private);
+            Assert.Empty(parsed["MyGame"].Public); // PublicIncludePathModules holds module names, not folders
+
+            string file = Path.Combine(_f.Root, "export.json");
+            var model = new IncludeModel(_f.Table, () => _f.Modules, () => _f.Workspace);
+            Assert.Equal(IncludeStatus.NotOnIncludePath, model.Resolve("ExtraThing.h", false, _f.P(Cpp)).Status);
+            File.WriteAllText(file, json);
+            model = new IncludeModel(_f.Table, () => _f.Modules, () => _f.Workspace) { Export = new UbtExport(() => file) };
+            var r = model.Resolve("ExtraThing.h", false, _f.P(Cpp));
+            Assert.Equal(IncludeStatus.Found, r.Status);
+            Assert.True(model.View(_f.Modules.Get("MyGame")).FromResponseFile);
+        }
+
+        [Fact]
+        public void Completion_names_the_include_to_add()
+        {
+            string text = "#include \"MyActor.h\"\nvoid AMyActor::Fire()\n{\n\tUGame\n}\n";
+            var resp = _f.Service.GetCompletions(new CompletionRequest
+            {
+                Caret = new CaretRequest { FilePath = _f.P(Cpp), Text = text, Line = 3, Column = 6, TextVersion = Interlocked.Increment(ref _version) },
+                Explicit = true,
+            }, CancellationToken.None);
+            var item = Assert.Single(resp.Items, i => i.Label == "UGameplayStatics");
+            Assert.Equal("Kismet/GameplayStatics.h", item.AddInclude);
+
+            text = "#include \"MyActor.h\"\nvoid AMyActor::Fire()\n{\n\tAAct\n}\n";
+            resp = _f.Service.GetCompletions(new CompletionRequest
+            {
+                Caret = new CaretRequest { FilePath = _f.P(Cpp), Text = text, Line = 3, Column = 5, TextVersion = Interlocked.Increment(ref _version) },
+                Explicit = true,
+            }, CancellationToken.None);
+            Assert.Null(Assert.Single(resp.Items, i => i.Label == "AActor").AddInclude); // already reachable through MyActor.h
         }
 
         [Fact]

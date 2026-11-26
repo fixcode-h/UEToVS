@@ -325,6 +325,12 @@ namespace UEToVS.Host.Logic.Settings
         /// <summary>Completion: committing a type / function whose header is not included yet adds the #include (2.4).</summary>
         public bool CompletionAutoInclude { get; set; } = true;
 
+        /// <summary>Run UBT's JsonExport in the background when a Build.cs / Target.cs changes (exact include paths for the checks).</summary>
+        public bool UbtIncludeExport { get; set; } = true;
+
+        /// <summary>Stage 3 C: compile a saved .cpp on its own in the background (UBT -SingleFile) and show the compiler's errors. Off by default.</summary>
+        public bool SaveCompileCheck { get; set; } = false;
+
         /// <summary>Rule codes the engine should skip, from the switches above.</summary>
         public System.Collections.Generic.List<string> DisabledDiagnosticRules()
         {

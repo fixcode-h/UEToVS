@@ -23,6 +23,8 @@ namespace UEToVS.Host.Logic.Settings
         public const string MissingIncludeKey = "diagnostics.missingInclude";
         public const string UnknownIdentifierKey = "diagnostics.unknownIdentifiers";
         public const string AutoIncludeKey = "completion.autoInclude";
+        public const string UbtExportKey = "build.ubtExport";
+        public const string SaveCheckKey = "build.saveCheck";
         public const string HashtagsKey = "editor.hashtags";
         public const string StepFilterKey = "debug.stepFilter";
         public const string AutoSaveKey = "editor.autoSave";
@@ -121,6 +123,16 @@ namespace UEToVS.Host.Logic.Settings
                 "Committing a type or function whose header is not included yet adds the #include in the right place (and offers the Build.cs dependency when needed).",
                 "true", gCheck, gCheckEn, "completion auto include 补全 自动 头文件"));
 
+            const string gBuild = "编译", gBuildEn = "Build";
+            list.Add(D(category, UbtExportKey, SettingKind.Bool, "Build.cs 变化时后台导出 include 路径", "Export include paths when a Build.cs changes",
+                "Build.cs / Target.cs 改动并保存后，在后台低优先级跑一次 UnrealBuildTool -Mode=JsonExport（不编译，通常十几秒到一分钟），得到 UBT 实际使用的 include 路径，头文件检查和 include 补全据此判断；没有导出时用编译留下的响应文件和 Build.cs 推导。VS 正在生成时不跑。结果在 .vs\\UEToVS\\ubt\\export.json。",
+                "After a Build.cs / Target.cs is saved, runs UnrealBuildTool -Mode=JsonExport once in the background at low priority (no compile, usually tens of seconds) to get the include paths UBT really uses for the include checks and #include completion; without it the response files of the last compile and the Build.cs are used. Never while VS is building. Written to .vs\\UEToVS\\ubt\\export.json.",
+                "true", gBuild, gBuildEn, "ubt export include path build.cs 导出 编译参数"));
+            list.Add(D(category, SaveCheckKey, SettingKind.Bool, "保存后后台编译检查", "Compile check after saving",
+                "保存 .cpp 后用 UnrealBuildTool -SingleFile 在后台单独编译这个文件（和正式编译完全一致，没有误报），错误显示为编译错误波浪线并进入错误列表。每次保存占一个核 5–30 秒、峰值 1–2 GB 内存，跑完就退出；VS 正在生成或编辑器的 Live Coding 正在运行时跳过。",
+                "After a .cpp is saved, compiles just that file in the background with UnrealBuildTool -SingleFile (exactly like the real build, no false positives); errors show as compiler squiggles and in the Error List. Each save uses one core for 5–30 s and 1–2 GB at peak, then exits; skipped while VS builds or the editor's Live Coding is active.",
+                "false", gBuild, gBuildEn, "compile check save single file 保存 编译 检查 单文件 ubt"));
+
             const string gDebug = "调试", gDebugEn = "Debugging";
             list.Add(D(category, StepFilterKey, SettingKind.Bool, "调试时跳过引擎小函数（Step Filter）", "Skip small engine functions when stepping",
                 "按 F11 单步进入时跳过 TArray / TMap operator[]、FString / FName 构造、TObjectPtr 转换、Cast<>、IsValid、check / ensure 内部等。写入 文档\\Visual Studio 版本\\Visualizers\\UEToVS.natstepfilter，关闭后删除；重启调试会话后生效。",
@@ -142,6 +154,8 @@ namespace UEToVS.Host.Logic.Settings
             d[MissingIncludeKey] = B(s.MissingIncludeCheck);
             d[UnknownIdentifierKey] = B(s.UnknownIdentifierCheck);
             d[AutoIncludeKey] = B(s.CompletionAutoInclude);
+            d[UbtExportKey] = B(s.UbtIncludeExport);
+            d[SaveCheckKey] = B(s.SaveCompileCheck);
             d[StepFilterKey] = B(s.DebugStepFilter);
             d[AutoSaveKey] = B(s.AutoSaveEnabled);
             d[AutoSaveIdleKey] = s.AutoSaveIdleSeconds.ToString(CultureInfo.InvariantCulture);
@@ -167,6 +181,8 @@ namespace UEToVS.Host.Logic.Settings
                 case MissingIncludeKey: s.MissingIncludeCheck = PB(v); return true;
                 case UnknownIdentifierKey: s.UnknownIdentifierCheck = PB(v); return true;
                 case AutoIncludeKey: s.CompletionAutoInclude = PB(v); return true;
+                case UbtExportKey: s.UbtIncludeExport = PB(v); return true;
+                case SaveCheckKey: s.SaveCompileCheck = PB(v); return true;
                 case StepFilterKey: s.DebugStepFilter = PB(v); return true;
                 case AutoSaveKey: s.AutoSaveEnabled = PB(v); return true;
                 case EngineReadOnlyKey: s.EngineReadOnly = PB(v); return true;
@@ -193,6 +209,8 @@ namespace UEToVS.Host.Logic.Settings
             d["missingIncludeCheck"] = s.MissingIncludeCheck;
             d["unknownIdentifierCheck"] = s.UnknownIdentifierCheck;
             d["completionAutoInclude"] = s.CompletionAutoInclude;
+            d["ubtIncludeExport"] = s.UbtIncludeExport;
+            d["saveCompileCheck"] = s.SaveCompileCheck;
             d["debugStepFilter"] = s.DebugStepFilter;
             d["inlayParameterNames"] = s.InlayParameterNames;
             d["inlayAutoTypes"] = s.InlayAutoTypes;

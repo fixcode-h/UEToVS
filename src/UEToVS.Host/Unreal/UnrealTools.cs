@@ -31,7 +31,14 @@ namespace UEToVS.Host.Unreal
         /// <summary>(exe, args) to regenerate project files, or null when UBT is not found.</summary>
         public static (string Exe, string Args)? UbtCommand(string engineRoot, string uproject)
         {
-            string args = $"-projectfiles -project=\"{uproject}\" -game -engine -progress";
+            string exe = UbtExe(engineRoot);
+            return exe == null ? ((string, string)?)null : (exe, $"-projectfiles -project=\"{uproject}\" -game -engine -progress");
+        }
+
+        /// <summary>UnrealBuildTool (or Build.bat, which forwards its arguments) of the engine, or null.</summary>
+        public static string UbtExe(string engineRoot)
+        {
+            if (string.IsNullOrEmpty(engineRoot)) return null;
             string[] candidates =
             {
                 Path.Combine(engineRoot, "Engine", "Binaries", "DotNET", "UnrealBuildTool", "UnrealBuildTool.exe"),
@@ -39,7 +46,7 @@ namespace UEToVS.Host.Unreal
                 Path.Combine(engineRoot, "Engine", "Build", "BatchFiles", "Build.bat"),
             };
             foreach (var c in candidates)
-                if (File.Exists(c)) return (c, args);
+                if (File.Exists(c)) return c;
             return null;
         }
 
@@ -141,7 +148,7 @@ namespace UEToVS.Host.Unreal
 
         private static void VsEditor_SaveAll() => Navigation.VsEditor.TryExecute("File.SaveAll");
 
-        private static Task<int> RunAsync(string exe, string args, string workDir, Action<string, bool> onLine = null)
+        internal static Task<int> RunAsync(string exe, string args, string workDir, Action<string, bool> onLine = null, bool lowPriority = false)
         {
             var tcs = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
             try
@@ -179,6 +186,8 @@ namespace UEToVS.Host.Unreal
                     p.Dispose();
                 };
                 p.Start();
+                // background runs (v0.11.0 UBT export, save check) must not slow down the editor or a build the user starts
+                if (lowPriority) try { p.PriorityClass = ProcessPriorityClass.BelowNormal; } catch (Exception) { }
                 p.BeginOutputReadLine();
                 p.BeginErrorReadLine();
             }
