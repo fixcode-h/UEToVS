@@ -34,6 +34,7 @@ namespace UEToVS.Host.Vcs
         private bool _loading;
         private int _users;
         private int _diffGeneration;
+        private bool _diffRunning;
 
         private VcsDocument(ITextBuffer buffer)
         {
@@ -204,7 +205,14 @@ namespace UEToVS.Host.Vcs
             if (baseLines == null) return;
             var snapshot = _buffer.CurrentSnapshot;
             int gen = ++_diffGeneration;
+            _diffRunning = true;
             _ = Safe.RunAsync(VcsService.L, "vcs.diff", async () =>
+            {
+                try { await DiffAsync(); }
+                finally { if (gen == _diffGeneration) _diffRunning = false; }
+            });
+
+            async Task DiffAsync()
             {
                 await TaskScheduler.Default;
                 var sw = Stopwatch.StartNew();
@@ -218,16 +226,35 @@ namespace UEToVS.Host.Vcs
                 DiffSnapshot = snapshot;
                 if (ms > 50 || hunks.Count > 0) VcsService.L.Debug("vcs.diff", null, ("file", Path.GetFileName(FilePath)), ("lines", current.Length), ("hunks", hunks.Count), ("ms", Math.Round(ms, 1)));
                 Raise();
-            });
+            }
+        }
+
+        /// <summary>
+        /// 色条重画时调：diff 落后于当前文本、又没有在算或排队（例如某次编辑事件没收到）时补算一次，色条不会一直停在旧结果上。
+        /// </summary>
+        public void EnsureDiffCurrent()
+        {
+            if (BaseLines == null || _diffRunning || _diffTimer.IsEnabled || ReferenceEquals(DiffSnapshot, _buffer.CurrentSnapshot)) return;
+            _diffTimer.Start();
         }
 
         /// <summary>当前快照第 <paramref name="line"/> 行在 diff 快照里的行号（diff 还没跟上最新编辑时近似对齐）。</summary>
         public int ToDiffLine(ITextSnapshot snapshot, int line)
         {
+            if (snapshot == null || line < 0 || line >= snapshot.LineCount) return line;
+            return ToDiffLine(snapshot.GetLineFromLineNumber(line).Start);
+        }
+
+        /// <summary>
+        /// 某个点（可以是任意版本的快照，例如还没重新布局的 TextViewLine）所在行在 diff 快照里的行号。
+        /// 按点自己的快照换算，不拿它的行号去套另一个快照：编辑后布局还没跟上时，行号和当前快照对不上会错行。
+        /// </summary>
+        public int ToDiffLine(SnapshotPoint point)
+        {
             var ds = DiffSnapshot;
-            if (ds == null || snapshot == null || ds == snapshot || line < 0 || line >= snapshot.LineCount) return line;
-            var p = snapshot.GetLineFromLineNumber(line).Start.TranslateTo(ds, PointTrackingMode.Negative);
-            return p.GetContainingLine().LineNumber;
+            if (point.Snapshot == null) return -1;
+            if (ds == null || ds == point.Snapshot || ds.TextBuffer != point.Snapshot.TextBuffer) return point.GetContainingLine().LineNumber;
+            return point.TranslateTo(ds, PointTrackingMode.Negative).GetContainingLine().LineNumber;
         }
 
         // ---------------------------------------------------------------- 追溯
@@ -266,9 +293,17 @@ namespace UEToVS.Host.Vcs
         public VcsCommit CommitAt(ITextSnapshot snapshot, int line, out int baseLine)
         {
             baseLine = -1;
+            if (snapshot == null || line < 0 || line >= snapshot.LineCount) return null;
+            return CommitAt(snapshot.GetLineFromLineNumber(line).Start, out baseLine);
+        }
+
+        /// <summary>同上，按点自己的快照换算（注解栏按 TextViewLine.Start 调）。</summary>
+        public VcsCommit CommitAt(SnapshotPoint point, out int baseLine)
+        {
+            baseLine = -1;
             if (!Ready) return null;
             if (Revision == null && Base?.Tracked != true) return UncommittedCommit;
-            int diffLine = ToDiffLine(snapshot, line);
+            int diffLine = ToDiffLine(point);
             baseLine = Revision != null ? diffLine : HunkMath.ToBaseLine(Hunks, diffLine);
             if (baseLine < 0) return UncommittedCommit;
             return Blame?.CommitAt(baseLine);

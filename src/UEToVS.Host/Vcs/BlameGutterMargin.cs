@@ -166,15 +166,13 @@ namespace UEToVS.Host.Vcs
                 _ranks = BlameColors.AgeRanks(blame.Commits.Values);
                 _brushes.Clear();
             }
-            var snapshot = _view.TextSnapshot;
             double top = _view.ViewportTop;
             bool english = Loc.IsEnglish;
             var texts = new Dictionary<string, FormattedText>(StringComparer.Ordinal); // 同一提交的字只排一次版
             foreach (var line in _view.TextViewLines)
             {
                 // 自动换行的续行只铺底色，字写在第一段
-                int n = line.Start.GetContainingLine().LineNumber;
-                var c = _doc.CommitAt(snapshot, n, out _);
+                var c = _doc.CommitAt(line.Start, out _);
                 if (c == null) continue;
                 double y = line.Top - top;
                 dc.DrawRectangle(BrushFor(c.Id, c.IsUncommitted), null, new Rect(0, y, ActualWidth - 2, line.Height));
@@ -206,8 +204,7 @@ namespace UEToVS.Host.Vcs
                 if (!_shown || !_doc.Ready) return;
                 var line = _view.TextViewLines.GetTextViewLineContainingYCoordinate(e.GetPosition(this).Y + _view.ViewportTop);
                 if (line == null) return;
-                int n = line.Start.GetContainingLine().LineNumber;
-                var c = _doc.CommitAt(_view.TextSnapshot, n, out int baseLine);
+                var c = _doc.CommitAt(line.Start, out int baseLine);
                 if (c == null) return;
                 e.Handled = true;
                 VcsCommitWindow.Show(_doc, c, baseLine); // v0.10.2：打开提交面板，列出这次提交改的所有文件

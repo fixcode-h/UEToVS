@@ -57,8 +57,8 @@ namespace UEToVS.Host.Logic.Settings
                 "Engine files (under Engine\\) have long histories and one blame can take seconds and a whole core, so annotations and inline blame are off for them by default; Ctrl+Shift+Alt+U, O still shows the annotations in the current editor.",
                 "false", "engine blame 引擎 追溯"));
             list.Add(D(category, ChangeBarsKey, SettingKind.Bool, "行号旁显示改动色条", "Change bars next to line numbers",
-                "和 Git 的 HEAD（Perforce 的 #have 版本）比较：新增绿色、修改蓝色、删除红色三角。点色条看这一块的旧内容，可回滚这一块（可撤销）或复制旧内容；Ctrl+Shift+Alt+U, ↓ / ↑ 跳到下一处 / 上一处改动。基准版本每个文件只取一次，编辑时在本地比较。",
-                "Compared with Git HEAD (Perforce #have): green added, blue modified, red triangle deleted. Click a bar to see the old text, roll the block back (undoable) or copy the old text; Ctrl+Shift+Alt+U, Down / Up jumps to the next / previous change. The base version is read once per file and compared locally while you type.",
+                "和 Git 的 HEAD（Perforce 的 #have 版本）比较：新增绿色、修改蓝色、删除红色三角。点色条看这一块的旧内容，可回滚这一块（可撤销）或复制旧内容；Ctrl+Shift+Alt+U, ↓ / ↑ 跳到下一处 / 上一处改动。基准版本每个文件只取一次，编辑时在本地比较。显示色条时关掉当前编辑器里 VS 自带的“跟踪更改”黄 / 绿条（那是这次打开以来的编辑，不是和版本库比），关掉本项即还原。",
+                "Compared with Git HEAD (Perforce #have): green added, blue modified, red triangle deleted. Click a bar to see the old text, roll the block back (undoable) or copy the old text; Ctrl+Shift+Alt+U, Down / Up jumps to the next / previous change. The base version is read once per file and compared locally while you type. While the bars show, VS's own Track Changes margin (yellow / green: edits since the file was opened, not version control) is hidden in that editor; turning this off brings it back.",
                 "true", "git diff gutter change bar 改动 色条 回滚 hunk p4"));
             var max = D(category, HistoryMaxKey, SettingKind.Int, "选中部分历史最多查看的提交数", "Max commits for selection history",
                 "“查看选中部分的历史”“查看此函数的历史”最多往回看多少次提交。大仓库上 git log -L 要遍历历史，越大越慢。",
